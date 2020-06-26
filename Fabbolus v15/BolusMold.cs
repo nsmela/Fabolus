@@ -1,0 +1,288 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Media.Media3D;
+using Microsoft.Win32;
+using HelixToolkit.Wpf;
+
+namespace Fabbolus_v15
+{
+    class BolusMold
+    {
+        public MeshGeometry3D Mesh;
+
+        public BolusMold(MeshGeometry3D Mesh, double VoxelSize, bool AddMesh = false)
+        {
+            var points = GetContour(Mesh.Positions, VoxelSize);
+            if (AddMesh)
+            {
+                Mesh = InvertNormals(Mesh);
+                this.Mesh = GetMold(points, Mesh, true);
+            }
+            else
+                this.Mesh = GetMold(points, Mesh);
+        }
+
+        /// <summary>
+        /// Inverts the mesh's normals.  
+        /// </summary>
+        /// <param name="mesh">The mesh to be dupkicated and itsnormals inverted</param>
+        /// <returns>MeshGeometry3D with the normals flipped</returns>
+        private MeshGeometry3D InvertNormals(MeshGeometry3D mesh)
+        {
+            MeshBuilder inverted_mesh = new MeshBuilder(true, false);
+
+            for (int t = 2; t < mesh.TriangleIndices.Count; t += 3)
+            {
+                Point3D p0 = new Point3D(mesh.Positions[mesh.TriangleIndices[t]].X, mesh.Positions[mesh.TriangleIndices[t]].Y, mesh.Positions[mesh.TriangleIndices[t]].Z);
+                Point3D p1 = new Point3D(mesh.Positions[mesh.TriangleIndices[t - 1]].X, mesh.Positions[mesh.TriangleIndices[t - 1]].Y, mesh.Positions[mesh.TriangleIndices[t - 1]].Z);
+                Point3D p2 = new Point3D(mesh.Positions[mesh.TriangleIndices[t - 2]].X, mesh.Positions[mesh.TriangleIndices[t - 2]].Y, mesh.Positions[mesh.TriangleIndices[t - 2]].Z);
+
+                inverted_mesh.AddTriangle(p0, p1, p2);
+            }
+
+            return inverted_mesh.ToMesh();
+        }
+
+        /// <summary>
+        /// Gets 2D shape of the mesh. Checks all verticies regardless of z axis. Uses a grid-based approach: 
+        /// breaks an area up into x-y grid and if it detects one or more points in that square, it is considered filled
+        /// The countour is around these filled squares
+        /// </summary>
+        /// <param name="points">The points from a mesh</param>
+        /// <param name="size">The resolution size</param>
+        /// <returns>List of 2D points for the contour</returns>
+        private List<Point> GetContour(Point3DCollection points, double size)
+        {
+            if (points.Count > 0)
+            {
+                double offset = 3; //used to give some space at the start of the contour boxes
+                double bottom_x, top_x, bottom_y, top_y;
+
+                bottom_x = points.Min(p => p.X);
+                top_x = points.Max(p => p.X) - bottom_x;
+                bottom_y = points.Min(p => p.Y);
+                top_y = points.Max(p => p.Y) - bottom_y;
+
+                double gridsize = size;
+                double start_x = bottom_x - gridsize - offset;
+                double start_y = bottom_y - gridsize - offset;
+
+                int x_grid = Convert.ToInt16((top_x - start_x) / gridsize) + 1;
+                int y_grid = Convert.ToInt16((top_y - start_y) / gridsize) + 1;
+                bool[,] contourgrid = new bool[x_grid, y_grid];
+
+                //finds which box areas contain the model's positions
+                for (int y = 0; y < y_grid; y++)
+                {
+                    double lowY = start_y + y * gridsize;
+                    double highY = lowY + gridsize;
+                    Point3DCollection points_y = new Point3DCollection();
+                    foreach (Point3D p in points)
+                        if (p.Y > lowY && p.Y < highY)
+                            points_y.Add(p);
+
+                    for (int x = 0; x < x_grid; x++)
+                    {
+                        double lowX = start_x + x * gridsize;
+                        double highX = lowX + gridsize;
+                        foreach (Point3D p in points_y)
+                            if (p.X > lowX && p.X < highX)
+                            {
+                                contourgrid[x, y] = true;
+                                break;
+                            }
+                    }
+
+                }
+
+                FillHoles(contourgrid);
+
+                //create contour points by finding boxes that are adjacent to the edge of the good boxes
+                List<Point> contourPointsList = new List<Point>();
+                for (int y = 0; y < y_grid; y++)
+                    for (int x = 0; x < x_grid; x++)
+                    {
+                        int sides = AdjacentGoodBoxes(x, y, contourgrid);
+                        if (sides > 0 && sides < 4 && !contourgrid[x, y])//beside a good box and not a good box itself
+                        {
+                            Point point = new Point(start_x + x * gridsize + gridsize / 2, start_y + y * gridsize + gridsize / 2);
+                            contourPointsList.Add(point);
+                        }
+                    }
+
+                return contourPointsList;
+
+            }
+
+            return null;
+        }
+
+        //determines how many filled boxes are surrounding the box
+        private int AdjacentGoodBoxes(int x, int y, bool[,] contourgrid)
+        {
+            int sides = 0;
+
+            //left 
+            if (x != 0)
+                if (contourgrid[x - 1, y])
+                    sides++;
+
+            //top
+            if (y < contourgrid.GetLength(1) - 1)
+                if (contourgrid[x, y + 1])
+                    sides++;
+
+            //right
+            if (x < contourgrid.GetLength(0) - 1)
+                if (contourgrid[x + 1, y])
+                    sides++;
+
+            //bottom
+            if (y != 0)
+                if (contourgrid[x, y - 1])
+                    sides++;
+
+            return sides;
+        }
+
+        private void FillHoles(bool [,] contourgrid)
+        {
+            bool filled = false;
+            int xMax = contourgrid.GetLength(0);
+            int yMax = contourgrid.GetLength(1);
+
+            //fill any empty spaces with 3 or more good adjacent boxes
+            for (int y = 0; y < yMax; y++)
+                for (int x = 0; x < xMax; x++)
+                    if (!contourgrid[x, y])
+                    {
+                        int sides = AdjacentGoodBoxes(x, y, contourgrid);
+                        if (sides > 2)
+                        {
+                            filled = true;
+                            contourgrid[x, y] = true;
+                        }
+                    }
+
+            //if one or more empty spaces were filled, check again
+            if (filled)
+                FillHoles(contourgrid);
+        }
+
+        //calculates a mold box to contour around the input mesh
+        private MeshGeometry3D GetMold(List<Point> points, MeshGeometry3D mesh, bool AddMesh = false)
+        {
+            if (mesh != null && points != null && points.Count > 0 && mesh.Positions.Count > 0)
+            {
+                double z_height = mesh.Positions.Max(p => p.Z) + 4; //highest point for the mold
+                double offsetZ = mesh.Positions.Min(p => p.Z) - 3;
+
+                //the final contour
+                MeshBuilder mb = new MeshBuilder();
+                mb.CreateNormals = false;
+                mb.CreateTextureCoordinates = false;
+
+                points = SortPoints(points);
+
+                //create contour face
+                var result = CuttingEarsTriangulator.Triangulate(points);
+
+                //create lower surface
+                for (int t = 2; t < result.Count; t += 3)
+                {
+                    Point3D p0 = new Point3D(points[result[t]].X, points[result[t]].Y, offsetZ);
+                    Point3D p1 = new Point3D(points[result[t - 1]].X, points[result[t - 1]].Y, offsetZ);
+                    Point3D p2 = new Point3D(points[result[t - 2]].X, points[result[t - 2]].Y, offsetZ);
+
+                    mb.AddTriangle(p0, p1, p2);
+                }
+
+                //create higher surface
+                //point order is reversed to reverse the normals created
+                double upper_offsetZ = mesh.Positions.Max(p => p.Z) + 4;
+                for (int t = 2; t < result.Count; t += 3)
+                {
+                    Point3D p0 = new Point3D(points[result[t - 2]].X, points[result[t - 2]].Y, upper_offsetZ);
+                    Point3D p1 = new Point3D(points[result[t - 1]].X, points[result[t - 1]].Y, upper_offsetZ);
+                    Point3D p2 = new Point3D(points[result[t]].X, points[result[t]].Y, upper_offsetZ);
+
+                    mb.AddTriangle(p0, p1, p2);
+                }
+
+                points.Add(points[0]);
+
+                //create walls
+                for (int t = 1; t < points.Count; t++)
+                {
+                    Point3D p0 = new Point3D(points[t - 1].X, points[t - 1].Y, offsetZ);
+                    Point3D p1 = new Point3D(points[t].X, points[t].Y, offsetZ);
+                    Point3D p2 = new Point3D(points[t - 1].X, points[t - 1].Y, upper_offsetZ);
+
+                    mb.AddTriangle(p0, p1, p2);
+
+                    p0 = new Point3D(points[t].X, points[t].Y, upper_offsetZ);
+                    p1 = new Point3D(points[t - 1].X, points[t - 1].Y, upper_offsetZ);
+                    p2 = new Point3D(points[t].X, points[t].Y, offsetZ); ;
+
+                    mb.AddTriangle(p0, p1, p2);
+                }
+
+                if(AddMesh)
+                    mb.Append(mesh);
+
+                return mb.ToMesh();
+            }
+
+            return null;
+        }
+
+        //finds the closest point around a contour
+        private List<Point> SortPoints(List<Point> contourpoints)
+        {
+            //creating a list that will eventually have entries removed to speed things up
+            List<Point> points = new List<Point>();
+            foreach (Point p in contourpoints)
+                points.Add(new Point(p.X, p.Y));
+
+            List<Point> result = new List<Point>();
+
+            Point start = new Point(points[0].X, points[0].Y);
+            result.Add(start);
+            points.RemoveAt(0);
+
+            //cycle through and reorganize points into result
+            List<double> distances = new List<double>();
+            List<int> indexes = new List<int>();
+
+            while (points.Count > 0)
+            {
+                distances.Clear();
+                indexes.Clear();
+
+                foreach (Point p in points)
+                {
+                    double distance = GetDistance(result[result.Count - 1], p);
+                    distances.Add(distance);
+                    indexes.Add(points.FindIndex(x => x == p));
+                }
+
+                int index = indexes[distances.FindIndex(d => d == distances.Min())];
+                result.Add(points[index]);
+                points.RemoveAt(index);
+            }
+
+            return result;
+        }
+
+        //distance from one 2D point to another
+        private double GetDistance(Point p1, Point p2)
+        {
+            return (p1.X - p2.X) * (p1.X - p2.X) + (p1.Y - p2.Y) * (p1.Y - p2.Y);
+        }
+    }
+}
+

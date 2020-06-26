@@ -1,0 +1,244 @@
+﻿<Window x:Class="Fabbolus_v15.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:h="clr-namespace:HelixToolkit.Wpf;assembly=helixToolkit.Wpf"
+        xmlns:local="clr-namespace:Fabbolus_v15"
+        mc:Ignorable="d"
+        Title="Fabolus" Height="800" Width="800">
+    <Grid>
+        <!-- Viewports that hold the models-->
+        <h:HelixViewport3D x:Name="view1" ZoomExtentsWhenLoaded="True" MouseLeftButtonDown="AddHole">
+            <!-- Scene lighting -->
+            <h:DefaultLights/>
+            <ModelVisual3D x:Name="MeshView" />
+            <ModelVisual3D x:Name="MoldView" />
+            <h:GridLinesVisual3D Width="230" Length="220" MinorDistance="5" MajorDistance="10" Thickness="0.2"/>
+        </h:HelixViewport3D>
+        
+        <!-- Buttons Panel -->
+        <StackPanel HorizontalAlignment="Left" Margin="10,30,0,10" VerticalAlignment="Top">
+            <Button Height="64" Width="64" Margin="0,60,0,0" Click="ImportModelFromFile" Background="Black" Focusable="False" >
+                <Image Source="C:\Users\nathan.smela\source\repos\Fabbolus v15\Fabbolus v15\Images\open_file.png"/>
+                <Button.ToolTip>
+                    <ToolTip>
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold">Load file</TextBlock>
+                            <TextBlock>Loads a model from the selected file.</TextBlock>
+                        </StackPanel>
+                    </ToolTip>
+                </Button.ToolTip>
+            </Button>
+            <!--
+            <Button Height="64" Width="64" Margin="0,0,0,0" Click="ImportModelFromEclipse" Background="Black" Focusable="False" >
+                <Image />
+                <Button.ToolTip>
+                    <ToolTip>
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold">Import file</TextBlock>
+                            <TextBlock>Import a mesh from Eclipse</TextBlock>
+                        </StackPanel>
+                    </ToolTip>
+                </Button.ToolTip>
+            </Button>
+            -->
+            <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplaySmoothingPanel" Background="Black" Focusable="False" >
+                <Image Source="C:\Users\nathan.smela\source\repos\Fabbolus v15\Fabbolus v15\Images\mesh-ball.png"/>
+                <Button.ToolTip>
+                    <ToolTip>
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold">Smooth the Model</TextBlock>
+                            <TextBlock>Smooths the model a step</TextBlock>
+                        </StackPanel>
+                    </ToolTip>
+                </Button.ToolTip>
+            </Button>
+            
+            <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplayTransformsPanel" Background="Black" Focusable="False" >
+                <Image Source="C:\Users\nathan.smela\source\repos\Fabbolus v15\Fabbolus v15\Images\Rotation.png"/>
+                <Button.ToolTip>
+                    <ToolTip>
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold">Position the Bolus</TextBlock>
+                            <TextBlock>Change the bolus's rotation</TextBlock>
+                        </StackPanel>
+                    </ToolTip>
+                </Button.ToolTip>
+            </Button>
+            
+            <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplayMoldPanel" Background="Black" Focusable="False" >
+                <Image Source="C:\Users\nathan.smela\source\repos\Fabbolus v15\Fabbolus v15\Images\cube.png"/>
+                <Button.ToolTip>
+                    <ToolTip>
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold">Create Mold</TextBlock>
+                            <TextBlock>Creates a Mold using model's shape</TextBlock>
+                        </StackPanel>
+                    </ToolTip>
+                </Button.ToolTip>
+            </Button>
+
+            <Button  Height="64" Width="64" Margin="0,10,0,10" Click="ExportMesh_Click" Background="Black" Focusable="False" >
+                <Image Source="images\save.png" />
+                <Button.ToolTip>
+                    <ToolTip>
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold">Export Model</TextBlock>
+                            <TextBlock>Saves the model as a STL file for 3D printing.</TextBlock>
+                        </StackPanel>
+                    </ToolTip>
+                </Button.ToolTip>
+            </Button>
+        </StackPanel>
+        
+        <!-- Hidden Panels -->
+        <!-- Smoothing Panel-->
+        <StackPanel HorizontalAlignment="Left" Margin="80,40,0,0" VerticalAlignment="Top"  Background="Gray" >
+            <StackPanel x:Name="SmoothingPanel" Visibility="Collapsed" Width="170">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Label Content="Smoothing Settings" Grid.Column="0"/>
+                    <Button Click="CloseAllPanels" Height="20" Width="20" Content="X" Grid.Column="2"/>
+                </Grid>
+
+                <Label Content="Edge Size"/>
+                <Slider x:Name="EdgeSlider" Minimum="0.2" Maximum="2" Value="5" TickPlacement="BottomRight"  TickFrequency="0.2" IsSnapToTickEnabled="True"/>
+                <Label Content="SmoothSpeed"/>
+                <Slider x:Name="SmoothSlider" Minimum="0.1" Maximum="1" Value="0.8" TickPlacement="BottomRight" TickFrequency="0.1" IsSnapToTickEnabled="True"/>
+                <Label Content="Iterations"/>
+                <Slider x:Name="IterationsSlider" Minimum="1" Maximum="5" Value="1" TickPlacement="BottomRight" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                <Label Content="Marching Cubes"/>
+                <Slider x:Name="CellsSlider" Minimum="0" Maximum="256" Value="64" TickPlacement="BottomRight" TickFrequency="16" IsSnapToTickEnabled="True"/>
+                <Button  Height="25" Width="90" Margin="0,10,0,10" Click="SmoothModel" >Smooth Model</Button>
+            </StackPanel>
+        </StackPanel>
+        
+        <!-- Rotation Panel-->
+        <StackPanel HorizontalAlignment="Left" Margin="80,40,0,0" VerticalAlignment="Top"  Background="Gray" >
+            <StackPanel x:Name="TransformsPanel" Visibility="Collapsed" Width="170" Margin="5,5,5,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Label Content="Transforms Settings" Grid.Column="0"/>
+                    <Button Click="CloseAllPanels" Height="20" Width="20" Content="X" Grid.Column="2"/>
+                </Grid>
+                
+                <Label Content="X Axis"/>
+                <Slider x:Name="XAxisSlider" 
+                        Minimum="-180" 
+                        Maximum="180" 
+                        Value="0" 
+                        TickPlacement="BottomRight"  
+                        TickFrequency="15" 
+                        IsSnapToTickEnabled="False"
+                        ValueChanged="Slider_ValueChanged" 
+                        Thumb.DragCompleted="Slider_DragCompleted"
+                        />
+                
+                <Label Content="Y Axis"/>
+                <Slider x:Name="YAxisSlider" 
+                        Minimum="-180" 
+                        Maximum="180" 
+                        Value="0" 
+                        TickPlacement="BottomRight"  
+                        TickFrequency="15" 
+                        IsSnapToTickEnabled="False"
+                        ValueChanged="Slider_ValueChanged" 
+                        Thumb.DragCompleted="Slider_DragCompleted"
+                        />
+                
+                <Label Content="Z Axis"/>
+                <Slider x:Name="ZAxisSlider" 
+                        Minimum="-180" 
+                        Maximum="180" 
+                        Value="0" 
+                        TickPlacement="BottomRight"  
+                        TickFrequency="15" 
+                        IsSnapToTickEnabled="False"
+                        ValueChanged="Slider_ValueChanged" 
+                        Thumb.DragCompleted="Slider_DragCompleted"
+                        />
+                
+                <CheckBox x:Name="SolidOverhangsCheckbox" Content="Show Overhangs (Solid Bolus)" Click="SolidOverhangsCheckbox_Click"/>
+                <CheckBox x:Name="SoftOverhangsCheckbox" Content="Show Overhangs (Soft Bolus)" IsChecked="True" Click="SoftOverhangsCheckbox_Click"/>
+                <ToggleButton Content="Overhangs" />
+                <Button x:Name="ResetRotationsButton" Content="Reset" Click="ResetRotationsButton_Click" Margin="0,5,0,0"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Mold Panel-->
+        <StackPanel HorizontalAlignment="Left" Margin="80,40,0,0" VerticalAlignment="Top"  Background="Gray" >
+            <StackPanel x:Name="MoldPanel" Visibility="Collapsed" Width="170" Margin="5,5,5,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Label Content="Create Mold" Grid.Column="0"/>
+                    <Button Click="CloseAllPanels" Height="20" Width="20" Content="X" Grid.Column="2"/>
+                </Grid>
+
+                <Label Content="Mold Settings"/>
+                <StackPanel Orientation="Horizontal" >
+                    <Button x:Name="AirholeToolButton" Content="Add Fillholes" Click="AirholeTool"/>
+                    <Button Content="Clear Fillholes" Click="Button_Click"/>
+                </StackPanel>
+
+                <Label Content="Ball Radius" />
+                <Slider x:Name="BallRadiusSlider"
+                        Minimum="0.5" 
+                        Maximum="2.5" 
+                        Value="1.5" 
+                        TickPlacement="BottomRight"  
+                        TickFrequency="0.5" 
+                        IsSnapToTickEnabled="True"/>
+                
+                <Label Content="Hole Diameter" />
+                <Slider x:Name="HoleDiameterSlider"
+                        Minimum="2" 
+                        Maximum="10" 
+                        Value="4" 
+                        TickPlacement="BottomRight"  
+                        TickFrequency="1" 
+                        IsSnapToTickEnabled="True"/>
+
+                <Label Content="Cone Length"/>
+                <Slider x:Name="ConeLengthSlider"
+                        Minimum="0" 
+                        Maximum="10" 
+                        Value="6" 
+                        TickPlacement="BottomRight"  
+                        TickFrequency="1" 
+                        IsSnapToTickEnabled="True"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                    <Button x:Name="PreviewMoldButton" Content="Preview Mold" Click="ToggleMoldPreview"/>
+                    <Button Content="Generate Mold" Click="GenerateMold"/>
+                </StackPanel>
+
+                <Label Content="Mold Resolution" />
+                <Slider x:Name="MoldResolutionSlider" Margin="5,5,5,5"  
+                        Maximum="8" 
+                        TickPlacement="Both" 
+                        TickFrequency="2" 
+                        IsSnapToTickEnabled="True" 
+                        Minimum="4"  />
+
+            </StackPanel>
+        </StackPanel>
+        
+        <!-- Text Panel on Right -->
+        <StackPanel HorizontalAlignment="Right" Margin="10,10,10,10">
+            <TextBlock x:Name="RightTextblock" />
+        </StackPanel>
+    </Grid>
+</Window>
