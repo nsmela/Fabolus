@@ -20,7 +20,7 @@
         <!-- Buttons Panel -->
         <StackPanel HorizontalAlignment="Left" Margin="10,30,0,10" VerticalAlignment="Top">
             <Button Height="64" Width="64" Margin="0,60,0,0" Click="ImportModelFromFile" Background="Black" Focusable="False" >
-                <Image Source="C:\Users\nathan.smela\source\repos\Fabbolus v15\Fabbolus v15\Images\open_file.png"/>
+                <Image Source="Images\open_file.png"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -44,7 +44,7 @@
             </Button>
             -->
             <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplaySmoothingPanel" Background="Black" Focusable="False" >
-                <Image Source="C:\Users\nathan.smela\source\repos\Fabbolus v15\Fabbolus v15\Images\mesh-ball.png"/>
+                <Image Source="Images\mesh-ball.png"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -56,7 +56,7 @@
             </Button>
             
             <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplayTransformsPanel" Background="Black" Focusable="False" >
-                <Image Source="C:\Users\nathan.smela\source\repos\Fabbolus v15\Fabbolus v15\Images\Rotation.png"/>
+                <Image Source="Images\Rotation.png"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -68,7 +68,7 @@
             </Button>
             
             <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplayMoldPanel" Background="Black" Focusable="False" >
-                <Image Source="C:\Users\nathan.smela\source\repos\Fabbolus v15\Fabbolus v15\Images\cube.png"/>
+                <Image Source="Images\cube.png"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -169,7 +169,6 @@
                 
                 <CheckBox x:Name="SolidOverhangsCheckbox" Content="Show Overhangs (Solid Bolus)" Click="SolidOverhangsCheckbox_Click"/>
                 <CheckBox x:Name="SoftOverhangsCheckbox" Content="Show Overhangs (Soft Bolus)" IsChecked="True" Click="SoftOverhangsCheckbox_Click"/>
-                <ToggleButton Content="Overhangs" />
                 <Button x:Name="ResetRotationsButton" Content="Reset" Click="ResetRotationsButton_Click" Margin="0,5,0,0"/>
             </StackPanel>
         </StackPanel>

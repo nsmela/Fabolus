@@ -58,8 +58,8 @@ namespace Fabbolus_v15
 
         public void ImportModelFromEclipse(object sender, RoutedEventArgs e)
         {
-            var meshExport = new MeshExport.MainWindow(true);
-            var mesh = meshExport.Mesh();
+            //var meshExport = new MeshExport.MainWindow(true);
+            //var mesh = meshExport.Mesh();
 
         }
 
