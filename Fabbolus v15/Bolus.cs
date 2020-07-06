@@ -94,6 +94,12 @@ namespace Fabbolus_v15
             return mold.Mesh;
         }
 
+        public MeshGeometry3D PreviewMoldWhileRotating(double resolution, Vector3D axis, double angle)
+        {
+            var mold = new BolusMold(_displayMesh, resolution, axis, angle);
+            return mold.Mesh;
+        }
+
         public MeshGeometry3D GenerateMold(double resolution, List<MeshGeometry3D> airholes)
         {
             //generates the outer mold and interior cavity for the bolus

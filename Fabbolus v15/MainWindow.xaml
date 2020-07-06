@@ -140,6 +140,7 @@
                         TickFrequency="15" 
                         IsSnapToTickEnabled="False"
                         ValueChanged="Slider_ValueChanged" 
+                        Thumb.DragStarted="Slider_DragStarted"
                         Thumb.DragCompleted="Slider_DragCompleted"
                         />
                 
@@ -152,6 +153,7 @@
                         TickFrequency="15" 
                         IsSnapToTickEnabled="False"
                         ValueChanged="Slider_ValueChanged" 
+                        Thumb.DragStarted="Slider_DragStarted"
                         Thumb.DragCompleted="Slider_DragCompleted"
                         />
                 
@@ -164,7 +166,9 @@
                         TickFrequency="15" 
                         IsSnapToTickEnabled="False"
                         ValueChanged="Slider_ValueChanged" 
+                        Thumb.DragStarted="Slider_DragStarted"
                         Thumb.DragCompleted="Slider_DragCompleted"
+                        
                         />
                 
                 <CheckBox x:Name="SolidOverhangsCheckbox" Content="Show Overhangs (Solid Bolus)" Click="SolidOverhangsCheckbox_Click"/>

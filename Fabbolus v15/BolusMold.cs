@@ -26,6 +26,36 @@ namespace Fabbolus_v15
                 this.Mesh = GetMold(points, Mesh);
         }
 
+        public BolusMold(MeshGeometry3D mesh, double voxelSize, Vector3D axis, double angle)
+        {
+            //rotate the incoming mesh with the axis and angle provided
+            Matrix3D m = Matrix3D.Identity;
+            Quaternion q = new Quaternion(axis, angle);
+            m.Rotate(q);
+
+            Point3DCollection positions = new Point3DCollection();
+            foreach (Point3D p in mesh.Positions)
+                positions.Add(m.Transform(p));
+
+            //used for boundries for the mesh after transformation
+            double zMax = 0;
+            double zMin = 0;
+            foreach (Point3D p in positions)
+            {
+                if (p.Z > zMax)
+                    zMax = p.Z;
+                if (p.Z < zMin)
+                    zMin = p.Z;
+            }
+
+            //make the points 2d
+            var points = GetContour(positions, voxelSize);
+
+            //create mesh
+            this.Mesh = GetMold(points, zMax, zMin);
+
+        }
+
         /// <summary>
         /// Inverts the mesh's normals.  
         /// </summary>
@@ -240,6 +270,69 @@ namespace Fabbolus_v15
             return null;
         }
 
+        //calculates a mold box to contour around the input mesh
+        private MeshGeometry3D GetMold(List<Point> points, double zMax, double zMin)
+        {
+            if (points != null && points.Count > 0 )
+            {
+                double z_height = zMax + 4; //highest point for the mold
+                double offsetZ = zMin - 3;
+
+                //the final contour
+                MeshBuilder mb = new MeshBuilder();
+                mb.CreateNormals = false;
+                mb.CreateTextureCoordinates = false;
+
+                points = SortPoints(points);
+
+                //create contour face
+                var result = CuttingEarsTriangulator.Triangulate(points);
+
+                //create lower surface
+                for (int t = 2; t < result.Count; t += 3)
+                {
+                    Point3D p0 = new Point3D(points[result[t]].X, points[result[t]].Y, offsetZ);
+                    Point3D p1 = new Point3D(points[result[t - 1]].X, points[result[t - 1]].Y, offsetZ);
+                    Point3D p2 = new Point3D(points[result[t - 2]].X, points[result[t - 2]].Y, offsetZ);
+
+                    mb.AddTriangle(p0, p1, p2);
+                }
+
+                //create higher surface
+                //point order is reversed to reverse the normals created
+                double upper_offsetZ = z_height;
+                for (int t = 2; t < result.Count; t += 3)
+                {
+                    Point3D p0 = new Point3D(points[result[t - 2]].X, points[result[t - 2]].Y, upper_offsetZ);
+                    Point3D p1 = new Point3D(points[result[t - 1]].X, points[result[t - 1]].Y, upper_offsetZ);
+                    Point3D p2 = new Point3D(points[result[t]].X, points[result[t]].Y, upper_offsetZ);
+
+                    mb.AddTriangle(p0, p1, p2);
+                }
+
+                points.Add(points[0]);
+
+                //create walls
+                for (int t = 1; t < points.Count; t++)
+                {
+                    Point3D p0 = new Point3D(points[t - 1].X, points[t - 1].Y, offsetZ);
+                    Point3D p1 = new Point3D(points[t].X, points[t].Y, offsetZ);
+                    Point3D p2 = new Point3D(points[t - 1].X, points[t - 1].Y, upper_offsetZ);
+
+                    mb.AddTriangle(p0, p1, p2);
+
+                    p0 = new Point3D(points[t].X, points[t].Y, upper_offsetZ);
+                    p1 = new Point3D(points[t - 1].X, points[t - 1].Y, upper_offsetZ);
+                    p2 = new Point3D(points[t].X, points[t].Y, offsetZ); ;
+
+                    mb.AddTriangle(p0, p1, p2);
+                }
+
+                return mb.ToMesh();
+            }
+
+            return null;
+        }
         //finds the closest point around a contour
         private List<Point> SortPoints(List<Point> contourpoints)
         {

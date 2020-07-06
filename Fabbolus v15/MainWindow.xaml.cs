@@ -28,6 +28,7 @@ namespace Fabbolus_v15
         bool airholeToolActive = false;
         Vector3D zaxis = new Vector3D(0, 0, -1);
         bool showMold = false;
+        bool tempTransforms = false;
 
         public MainWindow()
         {
@@ -168,6 +169,13 @@ namespace Fabbolus_v15
             if (disableUpdates)
                 return;
 
+            //if the tuhmb on the slider isn't being used
+            if (!tempTransforms)
+            {
+                Slider_SetTransforms(sender);
+                return;
+            }
+
             //load the slider that issued the event and determine which axis it is
             Slider slider = sender as Slider;
 
@@ -189,6 +197,8 @@ namespace Fabbolus_v15
                     break;
             }
 
+            
+
             //apply the rotation based on which slider was used to the displayed model
             AxisAngleRotation3D rotation = new AxisAngleRotation3D(axis, angle);
             RotateTransform3D rotationTransform = new RotateTransform3D(rotation);
@@ -207,14 +217,18 @@ namespace Fabbolus_v15
         /// <param name="e"></param>
         private void Slider_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
         {
+            Slider_SetTransforms(sender);   
+        }
 
+        private void Slider_SetTransforms(object sender)
+        {
             if (bolus == null)
                 return;
 
             Slider slider = sender as Slider;
 
             double angle = slider.Value;
-            Vector3D axis = new Vector3D(0,0,0);
+            Vector3D axis = new Vector3D(0, 0, 0);
 
             switch (slider.Name)
             {
@@ -248,6 +262,7 @@ namespace Fabbolus_v15
             MeshView.Transform = rotationTransform;
             airholes.Clear(); //remove the added tubes based on position fo the mold
 
+            tempTransforms = false;
             DisplayModels();
         }
 
@@ -349,6 +364,7 @@ namespace Fabbolus_v15
 
                 //save the models to the viewport
                 MeshView.Content = model;
+                MoldView.Content = null;
 
                 //update text info
                 DisplayText();
@@ -382,10 +398,23 @@ namespace Fabbolus_v15
                     model.Children.Add(new GeometryModel3D(mesh, tubes));
                 }
 
-                //does not display the mold
-
                 //save the models to the viewport
                 MeshView.Content = model;
+
+                //display the mold
+                if (showMold)
+                {
+                    Model3DGroup moldGroup = new Model3DGroup();
+                    MeshGeometry3D mold = bolus.PreviewMoldWhileRotating((double)MoldResolutionSlider.Value, axis, angle); //the mold mesh
+                    if (mold != null)
+                    {
+                        DiffuseMaterial lastSkin = new DiffuseMaterial(new SolidColorBrush(Colors.Red));
+                        lastSkin.Brush.Opacity = 0.5f;
+                        moldGroup.Children.Add(new GeometryModel3D(mold, lastSkin));
+                        MoldView.Content = moldGroup;
+                    }
+                }
+
                 DisplayText();
 
             }
@@ -621,5 +650,9 @@ namespace Fabbolus_v15
             return mesh.ToMesh();
         }
 
+        private void Slider_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
+        {
+            tempTransforms = true;
+        }
     }
 }
