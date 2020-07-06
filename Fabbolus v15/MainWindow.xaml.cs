@@ -368,7 +368,6 @@ namespace Fabbolus_v15
                 //import mesh
                 MeshGeometry3D rawMesh = bolus.Mesh(); //the base mesh
                 DiffuseMaterial rawSkin = new DiffuseMaterial(new SolidColorBrush(Colors.LightGray));
-                //rawSkin.Brush.Opacity = 0.8f;
                 model.Children.Add(new GeometryModel3D(rawMesh, rawSkin));
 
                 //the mesh's overhangs
@@ -402,9 +401,11 @@ namespace Fabbolus_v15
                 MeshGeometry3D mold = bolus.GenerateMold((double)MoldResolutionSlider.Value, airholes); //the mold mesh
                 if (mold != null)
                 {
-                    DiffuseMaterial lastSkin = new DiffuseMaterial(new SolidColorBrush(Colors.Red));
-                    lastSkin.Brush.Opacity = 0.5f;
-                    model.Children.Add(new GeometryModel3D(mold, lastSkin));
+                    DiffuseMaterial outerSkin = new DiffuseMaterial(new SolidColorBrush(Colors.Red));
+                    outerSkin.Brush.Opacity = 0.5f;
+                    var mesh = new GeometryModel3D(mold, outerSkin);
+                    mesh.BackMaterial = new DiffuseMaterial(new SolidColorBrush(Colors.Red));
+                    model.Children.Add(mesh);
                 }
 
                 //save the models to the viewport
