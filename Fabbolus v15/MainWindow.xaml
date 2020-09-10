@@ -11,16 +11,25 @@
         <!-- Viewports that hold the models-->
         <h:HelixViewport3D x:Name="view1" ZoomExtentsWhenLoaded="True" MouseLeftButtonDown="AddHole">
             <!-- Scene lighting -->
-            <h:DefaultLights/>
+            <h:DirectionalHeadLight Brightness="1"/>
+
+            <!-- ViewModels-->
             <ModelVisual3D x:Name="MeshView" />
             <ModelVisual3D x:Name="MoldView" />
+            <ModelVisual3D x:Name="ToolsView">
+                <h:TubeVisual3D Path="-110,0,0,110,0,0" Diameter="0.8" ThetaDiv="20" IsPathClosed="True" Fill="Red" Visible="True" />
+                <h:TubeVisual3D Path="0,-115,0,0,115,0" Diameter="0.8" ThetaDiv="20" IsPathClosed="True" Fill="Green" Visible="True"/>
+                <h:TubeVisual3D Path="0,0,-100,0,0,100" Diameter="0.8" ThetaDiv="20" IsPathClosed="True" Fill="Blue" Visible="True"/>
+            </ModelVisual3D>
             <h:GridLinesVisual3D Width="230" Length="220" MinorDistance="5" MajorDistance="10" Thickness="0.2"/>
         </h:HelixViewport3D>
         
         <!-- Buttons Panel -->
         <StackPanel HorizontalAlignment="Left" Margin="10,30,0,10" VerticalAlignment="Top">
             <Button Height="64" Width="64" Margin="0,60,0,0" Click="ImportModelFromFile" Background="Black" Focusable="False" >
-                <Image Source="Images\open_file.png"/>
+                <Image Source="Images\open_file.png"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       RenderOptions.EdgeMode="Aliased"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -43,8 +52,10 @@
                 </Button.ToolTip>
             </Button>
             -->
-            <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplaySmoothingPanel" Background="Black" Focusable="False" >
-                <Image Source="Images\mesh-ball.png"/>
+            <Button Height="64" Width="64" Margin="0,10,0,0" Click="DisplaySmoothingPanel" Background="Black" Focusable="False" >
+                <Image Source="Images\mesh-ball.png"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       RenderOptions.EdgeMode="Aliased"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -56,7 +67,9 @@
             </Button>
             
             <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplayTransformsPanel" Background="Black" Focusable="False" >
-                <Image Source="Images\Rotation.png"/>
+                <Image Source="Images\Rotation.png"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       RenderOptions.EdgeMode="Aliased"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -68,7 +81,9 @@
             </Button>
             
             <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplayMoldPanel" Background="Black" Focusable="False" >
-                <Image Source="Images\cube.png"/>
+                <Image Source="Images\cube.png"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       RenderOptions.EdgeMode="Aliased"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -79,8 +94,24 @@
                 </Button.ToolTip>
             </Button>
 
+            <Button Height="64" Width="64" Margin="0,1,0,0" Click="DisplaySlicePanel" Background="Black" Focusable="False" >
+                <Image Source="Images\stack.png" 
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       RenderOptions.EdgeMode="Aliased"/>
+                <Button.ToolTip>
+                    <ToolTip>
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold">Create Mold</TextBlock>
+                            <TextBlock>Seperate a bolus into multiple parts</TextBlock>
+                        </StackPanel>
+                    </ToolTip>
+                </Button.ToolTip>
+            </Button>
+
             <Button  Height="64" Width="64" Margin="0,10,0,10" Click="ExportMesh_Click" Background="Black" Focusable="False" >
-                <Image Source="images\save.png" />
+                <Image Source="images\save.png" 
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       RenderOptions.EdgeMode="Aliased"/>
                 <Button.ToolTip>
                     <ToolTip>
                         <StackPanel>
@@ -168,7 +199,6 @@
                         ValueChanged="Slider_ValueChanged" 
                         Thumb.DragStarted="Slider_DragStarted"
                         Thumb.DragCompleted="Slider_DragCompleted"
-                        
                         />
                 
                 <CheckBox x:Name="SolidOverhangsCheckbox" Content="Show Overhangs (Solid Bolus)" Click="SolidOverhangsCheckbox_Click"/>
@@ -179,7 +209,7 @@
 
         <!-- Mold Panel-->
         <StackPanel HorizontalAlignment="Left" Margin="80,40,0,0" VerticalAlignment="Top"  Background="Gray" >
-            <StackPanel x:Name="MoldPanel" Visibility="Collapsed" Width="170" Margin="5,5,5,5">
+            <StackPanel x:Name="MoldPanel"  Width="170" Margin="5,5,5,5" Visibility="Collapsed">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -196,32 +226,46 @@
                     <Button Content="Clear Fillholes" Click="Button_Click"/>
                 </StackPanel>
 
-                <Label Content="Ball Radius" />
-                <Slider x:Name="BallRadiusSlider"
-                        Minimum="0.5" 
-                        Maximum="2.5" 
-                        Value="1.5" 
-                        TickPlacement="BottomRight"  
-                        TickFrequency="0.5" 
-                        IsSnapToTickEnabled="True"/>
+                <StackPanel>
+                    <Label Content="Ball Radius" />
+                    <StackPanel Orientation="Horizontal">
+                        <Slider x:Name="BallRadiusSlider"
+                            Minimum="0.5" 
+                            Maximum="3" 
+                            Value="1.5" 
+                            TickPlacement="BottomRight"  
+                            TickFrequency="0.5" 
+                            IsSnapToTickEnabled="True"
+                            Width="140"/>
+                        <Label Content="{Binding ElementName=BallRadiusSlider, Path=Value, UpdateSourceTrigger=PropertyChanged}" Width="30"/>
+                    </StackPanel>
+                </StackPanel>
                 
                 <Label Content="Hole Diameter" />
-                <Slider x:Name="HoleDiameterSlider"
-                        Minimum="2" 
-                        Maximum="10" 
-                        Value="4" 
-                        TickPlacement="BottomRight"  
-                        TickFrequency="1" 
-                        IsSnapToTickEnabled="True"/>
-
+                <StackPanel Orientation="Horizontal">
+                    <Slider x:Name="HoleDiameterSlider"
+                            Minimum="2" 
+                            Maximum="10" 
+                            Value="4" 
+                            TickPlacement="BottomRight"  
+                            TickFrequency="1" 
+                            IsSnapToTickEnabled="True"
+                            Width="140"/>
+                    <Label Content="{Binding ElementName=HoleDiameterSlider, Path=Value, UpdateSourceTrigger=PropertyChanged}" Width="30"/>
+                </StackPanel>
+                
                 <Label Content="Cone Length"/>
-                <Slider x:Name="ConeLengthSlider"
-                        Minimum="0" 
-                        Maximum="10" 
-                        Value="6" 
-                        TickPlacement="BottomRight"  
-                        TickFrequency="1" 
-                        IsSnapToTickEnabled="True"/>
+                <StackPanel Orientation="Horizontal">
+                    <Slider x:Name="ConeLengthSlider"
+                            Minimum="0" 
+                            Maximum="10" 
+                            Value="6" 
+                            TickPlacement="BottomRight"  
+                            TickFrequency="1" 
+                            IsSnapToTickEnabled="True"
+                            Width="140"/>
+                    <Label Content="{Binding ElementName=ConeLengthSlider, Path=Value, UpdateSourceTrigger=PropertyChanged}" Width="30"/>
+                </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
                     <Button x:Name="PreviewMoldButton" Content="Preview Mold" Click="ToggleMoldPreview"/>
@@ -238,7 +282,32 @@
 
             </StackPanel>
         </StackPanel>
-        
+
+        <!-- Slice Panel-->
+        <StackPanel HorizontalAlignment="Left" Margin="80,40,0,0" VerticalAlignment="Top"  Background="Gray" >
+            <StackPanel x:Name="SlicePanel" Visibility="Collapsed" Width="170" Margin="5,5,5,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Label Content="Slicing Settings" Grid.Column="0"/>
+                    <Button Click="CloseAllPanels" Height="20" Width="20" Content="X" Grid.Column="2"/>
+                </Grid>
+
+                <Label> Slicing the Mold</Label>
+                <Button Content="Add Slice" Click="AddSliceButton_Click"/>
+                <Button Content="Remove Slice" Click="RemoveSliceButton_Click"/>
+                <StackPanel Orientation="Horizontal">
+                    <Label Content="Number of Slices:"/>
+                    <Label x:Name="SlicesLabel" Content="0" />
+                </StackPanel>
+
+
+            </StackPanel>
+        </StackPanel>
+
         <!-- Text Panel on Right -->
         <StackPanel HorizontalAlignment="Right" Margin="10,10,10,10">
             <TextBlock x:Name="RightTextblock" />

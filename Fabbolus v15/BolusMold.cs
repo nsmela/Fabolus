@@ -10,9 +10,21 @@ using HelixToolkit.Wpf;
 
 namespace Fabbolus_v15
 {
+    struct Slice
+    {
+        public double Floor;
+        public double Ceiling;
+
+        public Slice(double low, double high) {
+            this.Floor = low;
+            this.Ceiling = high;
+        }
+    }
+
     class BolusMold
     {
         public MeshGeometry3D Mesh;
+        public List<MeshGeometry3D> Meshes;
 
         public BolusMold(MeshGeometry3D Mesh, double VoxelSize, bool AddMesh = false)
         {
@@ -26,8 +38,88 @@ namespace Fabbolus_v15
                 this.Mesh = GetMold(points, Mesh);
         }
 
-        public BolusMold(MeshGeometry3D mesh, double voxelSize, Vector3D axis, double angle)
+        public BolusMold(MeshGeometry3D Mesh, double VoxelSize, List<double> z_slices, bool alignmentLip = false)
         {
+            if (Mesh != null)
+            {
+                Meshes = new List<MeshGeometry3D>();
+                var points = GetContour(Mesh.Positions, VoxelSize); //get a list of points that surround the mesh
+                points = SortPoints(points);
+                var result = CuttingEarsTriangulator.Triangulate(points);  //a list of triangles, needs to be meshed
+                points.Add(points[0]);// to allow loops to fully enclose the mesh
+
+
+                //variables for the mesh heights
+                double z_low = Mesh.Positions.Min(p => p.Z) - 2.4; //lowest vertex's z, minus an offset to make it lower
+                double z_high = Mesh.Bounds.SizeZ / 2 + 3; //the wall height stops 3 mm below the slice's top
+
+                //setup the lists for slicing
+                List<Slice> slices = new List<Slice>();
+
+                List<double> low_slice = new List<double>();
+                List<double> high_slice = new List<double>();
+                low_slice.Add(z_low);
+                for(int i = 0; i < z_slices.Count; i++) {
+                    low_slice.Add(z_slices[i]);
+                    high_slice.Add(z_slices[i]);
+                }
+                high_slice.Add(z_high);
+
+                for(int i = 0; i < low_slice.Count; i++) {
+                    slices.Add(new Slice(low_slice[i], high_slice[i]));
+                }
+
+                //create the simple contoured meshes for each slice
+                foreach(Slice slice in slices) {
+                    //building the mesh
+                    MeshBuilder mb = new MeshBuilder() {
+                        CreateNormals = false,
+                        CreateTextureCoordinates = false
+                    };
+
+                    //mesh the bottom using result, from the cutting ears triangulator
+                    for (int t = 2; t < result.Count; t += 3) {
+                        Point3D p0 = new Point3D(points[result[t]].X, points[result[t]].Y, slice.Floor);
+                        Point3D p1 = new Point3D(points[result[t - 1]].X, points[result[t - 1]].Y, slice.Floor);
+                        Point3D p2 = new Point3D(points[result[t - 2]].X, points[result[t - 2]].Y, slice.Floor);
+
+                        mb.AddTriangle(p0, p1, p2);
+                    }
+
+                    //creating the triangles for the walls
+                    for (int i = 1; i < points.Count; i++) {
+                        Point3D p0 = new Point3D(points[i - 1].X, points[i - 1].Y, slice.Floor);
+                        Point3D p1 = new Point3D(points[i].X, points[i].Y, slice.Floor);
+                        Point3D p2 = new Point3D(points[i - 1].X, points[i - 1].Y, slice.Ceiling);
+
+                        mb.AddTriangle(p0, p1, p2);
+
+                        p0 = new Point3D(points[i].X, points[i].Y, slice.Floor);
+                        p1 = new Point3D(points[i].X, points[i].Y, slice.Ceiling);
+                        p2 = new Point3D(points[i - 1].X, points[i - 1].Y, slice.Ceiling);
+
+                        mb.AddTriangle(p0, p1, p2);
+                    }
+
+                    //create higher surface
+                    //point order is reversed to reverse the normals created
+                    for (int t = 2; t < result.Count; t += 3) {
+                        Point3D p0 = new Point3D(points[result[t - 2]].X, points[result[t - 2]].Y, slice.Ceiling);
+                        Point3D p1 = new Point3D(points[result[t - 1]].X, points[result[t - 1]].Y, slice.Ceiling);
+                        Point3D p2 = new Point3D(points[result[t]].X, points[result[t]].Y, slice.Ceiling);
+
+                        mb.AddTriangle(p0, p1, p2);
+                    }
+
+
+                    this.Meshes.Add(mb.ToMesh());
+                }
+
+            }
+            
+        }
+        
+        public BolusMold(MeshGeometry3D mesh, double voxelSize, Vector3D axis, double angle) {
             //rotate the incoming mesh with the axis and angle provided
             Matrix3D m = Matrix3D.Identity;
             Quaternion q = new Quaternion(axis, angle);
@@ -40,8 +132,7 @@ namespace Fabbolus_v15
             //used for boundries for the mesh after transformation
             double zMax = 0;
             double zMin = 0;
-            foreach (Point3D p in positions)
-            {
+            foreach (Point3D p in positions) {
                 if (p.Z > zMax)
                     zMax = p.Z;
                 if (p.Z < zMin)
@@ -55,6 +146,111 @@ namespace Fabbolus_v15
             this.Mesh = GetMold(points, zMax, zMin);
 
         }
+        /*
+        //creates the mold as well as cutting it into sections
+        public BolusMold(MeshGeometry3D mesh, double voxelSize, int slices)
+        {
+            //create a 2D array of the mesh using the voxelSize for the size of each square
+            //check each point to calculate which grid cell it would belong to
+
+            int xLength = (int) (mesh.Bounds.SizeX / voxelSize); //number of squares in the x axis
+            int yLength = (int)(mesh.Bounds.SizeY / voxelSize); //number of squares in the y axis
+            bool[,] grid = new bool[xLength + 2, yLength + 2]; //extras added for a wider contour
+
+            //bottom left most point in the grid as a reference for all future calculations
+            double starting_x = mesh.Bounds.Size.X - voxelSize;
+            double starting_y = mesh.Bounds.Size.Y - voxelSize;
+
+            //inspect each point's x and y to determine which cell it belongs to
+            foreach(Point3D point in mesh.Positions)
+            {
+                int cell_x = (int)((point.X - starting_x) / voxelSize); 
+                int cell_y = (int)((point.Y - starting_y) / voxelSize);
+                grid[cell_x, cell_y] = true;
+            }
+
+            bool filled = false; //used as part of a method for recursion
+
+            //check for false squares within a contour and fill them
+            for (int y = 0; y < grid.GetLength(1); y++)
+                for (int x = 0; x < grid.GetLength(0); x++)
+                    if (!grid[x,y]) 
+                    {
+                        int adjacent_true_cells = 0;
+
+                        //left
+                        if (x != 0 && grid[x - 1, y])
+                            adjacent_true_cells++;
+
+                        //right
+                        if (x < grid.GetLength(0) - 1 && grid[x + 1, y])
+                            adjacent_true_cells++;
+
+                        //bottom
+                        if (y != 0 && grid[x, y - 1])
+                            adjacent_true_cells++;
+
+                        //top
+                        if (y < grid.GetLength(1) - 1 && grid[x, y + 1])
+                            adjacent_true_cells++;
+
+                        if (adjacent_true_cells > 2)
+                        {
+                            filled = true;
+                            grid[x, y] = true;
+                        }
+
+                    }
+
+            //mesh the bottom layer
+
+            //turn the bool grid array into an int array. the value notes what meshing method needs to be used on that square
+            
+            // 0 - do not mesh
+            // * 1 - full mesh 
+            // * 2 - triangle top left
+            // * 3 - triangle top right
+            // * 4 - triangle bottom right
+            // * 5 - triangle bottom left
+             
+            var moldMesh = new MeshGeometry3D();
+
+            int[,] contourGrid = new int[grid.GetLength(0), grid.GetLength(1)];
+            for (int y = 0; y < grid.GetLength(1); y++)
+                for (int x = 0; x < grid.GetLength(0); x++)
+                {
+                    int flag = 0;
+
+                    bool left = (x != 0 && grid[x - 1, y]);
+                    bool right = (x < grid.GetLength(0) - 1 && grid[x + 1, y]);
+                    bool down = (y != 0 && grid[x, y - 1]);
+                    bool up = (y < grid.GetLength(1) - 1 && grid[x, y + 1]);
+
+                    //flag to fill the square
+                    if (left && right && down && up)
+                        flag = 1;
+                    else if (left && up)
+                        flag = 2;
+                    else if (up && right)
+                        flag = 3;
+                    else if (down && right)
+                        flag = 4;
+                    else if (down && left)
+                        flag = 5;
+
+                    //create the mesh
+                }
+
+            //add the verticies
+            //connect triangles from those verticies
+
+            //mesh the top layer
+
+                    //subtract the original mesh from the mold using Boolean subtraction
+
+                    //set Mesh to the resulting mesh
+        }
+        */
 
         /// <summary>
         /// Inverts the mesh's normals.  
@@ -179,6 +375,10 @@ namespace Fabbolus_v15
             return sides;
         }
 
+        /// <summary>
+        /// Finds any empty squares within the contour's grid map and labels them as filled
+        /// </summary>
+        /// <param name="contourgrid"></param>
         private void FillHoles(bool [,] contourgrid)
         {
             bool filled = false;
@@ -206,15 +406,14 @@ namespace Fabbolus_v15
         //calculates a mold box to contour around the input mesh
         private MeshGeometry3D GetMold(List<Point> points, MeshGeometry3D mesh, bool AddMesh = false)
         {
-            if (mesh != null && points != null && points.Count > 0 && mesh.Positions.Count > 0)
-            {
+            if (mesh != null && points != null && points.Count > 0 && mesh.Positions.Count > 0) {
                 double z_height = mesh.Positions.Max(p => p.Z) + 4; //highest point for the mold
                 double offsetZ = mesh.Positions.Min(p => p.Z) - 3;
 
                 //the final contour
-                MeshBuilder mb = new MeshBuilder();
-                mb.CreateNormals = false;
-                mb.CreateTextureCoordinates = false;
+                MeshBuilder mb = new MeshBuilder() {
+                    CreateNormals = false,
+                    CreateTextureCoordinates = false};
 
                 points = SortPoints(points);
 
@@ -273,15 +472,14 @@ namespace Fabbolus_v15
         //calculates a mold box to contour around the input mesh
         private MeshGeometry3D GetMold(List<Point> points, double zMax, double zMin)
         {
-            if (points != null && points.Count > 0 )
-            {
+            if (points != null && points.Count > 0) {
                 double z_height = zMax + 4; //highest point for the mold
                 double offsetZ = zMin - 3;
 
                 //the final contour
-                MeshBuilder mb = new MeshBuilder();
-                mb.CreateNormals = false;
-                mb.CreateTextureCoordinates = false;
+                MeshBuilder mb = new MeshBuilder() {
+                    CreateNormals = false,
+                    CreateTextureCoordinates = false};
 
                 points = SortPoints(points);
 

@@ -14,9 +14,8 @@ namespace Fabbolus_v15
         //global variables
         private DMesh3 _mesh;
         private DMesh3 _smoothMesh;
-        private DMesh3 _moldMesh;
+        private List<DMesh3> _moldMesh;
         private MeshGeometry3D _displayMesh;
-
 
         //initializing methods
 
@@ -37,6 +36,8 @@ namespace Fabbolus_v15
 
             //store the mesh
             _displayMesh = DMeshToMeshGeometry(_mesh);
+
+            _moldMesh = new List<DMesh3>();
         }
 
         /// <summary>
@@ -119,10 +120,51 @@ namespace Fabbolus_v15
                 booleanMesh = holes;
 
                 //boolean subtract the airholes from the mold
-                _moldMesh = BooleanSubtraction(mesh, holes);
+                _moldMesh = new List<DMesh3>(){
+                    BooleanSubtraction(mesh, holes)};
             }
 
-            return DMeshToMeshGeometry(_moldMesh);
+            return DMeshToMeshGeometry(_moldMesh[0]);
+        }
+
+        public List<MeshGeometry3D> GenerateMold(double resolution, List<MeshGeometry3D> airholes, List<double> z_slices)
+        {
+            //merges airholes and bolus mesh for subtraction later
+            var bolus = new DMesh3();
+            if (airholes.Count > 0)
+            {
+                //airholes
+                var holes = new DMesh3();
+                MeshEditor editor = new MeshEditor(holes);
+                foreach (MeshGeometry3D m in airholes)
+                    editor.AppendMesh(MeshGeometryToDMesh(m));
+
+
+                //boolean union the airholes and the bolus
+                if (_smoothMesh != null)
+                    bolus = BooleanUnion(_smoothMesh, holes);
+                else
+                    bolus = BooleanUnion(_mesh, holes);
+            }
+            else
+                if (_smoothMesh != null)
+                bolus = _smoothMesh;
+            else
+                bolus = _mesh;
+
+            //generates the outer mold and interior cavity for the bolus
+            var _molds = new List<MeshGeometry3D>();
+            _moldMesh = new List<DMesh3>();
+            var molds = new BolusMold(_displayMesh, resolution, z_slices).Meshes;
+
+            //subtract the bolus from the mold
+            for(int i = 0; i <= z_slices.Count; i++)
+            {
+                _moldMesh.Add(BooleanSubtraction(MeshGeometryToDMesh(molds[i]), bolus));
+                _molds.Add(DMeshToMeshGeometry(_moldMesh[i]));
+            }
+
+            return _molds;
         }
 
         public void Transform(Vector3D axis, double angle)
@@ -179,8 +221,8 @@ namespace Fabbolus_v15
             if (_smoothMesh != null)
                 text += "   Smoothed Model: " + (CalculateVolume(_smoothMesh)).ToString("0.00") + " mL\r\n";
 
-            if (_moldMesh != null)
-                text += "   Mold Model: " + (CalculateVolume(_moldMesh)).ToString("0.00") + " mL\r\n";
+            if (_moldMesh != null && _moldMesh.Count > 0)
+                text += "   Mold Model: " + (CalculateVolume(_moldMesh[0])).ToString("0.00") + " mL\r\n";
             return text;
         }
 
@@ -248,18 +290,103 @@ namespace Fabbolus_v15
             return _displayMesh.Bounds.SizeZ / 2;
         }
 
+        public double Floor() {
+            return _displayMesh.Bounds.Z;
+        }
+
+        public System.Windows.Point MinXY() {
+            return new System.Windows.Point(_displayMesh.Bounds.X, _displayMesh.Bounds.Y);
+        }
+
+        public System.Windows.Point MaxXY() {
+            return new System.Windows.Point(_displayMesh.Bounds.SizeX / 2, _displayMesh.Bounds.SizeY / 2);
+        }
+
         public void ExportMesh(string filename)
         {
-            DMesh3 mesh = new DMesh3();
+            //if there is a mold generated, save that one
+            if (_moldMesh != null && _moldMesh.Count > 0) {
+                if (_moldMesh.Count == 1) { //if the mold wasn't sliced
+                    StandardMeshWriter.WriteMesh(filename, _moldMesh[0], WriteOptions.Defaults);
+                    return;
+                }
+                else {
+                    for(int i = 0; i < _moldMesh.Count; i++) {
+                        string file = filename.Substring(0, filename.Length - 4);
+                        file += "_" + (i+1) + ".stl";
+                        StandardMeshWriter.WriteMesh(file, _moldMesh[i], WriteOptions.Defaults);
+                    }
+                    return;
+                }
+            }
+            else {
+                DMesh3 mesh = new DMesh3();
 
-            if (_moldMesh != null)
-                mesh = _moldMesh;
-            else if (_smoothMesh != null)
-                mesh = _smoothMesh;
-            else
-                mesh = _mesh;
+                if (_moldMesh != null)
+                    mesh = _moldMesh[0];
+                else if (_smoothMesh != null)
+                    mesh = _smoothMesh;
+                else
+                    mesh = _mesh;
 
-            StandardMeshWriter.WriteMesh(filename, mesh, WriteOptions.Defaults);
+                StandardMeshWriter.WriteMesh(filename, mesh, WriteOptions.Defaults);
+            }
+        }
+
+        //experimental
+        public List<DMesh3> SliceMold(DMesh3 mesh_to_slice, int number_of_slices)
+        {
+            var meshes = new List<MeshGeometry3D>();
+
+            //convert mesh to DMesh
+            DMesh3 mesh = mesh_to_slice;
+
+            //create cube for slicing
+            double z_height = mesh.GetBounds().Max.z - mesh.GetBounds().Min.z;
+            double slice_interval = (double)(z_height / number_of_slices);
+            double x_size = mesh.GetBounds().Depth;
+            double y_size = mesh.GetBounds().Width;
+            double low_z = mesh.GetBounds().Min.z;
+            
+
+            //boolean intersection each mesh
+            var sliced_meshes = new List<DMesh3>();
+            for (int i = 0; i < number_of_slices; i++)
+            {
+                //create box
+                Vector3d centre = new Vector3d(0, 0, low_z + slice_interval/2 + i*(slice_interval));
+                Vector3d extend = new Vector3d(
+                    x_size,
+                    y_size,
+                    slice_interval/2);
+
+                ImplicitBox3d box = new ImplicitBox3d() { Box = new Box3d(centre, extend) };
+
+                //boolean overlap 
+                BoundedImplicitFunction3d meshA = meshToImplicitF(mesh, 64, 0.2f);
+
+                //take the difference of the bolus mesh minus the tools
+                ImplicitIntersection3d mesh_result = new ImplicitIntersection3d { A = meshA, B = box };
+
+                //calculate the boolean mesh
+                MarchingCubes c = new MarchingCubes();
+                c.Implicit = mesh_result;
+                c.RootMode = MarchingCubes.RootfindingModes.LerpSteps;
+                c.RootModeSteps = 5;
+                c.Bounds = mesh_result.Bounds();
+                c.CubeSize = c.Bounds.MaxDim / 256;
+                c.Bounds.Expand(3 * c.CubeSize);
+                c.Generate();
+                MeshNormals.QuickCompute(c.Mesh);
+
+                int triangleCount = c.Mesh.TriangleCount / 3;
+                Reducer r = new Reducer(c.Mesh);
+                r.ReduceToTriangleCount(triangleCount);
+
+                sliced_meshes.Add(c.Mesh);
+            }
+
+            return sliced_meshes;
         }
 
         //private methods
@@ -322,8 +449,8 @@ namespace Fabbolus_v15
 
         public DMesh3 BooleanSubtraction(DMesh3 mesh1, DMesh3 mesh2)
         {
-            BoundedImplicitFunction3d meshA = meshToImplicitF(mesh1, 64, 0.2f);
-            BoundedImplicitFunction3d meshB = meshToImplicitF(mesh2, 64, 0.2f);
+            BoundedImplicitFunction3d meshA = meshToImplicitF(mesh1, 128, 0.2f);
+            BoundedImplicitFunction3d meshB = meshToImplicitF(mesh2, 128, 0.2f);
 
             //take the difference of the bolus mesh minus the tools
             ImplicitDifference3d mesh = new ImplicitDifference3d() { A = meshA, B = meshB };
@@ -339,9 +466,34 @@ namespace Fabbolus_v15
             c.Generate();
             MeshNormals.QuickCompute(c.Mesh);
 
-            int triangleCount = c.Mesh.TriangleCount / 2;
-            Reducer r = new Reducer(c.Mesh);
-            r.ReduceToTriangleCount(triangleCount);
+            //int triangleCount = c.Mesh.TriangleCount / 2;
+            //Reducer r = new Reducer(c.Mesh);
+            //r.ReduceToTriangleCount(triangleCount);
+            return c.Mesh;
+        }
+
+        public DMesh3 BooleanUnion(DMesh3 mesh1, DMesh3 mesh2)
+        {
+            BoundedImplicitFunction3d meshA = meshToImplicitF(mesh1, 128, 0.2f);
+            BoundedImplicitFunction3d meshB = meshToImplicitF(mesh2, 128, 0.2f);
+
+            //take the difference of the bolus mesh minus the tools
+            var mesh = new ImplicitUnion3d() { A = meshA, B = meshB };
+
+            //calculate the boolean mesh
+            MarchingCubes c = new MarchingCubes();
+            c.Implicit = mesh;
+            c.RootMode = MarchingCubes.RootfindingModes.LerpSteps;
+            c.RootModeSteps = 5;
+            c.Bounds = mesh.Bounds();
+            c.CubeSize = c.Bounds.MaxDim / 96;
+            c.Bounds.Expand(3 * c.CubeSize);
+            c.Generate();
+            MeshNormals.QuickCompute(c.Mesh);
+
+            //int triangleCount = c.Mesh.TriangleCount / 2;
+            //Reducer r = new Reducer(c.Mesh);
+            //r.ReduceToTriangleCount(triangleCount);
             return c.Mesh;
         }
 
@@ -420,57 +572,6 @@ namespace Fabbolus_v15
             return mold_bmp;
         }
 
-        //used to get a curve around a mesh
-        static bool compute_plane_curves(DMesh3 mesh, DMeshAABBTree3 spatial,
-                double z, bool is_solid,
-                out Polygon2d[] loops, out PolyLine2d[] curves)
-        { 
-                Func<Vector3d, double> planeF = (v) => {
-                                    return v.z - z;
-                                }; 
- 
- 
-                // find list of triangles that intersect this z-value 
-                PlaneIntersectionTraversal planeIntr = new PlaneIntersectionTraversal(mesh, z); 
-                spatial.DoTraversal(planeIntr); 
-                List<int> triangles = planeIntr.triangles; 
- 
-                // compute intersection iso-curves, which produces a 3D graph of undirected edges 
-                MeshIsoCurves iso = new MeshIsoCurves(mesh, planeF) { WantGraphEdgeInfo = true }; 
-                iso.Compute(triangles); 
-                DGraph3 graph = iso.Graph; 
-                if (graph.EdgeCount == 0 ) { 
-                    loops = new Polygon2d[0]; 
-                    curves = new PolyLine2d[0]; 
-                    return false; 
-                } 
- 
- 
-                // if this is a closed solid, any open spurs in the graph are errors 
-                if (is_solid) 
-                    DGraph3Util.ErodeOpenSpurs(graph); 
- 
-                // extract loops and open curves from graph 
-                DGraph3Util.Curves c = DGraph3Util.ExtractCurves(graph, false, iso.ShouldReverseGraphEdge); 
-                loops = new Polygon2d[c.Loops.Count]; 
-                for (int li = 0; li<loops.Length; ++li) { 
-                DCurve3 loop = c.Loops[li]; 
-                loops[li] = new Polygon2d(); 
-                    foreach (Vector3d v in loop.Vertices)  
-                    loops[li].AppendVertex(v.xy); 
-                } 
- 
- 
-                curves = new PolyLine2d[c.Paths.Count]; 
-                for (int pi = 0; pi<curves.Length; ++pi) { 
-                    DCurve3 span = c.Paths[pi]; 
-                    curves[pi] = new PolyLine2d(); 
-                    foreach (Vector3d v in span.Vertices)  
-                        curves[pi].AppendVertex(v.xy); 
-                } 
- 
-                return true; 
-            }
 
         class PlaneIntersectionTraversal : DMeshAABBTree3.TreeTraversal 
          { 

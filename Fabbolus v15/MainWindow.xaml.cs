@@ -29,6 +29,7 @@ namespace Fabbolus_v15
         Vector3D zaxis = new Vector3D(0, 0, -1);
         bool showMold = false;
         bool tempTransforms = false;
+        int slices = 0;
 
         public MainWindow()
         {
@@ -37,14 +38,14 @@ namespace Fabbolus_v15
         }
 
         //User Controls
-        public void ImportModelFromFile(object sender, RoutedEventArgs e)
-        {
+        public void ImportModelFromFile(object sender, RoutedEventArgs e) {
             string filepath = "";
 
             //find the file to import
-            Microsoft.Win32.OpenFileDialog ofd = new Microsoft.Win32.OpenFileDialog();
-            ofd.Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*";
-            ofd.Multiselect = false;
+            Microsoft.Win32.OpenFileDialog ofd = new Microsoft.Win32.OpenFileDialog() {
+                Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*",
+                Multiselect = false
+            };
 
             if (ofd.ShowDialog() == true)
             {
@@ -120,8 +121,9 @@ namespace Fabbolus_v15
             //otherwise, export the displayed mesh
             if (bolus != null)
             {
-                Microsoft.Win32.SaveFileDialog sfd = new Microsoft.Win32.SaveFileDialog();
-                sfd.Filter = "stl Files *.stl|*.stl|All Files *.*|*.*";
+                Microsoft.Win32.SaveFileDialog sfd = new Microsoft.Win32.SaveFileDialog() {
+                    Filter = "stl Files *.stl|*.stl|All Files *.*|*.*"
+                };
 
                 if (sfd.ShowDialog() == true)
                     bolus.ExportMesh(sfd.FileName);
@@ -147,11 +149,18 @@ namespace Fabbolus_v15
             MoldPanel.Visibility = Visibility.Visible;
         }
 
+        public void DisplaySlicePanel(object sender, RoutedEventArgs e) {
+            CloseAllPanels(sender, e);
+            SlicePanel.Visibility = Visibility.Visible;
+            DisplayModels();
+        }
+
         public void CloseAllPanels(object sender, RoutedEventArgs e)
         {
             SmoothingPanel.Visibility = Visibility.Collapsed;
             TransformsPanel.Visibility = Visibility.Collapsed;
             MoldPanel.Visibility = Visibility.Collapsed;
+            SlicePanel.Visibility = Visibility.Collapsed;
         }
 
         //model transforms
@@ -310,6 +319,8 @@ namespace Fabbolus_v15
             else
                 PreviewMoldButton.Content = "Preview Mold";
 
+            //ensures airhole tool and the mold preview are never on at the same time
+            //otherwise, the airholes will connect to the mold, not the bolus
             if (airholeToolActive && showMold)
                 AirholeTool(sender, e);
 
@@ -319,6 +330,19 @@ namespace Fabbolus_v15
         private void GenerateMold(object sender, RoutedEventArgs e)
         {
             DisplayMold();
+        }
+
+        private void AddSliceButton_Click(object sender, RoutedEventArgs e) {
+            slices++;
+            SlicesLabel.Content = slices.ToString();
+            DisplayModels();
+        }
+
+        private void RemoveSliceButton_Click(object sender, RoutedEventArgs e) {
+            if (slices > 0)
+                slices--;
+            SlicesLabel.Content = slices.ToString();
+            DisplayModels();
         }
 
         //Display Methods
@@ -350,8 +374,34 @@ namespace Fabbolus_v15
                     model.Children.Add(new GeometryModel3D(mesh, tubes));
                 }
 
+                //the slices
+                if (slices > 0) {
+                    double z_max, z_min;
+                    z_max = bolus.Ceiling();
+                    z_min = bolus.Floor();
+                    double z_distance = (z_max - z_min) / (slices + 1);
+
+                    for (int i = 1; i <= slices; i++) {
+                        var mesh = CreatePlane((z_distance * i) + z_min, Colors.Aqua);
+                        model.Children.Add(mesh);
+                    }
+                }
+
+                /*
                 //the mold
-                if (showMold)
+                if (showSlice)
+                {
+                    MeshGeometry3D mold = bolus.PreviewSlice((double)MoldResolutionSlider.Value); //the mold mesh
+                    if (mold != null)
+                    {
+                        DiffuseMaterial outerSkin = new DiffuseMaterial(new SolidColorBrush(Colors.Green));
+                        outerSkin.Brush.Opacity = 0.5f;
+                        var mesh = new GeometryModel3D(mold, outerSkin);
+                        mesh.BackMaterial = new DiffuseMaterial(new SolidColorBrush(Colors.SlateGray));
+                        model.Children.Add(mesh);
+                    }
+                }
+                else */ if (showMold)
                 {
                     MeshGeometry3D mold = bolus.PreviewMold((double)MoldResolutionSlider.Value); //the mold mesh
                     if (mold != null)
@@ -361,6 +411,7 @@ namespace Fabbolus_v15
                         model.Children.Add(new GeometryModel3D(mold, lastSkin));
                     }
                 }
+                
 
                 //save the models to the viewport
                 MeshView.Content = model;
@@ -426,17 +477,51 @@ namespace Fabbolus_v15
             {
                 //ModelGroup is used to house the model meshes and skins
                 Model3DGroup model = new Model3DGroup(); //houses the mesh and the skin
-
-                MeshGeometry3D mold = bolus.GenerateMold((double)MoldResolutionSlider.Value, airholes); //the mold mesh
-                if (mold != null)
+                if (slices > 0)
                 {
-                    DiffuseMaterial outerSkin = new DiffuseMaterial(new SolidColorBrush(Colors.Red));
-                    outerSkin.Brush.Opacity = 0.5f;
-                    var mesh = new GeometryModel3D(mold, outerSkin);
-                    mesh.BackMaterial = new DiffuseMaterial(new SolidColorBrush(Colors.Red));
-                    model.Children.Add(mesh);
-                }
+                    double z_max, z_min;
+                    z_max = bolus.Ceiling();
+                    z_min = bolus.Floor();
+                    double z_distance = (z_max - z_min) / (slices + 1);
+                    var z_slices = new List<double>();
 
+                    for (int i = 1; i <= slices; i++) //adding the slices for the mold
+                        z_slices.Add((z_distance * i) + z_min);
+                    
+                    var molds = bolus.GenerateMold((double)MoldResolutionSlider.Value, airholes, z_slices); //the mold mesh
+                    if (molds != null)
+                    {
+                        int slice = 0;
+                        foreach (MeshGeometry3D mold in molds)
+                        {
+                            slice++;
+                            SolidColorBrush moldColor = new SolidColorBrush();
+                            if (slice % 2 == 0)
+                                moldColor.Color = Colors.Green;
+                            else
+                                moldColor.Color = Colors.Red;
+                            DiffuseMaterial outerSkin = new DiffuseMaterial(moldColor);
+                            outerSkin.Brush.Opacity = 0.5f;
+                            var mesh = new GeometryModel3D(mold, outerSkin) {
+                                BackMaterial = new DiffuseMaterial(new SolidColorBrush(Colors.SlateGray))
+                            };
+                            model.Children.Add(mesh);
+                        }
+                    }
+                }
+                else
+                {
+                    MeshGeometry3D mold = bolus.GenerateMold((double)MoldResolutionSlider.Value, airholes); //the mold mesh
+                    if (mold != null)
+                    {
+                        DiffuseMaterial outerSkin = new DiffuseMaterial(new SolidColorBrush(Colors.Red));
+                        outerSkin.Brush.Opacity = 0.5f;
+                        var mesh = new GeometryModel3D(mold, outerSkin) {
+                            BackMaterial = new DiffuseMaterial(new SolidColorBrush(Colors.Red))
+                        };
+                        model.Children.Add(mesh);
+                    }
+                }
                 //save the models to the viewport
                 MeshView.Content = model;
                 DisplayText();
@@ -495,7 +580,6 @@ namespace Fabbolus_v15
             overhangs.Brush.Opacity = 0.8f;
             return new GeometryModel3D(overhangMesh, overhangs);
         }
-
 
         /// <summary>
         /// Colored triangles to visualize overhangs
@@ -650,9 +734,42 @@ namespace Fabbolus_v15
             return mesh.ToMesh();
         }
 
+        private GeometryModel3D CreatePlane(double zHeight, Color color) {
+            Point min, max;
+            min = bolus.MinXY();
+            max = bolus.MaxXY();
+
+
+            MeshGeometry3D plane = new MeshGeometry3D();
+
+            plane.Positions.Add(new Point3D(min.X, min.Y, zHeight));
+            plane.Positions.Add(new Point3D(min.X, max.Y, zHeight));
+            plane.Positions.Add(new Point3D(max.X, max.Y, zHeight));
+            plane.Positions.Add(new Point3D(max.X, min.Y, zHeight));
+
+            plane.TriangleIndices.Add(0);
+            plane.TriangleIndices.Add(1);
+            plane.TriangleIndices.Add(2);
+            plane.TriangleIndices.Add(0);
+            plane.TriangleIndices.Add(2);
+            plane.TriangleIndices.Add(3);
+
+            plane.Normals.Add(CalculateSurfaceNormal(plane.Positions[0], plane.Positions[1], plane.Positions[2]));
+            plane.Normals.Add(CalculateSurfaceNormal(plane.Positions[1], plane.Positions[2], plane.Positions[3]));
+
+            var brush = new DiffuseMaterial(new SolidColorBrush(color));
+            brush.Brush.Opacity = 0.3f;
+            var mesh = new GeometryModel3D(plane, brush) {
+                BackMaterial = brush
+            };
+
+            return mesh;
+        }
+
         private void Slider_DragStarted(object sender, System.Windows.Controls.Primitives.DragStartedEventArgs e)
         {
             tempTransforms = true;
         }
+
     }
 }
