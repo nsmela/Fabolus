@@ -1,0 +1,20 @@
+﻿<Window x:Class="Fabolus.WPF.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Fabolus.WPF"
+        xmlns:h="http://helix-toolkit.org/wpf/SharpDX"
+        mc:Ignorable="d"
+        Title="Fabolous" Height="450" Width="800">
+    <Grid>
+        <h:Viewport3DX
+            x:Name="view"
+            BackgroundColor="#595959"
+            Camera="{Binding Camera}"
+            EnableSwapChainRendering="True"
+            FXAALevel="Low">
+
+        </h:Viewport3DX>
+    </Grid>
+</Window>
