@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="AirChannel\" />
+    <Folder Include="Bolus\" />
+    <Folder Include="Common\" />
+    <Folder Include="Export\" />
+    <Folder Include="Import\" />
+    <Folder Include="Mold\" />
+    <Folder Include="Smoothing\" />
+    <Folder Include="Rotation\" />
+  </ItemGroup>
+
+</Project>
