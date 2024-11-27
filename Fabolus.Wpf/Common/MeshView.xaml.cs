@@ -19,6 +19,7 @@ namespace Fabolus.Wpf.Common;
 /// </summary>
 public partial class MeshView : UserControl {
     public MeshView() {
+        DataContext = new MeshViewModel();
         InitializeComponent();
     }
 }
