@@ -9,8 +9,8 @@ using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Common;
 public abstract class BaseViewModel : ObservableObject, IDisposable {
-    public virtual string TitleText { get; } = string.Empty;
-    public virtual BaseMeshViewModel MeshViewModel { get; private set; } = new MeshViewModel();
+    public abstract string TitleText { get; }
+    public abstract BaseMeshViewModel GetMeshViewModel(BaseMeshViewModel? meshViewModel);
 
     public void Dispose() {
         WeakReferenceMessenger.Default.UnregisterAll(this);

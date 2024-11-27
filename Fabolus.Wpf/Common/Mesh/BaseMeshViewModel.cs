@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using SharpDX;
 
 namespace Fabolus.Wpf.Common.Mesh;
-public abstract partial class BaseMeshViewModel : ObservableObject
+public abstract partial class BaseMeshViewModel : ObservableObject, IDisposable
 {
     public const string Orthographic = "Orthographic Camera";
     public const string Perspective = "Perspective Camera";
@@ -33,15 +33,10 @@ public abstract partial class BaseMeshViewModel : ObservableObject
             FarPlaneDistance = 150 
         };
 
-    private string cameraModel;
-
     [ObservableProperty] private Camera _camera;
 
     [ObservableProperty] private string _title;
     [ObservableProperty] private string _subTitle;
-
-    //mesh to store visible model from messager
-    [ObservableProperty] protected Media3D.Model3DGroup _displayMesh;
 
     //Camera controls
     [ObservableProperty] protected bool? _zoomWhenLoaded = false;
@@ -50,13 +45,26 @@ public abstract partial class BaseMeshViewModel : ObservableObject
         Title = "test";
         SubTitle = "subtitle test";
 
-        DisplayMesh = new Media3D.Model3DGroup();
         ZoomWhenLoaded = zoom;
         _camera = defaultPerspectiveCamera;
         EffectsManager = new DefaultEffectsManager();
     }
 
-    public void OnClosing() { 
+    public BaseMeshViewModel(BaseMeshViewModel? oldViewModel, bool zoomWhenLoaded = false) {
+        Title = "test";
+        SubTitle = "subtitle test";
+
+        if (oldViewModel is null) {
+            Camera = defaultPerspectiveCamera;
+        } else {
+            Camera = oldViewModel.Camera;
+        }
+
+        ZoomWhenLoaded = zoomWhenLoaded;
+        EffectsManager = new DefaultEffectsManager();
+    }
+
+    public void Dispose() { 
         WeakReferenceMessenger.Default.UnregisterAll(this);
     }
 

@@ -28,19 +28,15 @@ public partial class ImportMeshViewModel : BaseMeshViewModel {
     public System.Windows.Media.Color DirectionalLightColor => Colors.White;
     public System.Windows.Media.Color AmbientLightColor => Colors.GhostWhite;
 
-    public ImportMeshViewModel(bool? zoom = false) {
-        // titles
-        Title = "";
-        SubTitle = "";
-
+    public ImportMeshViewModel(BaseMeshViewModel? oldMeshViewModel, bool zoomWhenLaoded = false) : base(oldMeshViewModel, zoomWhenLaoded) {
         // camera setup
-        Camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera {
-            Position = new Point3D(45, -75, 30),
-            LookDirection = new Vector3D(65, 75, -30),
-            UpDirection = new Vector3D(0, 0, 1)
-        };
-
-        EffectsManager = new DefaultEffectsManager();
+        if (oldMeshViewModel is null) {
+            Camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera {
+                Position = new Point3D(45, -75, 30),
+                LookDirection = new Vector3D(65, 75, -30),
+                UpDirection = new Vector3D(0, 0, 1)
+            };
+        }
 
         // floor plane grid
         Grid = GenerateGrid(-175, 175, -175, 175, 10);

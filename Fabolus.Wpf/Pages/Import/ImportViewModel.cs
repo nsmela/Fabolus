@@ -14,7 +14,7 @@ using static Fabolus.Wpf.Stores.BolusStore;
 namespace Fabolus.Wpf.Pages.Import;
 public partial class ImportViewModel : BaseViewModel {
     public override string TitleText => "Import";
-    public override BaseMeshViewModel MeshViewModel => new ImportMeshViewModel();
+    public override BaseMeshViewModel GetMeshViewModel(BaseMeshViewModel? meshViewModel) => new ImportMeshViewModel(meshViewModel);
 
     //commands
     #region Commands

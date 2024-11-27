@@ -32,7 +32,7 @@ public partial class MainViewModel : ObservableObject {
 
     private void NavigateTo(BaseViewModel viewModel) {
         //copying camera position
-        var meshView = viewModel.MeshViewModel;
+        var meshView = viewModel.GetMeshViewModel(CurrentMeshView);
 
         if (CurrentMeshView is null) {
             meshView.Camera = new PerspectiveCamera();
