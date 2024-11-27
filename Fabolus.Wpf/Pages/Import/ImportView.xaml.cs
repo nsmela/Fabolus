@@ -1,5 +1,4 @@
-﻿using MahApps.Metro.Controls;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,15 +10,16 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Fabolus.Wpf.Pages;
+namespace Fabolus.Wpf.Pages.Import;
 /// <summary>
-/// Interaction logic for MainView.xaml
+/// Interaction logic for ImportView.xaml
 /// </summary>
-public partial class MainView : MetroWindow {
-    public MainView() {
-        DataContext = new MainViewModel();
+public partial class ImportView : UserControl {
+    public ImportView() {
+        DataContext = new ImportViewModel();
         InitializeComponent();
     }
 }

@@ -4,17 +4,31 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	 <UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>
     <Folder Include="AirChannel\" />
-    <Folder Include="Bolus\" />
     <Folder Include="Common\" />
     <Folder Include="Export\" />
     <Folder Include="Import\" />
     <Folder Include="Mold\" />
     <Folder Include="Smoothing\" />
     <Folder Include="Rotation\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="geometry3Sharp" Version="1.0.324" />
+  </ItemGroup>
+
+    <ItemGroup>
+	    <FrameworkReference Include="Microsoft.WindowsDesktop.App"/>
+    </ItemGroup>
+	
+  <ItemGroup>
+    <Reference Include="PresentationCore">
+      <HintPath>..\..\..\..\..\..\..\Program Files\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\8.0.7\ref\net8.0\PresentationCore.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

@@ -2,7 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Fabolus.Wpf"
-             StartupUri="Pages/MainView.xaml">
+             xmlns:import="clr-namespace:Fabolus.Wpf.Pages.Import"
+             StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -12,6 +13,15 @@
                 <!-- Theme setting -->
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Themes/Light.Blue.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- binding Views to ViewModels -->
+            <DataTemplate DataType="{x:Type import:ImportViewModel}">
+                <import:ImportView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type import:ImportMeshViewModel}">
+                <import:ImportMeshView/>
+            </DataTemplate>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

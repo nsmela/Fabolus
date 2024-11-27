@@ -5,9 +5,9 @@ VisualStudioVersion = 17.10.35122.118
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus", "Fabbolus v15\Fabolus.csproj", "{9856A5AC-CF9C-4F5E-963C-8F46CDDD012A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus.Wpf", "Fabolus.Wpf\Fabolus.Wpf.csproj", "{896EE22F-D7C9-4AA2-AFD7-3DC927825D98}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Fabolus.Wpf", "Fabolus.Wpf\Fabolus.Wpf.csproj", "{896EE22F-D7C9-4AA2-AFD7-3DC927825D98}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus.Core", "Fabolus.Core\Fabolus.Core.csproj", "{9E783D3A-3536-49AC-B86A-59E56E60C3BF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus.Core", "Fabolus.Domain\Fabolus.Core.csproj", "{1632662D-D3B5-4BDE-B5D3-284C12BE155A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,14 +33,14 @@ Global
 		{896EE22F-D7C9-4AA2-AFD7-3DC927825D98}.Release|Any CPU.Build.0 = Release|Any CPU
 		{896EE22F-D7C9-4AA2-AFD7-3DC927825D98}.Release|x64.ActiveCfg = Release|Any CPU
 		{896EE22F-D7C9-4AA2-AFD7-3DC927825D98}.Release|x64.Build.0 = Release|Any CPU
-		{9E783D3A-3536-49AC-B86A-59E56E60C3BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9E783D3A-3536-49AC-B86A-59E56E60C3BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9E783D3A-3536-49AC-B86A-59E56E60C3BF}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{9E783D3A-3536-49AC-B86A-59E56E60C3BF}.Debug|x64.Build.0 = Debug|Any CPU
-		{9E783D3A-3536-49AC-B86A-59E56E60C3BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9E783D3A-3536-49AC-B86A-59E56E60C3BF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9E783D3A-3536-49AC-B86A-59E56E60C3BF}.Release|x64.ActiveCfg = Release|Any CPU
-		{9E783D3A-3536-49AC-B86A-59E56E60C3BF}.Release|x64.Build.0 = Release|Any CPU
+		{1632662D-D3B5-4BDE-B5D3-284C12BE155A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1632662D-D3B5-4BDE-B5D3-284C12BE155A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1632662D-D3B5-4BDE-B5D3-284C12BE155A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1632662D-D3B5-4BDE-B5D3-284C12BE155A}.Debug|x64.Build.0 = Debug|Any CPU
+		{1632662D-D3B5-4BDE-B5D3-284C12BE155A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1632662D-D3B5-4BDE-B5D3-284C12BE155A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1632662D-D3B5-4BDE-B5D3-284C12BE155A}.Release|x64.ActiveCfg = Release|Any CPU
+		{1632662D-D3B5-4BDE-B5D3-284C12BE155A}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

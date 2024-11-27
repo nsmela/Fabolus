@@ -9,8 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Stores\" />
-    <Folder Include="Pages\Import\" />
     <Folder Include="Pages\Channels\" />
     <Folder Include="Pages\Mold\" />
     <Folder Include="Pages\Export\" />
@@ -22,6 +20,10 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
     <PackageReference Include="MahApps.Metro" Version="2.4.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fabolus.Domain\Fabolus.Core.csproj" />
   </ItemGroup>
 
 </Project>

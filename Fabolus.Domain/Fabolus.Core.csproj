@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="AirChannel\" />
+    <Folder Include="Export\" />
+    <Folder Include="Import\" />
+    <Folder Include="Mold\" />
+    <Folder Include="Rotation\" />
+    <Folder Include="Smoothing\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="geometry3Sharp" Version="1.0.324" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
+  </ItemGroup>
+
+</Project>
