@@ -18,7 +18,6 @@
                 Camera="{Binding Camera}"
                 CoordinateSystemLabelForeground="White"
                 EffectsManager="{Binding EffectsManager}"
-                ShowCoordinateSystem="True"
                 TextBrush="Black"
                 FXAALevel="High"
                 ModelUpDirection="0, 0, 1"

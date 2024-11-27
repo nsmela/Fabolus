@@ -1,10 +1,13 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.Bolus;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Pages.Import;
 using Fabolus.Wpf.Stores;
 using HelixToolkit.Wpf.SharpDX;
+using static Fabolus.Wpf.Stores.BolusStore;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
@@ -38,6 +41,10 @@ public partial class MainViewModel : ObservableObject {
             meshView.Camera = CurrentMeshView.Camera;
         }
 
+        if (CurrentViewModel is not null) {
+            CurrentViewModel.Dispose(); //to ensure multiple view models dont listen in at the same time
+        }
+
         CurrentViewModel = viewModel;
         CurrentMeshView = meshView;
         CurrentViewTitle = viewModel.TitleText;
@@ -48,7 +55,14 @@ public partial class MainViewModel : ObservableObject {
     {
         BolusStore = new();
 
+        //messages
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.bolus));
+
         NavigateTo(new ImportViewModel());
+    }
+
+    private void BolusUpdated(BolusModel bolus) {
+        MeshLoaded = bolus.IsLoaded;
     }
 
     #region Commands

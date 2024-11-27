@@ -25,4 +25,14 @@ public class BolusModel {
     }
 
     #endregion
+
+    #region Public Methods
+
+    public bool IsLoaded => 
+        Mesh is not null && 
+        Mesh.VertexCount > 0 &&
+        Geometry is not null &&
+        Geometry.Positions.Count > 0;
+
+    #endregion
 }
