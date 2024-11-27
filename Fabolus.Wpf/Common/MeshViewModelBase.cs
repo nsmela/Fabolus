@@ -1,11 +1,12 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
+using HelixToolkit.Wpf.SharpDX;
+using Media3D = System.Windows.Media.Media3D;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Media.Media3D;
 
 namespace Fabolus.Wpf.Common;
 public abstract partial class MeshViewModelBase : ObservableObject
@@ -15,18 +16,18 @@ public abstract partial class MeshViewModelBase : ObservableObject
 
     protected OrthographicCamera defaultOrthographicCamera = 
         new OrthographicCamera { 
-            Position = new System.Windows.Media.Media3D.Point3D(0, 0, 5), 
-            LookDirection = new System.Windows.Media.Media3D.Vector3D(-0, -0, -5), 
-            UpDirection = new System.Windows.Media.Media3D.Vector3D(0, 1, 0), 
+            Position = new Media3D.Point3D(0, 0, 5), 
+            LookDirection = new Media3D.Vector3D(-0, -0, -5), 
+            UpDirection = new Media3D.Vector3D(0, 1, 0), 
             NearPlaneDistance = 1, 
             FarPlaneDistance = 100 
         };
 
     protected PerspectiveCamera defaultPerspectiveCamera = 
         new PerspectiveCamera { 
-            Position = new System.Windows.Media.Media3D.Point3D(0, 0, 5), 
-            LookDirection = new System.Windows.Media.Media3D.Vector3D(-0, -0, -5), 
-            UpDirection = new System.Windows.Media.Media3D.Vector3D(0, 1, 0), 
+            Position = new Media3D.Point3D(0, 0, 5), 
+            LookDirection = new Media3D.Vector3D(-0, -0, -5), 
+            UpDirection = new Media3D.Vector3D(0, 1, 0), 
             NearPlaneDistance = 0.5, 
             FarPlaneDistance = 150 
         };
@@ -39,19 +40,21 @@ public abstract partial class MeshViewModelBase : ObservableObject
     [ObservableProperty] private string _subTitle;
 
     //mesh to store visible model from messager
-    [ObservableProperty] protected Model3DGroup _displayMesh;
+    [ObservableProperty] protected Media3D.Model3DGroup _displayMesh;
 
     //Camera controls
     [ObservableProperty] protected bool? _zoomWhenLoaded = false;
 
     public MeshViewModelBase(bool? zoom = false) {
-        DisplayMesh = new Model3DGroup();
+        DisplayMesh = new Media3D.Model3DGroup();
         ZoomWhenLoaded = zoom;
         _camera = defaultPerspectiveCamera;
+        EffectsManager = new DefaultEffectsManager();
     }
 
     public void OnClosing() { 
         WeakReferenceMessenger.Default.UnregisterAll(this);
     }
 
+    [ObservableProperty] private IEffectsManager _effectsManager;
 }
