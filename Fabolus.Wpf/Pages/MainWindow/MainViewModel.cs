@@ -5,6 +5,7 @@ using Fabolus.Core.Bolus;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Pages.Import;
+using Fabolus.Wpf.Pages.Rotate;
 using Fabolus.Wpf.Stores;
 using HelixToolkit.Wpf.SharpDX;
 using static Fabolus.Wpf.Stores.BolusStore;
@@ -67,9 +68,9 @@ public partial class MainViewModel : ObservableObject {
 
     #region Commands
     [RelayCommand] public async Task SwitchToImportView() => NavigateTo(new ImportViewModel());
+    [RelayCommand] public async Task SwitchToRotationView() => NavigateTo(new RotateViewModel());
     /*
     [RelayCommand] public async Task SwitchToSmoothingView() => NavigateTo(new SmoothingViewModel());
-    [RelayCommand] public async Task SwitchToRotationView() => NavigateTo(new RotationViewModel());
     [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new AirChannelViewModel());
     [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MoldViewModel());
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());

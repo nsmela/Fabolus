@@ -12,7 +12,6 @@
     <Folder Include="Pages\Channels\" />
     <Folder Include="Pages\Mold\" />
     <Folder Include="Pages\Export\" />
-    <Folder Include="Pages\Rotate\" />
     <Folder Include="Pages\Smooth\" />
   </ItemGroup>
 

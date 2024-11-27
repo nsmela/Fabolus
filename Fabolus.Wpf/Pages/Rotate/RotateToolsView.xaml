@@ -1,0 +1,82 @@
+﻿<UserControl x:Class="Fabolus.Wpf.Pages.Rotate.RotateToolsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Rotate"
+             xmlns:b="clr-namespace:Fabolus.Wpf.Pages.Rotate.Behaviors"
+             xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="200">
+    <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="4,0,4,0">
+        <Label Content="x axis" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Minimum="-190" Maximum="190" TickFrequency="1" TickPlacement="None" 
+                Value="{Binding XAxisAngle, Mode=TwoWay}"
+                b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"
+                Margin="2" />
+        <Label Content="y axis" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Minimum="-190" Maximum="190" TickFrequency="1" TickPlacement="None" 
+                Value="{Binding YAxisAngle, Mode=TwoWay}"
+                b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"
+                Margin="2"/>
+        <Label Content="z axis" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Minimum="-190" Maximum="190" TickFrequency="1" TickPlacement="None" 
+                Value="{Binding ZAxisAngle, Mode=TwoWay}"
+                b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"
+                Margin="2"/>
+        <Label Content="overhang display" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <mah:RangeSlider 
+            ExtendedMode="False"
+            MinRangeWidth="10" MinRange="10"
+            Minimum="45" Maximum="90"
+            LowerValue="{Binding LowerOverhang, Mode=TwoWay}" UpperValue="{Binding UpperOverhang, Mode=TwoWay}"
+            Orientation="Horizontal"
+            AutoToolTipPlacement="TopLeft"
+            TickFrequency="5">
+            <mah:RangeSlider.AutoToolTipRangeValuesTemplate>
+                <DataTemplate DataType="mah:RangeSliderAutoTooltipValues">
+                    <UniformGrid Columns="2" Rows="2">
+                        <TextBlock HorizontalAlignment="Right" Text="Warning:" />
+                        <TextBlock HorizontalAlignment="Right" Text="{Binding LowerValue, StringFormat='{}{0:N2}'}" />
+                        <TextBlock HorizontalAlignment="Right" Text="Failure:" />
+                        <TextBlock HorizontalAlignment="Right" Text="{Binding UpperValue, StringFormat='{}{0:N2}'}" />
+                    </UniformGrid>
+                </DataTemplate>
+            </mah:RangeSlider.AutoToolTipRangeValuesTemplate>
+        </mah:RangeSlider>
+        <Button Content="reset" 
+                Height="30"
+                HorizontalAlignment="Stretch"
+                Margin="4,12,4,0"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                Command="{Binding ClearRotationCommand}" />
+    </StackPanel>
+</UserControl>

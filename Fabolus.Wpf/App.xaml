@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Fabolus.Wpf"
              xmlns:import="clr-namespace:Fabolus.Wpf.Pages.Import"
+             xmlns:rotate="clr-namespace:Fabolus.Wpf.Pages.Rotate"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -20,6 +21,13 @@
             </DataTemplate>
             <DataTemplate DataType="{x:Type import:ImportMeshViewModel}">
                 <import:ImportMeshView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type rotate:RotateViewModel}">
+                <rotate:RotateToolsView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type rotate:RotateMeshViewModel}">
+                <rotate:RotateMeshView/>
             </DataTemplate>
 
         </ResourceDictionary>
