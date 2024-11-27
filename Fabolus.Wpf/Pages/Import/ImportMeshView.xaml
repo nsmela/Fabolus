@@ -15,12 +15,13 @@
         <hx:Viewport3DX
                 x:Name="view1"
                 EnableCursorPosition="True"
-                EnableCurrentPosition="True"
                 Camera="{Binding Camera}"
                 CoordinateSystemLabelForeground="White"
                 EffectsManager="{Binding EffectsManager}"
                 ShowCoordinateSystem="True"
                 TextBrush="Black"
+                FXAALevel="High"
+                ModelUpDirection="0, 0, 1"
                 UseDefaultGestures="False">
             <hx:Viewport3DX.InputBindings>
                 <KeyBinding Key="B" Command="hx:ViewportCommands.BackView" />
@@ -42,13 +43,7 @@
                     Geometry="{Binding Model}"
                     Material="{Binding RedMaterial}"
                     Transform="{Binding Model1Transform}" />
-
-            <hx:LineGeometryModel3D
-                    x:Name="lines"
-                    Geometry="{Binding Lines}"
-                    Thickness="0.5"
-                    Transform="{Binding Model1Transform}"
-                    Color="Gray" />
+            
             <hx:LineGeometryModel3D x:Name="grid" 
                                         Geometry="{Binding Grid}"
                                         Transform="{Binding GridTransform}"

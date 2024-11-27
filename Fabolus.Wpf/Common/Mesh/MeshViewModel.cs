@@ -96,5 +96,6 @@ public class MeshViewModel : BaseMeshViewModel
         var model = MeshSkins.SkinModel(bolus, MeshSkins.Bolus);
         DisplayMesh.Children.Add(model);
     }
+
 }
 
