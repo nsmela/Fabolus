@@ -8,8 +8,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Fabolus.Wpf.Common;
-public abstract partial class MeshViewModelBase : ObservableObject
+namespace Fabolus.Wpf.Common.Mesh;
+public abstract partial class BaseMeshViewModel : ObservableObject
 {
     public const string Orthographic = "Orthographic Camera";
     public const string Perspective = "Perspective Camera";
@@ -45,7 +45,10 @@ public abstract partial class MeshViewModelBase : ObservableObject
     //Camera controls
     [ObservableProperty] protected bool? _zoomWhenLoaded = false;
 
-    public MeshViewModelBase(bool? zoom = false) {
+    public BaseMeshViewModel(bool? zoom = false) {
+        Title = "test";
+        SubTitle = "subtitle test";
+
         DisplayMesh = new Media3D.Model3DGroup();
         ZoomWhenLoaded = zoom;
         _camera = defaultPerspectiveCamera;

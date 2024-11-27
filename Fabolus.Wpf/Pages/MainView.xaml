@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Fabolus.Wpf.Pages"
         xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro" 
-        xmlns:common="clr-namespace:Fabolus.Wpf.Common"
+        xmlns:common="clr-namespace:Fabolus.Wpf.Common.Mesh"
         mc:Ignorable="d"
         Title="Fabolus" Height="450" Width="800">
     <Grid>

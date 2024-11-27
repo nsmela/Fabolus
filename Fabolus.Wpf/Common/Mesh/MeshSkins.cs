@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
 using System.Windows.Media;
 
-namespace Fabolus.Wpf.Common;
-public static class MeshSkins {
+namespace Fabolus.Wpf.Common.Mesh;
+public static class MeshSkins
+{
     public record struct MeshSkin(string Label, Color Colour);
 
     public static MeshSkin Default = new MeshSkin("Default", Colors.WhiteSmoke);
@@ -17,7 +18,8 @@ public static class MeshSkins {
     public static MeshSkin Fault = new MeshSkin("Fault", Colors.Gray);
     public static MeshSkin AirChannelTool = new MeshSkin("AirChannelTool", Colors.Gray);
 
-    public enum MeshColor {
+    public enum MeshColor
+    {
         Bolus,
         Smoothed,
         Warning,
@@ -31,13 +33,14 @@ public static class MeshSkins {
     }
 
     public static GeometryModel3D SkinModel(MeshGeometry3D mesh, MeshSkin skin, double opacity = 1.0f) =>
-        new GeometryModel3D {
+        new GeometryModel3D
+        {
             Geometry = mesh,
             Material = ColorToSkin(skin),
             BackMaterial = ColorToSkin(skin),
         };
 
     private static DiffuseMaterial ColorToSkin(MeshSkin skin, double opacity = 1.0f) =>
-        new DiffuseMaterial(new SolidColorBrush { Color = skin.Colour, Opacity = opacity});
+        new DiffuseMaterial(new SolidColorBrush { Color = skin.Colour, Opacity = opacity });
 
 }

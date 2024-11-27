@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="Fabolus.Wpf.Common.MeshView"
+﻿<UserControl x:Class="Fabolus.Wpf.Common.Mesh.MeshView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -15,12 +15,10 @@
                 x:Name="view1"
                 EnableCursorPosition="True"
                 EnableCurrentPosition="True"
-                Title="{Binding Title}"
                 Camera="{Binding Camera}"
                 CoordinateSystemLabelForeground="White"
                 EffectsManager="{Binding EffectsManager}"
-                ShowCoordinateSystem="False"
-                SubTitle="{Binding SubTitle}"
+                ShowCoordinateSystem="True"
                 TextBrush="Black"
                 UseDefaultGestures="False">
                 <hx:Viewport3DX.InputBindings>
@@ -37,21 +35,13 @@
                 </hx:Viewport3DX.InputBindings>
                 <hx:AmbientLight3D Color="{Binding AmbientLightColor}" />
                 <hx:DirectionalLight3D Direction="{Binding Camera.LookDirection}" Color="{Binding DirectionalLightColor}" />
+
                 <hx:MeshGeometryModel3D
                     x:Name="model1red"
                     Geometry="{Binding Model}"
                     Material="{Binding RedMaterial}"
                     Transform="{Binding Model1Transform}" />
-                <hx:MeshGeometryModel3D
-                    x:Name="model2green"
-                    Geometry="{Binding Model}"
-                    Material="{Binding GreenMaterial}"
-                    Transform="{Binding Model2Transform}" />
-                <hx:MeshGeometryModel3D
-                    x:Name="model3blue"
-                    Geometry="{Binding Model}"
-                    Material="{Binding BlueMaterial}"
-                    Transform="{Binding Model3Transform}" />
+
                 <hx:LineGeometryModel3D
                     x:Name="lines"
                     Geometry="{Binding Lines}"

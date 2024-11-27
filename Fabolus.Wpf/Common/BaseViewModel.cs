@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Common;
-public abstract class ViewModelBase : ObservableObject {
+public abstract class BaseViewModel : ObservableObject {
     public virtual string TitleText { get; } = string.Empty;
 
 
