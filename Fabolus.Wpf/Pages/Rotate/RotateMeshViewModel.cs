@@ -14,6 +14,7 @@ using System.Windows.Media;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 
 namespace Fabolus.Wpf.Pages.Rotate;
+
 public partial class RotateMeshViewModel : BaseMeshViewModel {
     [ObservableProperty] public MeshGeometry3D _model;
     public LineGeometry3D Grid { get; private set; }
@@ -22,12 +23,12 @@ public partial class RotateMeshViewModel : BaseMeshViewModel {
 
     public SharpDX.Color GridColor { get; private set; }
 
-    public Transform3D Model1Transform { get; private set; }
+    [ObservableProperty] private Transform3D _model1Transform;
 
     public Transform3D GridTransform { get; private set; }
 
-    public System.Windows.Media.Color DirectionalLightColor => Colors.White;
-    public System.Windows.Media.Color AmbientLightColor => Colors.GhostWhite;
+    public Color DirectionalLightColor => Colors.White;
+    public Color AmbientLightColor => Colors.GhostWhite;
 
     public RotateMeshViewModel(BaseMeshViewModel? oldMeshViewModel, bool zoomWhenLaoded = false) : base(oldMeshViewModel, zoomWhenLaoded) {
         // camera setup
@@ -50,6 +51,7 @@ public partial class RotateMeshViewModel : BaseMeshViewModel {
         //messages
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => Update(m.bolus));
+        WeakReferenceMessenger.Default.Register<RotationUpdatedMessage>(this, (r,m) => Update(m.transform));
 
         BolusModel bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>();
 
@@ -64,5 +66,11 @@ public partial class RotateMeshViewModel : BaseMeshViewModel {
 
         //building geometry model
         Model = geometry;
+    }
+
+    private void Update(Transform3D? transform) {
+        if (transform is null) { return; }
+
+        Model1Transform = transform;
     }
 }

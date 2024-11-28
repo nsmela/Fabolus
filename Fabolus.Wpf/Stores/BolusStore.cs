@@ -1,10 +1,11 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using CommunityToolkit.Mvvm.Messaging.Messages;
 using Fabolus.Core.Bolus;
+using Fabolus.Wpf.Common.Mesh;
 using g3;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
 using System.IO;
+using System.Windows.Media.Media3D;
 
 
 namespace Fabolus.Wpf.Stores;
@@ -20,14 +21,19 @@ public class BolusStore {
     public sealed record BolusUpdatedMessage(BolusModel bolus);
 
     //rotations
-    public sealed record ApplyRotationMessage(Vector3 axis, double angle);
+    public sealed record ApplyTempRotationMessage(Vector3D axis, float angle);
+    public sealed record ApplyRotationMessage(Vector3D axis, float angle);
     public sealed record ClearRotationsMessage();
-    public sealed record ApplyOverhangSettingsMessage(double lower, double upper);
+    public sealed record RotationUpdatedMessage(Transform3D transform);
+    public class RotationRequestMessage : RequestMessage<Transform3D> { }
+
+    //overhangs
+    public sealed record ApplyOverhangSettingsMessage(float lower, float upper);
 
     //request messages
     public class BolusRequestMessage : RequestMessage<BolusModel> { }
     public class BolusFilePathRequestMessage : RequestMessage<string> { }
-    public class BolusOverhangMaterialRequestMessage : RequestMessage<DiffuseMaterial> { }
+    //public class BolusOverhangMaterialRequestMessage : RequestMessage<DiffuseMaterial> { }
     public class BolusOverhangSettingsRequestMessage : RequestMessage<double[]> { }
 
     #endregion
@@ -35,16 +41,42 @@ public class BolusStore {
     #region Fields and Properties
 
     private BolusModel _bolus;
+    private Transform3D _transform;
 
     #endregion
 
     public BolusStore()
     {
+        //default values
+        _transform = MeshHelper.TransformEmpty; //an empty transform
+
         //registering messages
         WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, async (r,m) => await BolusFromFile(m.filepath) );
+        WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, async (r, m) => await AddTempTransform(m.axis, m.angle));
+        WeakReferenceMessenger.Default.Register<ApplyRotationMessage>(this, async (r, m) => await AddTransform(m.axis, m.angle));
+        WeakReferenceMessenger.Default.Register<ClearRotationsMessage>(this, async (r, m) => await ClearTransforms());
 
         //request messages
         WeakReferenceMessenger.Default.Register<BolusStore, BolusRequestMessage>(this, (r, m) => m.Reply(r._bolus) );
+    }
+
+    #region Messages
+    private async Task AddTempTransform(Vector3D axis, float angle) {
+        //stack transforms
+        var transform = new Transform3DGroup { Children = [_transform, MeshHelper.TransformFromAxis(axis, angle)] };
+
+        WeakReferenceMessenger.Default.Send(new RotationUpdatedMessage(transform)); //for the mesh view to use
+
+        //process overhangs
+
+        await BolusUpdated();
+    }
+
+    private async Task AddTransform(Vector3D axis, float angle) {
+        _transform = new Transform3DGroup { Children = [_transform, MeshHelper.TransformFromAxis(axis, angle)] };
+        WeakReferenceMessenger.Default.Send(new RotationUpdatedMessage(_transform)); //for the mesh view to use
+
+        await BolusUpdated();
     }
 
     private async Task BolusFromFile(string filepath) {
@@ -67,4 +99,13 @@ public class BolusStore {
     }
 
     private async Task BolusUpdated() => WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(_bolus));
+
+    private async Task ClearTransforms() {
+        _transform = MeshHelper.TransformEmpty;
+        WeakReferenceMessenger.Default.Send(new RotationUpdatedMessage(_transform)); //for the mesh view to use
+
+        await BolusUpdated();
+    }
+
+    #endregion
 }
