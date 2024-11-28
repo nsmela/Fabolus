@@ -15,7 +15,7 @@ public partial class MainViewModel : ObservableObject {
     private const string NoFileText = "No file loaded";
 
     [ObservableProperty] private BaseViewModel? _currentViewModel;
-    [ObservableProperty] private BaseMeshViewModel? _currentMeshView;
+    [ObservableProperty] private MeshViewModel? _currentMeshView;
     [ObservableProperty] private string _currentViewTitle = "No View Selected";
 
     //mesh info
@@ -32,7 +32,7 @@ public partial class MainViewModel : ObservableObject {
 
     private void NavigateTo(BaseViewModel viewModel) {
         //copying camera position
-        var meshView = viewModel.GetMeshViewModel(CurrentMeshView);
+        var meshView = new MeshViewModel();//viewModel.GetMeshViewModel(CurrentMeshView);
 
         if (CurrentViewModel is not null) {
             CurrentViewModel.Dispose(); //to ensure multiple view models dont listen in at the same time
