@@ -19,7 +19,6 @@ namespace Fabolus.Wpf.Pages.Rotate;
 /// </summary>
 public partial class RotateMeshView : UserControl {
     public RotateMeshView() {
-        DataContext = new RotateMeshViewModel(null);
         InitializeComponent();
     }
 }

@@ -12,27 +12,6 @@ using SharpDX;
 namespace Fabolus.Wpf.Common.Mesh;
 public abstract partial class BaseMeshViewModel : ObservableObject, IDisposable
 {
-    public const string Orthographic = "Orthographic Camera";
-    public const string Perspective = "Perspective Camera";
-
-    protected OrthographicCamera defaultOrthographicCamera = 
-        new OrthographicCamera { 
-            Position = new Media3D.Point3D(0, 0, 5), 
-            LookDirection = new Media3D.Vector3D(-0, -0, -5), 
-            UpDirection = new Media3D.Vector3D(0, 1, 0), 
-            NearPlaneDistance = 1, 
-            FarPlaneDistance = 100 
-        };
-
-    protected PerspectiveCamera defaultPerspectiveCamera = 
-        new PerspectiveCamera { 
-            Position = new Media3D.Point3D(0, 0, 5), 
-            LookDirection = new Media3D.Vector3D(-0, -0, -5), 
-            UpDirection = new Media3D.Vector3D(0, 1, 0), 
-            NearPlaneDistance = 0.5, 
-            FarPlaneDistance = 150 
-        };
-
     [ObservableProperty] private Camera _camera;
 
     [ObservableProperty] private string _title;
@@ -41,25 +20,11 @@ public abstract partial class BaseMeshViewModel : ObservableObject, IDisposable
     //Camera controls
     [ObservableProperty] protected bool? _zoomWhenLoaded = false;
 
-    public BaseMeshViewModel(bool? zoom = false) {
-        Title = "test";
-        SubTitle = "subtitle test";
-
-        ZoomWhenLoaded = zoom;
-        _camera = defaultPerspectiveCamera;
-        EffectsManager = new DefaultEffectsManager();
-    }
-
     public BaseMeshViewModel(BaseMeshViewModel? oldViewModel, bool zoomWhenLoaded = false) {
         Title = "test";
         SubTitle = "subtitle test";
 
-        if (oldViewModel is null) {
-            Camera = defaultPerspectiveCamera;
-        } else {
-            Camera = oldViewModel.Camera;
-        }
-
+        Camera = oldViewModel is not null ? oldViewModel.Camera : new PerspectiveCamera();
         ZoomWhenLoaded = zoomWhenLoaded;
         EffectsManager = new DefaultEffectsManager();
     }

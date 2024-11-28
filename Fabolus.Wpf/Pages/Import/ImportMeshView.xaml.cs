@@ -19,7 +19,6 @@ namespace Fabolus.Wpf.Pages.Import;
 /// </summary>
 public partial class ImportMeshView : UserControl {
     public ImportMeshView() {
-        DataContext = new ImportMeshViewModel(null);
         InitializeComponent();
     }
 }

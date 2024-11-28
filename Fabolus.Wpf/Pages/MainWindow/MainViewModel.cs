@@ -26,7 +26,6 @@ public partial class MainViewModel : ObservableObject {
     [ObservableProperty] private string _triangleCount = NoFileText;
     [ObservableProperty] private string _volumeText = NoFileText;
 
-
     #region Stores
     private BolusStore BolusStore { get; set; }
     #endregion
@@ -35,13 +34,6 @@ public partial class MainViewModel : ObservableObject {
         //copying camera position
         var meshView = viewModel.GetMeshViewModel(CurrentMeshView);
 
-        if (CurrentMeshView is null) {
-            meshView.Camera = new PerspectiveCamera();
-            meshView.Camera.Reset();
-        } else {
-            meshView.Camera = CurrentMeshView.Camera;
-        }
-
         if (CurrentViewModel is not null) {
             CurrentViewModel.Dispose(); //to ensure multiple view models dont listen in at the same time
         }
@@ -49,7 +41,6 @@ public partial class MainViewModel : ObservableObject {
         CurrentViewModel = viewModel;
         CurrentMeshView = meshView;
         CurrentViewTitle = viewModel.TitleText;
-
     }
 
     public MainViewModel()
