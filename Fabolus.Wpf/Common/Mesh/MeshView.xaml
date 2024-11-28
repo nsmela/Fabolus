@@ -34,6 +34,8 @@
             <hx:AmbientLight3D Color="{Binding AmbientLightColor}" />
             <hx:DirectionalLight3D Direction="{Binding Camera.LookDirection}" Color="{Binding DirectionalLightColor}" />
 
+            <hx:Element3DPresenter Content="{Binding ModelGroup}" />
+
             <hx:LineGeometryModel3D x:Name="grid" 
                                 Geometry="{Binding Grid.Geometry}"
                                 Transform="{Binding Grid.Transform}"

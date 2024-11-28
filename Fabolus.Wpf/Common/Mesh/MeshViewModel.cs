@@ -25,7 +25,7 @@ public partial class MeshViewModel : ObservableObject
 
     //models
     [ObservableProperty] private LineGeometryModel3D _grid = new LineGeometryModel3D();
-
+    [ObservableProperty] private SceneNodeGroupModel3D _modelGroup;
     //mouse commands
     [ObservableProperty] private ICommand _leftMouseCommand = ViewportCommands.Pan;
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
@@ -34,6 +34,10 @@ public partial class MeshViewModel : ObservableObject
     public MeshViewModel()
     {
         Grid.Geometry = GenerateGrid();
+    }
+
+    public void SetScene(SceneNodeGroupModel3D scene) {
+        ModelGroup = scene;
     }
 
     protected LineGeometry3D GenerateGrid(float minX = -100, float maxX = 100, float minY = -100, float maxY = 100, float spacing = 10) {
