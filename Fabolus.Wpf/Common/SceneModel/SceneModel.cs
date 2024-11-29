@@ -14,19 +14,20 @@ using static Fabolus.Wpf.Stores.BolusStore;
 namespace Fabolus.Wpf.Common.SceneModel;
 
 public class SceneModel {
-    public event Action<SceneNodeGroupModel3D> SceneUpdated;
+    public event Action<Object3D> SceneUpdated;
 
     public SceneModel() {
         //messaging
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateScene(m.bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateModel(m.bolus));
     }
 
-    private async void UpdateScene(BolusModel bolus) {
+    private async void UpdateModel(BolusModel bolus) {
         var transform = WeakReferenceMessenger.Default.Send<RotationRequestMessage>().Response;
-        var scene = new SceneNodeGroupModel3D();
-        scene.AddNode(new MeshNode() { Geometry = bolus.Geometry, ModelMatrix = transform.ToMatrix() });
+        var model = new Object3D();
+        model.Geometry = bolus.Geometry;
+        model.Transform = new() { transform.ToMatrix() };
 
-        SceneUpdated?.Invoke(scene);
+        SceneUpdated?.Invoke(model);
     }
 
 }

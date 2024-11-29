@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Bolus;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Mesh;
+using Fabolus.Wpf.Common.SceneModel;
 using Fabolus.Wpf.Pages.Import;
 using Fabolus.Wpf.Pages.Rotate;
 using Fabolus.Wpf.Stores;
@@ -26,6 +27,8 @@ public partial class MainViewModel : ObservableObject {
     [ObservableProperty] private string _triangleCount = NoFileText;
     [ObservableProperty] private string _volumeText = NoFileText;
 
+    private SceneModel _sceneModel;
+
     #region Stores
     private BolusStore BolusStore { get; set; }
     #endregion
@@ -41,6 +44,10 @@ public partial class MainViewModel : ObservableObject {
         CurrentViewModel = viewModel;
         CurrentMeshView = meshView;
         CurrentViewTitle = viewModel.TitleText;
+
+        //based on the view
+        _sceneModel = new SceneModel();
+        _sceneModel.SceneUpdated += CurrentMeshView.SetModel; //the scene model updates the latest mesh view model's scene
     }
 
     public MainViewModel()

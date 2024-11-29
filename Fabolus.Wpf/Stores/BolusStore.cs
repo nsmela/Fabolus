@@ -58,6 +58,7 @@ public class BolusStore {
 
         //request messages
         WeakReferenceMessenger.Default.Register<BolusStore, BolusRequestMessage>(this, (r, m) => m.Reply(r._bolus) );
+        WeakReferenceMessenger.Default.Register<BolusStore, RotationRequestMessage>(this, (r, m) => m.Reply(r._transform) );
     }
 
     #region Messages

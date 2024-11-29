@@ -9,6 +9,7 @@ using HelixToolkit.Wpf.SharpDX;
 using Camera = HelixToolkit.Wpf.SharpDX.Camera;
 using Color = System.Windows.Media.Color;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
+using Material = HelixToolkit.Wpf.SharpDX.Material;
 using SharpDX;
 using System.Windows.Media;
 using System.Windows.Input;
@@ -26,18 +27,31 @@ public partial class MeshViewModel : ObservableObject
     //models
     [ObservableProperty] private LineGeometryModel3D _grid = new LineGeometryModel3D();
     [ObservableProperty] private SceneNodeGroupModel3D _modelGroup;
+    //testing
+    [ObservableProperty] private IList<BatchedMeshGeometryConfig> _batchedMeshes;
+    [ObservableProperty] private IList<Material> _batchedMaterials;
+    [ObservableProperty] private Transform3D _mainTransform = new ScaleTransform3D(1.0, 1.0, 1.0);
+    [ObservableProperty] private Material _mainMaterial = PhongMaterials.White;
     //mouse commands
     [ObservableProperty] private ICommand _leftMouseCommand = ViewportCommands.Pan;
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
+
+
 
     public MeshViewModel()
     {
         Grid.Geometry = GenerateGrid();
     }
 
-    public void SetScene(SceneNodeGroupModel3D scene) {
-        ModelGroup = scene;
+    public void SetModel(Object3D model) {
+        var models = new List<BatchedMeshGeometryConfig>();
+        model.Geometry.UpdateOctree();
+        models.Add(new BatchedMeshGeometryConfig(model.Geometry, MainTransform.ToMatrix(), 0));
+        var materials = new Material[] { MainMaterial };
+
+        BatchedMeshes = models;
+        BatchedMaterials = materials;
     }
 
     protected LineGeometry3D GenerateGrid(float minX = -100, float maxX = 100, float minY = -100, float maxY = 100, float spacing = 10) {
