@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Mesh;
+using Fabolus.Wpf.Common.Scene;
 using SharpDX;
 using Vector3D = System.Windows.Media.Media3D.Vector3D;
 using System;
@@ -15,6 +16,8 @@ using static Fabolus.Wpf.Stores.BolusStore;
 namespace Fabolus.Wpf.Pages.Rotate;
 public partial class RotateViewModel : BaseViewModel {
     public override string TitleText => "Rotation";
+
+    public override SceneModel GetSceneModel => new RotateSceneModel();
 
     public override BaseMeshViewModel GetMeshViewModel(BaseMeshViewModel? meshViewModel) => new RotateMeshViewModel(meshViewModel);
 

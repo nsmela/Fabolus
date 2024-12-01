@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Bolus;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Mesh;
-using Fabolus.Wpf.Common.SceneModel;
+using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.Import;
 using Fabolus.Wpf.Pages.Rotate;
 using Fabolus.Wpf.Stores;
@@ -16,8 +16,9 @@ public partial class MainViewModel : ObservableObject {
     private const string NoFileText = "No file loaded";
 
     [ObservableProperty] private BaseViewModel? _currentViewModel;
-    [ObservableProperty] private MeshViewModel? _currentMeshView;
     [ObservableProperty] private string _currentViewTitle = "No View Selected";
+    [ObservableProperty] private MeshViewModel _currentMeshView = new MeshViewModel();
+    [ObservableProperty] private SceneModel _currentSceneModel;
 
     //mesh info
     [ObservableProperty] private bool _infoVisible = false;
@@ -34,19 +35,17 @@ public partial class MainViewModel : ObservableObject {
     #endregion
 
     private void NavigateTo(BaseViewModel viewModel) {
-        //copying camera position
-        var meshView = new MeshViewModel();//viewModel.GetMeshViewModel(CurrentMeshView);
 
         if (CurrentViewModel is not null) {
             CurrentViewModel.Dispose(); //to ensure multiple view models dont listen in at the same time
+            _sceneModel?.Dispose();
         }
 
         CurrentViewModel = viewModel;
-        CurrentMeshView = meshView;
         CurrentViewTitle = viewModel.TitleText;
 
         //based on the view
-        _sceneModel = new SceneModel();
+        _sceneModel = viewModel.GetSceneModel;
         _sceneModel.SceneUpdated += CurrentMeshView.SetModel; //the scene model updates the latest mesh view model's scene
     }
 

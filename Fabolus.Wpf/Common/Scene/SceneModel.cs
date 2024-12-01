@@ -11,9 +11,9 @@ using System.Text;
 using System.Threading.Tasks;
 using static Fabolus.Wpf.Stores.BolusStore;
 
-namespace Fabolus.Wpf.Common.SceneModel;
+namespace Fabolus.Wpf.Common.Scene;
 
-public class SceneModel {
+public class SceneModel : IDisposable   {
     public event Action<Object3D> SceneUpdated;
 
     public SceneModel() {
@@ -21,7 +21,7 @@ public class SceneModel {
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateModel(m.bolus));
     }
 
-    private async void UpdateModel(BolusModel bolus) {
+    protected virtual async Task UpdateModel(BolusModel bolus) {
         var transform = WeakReferenceMessenger.Default.Send<RotationRequestMessage>().Response;
         var model = new Object3D();
         model.Geometry = bolus.Geometry;
@@ -30,5 +30,8 @@ public class SceneModel {
         SceneUpdated?.Invoke(model);
     }
 
+    public void Dispose() {
+        WeakReferenceMessenger.Default.UnregisterAll(this);
+    }
 }
 

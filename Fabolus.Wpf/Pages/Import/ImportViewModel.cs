@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Mesh;
+using Fabolus.Wpf.Common.Scene;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,9 @@ using static Fabolus.Wpf.Stores.BolusStore;
 namespace Fabolus.Wpf.Pages.Import;
 public partial class ImportViewModel : BaseViewModel {
     public override string TitleText => "Import";
+
+    public override SceneModel GetSceneModel => new SceneModel();
+
     public override BaseMeshViewModel GetMeshViewModel(BaseMeshViewModel? meshViewModel) => new ImportMeshViewModel(meshViewModel);
 
     //commands
