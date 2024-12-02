@@ -46,7 +46,7 @@ public partial class MainViewModel : ObservableObject {
 
         //based on the view
         _sceneModel = viewModel.GetSceneModel;
-        _sceneModel.SceneUpdated += CurrentMeshView.SetModel; //the scene model updates the latest mesh view model's scene
+
     }
 
     public MainViewModel()

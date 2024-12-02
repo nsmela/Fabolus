@@ -14,10 +14,14 @@ using SharpDX;
 using System.Windows.Media;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using static Fabolus.Wpf.Stores.BolusStore;
-using Fabolus.Core.Bolus;
+using static g3.SetGroupBehavior;
 
 namespace Fabolus.Wpf.Common.Mesh;
+
+//messages
+public sealed record MeshUpdatedMessage(Object3D[] model);
+public sealed record MeshRotationUpdatedMessage(Transform3D transform);
+
 
 public partial class MeshViewModel : ObservableObject
 {
@@ -29,10 +33,9 @@ public partial class MeshViewModel : ObservableObject
 
     //models
     [ObservableProperty] private LineGeometryModel3D _grid = new LineGeometryModel3D();
-    [ObservableProperty] private SceneNodeGroupModel3D _modelGroup;
     //testing
-    [ObservableProperty] private IList<BatchedMeshGeometryConfig> _batchedMeshes;
-    [ObservableProperty] private IList<Material> _batchedMaterials;
+    [ObservableProperty] private IList<BatchedMeshGeometryConfig> _batchedMeshes = [];
+    [ObservableProperty] private IList<Material> _batchedMaterials = [];
     [ObservableProperty] private Transform3D _mainTransform = new ScaleTransform3D(1.0, 1.0, 1.0);
     [ObservableProperty] private Material _mainMaterial = PhongMaterials.White;
     //mouse commands
@@ -40,33 +43,29 @@ public partial class MeshViewModel : ObservableObject
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
 
-    private Object3D _model;
+    private Object3D[] _models = [];
 
     public MeshViewModel()
     {
         Grid.Geometry = GenerateGrid();
-        WeakReferenceMessenger.Default.Register<RotationUpdatedMessage>(this, async (r, m) => await UpdateRotation(m.transform));
+        WeakReferenceMessenger.Default.Register<MeshUpdatedMessage>(this, async (r, m) => await UpdateMesh(m.model));
     }
 
-    public void SetModel(Object3D model) {
-        model.Geometry.UpdateOctree();
-        _model = model;
-        UpdateView();
-    }
-
-    private async Task UpdateRotation(Transform3D transform) {
-        MainTransform = transform;
-        await UpdateView();
-    }
-
-    private async Task UpdateView() {
-        var models = new List<BatchedMeshGeometryConfig>();
-        models.Add(new BatchedMeshGeometryConfig(_model.Geometry, MainTransform.ToMatrix(), 0));
+    private void UpdateView() {
+        var models = new List<BatchedMeshGeometryConfig>(_models.Count());
+        foreach(var model in _models) {
+            models.Add(new BatchedMeshGeometryConfig(model.Geometry, MainTransform.ToMatrix(), 0));
+        }
         var materials = new Material[] { MainMaterial };
 
         BatchedMeshes = models;
         BatchedMaterials = materials;
 
+    }
+
+    private async Task UpdateMesh(Object3D[] models) {
+        _models = models;
+        UpdateView();
     }
 
     protected LineGeometry3D GenerateGrid(float minX = -100, float maxX = 100, float minY = -100, float maxY = 100, float spacing = 10) {

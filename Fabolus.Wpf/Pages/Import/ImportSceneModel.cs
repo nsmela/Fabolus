@@ -21,7 +21,7 @@ public sealed class ImportSceneModel : SceneModel {
 
     public ImportSceneModel() 
     {
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, async (r, m) => await UpdateModel(m.bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateModel(m.bolus));
 
         //setup
         _transform = WeakReferenceMessenger.Default.Send<RotationRequestMessage>().Response;
@@ -29,14 +29,14 @@ public sealed class ImportSceneModel : SceneModel {
         UpdateModel();
     }
 
-    protected override async Task UpdateModel(BolusModel bolus) 
+    protected override void UpdateModel(BolusModel bolus) 
     {
         _transform = WeakReferenceMessenger.Default.Send<RotationRequestMessage>().Response;
         _bolus = bolus;
-        await UpdateModel();
+        UpdateModel();
     }
 
-    private async Task UpdateModel() {
+    private void UpdateModel() {
         var model = new Object3D();
         model.Geometry = _bolus.Geometry;
         model.Transform = new() { _transform.ToMatrix() };

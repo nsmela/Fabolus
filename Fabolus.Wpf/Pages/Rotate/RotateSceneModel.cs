@@ -22,8 +22,8 @@ public sealed class RotateSceneModel : SceneModel {
 
     public RotateSceneModel() {
         try {
-            WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, async (r, m) => await UpdateModel(m.bolus));
-            WeakReferenceMessenger.Default.Register<RotationUpdatedMessage>(this, async (r, m) => await UpdateModel(m.transform));
+            WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateModel(m.bolus));
+            WeakReferenceMessenger.Default.Register<RotationUpdatedMessage>(this, (r, m) => UpdateModel(m.transform));
         } catch { }
 
         //setup
@@ -32,18 +32,18 @@ public sealed class RotateSceneModel : SceneModel {
         UpdateModel();
     }
 
-    protected override async Task UpdateModel(BolusModel bolus) {
+    protected override void UpdateModel(BolusModel bolus) {
         _transform = WeakReferenceMessenger.Default.Send<RotationRequestMessage>().Response;
         _bolus = bolus;
-        await UpdateModel();
+        UpdateModel();
     }
 
-    private async Task UpdateModel(Transform3D transform) {
+    private void  UpdateModel(Transform3D transform) {
         _transform = transform;
-        await UpdateModel();
+        UpdateModel();
     }
 
-    private async Task UpdateModel() {
+    private void UpdateModel() {
         var model = new Object3D();
         model.Geometry = _bolus.Geometry;
         model.Transform = new() { _transform.ToMatrix() };

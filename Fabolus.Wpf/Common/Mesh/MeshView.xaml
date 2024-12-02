@@ -40,8 +40,7 @@
                 BatchedMaterials="{Binding BatchedMaterials}"
                 CullMode="Back"
                 IsThrowingShadow="True"
-                Material="{Binding MainMaterial}"
-                Transform="{Binding BatchedTransform}" />
+                Material="{Binding MainMaterial}" />
             
             <hx:LineGeometryModel3D x:Name="grid" 
                                 Geometry="{Binding Grid.Geometry}"
