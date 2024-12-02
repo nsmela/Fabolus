@@ -17,7 +17,7 @@ namespace Fabolus.Wpf.Pages.Rotate;
 public partial class RotateViewModel : BaseViewModel {
     public override string TitleText => "Rotation";
 
-    public override SceneModel GetSceneModel => new RotateSceneModel();
+    public override SceneModel GetSceneModel => new SceneModel();
 
     public override BaseMeshViewModel GetMeshViewModel(BaseMeshViewModel? meshViewModel) => new RotateMeshViewModel(meshViewModel);
 

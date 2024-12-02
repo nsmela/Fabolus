@@ -66,8 +66,8 @@ public class BolusStore {
         //stack transforms
         var transform = new Transform3DGroup { Children = [_transform, MeshHelper.TransformFromAxis(axis, angle)] };
 
-        WeakReferenceMessenger.Default.Send(new RotationUpdatedMessage(transform)); //for the mesh view to use
-
+        //WeakReferenceMessenger.Default.Send(new RotationUpdatedMessage(transform)); //for the mesh view to use
+        _bolus.TransformMatrix = transform.ToMatrix();
         //process overhangs
 
         await BolusUpdated();
@@ -75,8 +75,8 @@ public class BolusStore {
 
     private async Task AddTransform(Vector3D axis, float angle) {
         _transform = new Transform3DGroup { Children = [_transform, MeshHelper.TransformFromAxis(axis, angle)] };
-        WeakReferenceMessenger.Default.Send(new RotationUpdatedMessage(_transform)); //for the mesh view to use
-
+        //WeakReferenceMessenger.Default.Send(new RotationUpdatedMessage(_transform)); //for the mesh view to use
+        _bolus.TransformMatrix = _transform.ToMatrix();
         await BolusUpdated();
     }
 

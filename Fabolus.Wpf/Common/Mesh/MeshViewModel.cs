@@ -54,7 +54,7 @@ public partial class MeshViewModel : ObservableObject
     private void UpdateView() {
         var models = new List<BatchedMeshGeometryConfig>(_models.Count());
         foreach(var model in _models) {
-            models.Add(new BatchedMeshGeometryConfig(model.Geometry, MainTransform.ToMatrix(), 0));
+            models.Add(new BatchedMeshGeometryConfig(model.Geometry, model.Transform[0], 0));
         }
         var materials = new Material[] { MainMaterial };
 
