@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media.Media3D;
 using static Fabolus.Wpf.Stores.BolusStore;
 
 namespace Fabolus.Wpf.Common.Scene;
@@ -18,7 +19,7 @@ public class SceneModel : IDisposable   {
 
     public SceneModel() {
         //messaging
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateModel(m.bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, async (r, m) => await UpdateModel(m.bolus));
     }
 
     protected virtual async Task UpdateModel(BolusModel bolus) {

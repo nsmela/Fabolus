@@ -13,6 +13,9 @@ using Material = HelixToolkit.Wpf.SharpDX.Material;
 using SharpDX;
 using System.Windows.Media;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using static Fabolus.Wpf.Stores.BolusStore;
+using Fabolus.Core.Bolus;
 
 namespace Fabolus.Wpf.Common.Mesh;
 
@@ -37,21 +40,33 @@ public partial class MeshViewModel : ObservableObject
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
 
-
+    private Object3D _model;
 
     public MeshViewModel()
     {
         Grid.Geometry = GenerateGrid();
+        WeakReferenceMessenger.Default.Register<RotationUpdatedMessage>(this, async (r, m) => await UpdateRotation(m.transform));
     }
 
     public void SetModel(Object3D model) {
-        var models = new List<BatchedMeshGeometryConfig>();
         model.Geometry.UpdateOctree();
-        models.Add(new BatchedMeshGeometryConfig(model.Geometry, MainTransform.ToMatrix(), 0));
+        _model = model;
+        UpdateView();
+    }
+
+    private async Task UpdateRotation(Transform3D transform) {
+        MainTransform = transform;
+        await UpdateView();
+    }
+
+    private async Task UpdateView() {
+        var models = new List<BatchedMeshGeometryConfig>();
+        models.Add(new BatchedMeshGeometryConfig(_model.Geometry, MainTransform.ToMatrix(), 0));
         var materials = new Material[] { MainMaterial };
 
         BatchedMeshes = models;
         BatchedMaterials = materials;
+
     }
 
     protected LineGeometry3D GenerateGrid(float minX = -100, float maxX = 100, float minY = -100, float maxY = 100, float spacing = 10) {
