@@ -20,7 +20,6 @@ namespace Fabolus.Wpf.Common.Mesh;
 
 //messages
 public sealed record MeshUpdatedMessage(Object3D[] model);
-public sealed record MeshRotationUpdatedMessage(Transform3D transform);
 
 
 public partial class MeshViewModel : ObservableObject

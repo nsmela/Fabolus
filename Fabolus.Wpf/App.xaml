@@ -20,19 +20,13 @@
             <DataTemplate DataType="{x:Type mesh:MeshViewModel }">
                 <mesh:MeshView />
             </DataTemplate>
-            
+
             <DataTemplate DataType="{x:Type import:ImportViewModel}">
                 <import:ImportView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type import:ImportMeshViewModel}">
-                <import:ImportMeshView/>
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type rotate:RotateViewModel}">
                 <rotate:RotateToolsView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type rotate:RotateMeshViewModel}">
-                <rotate:RotateMeshView/>
             </DataTemplate>
 
         </ResourceDictionary>

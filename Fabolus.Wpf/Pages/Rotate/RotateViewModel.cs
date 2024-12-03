@@ -17,9 +17,7 @@ namespace Fabolus.Wpf.Pages.Rotate;
 public partial class RotateViewModel : BaseViewModel {
     public override string TitleText => "Rotation";
 
-    public override SceneModel GetSceneModel => new SceneModel();
-
-    public override BaseMeshViewModel GetMeshViewModel(BaseMeshViewModel? meshViewModel) => new RotateMeshViewModel(meshViewModel);
+    public override SceneModel GetSceneModel => new RotateSceneModel();
 
     private bool _isLocked = false;
     [ObservableProperty] private float _xAxisAngle;
@@ -34,6 +32,7 @@ public partial class RotateViewModel : BaseViewModel {
 
     private void ResetValues() {
         _isLocked = true;
+
         //setting slider values
         XAxisAngle = 0.0f;
         YAxisAngle = 0.0f;

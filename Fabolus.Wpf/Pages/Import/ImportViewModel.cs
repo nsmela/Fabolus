@@ -18,8 +18,6 @@ public partial class ImportViewModel : BaseViewModel {
 
     public override SceneModel GetSceneModel => new SceneModel();
 
-    public override BaseMeshViewModel GetMeshViewModel(BaseMeshViewModel? meshViewModel) => new ImportMeshViewModel(meshViewModel);
-
     //commands
     #region Commands
     [RelayCommand]

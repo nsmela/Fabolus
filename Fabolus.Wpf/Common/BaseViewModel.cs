@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 namespace Fabolus.Wpf.Common;
 public abstract class BaseViewModel : ObservableObject, IDisposable {
     public abstract string TitleText { get; }
-    public abstract BaseMeshViewModel GetMeshViewModel(BaseMeshViewModel? meshViewModel);
 
     public abstract SceneModel GetSceneModel { get; }
 

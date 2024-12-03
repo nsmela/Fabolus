@@ -24,7 +24,6 @@ public class BolusStore {
     public sealed record ApplyTempRotationMessage(Vector3D axis, float angle);
     public sealed record ApplyRotationMessage(Vector3D axis, float angle);
     public sealed record ClearRotationsMessage();
-    public sealed record RotationUpdatedMessage(Transform3D transform);
     public class RotationRequestMessage : RequestMessage<Transform3D> { }
 
     //overhangs
@@ -102,7 +101,7 @@ public class BolusStore {
 
     private async Task ClearTransforms() {
         _transform = MeshHelper.TransformEmpty;
-        WeakReferenceMessenger.Default.Send(new RotationUpdatedMessage(_transform)); //for the mesh view to use
+        _bolus.TransformMatrix = _transform.ToMatrix();
 
         await BolusUpdated();
     }

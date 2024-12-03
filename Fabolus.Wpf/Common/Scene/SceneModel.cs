@@ -19,19 +19,16 @@ namespace Fabolus.Wpf.Common.Scene;
 
 public class SceneModel : IDisposable   {
 
-    private Object3D? _model;
-    private Matrix _transform;
+    protected MeshGeometry3D? _model;
+    protected Matrix _transform;
 
     public SceneModel() {
         //messaging
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this,  (r, m) => UpdateModel(m.bolus));
 
-        //set initial values
-        var transform = WeakReferenceMessenger.Default.Send(new RotationRequestMessage()).Response;
-        _transform = transform is not null ? transform.ToMatrix() : new ScaleTransform3D(1.0, 1.0, 1.0).ToMatrix();
-
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
-        _model = bolus is not null ? new Object3D { Geometry = bolus.Geometry} : null;
+        _model = bolus is not null ? bolus.Geometry : null;
+        _transform = bolus is not null ? bolus.TransformMatrix : MeshHelper.TransformEmpty.ToMatrix();
         UpdateModel(bolus);
 
     }
@@ -39,21 +36,13 @@ public class SceneModel : IDisposable   {
     protected virtual void UpdateModel(BolusModel? bolus) {
         if (bolus is null) {
             _model = null;
+            _transform = MeshHelper.TransformEmpty.ToMatrix();
             UpdateScene();
             return;
         }
 
-        var model = new Object3D();
-        model.Geometry = bolus is not null ? bolus.Geometry : new MeshGeometry3D();
-        model.Geometry.UpdateOctree();
-        _model = model;
+        _model = bolus.Geometry;
         _transform = bolus.TransformMatrix;
-
-        UpdateScene();
-    }
-
-    protected virtual void UpdateRotation(Transform3D transform) {
-        _transform = transform.ToMatrix();
 
         UpdateScene();
     }
@@ -64,9 +53,9 @@ public class SceneModel : IDisposable   {
             return;
         }
 
-        _model.Transform = new() { _transform };
+        var model = new Object3D {Geometry = _model, Transform = [_transform] };
 
-        WeakReferenceMessenger.Default.Send(new MeshUpdatedMessage([_model]));
+        WeakReferenceMessenger.Default.Send(new MeshUpdatedMessage([model]));
     }
 
     public void Dispose() {
