@@ -1,9 +1,14 @@
-﻿using System;
+﻿using Fabolus.Core.Common;
+using HelixToolkit.Wpf.SharpDX;
+using SharpDX;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
+using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
+
 
 namespace Fabolus.Wpf.Common.Mesh
 {
@@ -20,5 +25,6 @@ namespace Fabolus.Wpf.Common.Mesh
         }
 
         public static Transform3D TransformEmpty => TransformFromAxis(VectorZero, 0.0f);
+
     }
 }

@@ -3,44 +3,30 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Media.Media3D;
 using System.Windows.Media;
+using Color = SharpDX.Color;
 
 namespace Fabolus.Wpf.Common.Mesh;
-public static class MeshSkins
-{
-    public record struct MeshSkin(string Label, Color Colour);
+public static class MeshSkins {
 
-    public static MeshSkin Default = new MeshSkin("Default", Colors.WhiteSmoke);
-    public static MeshSkin Bolus = new MeshSkin("Bolus", Colors.Gray);
-    public static MeshSkin Smoothed = new MeshSkin("Smoothed", Colors.Gray);
-    public static MeshSkin Warning = new MeshSkin("Warning", Colors.Gray);
-    public static MeshSkin Fault = new MeshSkin("Fault", Colors.Gray);
-    public static MeshSkin AirChannelTool = new MeshSkin("AirChannelTool", Colors.Gray);
+    public static Dictionary<string, Color> SkinColors = new() {
+        { "Default", Color.WhiteSmoke},
+        { "Bolus", Color.Gray },
+        { "Smoothed", Color.Gray },
+        { "Warning", Color.Gray },
+        { "Fault", Color.Gray },
+        { "AirChannelTool", Color.Gray },
+        { "AirChannelSelected", Color.Gray },
+        { "AirChannel",Color.Gray },
+        { "MoldPreview",Color.Gray },
+        { "MoldFinal",Color.Gray },
+        { "MeshExport", Color.Gray },
+    };
 
-    public enum MeshColor
-    {
-        Bolus,
-        Smoothed,
-        Warning,
-        Fault,
-        AirChannelTool,
-        AirChannelSelected,
-        AirChannel,
-        MoldPreview,
-        MoldFinal,
-        MeshExport
-    }
-
-    public static GeometryModel3D SkinModel(MeshGeometry3D mesh, MeshSkin skin, double opacity = 1.0f) =>
-        new GeometryModel3D
-        {
-            Geometry = mesh,
-            Material = ColorToSkin(skin),
-            BackMaterial = ColorToSkin(skin),
-        };
-
-    private static DiffuseMaterial ColorToSkin(MeshSkin skin, double opacity = 1.0f) =>
-        new DiffuseMaterial(new SolidColorBrush { Color = skin.Colour, Opacity = opacity });
+    public static string[] MeshColors => SkinColors.Keys.ToArray();
+    public static Color GetColor(string skinName) =>
+        SkinColors.Keys.Contains(skinName)
+        ? SkinColors[skinName]
+        : SkinColors["Default"];
 
 }

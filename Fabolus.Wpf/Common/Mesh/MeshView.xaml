@@ -39,7 +39,8 @@
                 BatchedGeometries="{Binding BatchedMeshes}"
                 BatchedMaterials="{Binding BatchedMaterials}"
                 CullMode="Back"
-                IsThrowingShadow="True"
+                IsThrowingShadow="{Binding Shadows}"
+                FillMode="{Binding FillMode}"
                 Material="{Binding MainMaterial}" />
             
             <hx:LineGeometryModel3D x:Name="grid" 

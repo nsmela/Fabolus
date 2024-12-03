@@ -11,36 +11,9 @@ using System.Threading.Tasks;
 using System.Windows.Media.Media3D;
 using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
 using static Fabolus.Wpf.Stores.BolusStore;
+using SharpDX.Direct3D11;
 
 namespace Fabolus.Wpf.Pages.Import;
 public sealed class ImportSceneModel : SceneModel {
-    public event Action<Object3D> SceneUpdated;
-
-    private BolusModel _bolus;
-    private Transform3D _transform = MeshHelper.TransformEmpty;
-
-    public ImportSceneModel() 
-    {
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateModel(m.bolus));
-
-        //setup
-        _transform = WeakReferenceMessenger.Default.Send<RotationRequestMessage>().Response;
-        _bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response;
-        UpdateModel();
-    }
-
-    protected override void UpdateModel(BolusModel bolus) 
-    {
-        _transform = WeakReferenceMessenger.Default.Send<RotationRequestMessage>().Response;
-        _bolus = bolus;
-        UpdateModel();
-    }
-
-    private void UpdateModel() {
-        var model = new Object3D();
-        model.Geometry = _bolus.Geometry;
-        model.Transform = new() { _transform.ToMatrix() };
-
-        SceneUpdated?.Invoke(model);
-    }
+    private FillMode _fillMode = FillMode.Wireframe;
 }
