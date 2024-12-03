@@ -25,7 +25,6 @@ public class SceneModel : IDisposable   {
     public SceneModel() {
         //messaging
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this,  (r, m) => UpdateModel(m.bolus));
-        //WeakReferenceMessenger.Default.Register<RotationUpdatedMessage>(this, (r, m) => UpdateRotation(m.transform));
 
         //set initial values
         var transform = WeakReferenceMessenger.Default.Send(new RotationRequestMessage()).Response;
