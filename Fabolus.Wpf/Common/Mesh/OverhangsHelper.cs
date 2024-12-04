@@ -19,7 +19,7 @@ using HelixToolkit.Wpf.SharpDX.Model;
 
 namespace Fabolus.Wpf.Common.Mesh;
 public static class OverhangsHelper {
-    private static Color4 BaseColor => new Color4(0, 0, 0, 1);
+    private static Color4 BaseColor => new Color4(1, 1, 1, 1);
     private static Color4 WarningColor => new Color4(1, 1, 0, 1);
     private static Color4 FaultColor => new Color4(1, 0, 0, 1);
 
@@ -31,6 +31,7 @@ public static class OverhangsHelper {
         };
     }
 
+    /*
     public static Vector2Collection GetTextureCoordinates(MeshGeometry3D mesh, Vector3 refAxis) {
         if (mesh is null || mesh.Positions.Count() == 0) { return new Vector2Collection(); }
 
@@ -51,10 +52,27 @@ public static class OverhangsHelper {
 
         return textureCoords;
     }
+    */
+    public static Vector2Collection GetTextureCoordinates(MeshGeometry3D mesh, Vector3 refAxis) {
+        var axis = new Vector3D(refAxis.X, refAxis.Y, refAxis.Z);
+        var normals = new Vector3DCollection();
+        mesh.Normals.ForEach(n => normals.Add(new Vector3D(n.X, n.Y, n.Z)));
 
-    private static IEnumerable<Color4> GetGradients(Color4 start, Color4 mid, Color4 end, int steps) {
-        return GetGradients(start, mid, steps).Concat(GetGradients(mid, end, steps));
+        var result = MeshSkins.GetTextureCoords(new System.Windows.Media.Media3D.MeshGeometry3D { Normals = normals }, axis);
+        var textureCoordinates = new Vector2Collection();
+        foreach(var coord in result) {
+            textureCoordinates.Add(new Vector2((float)coord.X, (float)coord.Y));
+        }
+        return textureCoordinates;
     }
+
+    private static IEnumerable<Color4> GetGradients(Color4 start, Color4 mid, Color4 end, int steps) =>
+        GetGradients(start, start, 60)
+        .Concat(GetGradients(start, mid, 10))
+        .Concat(GetGradients(mid, mid, 5))
+        .Concat(GetGradients(mid, end, 15))
+        .Concat(GetGradients(end, end, 20));
+
 
     private static IEnumerable<Color4> GetGradients(Color4 start, Color4 end, int steps) {
         float stepA = ((end.Alpha - start.Alpha) / (steps - 1));
