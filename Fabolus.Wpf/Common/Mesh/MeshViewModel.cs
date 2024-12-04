@@ -21,6 +21,7 @@ namespace Fabolus.Wpf.Common.Mesh;
 //messages
 public sealed record MeshUpdatedMessage(Object3D[] model);
 public sealed record MeshMaterialsMessage(List<Material> materials);
+public sealed record MeshDisplayUpdatedMessasge(List<DisplayModel3D> models);
 
 public partial class MeshViewModel : ObservableObject
 {
@@ -52,7 +53,7 @@ public partial class MeshViewModel : ObservableObject
     private SynchronizationContext context = SynchronizationContext.Current;
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
     private Material _skin = PhongMaterials.BlackPlastic;
-
+    private IList<DisplayModel3D> _displayMeshes = [];
     private Object3D[] _models = [];
 
     public MeshViewModel()
@@ -60,6 +61,7 @@ public partial class MeshViewModel : ObservableObject
         Grid.Geometry = GenerateGrid();
         WeakReferenceMessenger.Default.Register<MeshUpdatedMessage>(this, async (r, m) => await UpdateMesh(m.model));
         WeakReferenceMessenger.Default.Register<MeshMaterialsMessage>(this, (r, m) => UpdateMaterials(m.materials));
+        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessasge>(this, (r, m) => UpdateDisplay(m.models));
 
         _batchedMaterials = [_mainMaterial];
     }
@@ -80,13 +82,6 @@ public partial class MeshViewModel : ObservableObject
     }
 
     private void UpdateView() {
-        //var models = new List<BatchedMeshGeometryConfig>(_models.Count());
-        //foreach(var model in _models) {
-        //    models.Add(new BatchedMeshGeometryConfig(model.Geometry, model.Transform[0], 0));
-        //}
-
-        //BatchedMeshes = models;
-
         if (_models.Count() < 1) {
             CurrentModel.Clear();
             return;
@@ -98,6 +93,25 @@ public partial class MeshViewModel : ObservableObject
                     Geometry = model.Geometry,
                     Material = _skin,
                     Transform = MainTransform,
+                    CullMode = CullMode.Back,
+                });
+            }
+        }, null);
+
+    }
+
+    private void UpdateDisplay(IList<DisplayModel3D> models) {
+        CurrentModel.Clear();
+        if (models.Count() < 1) { return; }
+
+        context.Post((o) => {
+            foreach (var model in models) {
+                model.Geometry.UpdateOctree();
+                model.Geometry.UpdateBounds();
+                CurrentModel.Add(new MeshGeometryModel3D {
+                    Geometry = model.Geometry,
+                    Material = model.Skin,
+                    Transform = model.Transform,
                     CullMode = CullMode.Back,
                 });
             }

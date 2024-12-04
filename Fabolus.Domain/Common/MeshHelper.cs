@@ -8,7 +8,7 @@ using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 
 namespace Fabolus.Core.Common;
-public static class MeshHelper {
+internal static class MeshHelper {
 
     //from HelixToolkit.Shared.Geometry.MeshGeometryHelpers
     public static Vector3Collection CalculateNormals(MeshGeometry3D geometry) {

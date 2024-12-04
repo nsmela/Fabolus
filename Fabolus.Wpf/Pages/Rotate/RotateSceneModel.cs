@@ -1,36 +1,37 @@
-﻿using Fabolus.Core.Bolus;
-using Fabolus.Core.Common;
-using Fabolus.Wpf.Common.Scene;
+﻿using Fabolus.Wpf.Common.Scene;
 using HelixToolkit.Wpf.SharpDX;
-
 using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
 using SharpDX;
 using Fabolus.Wpf.Common.Mesh;
 using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Wpf.Common.Bolus;
+using static g3.SetGroupBehavior;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 public sealed class RotateSceneModel : SceneModel {
-    private Material _overhangsMaterial = new ColorStripeMaterial();
+    private Material _overhangSkin = new ColorStripeMaterial();
 
     public RotateSceneModel() : base() {
-        _overhangsMaterial = OverhangsHelper.CreateOverhangsMaterial();
-        WeakReferenceMessenger.Default.Send(new MeshMaterialsMessage([_overhangsMaterial])); //TODO: a method to change this material when settings change
+        _overhangSkin = OverhangsHelper.CreateOverhangsMaterial();
     }
 
-    protected override void UpdateModel(BolusModel? bolus) {
-        if (bolus is null) {
-            _model = null;
-            _transform = MeshHelper.TransformEmpty.ToMatrix();
-            UpdateScene();
+    protected override void UpdateDisplay(BolusModel? bolus) {
+        if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions.Count == 0) {
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([]));
             return;
         }
 
-        _model = bolus.Geometry;
-        _model.UpdateOctree();
-        _model.UpdateBounds();
-        _transform = bolus.TransformMatrix;
-        _model.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(_model, new Vector3(0, 0, 1));
+        var axis = new System.Windows.Media.Media3D.Vector3D(0, 0, 1);
+        var refAxis = bolus.Transform.Transform(axis).ToVector3();
 
-        UpdateScene();
+        bolus.Geometry.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(bolus.Geometry, refAxis);
+
+        var display = new DisplayModel3D {
+            Geometry = bolus.Geometry,
+            Transform = bolus.Transform,
+            Skin = _overhangSkin
+        };
+
+        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([display]));
     }
 }

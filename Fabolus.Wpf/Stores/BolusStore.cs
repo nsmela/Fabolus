@@ -1,12 +1,11 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using CommunityToolkit.Mvvm.Messaging.Messages;
-using Fabolus.Core.Bolus;
+using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using g3;
 using HelixToolkit.Wpf.SharpDX;
 using System.IO;
 using System.Windows.Media.Media3D;
-
 
 namespace Fabolus.Wpf.Stores;
 public class BolusStore {
@@ -14,8 +13,6 @@ public class BolusStore {
     #region Messages
     //importing file
     public sealed record AddBolusFromFileMessage(string filepath);
-    public sealed record RemoveBolusMessage(string label);
-    public sealed record ClearBolusMessage();
 
     //utility
     public sealed record BolusUpdatedMessage(BolusModel bolus);
@@ -26,19 +23,14 @@ public class BolusStore {
     public sealed record ClearRotationsMessage();
     public class RotationRequestMessage : RequestMessage<Transform3D> { }
 
-    //overhangs
-    public sealed record ApplyOverhangSettingsMessage(float lower, float upper);
-
     //request messages
     public class BolusRequestMessage : RequestMessage<BolusModel> { }
-    public class BolusFilePathRequestMessage : RequestMessage<string> { }
-    //public class BolusOverhangMaterialRequestMessage : RequestMessage<DiffuseMaterial> { }
-    public class BolusOverhangSettingsRequestMessage : RequestMessage<double[]> { }
 
     #endregion
 
     #region Fields and Properties
 
+    private Dictionary<string, BolusModel> _boli = []; //for different models used
     private BolusModel _bolus;
     private Transform3D _transform;
 
@@ -62,18 +54,18 @@ public class BolusStore {
 
     #region Messages
     private async Task AddTempTransform(Vector3D axis, float angle) {
-        //stack transforms
+        //return stacked transforms without saving
         var transform = new Transform3DGroup { Children = [_transform, MeshHelper.TransformFromAxis(axis, angle)] };
 
-        _bolus.TransformMatrix = transform.ToMatrix();
-        //process overhangs
+        _bolus.Transform = transform;
 
         await BolusUpdated();
     }
 
     private async Task AddTransform(Vector3D axis, float angle) {
+        //stack the transforms, save, and send update
         _transform = new Transform3DGroup { Children = [_transform, MeshHelper.TransformFromAxis(axis, angle)] };
-        _bolus.TransformMatrix = _transform.ToMatrix();
+        _bolus.Transform = _transform;
         await BolusUpdated();
     }
 
@@ -92,7 +84,7 @@ public class BolusStore {
         }
 
         _bolus = new BolusModel(mesh);
-        _bolus.TransformMatrix = _transform.ToMatrix();
+        _bolus.Transform = _transform;
 
         await BolusUpdated();
     }
@@ -101,7 +93,7 @@ public class BolusStore {
 
     private async Task ClearTransforms() {
         _transform = MeshHelper.TransformEmpty;
-        _bolus.TransformMatrix = _transform.ToMatrix();
+        _bolus.Transform = _transform;
 
         await BolusUpdated();
     }

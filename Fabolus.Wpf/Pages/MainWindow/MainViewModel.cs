@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Bolus;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.Import;
