@@ -25,17 +25,10 @@ public static class OverhangsHelper {
 
 
     public static HelixToolkit.Wpf.SharpDX.Material CreateOverhangsMaterial() {
-        var colors = GetGradients(BaseColor, WarningColor, 60).ToList();
-        foreach(var color in GetGradients(WarningColor, FaultColor, 15)) {
-            colors.Add(color);
-        }  
-        foreach(var color in GetGradients(FaultColor, FaultColor, 25)) {
-            colors.Add(color);
-        }
 
         return new ColorStripeMaterial {
-            ColorStripeX = colors,
-            ColorStripeY = colors,
+            ColorStripeX = GetGradients(BaseColor, WarningColor, FaultColor, 48).ToList(),
+            ColorStripeY = GetGradients(BaseColor, WarningColor, FaultColor, 48).ToList()
         };
     }
 

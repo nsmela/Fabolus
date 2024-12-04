@@ -26,9 +26,11 @@ public sealed class RotateSceneModel : SceneModel {
         }
 
         _model = bolus.Geometry;
+        _model.UpdateOctree();
+        _model.UpdateBounds();
         _transform = bolus.TransformMatrix;
         _model.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(_model, new Vector3(0, 0, 1));
-        
+
         UpdateScene();
     }
 }

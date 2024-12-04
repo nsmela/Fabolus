@@ -50,6 +50,9 @@ public partial class MeshViewModel : ObservableObject
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
 
+    //syncing
+    private SynchronizationContext context = SynchronizationContext.Current;
+
     private Object3D[] _models = [];
 
     public MeshViewModel()
@@ -71,12 +74,17 @@ public partial class MeshViewModel : ObservableObject
     }
 
     private void UpdateView() {
-        var models = new List<BatchedMeshGeometryConfig>(_models.Count());
-        foreach(var model in _models) {
-            models.Add(new BatchedMeshGeometryConfig(model.Geometry, model.Transform[0], 0));
-        }
+        //var models = new List<BatchedMeshGeometryConfig>(_models.Count());
+        //foreach(var model in _models) {
+        //    models.Add(new BatchedMeshGeometryConfig(model.Geometry, model.Transform[0], 0));
+        //}
 
-        BatchedMeshes = models;
+        //BatchedMeshes = models;
+        context.Post((o) => {
+            BatchedMeshes.Clear();
+            BatchedMeshes.Add(new BatchedMeshGeometryConfig)
+
+        }, null);
 
     }
 
