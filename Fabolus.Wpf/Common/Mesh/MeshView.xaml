@@ -42,7 +42,12 @@
                 IsThrowingShadow="{Binding Shadows}"
                 FillMode="{Binding FillMode}"
                 Material="{Binding MainMaterial}" />
-            
+
+            <hx:GroupModel3D 
+                x:Name="CurrentModel"
+                ItemsSource="{Binding CurrentModel}"
+                Transform="{Binding MainTransform}" />
+
             <hx:LineGeometryModel3D x:Name="grid" 
                                 Geometry="{Binding Grid.Geometry}"
                                 Transform="{Binding Grid.Transform}"

@@ -56,7 +56,7 @@ public partial class MainViewModel : ObservableObject {
         //messages
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.bolus));
 
-        NavigateTo(new RotateViewModel());
+        NavigateTo(new ImportViewModel());
     }
 
     private void BolusUpdated(BolusModel bolus) {

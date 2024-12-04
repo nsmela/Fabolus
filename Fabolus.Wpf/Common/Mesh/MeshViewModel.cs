@@ -14,7 +14,6 @@ using SharpDX;
 using System.Windows.Media;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using static g3.SetGroupBehavior;
 using SharpDX.Direct3D11;
 
 namespace Fabolus.Wpf.Common.Mesh;
@@ -22,7 +21,6 @@ namespace Fabolus.Wpf.Common.Mesh;
 //messages
 public sealed record MeshUpdatedMessage(Object3D[] model);
 public sealed record MeshMaterialsMessage(List<Material> materials);
-
 
 public partial class MeshViewModel : ObservableObject
 {
@@ -50,8 +48,10 @@ public partial class MeshViewModel : ObservableObject
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
 
-    //syncing
+    //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
+    public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
+    private Material _skin = PhongMaterials.BlackPlastic;
 
     private Object3D[] _models = [];
 
@@ -66,9 +66,15 @@ public partial class MeshViewModel : ObservableObject
 
     private void UpdateMaterials(List<Material> materials) {
         BatchedMaterials = materials;
+        _skin = materials[0];
     }
 
     private async Task UpdateMesh(Object3D[] models) {
+        foreach(var o in models) {
+            o.Geometry.UpdateOctree();
+            o.Geometry.UpdateBounds();
+        }
+
         _models = models;
         UpdateView();
     }
@@ -80,10 +86,21 @@ public partial class MeshViewModel : ObservableObject
         //}
 
         //BatchedMeshes = models;
-        context.Post((o) => {
-            BatchedMeshes.Clear();
-            BatchedMeshes.Add(new BatchedMeshGeometryConfig)
 
+        if (_models.Count() < 1) {
+            CurrentModel.Clear();
+            return;
+        }
+
+        context.Post((o) => {
+            foreach (var model in _models) {
+                CurrentModel.Add(new MeshGeometryModel3D {
+                    Geometry = model.Geometry,
+                    Material = _skin,
+                    Transform = MainTransform,
+                    CullMode = CullMode.Back,
+                });
+            }
         }, null);
 
     }
