@@ -23,12 +23,11 @@ public static class OverhangsHelper {
     private static Color4 WarningColor => new Color4(1, 1, 0, 1);
     private static Color4 FaultColor => new Color4(1, 0, 0, 1);
 
-
     public static HelixToolkit.Wpf.SharpDX.Material CreateOverhangsMaterial() {
 
         return new ColorStripeMaterial {
-            ColorStripeX = GetGradients(BaseColor, WarningColor, FaultColor, 48).ToList(),
-            ColorStripeY = GetGradients(BaseColor, WarningColor, FaultColor, 48).ToList()
+            ColorStripeX = GetGradients(BaseColor, WarningColor, FaultColor, 24).ToList(),
+            ColorStripeY = GetGradients(BaseColor, WarningColor, FaultColor, 24).ToList()
         };
     }
 
@@ -36,7 +35,7 @@ public static class OverhangsHelper {
         if (mesh is null || mesh.Positions.Count() == 0) { return new Vector2Collection(); }
 
         var refAngle = 180.0;
-        var normals = mesh.Normals;
+        var normals = mesh.CalculateNormals();
 
         if (normals is null) { throw new NullReferenceException("Texture mesh normals are null"); }
 
@@ -54,7 +53,7 @@ public static class OverhangsHelper {
     }
 
     private static IEnumerable<Color4> GetGradients(Color4 start, Color4 mid, Color4 end, int steps) {
-        return GetGradients(start, mid, steps / 2).Concat(GetGradients(mid, end, steps / 2));
+        return GetGradients(start, mid, steps).Concat(GetGradients(mid, end, steps));
     }
 
     private static IEnumerable<Color4> GetGradients(Color4 start, Color4 end, int steps) {

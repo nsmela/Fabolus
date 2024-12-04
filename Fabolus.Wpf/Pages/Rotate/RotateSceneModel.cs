@@ -21,27 +21,30 @@ public sealed class RotateSceneModel : SceneModel {
             return;
         }
 
-        var axis = new System.Windows.Media.Media3D.Vector3D(0, 0, 1);
+        var axis = new System.Windows.Media.Media3D.Vector3D(0, 0, -1);
         var refAxis = bolus.Transform.Transform(axis).ToVector3();
 
         bolus.Geometry.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(bolus.Geometry, refAxis);
 
-        var display = new DisplayModel3D {
+        var models = new List<DisplayModel3D>();
+        models.Add( new DisplayModel3D {
             Geometry = bolus.Geometry,
             Transform = bolus.Transform,
             Skin = _overhangSkin
-        };
+        });
 
-        //testing, to see how the ref angle is being managed
-        var mesh = new MeshBuilder();
-        mesh.AddArrow(Vector3.Zero, refAxis, 3.0, 16);
+        //testing, to see how the ref angle is being managed properly
+        if (true) {
+            var mesh = new MeshBuilder();
+            mesh.AddArrow(Vector3.Zero, refAxis, 3.0, 16);
 
-        var refArrow = new DisplayModel3D {
-            Geometry = mesh.ToMeshGeometry3D(),
-            Skin = PhongMaterials.Blue,
-            Transform = MeshHelper.TransformEmpty
-        };
+            models.Add(new DisplayModel3D {
+                Geometry = mesh.ToMeshGeometry3D(),
+                Skin = PhongMaterials.Blue,
+                Transform = MeshHelper.TransformEmpty
+            });
+        }
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([display, refArrow]));
+        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge(models));
     }
 }

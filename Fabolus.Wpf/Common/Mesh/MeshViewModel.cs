@@ -19,8 +19,6 @@ using SharpDX.Direct3D11;
 namespace Fabolus.Wpf.Common.Mesh;
 
 //messages
-public sealed record MeshUpdatedMessage(Object3D[] model);
-public sealed record MeshMaterialsMessage(List<Material> materials);
 public sealed record MeshDisplayUpdatedMessasge(List<DisplayModel3D> models);
 
 public partial class MeshViewModel : ObservableObject
