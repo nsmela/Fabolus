@@ -92,7 +92,7 @@ public class BolusStore {
     private async Task BolusUpdated() => WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(_bolus));
 
     private async Task ClearTransforms() {
-        _transform = MeshHelper.TransformEmpty;
+        _transform = new Transform3DGroup();
         _bolus.Transform = _transform;
 
         await BolusUpdated();

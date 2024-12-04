@@ -15,21 +15,28 @@ public sealed class RotateSceneModel : SceneModel {
     private Vector3D _overhangAxis = new Vector3D(0, 0, -1);
     private Material _overhangSkin = new ColorStripeMaterial();
     private Transform3DGroup _transform = new Transform3DGroup();
+    private Transform3DGroup _transformBase = new Transform3DGroup();
 
     public RotateSceneModel() : base() {
         _overhangSkin = OverhangsHelper.CreateOverhangsMaterial();
 
         WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.axis, m.angle));
-        WeakReferenceMessenger.Default.Register<ApplyRotationMessage>(this, (r, m) => ApplyRotation());
+        WeakReferenceMessenger.Default.Register<ApplyRotationMessage>(this, (r, m) => ApplyRotation(m.axis, m.angle));
+        WeakReferenceMessenger.Default.Register<ClearRotationsMessage>(this, (r, m) => ClearTransforms());
     }
 
     private void ApplyTempRotation(Vector3D axis, float angle) {
-        _transform = new Transform3DGroup();
-        _transform = new Transform3DGroup { Children = [MeshHelper.TransformFromAxis(axis, -angle)] };
+        _transform = new Transform3DGroup { Children = [_transformBase, MeshHelper.TransformFromAxis(axis, -angle)] };
     }
 
-    private void ApplyRotation() {
-        _transform = new Transform3DGroup();
+    private void ApplyRotation(Vector3D axis, float angle) {
+        _transformBase.Children.Add(MeshHelper.TransformFromAxis(axis, -angle));
+        _transform = _transformBase;
+    }
+
+    private void ClearTransforms() {
+        _transformBase = new Transform3DGroup();
+        _transform = _transformBase;
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {

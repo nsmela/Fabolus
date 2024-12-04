@@ -19,7 +19,7 @@ namespace Fabolus.Wpf.Common.Mesh
         public static Vector3D VectorZAxis => new Vector3D(0,0,1);
         public static Vector3D VectorZero => new Vector3D(0,0,0);
         public static Transform3D TransformFromAxis(Vector3D axis, float angle) {
-            var rotation = new AxisAngleRotation3D(axis, -angle);
+            var rotation = new AxisAngleRotation3D(axis, angle);
             var rotate = new RotateTransform3D(rotation);
             return new Transform3DGroup { Children = [rotate] };
         }
