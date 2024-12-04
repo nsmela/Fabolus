@@ -38,12 +38,6 @@ public partial class MeshViewModel : ObservableObject
     //models
     [ObservableProperty] private LineGeometryModel3D _grid = new LineGeometryModel3D();
 
-    //testing
-    [ObservableProperty] private IList<BatchedMeshGeometryConfig> _batchedMeshes = [];
-    [ObservableProperty] private IList<Material> _batchedMaterials = [];
-    [ObservableProperty] private Transform3D _mainTransform = new ScaleTransform3D(1.0, 1.0, 1.0);
-    [ObservableProperty] private Material _mainMaterial = PhongMaterials.Black;
-
     //mouse commands
     [ObservableProperty] private ICommand _leftMouseCommand = ViewportCommands.Pan;
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
@@ -52,52 +46,12 @@ public partial class MeshViewModel : ObservableObject
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
-    private Material _skin = PhongMaterials.BlackPlastic;
-    private IList<DisplayModel3D> _displayMeshes = [];
-    private Object3D[] _models = [];
+    [ObservableProperty] private Transform3D _mainTransform = MeshHelper.TransformEmpty; 
 
     public MeshViewModel()
     {
         Grid.Geometry = GenerateGrid();
-        WeakReferenceMessenger.Default.Register<MeshUpdatedMessage>(this, async (r, m) => await UpdateMesh(m.model));
-        WeakReferenceMessenger.Default.Register<MeshMaterialsMessage>(this, (r, m) => UpdateMaterials(m.materials));
         WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessasge>(this, (r, m) => UpdateDisplay(m.models));
-
-        _batchedMaterials = [_mainMaterial];
-    }
-
-    private void UpdateMaterials(List<Material> materials) {
-        BatchedMaterials = materials;
-        _skin = materials[0];
-    }
-
-    private async Task UpdateMesh(Object3D[] models) {
-        foreach(var o in models) {
-            o.Geometry.UpdateOctree();
-            o.Geometry.UpdateBounds();
-        }
-
-        _models = models;
-        UpdateView();
-    }
-
-    private void UpdateView() {
-        if (_models.Count() < 1) {
-            CurrentModel.Clear();
-            return;
-        }
-
-        context.Post((o) => {
-            foreach (var model in _models) {
-                CurrentModel.Add(new MeshGeometryModel3D {
-                    Geometry = model.Geometry,
-                    Material = _skin,
-                    Transform = MainTransform,
-                    CullMode = CullMode.Back,
-                });
-            }
-        }, null);
-
     }
 
     private void UpdateDisplay(IList<DisplayModel3D> models) {

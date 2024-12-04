@@ -32,6 +32,15 @@ public sealed class RotateSceneModel : SceneModel {
             Skin = _overhangSkin
         };
 
+        //testing, to see how the ref angle is being managed
+        var lineModel = new LineGeometry3D { IsDynamic = true, Positions = new Vector3Collection() };
+        lineModel.Positions.Add(Vector3.Zero);
+        lineModel.Positions.Add(refAxis);
+
+        var refArrow = new DisplayModel3D {
+            Geometry = null
+        };
+
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([display]));
     }
 }

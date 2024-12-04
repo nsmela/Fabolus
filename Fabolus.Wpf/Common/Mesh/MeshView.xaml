@@ -34,15 +34,6 @@
             <hx:AmbientLight3D Color="{Binding AmbientLightColor}" />
             <hx:DirectionalLight3D Direction="{Binding Camera.LookDirection}" Color="{Binding DirectionalLightColor}" />
 
-            <hx:BatchedMeshGeometryModel3D
-                x:Name="batchedMesh"
-                BatchedGeometries="{Binding BatchedMeshes}"
-                BatchedMaterials="{Binding BatchedMaterials}"
-                CullMode="Back"
-                IsThrowingShadow="{Binding Shadows}"
-                FillMode="{Binding FillMode}"
-                Material="{Binding MainMaterial}" />
-
             <hx:GroupModel3D 
                 x:Name="CurrentModel"
                 ItemsSource="{Binding CurrentModel}"
