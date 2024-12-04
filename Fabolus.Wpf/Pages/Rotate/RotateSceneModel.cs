@@ -5,7 +5,7 @@ using SharpDX;
 using Fabolus.Wpf.Common.Mesh;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common.Bolus;
-using static g3.SetGroupBehavior;
+using Colors = System.Windows.Media.Colors;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 public sealed class RotateSceneModel : SceneModel {
@@ -33,14 +33,15 @@ public sealed class RotateSceneModel : SceneModel {
         };
 
         //testing, to see how the ref angle is being managed
-        var lineModel = new LineGeometry3D { IsDynamic = true, Positions = new Vector3Collection() };
-        lineModel.Positions.Add(Vector3.Zero);
-        lineModel.Positions.Add(refAxis);
+        var mesh = new MeshBuilder();
+        mesh.AddArrow(Vector3.Zero, refAxis, 3.0, 16);
 
         var refArrow = new DisplayModel3D {
-            Geometry = null
+            Geometry = mesh.ToMeshGeometry3D(),
+            Skin = PhongMaterials.Blue,
+            Transform = MeshHelper.TransformEmpty
         };
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([display]));
+        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([display, refArrow]));
     }
 }
