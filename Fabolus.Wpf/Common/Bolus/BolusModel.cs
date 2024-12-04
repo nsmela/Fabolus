@@ -6,20 +6,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Transform3D = System.Windows.Media.Media3D.Transform3D;
+using Transform3DGroup = System.Windows.Media.Media3D.Transform3DGroup;
 using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
 using Fabolus.Core;
 
 namespace Fabolus.Wpf.Common.Bolus;
 public class BolusModel : Fabolus.Core.Bolus.Bolus {
     public MeshGeometry3D Geometry { get; set; }
-    public Transform3D Transform { get; set; }
+    public Transform3DGroup Transform { get; set; }
 
     #region Constructors
     public BolusModel() {
-        Mesh = new DMesh3();
-        Geometry = new MeshGeometry3D();
-        Transform = MeshHelper.TransformEmpty;
+        Mesh = new();
+        Geometry = new();
+        Transform = new();
     }
 
     public BolusModel(DMesh3 mesh) {
@@ -48,7 +48,7 @@ public class BolusModel : Fabolus.Core.Bolus.Bolus {
     public void SetGeometry(MeshGeometry3D geometry) {
         Geometry = geometry;
         Mesh = geometry.ToDMesh();
-        Transform = MeshHelper.TransformEmpty;
+        Transform = new();
     }
 
     #endregion

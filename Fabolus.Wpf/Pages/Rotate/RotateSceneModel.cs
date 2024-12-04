@@ -26,7 +26,8 @@ public sealed class RotateSceneModel : SceneModel {
     }
 
     private void ApplyTempRotation(Vector3D axis, float angle) {
-        _transform = new Transform3DGroup { Children = [_transformBase, MeshHelper.TransformFromAxis(axis, -angle)] };
+        _transform = new Transform3DGroup();
+        _transformBase.Children.CopyTo(_transform.Children, 0), MeshHelper.TransformFromAxis(axis, -angle)] };
     }
 
     private void ApplyRotation(Vector3D axis, float angle) {

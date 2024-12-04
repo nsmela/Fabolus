@@ -32,14 +32,12 @@ public class BolusStore {
 
     private Dictionary<string, BolusModel> _boli = []; //for different models used
     private BolusModel _bolus;
-    private Transform3D _transform;
+    private Transform3DGroup _transform = new Transform3DGroup();
 
     #endregion
 
     public BolusStore()
     {
-        //default values
-        _transform = MeshHelper.TransformEmpty; //an empty transform
 
         //registering messages
         WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, async (r,m) => await BolusFromFile(m.filepath) );
@@ -55,7 +53,9 @@ public class BolusStore {
     #region Messages
     private async Task AddTempTransform(Vector3D axis, float angle) {
         //return stacked transforms without saving
-        var transform = new Transform3DGroup { Children = [_transform, MeshHelper.TransformFromAxis(axis, angle)] };
+        var transform = new Transform3DGroup();
+        _transform.Children.CopyTo(transform.Children.ToArray(), 0);
+        transform.Children.Add(MeshHelper.TransformFromAxis(axis, angle));
 
         _bolus.Transform = transform;
 
