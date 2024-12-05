@@ -14,6 +14,8 @@ using Transform3DGroup = System.Windows.Media.Media3D.Transform3DGroup;
 namespace Fabolus.Wpf.Pages.Rotate;
 
 public sealed class RotateSceneManager : SceneManager {
+    private float _overhangLowerAngle;
+    private float _overhangUpperAngle;
     private Vector3D _overhangAxis = new Vector3D(0, 0, -1);
     private Material _overhangSkin = new ColorStripeMaterial();
     private Vector3 _tempAxis = Vector3.Zero;
@@ -25,11 +27,21 @@ public sealed class RotateSceneManager : SceneManager {
         _overhangSkin = OverhangsHelper.CreateOverhangsMaterial();
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.axis, m.angle));
+        WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.Axis, m.Angle));
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.bolus));
+        WeakReferenceMessenger.Default.Register<ApplyOverhangSettings>(this, (r, m) => ApplyOverhangSettings(m.LowerAngle, m.UpperAngle));
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         BolusUpdated(bolus);
+    }
+
+    private void ApplyOverhangSettings(float lower, float upper) {
+        _overhangLowerAngle = lower;
+        _overhangUpperAngle = upper;
+        _overhangSkin = OverhangsHelper.CreateOverhangsMaterial(_overhangLowerAngle, _overhangUpperAngle);
+
+        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        UpdateDisplay(bolus);
     }
 
     private void ApplyTempRotation(Vector3 axis, float angle) {

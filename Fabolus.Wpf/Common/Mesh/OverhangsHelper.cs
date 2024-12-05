@@ -17,7 +17,7 @@ using HelixToolkit.Wpf.SharpDX.Model;
 
 namespace Fabolus.Wpf.Common.Mesh;
 public static class OverhangsHelper {
-    private static Color4 BaseColor => new Color4(1, 1, 1, 1);
+    private static Color4 BaseColor => new Color4(0.8f, 0.8f, 0.8f, 1);
     private static Color4 WarningColor => new Color4(1, 1, 0, 1);
     private static Color4 FaultColor => new Color4(1, 0, 0, 1);
 
@@ -29,28 +29,30 @@ public static class OverhangsHelper {
         };
     }
 
-    /*
-    public static Vector2Collection GetTextureCoordinates(MeshGeometry3D mesh, Vector3 refAxis) {
-        if (mesh is null || mesh.Positions.Count() == 0) { return new Vector2Collection(); }
+    public static HelixToolkit.Wpf.SharpDX.Material CreateOverhangsMaterial(float lowerAngle, float upperAngle) {
+        var max = 90;
+        var offset = 10;
 
-        var refAngle = 180.0;
-        var normals = mesh.CalculateNormals();
+        var lower = (int)lowerAngle;
+        var upper = upperAngle < max ? (int)upperAngle : max - 2;
 
-        if (normals is null) { throw new NullReferenceException("Texture mesh normals are null"); }
+        var lowerSteps = lower;
+        var upperSteps = upper - lowerSteps - offset;
+        var endSteps = max - upperSteps;
 
-        var textureCoords = new Vector2Collection();
-        foreach (var normal in normals) {
-            var difference = Math.Abs(normal.AngleBetween(refAxis)) * (180.0f / Math.PI);
+        var colors = GetGradients(BaseColor, BaseColor, lowerSteps) //bottom end, lower angle setting
+            .Concat(GetGradients(BaseColor, WarningColor, offset)) //warning color transition
+            .Concat(GetGradients(WarningColor, WarningColor, upperSteps)) //warning color section
+            .Concat(GetGradients(WarningColor, FaultColor, offset)) //fault color transition, upper angle setting
+            .Concat(GetGradients(FaultColor, FaultColor, endSteps)) //fault color section, ends at 90 degrees
+            .ToList();
 
-            while (difference > refAngle) { difference -= refAngle; } //reduces angle until under 180 degrees
-
-            float ratio = (float)(difference / refAngle);
-            textureCoords.Add(new Vector2(0, ratio));
-        }
-
-        return textureCoords;
+        return new ColorStripeMaterial {
+            ColorStripeX = colors,
+            ColorStripeY = colors
+        };
     }
-    */
+
     public static Vector2Collection GetTextureCoordinates(MeshGeometry3D mesh, Vector3 refAxis) {
         var axis = new Vector3D(refAxis.X, refAxis.Y, refAxis.Z);
         var normals = new Vector3DCollection();

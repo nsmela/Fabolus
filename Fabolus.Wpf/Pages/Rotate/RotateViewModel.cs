@@ -23,8 +23,6 @@ public partial class RotateViewModel : BaseViewModel {
     [ObservableProperty] private float _xAxisAngle;
     [ObservableProperty] private float _yAxisAngle;
     [ObservableProperty] private float _zAxisAngle;
-    [ObservableProperty] private float _lowerOverhang;
-    [ObservableProperty] private float _upperOverhang;
 
     partial void OnXAxisAngleChanged(float value) => SendTempRotation(Vector3.UnitX, value);
     partial void OnYAxisAngleChanged(float value) => SendTempRotation(Vector3.UnitY, value);
@@ -77,6 +75,23 @@ public partial class RotateViewModel : BaseViewModel {
 
         ResetValues();
         WeakReferenceMessenger.Default.Send(new ApplyRotationMessage(axis, angle));
+    }
+    #endregion
+
+    #region Overhangs
+    [ObservableProperty] private float _lowerOverhang;
+    [ObservableProperty] private float _upperOverhang;
+    private bool _isOverhangsFrozen = false;
+
+    partial void OnLowerOverhangChanged(float value) => ApplyOverhangSettings();
+    partial void OnUpperOverhangChanged(float value) => ApplyOverhangSettings();
+
+    private void ApplyOverhangSettings() {
+        if (_isOverhangsFrozen) { return; }
+        _isOverhangsFrozen = true;
+
+        WeakReferenceMessenger.Default.Send(new ApplyOverhangSettings(UpperOverhang, LowerOverhang));
+        _isOverhangsFrozen = false;
     }
     #endregion
 }
