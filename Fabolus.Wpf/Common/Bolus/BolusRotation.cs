@@ -25,8 +25,11 @@ public class BolusRotation {
         Axis = axis;
     }
     public Transform3D TempTransform => MeshHelper.TransformFromAxis(Axis, Angle);
-    public Vector3D ApplyAxisRotation(Vector3D axis) =>
-        MeshHelper.TransformFromAxis(Axis, -Angle).Transform(axis);
-
+    public Vector3D ApplyAxisRotation(Vector3D axis) {
+        var result = new Transform3DGroup();
+        foreach (var transform in Transforms.Children) { result.Children.Add(transform); }
+        result.Children.Add(MeshHelper.TransformFromAxis(Axis, Angle));
+        return result.Transform(axis);
+    }
 
 }
