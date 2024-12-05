@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Transform3DGroup = System.Windows.Media.Media3D.Transform3DGroup;
 using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
+using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 using Fabolus.Core;
 using SharpDX;
 
@@ -53,6 +54,11 @@ public class BolusModel : Fabolus.Core.Bolus.Bolus {
         Geometry = geometry;
         Mesh = geometry.ToDMesh();
         Transforms = new();
+    }
+
+    public void AddRotation(Vector3 axis, double angle) {
+        Transform.AddRotation(axis, angle);
+        Geometry = Transform.ApplyTransforms(Mesh);
     }
 
     #endregion

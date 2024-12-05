@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core;
 using g3;
+using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,7 +24,7 @@ public class BolusTransform {
 
     #region Public Methods
 
-    public void AddRotation(Vector3D axis, double angle) {
+    public void AddRotation(Vector3 axis, double angle) {
         var vector = new Vector3d(axis.X, axis.Y, axis.Z);
         _rotations.Add(new Quaterniond(vector, angle));
     }

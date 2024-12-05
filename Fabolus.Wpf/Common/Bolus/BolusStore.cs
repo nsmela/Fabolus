@@ -18,7 +18,7 @@ public class BolusStore {
     public sealed record BolusUpdatedMessage(BolusModel bolus);
 
     //rotations
-    public sealed record ApplyTempRotationMessage(Vector3D axis, float angle);
+
     public sealed record ApplyRotationMessage(Vector3D axis, float angle);
     public sealed record ClearRotationsMessage();
 
@@ -41,7 +41,6 @@ public class BolusStore {
 
         //registering messages
         WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, async (r,m) => await BolusFromFile(m.filepath) );
-        WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, async (r, m) => await AddTempTransform(m.axis, m.angle));
         WeakReferenceMessenger.Default.Register<ApplyRotationMessage>(this, async (r, m) => await AddTransform(m.axis, m.angle));
         WeakReferenceMessenger.Default.Register<ClearRotationsMessage>(this, async (r, m) => await ClearTransforms());
 
@@ -49,23 +48,10 @@ public class BolusStore {
         WeakReferenceMessenger.Default.Register<BolusStore, BolusRequestMessage>(this, (r, m) => m.Reply(r._bolus) );
     }
 
-    #region Messages
-    private async Task AddTempTransform(Vector3D axis, float angle) {
-        _rotation.AddTempRotation(axis, angle);
-        _bolus.Transforms = _rotation;
-
-        await BolusUpdated();
-    }
+    #region Message Methods
 
     private async Task AddTransform(Vector3D axis, float angle) {
-        //stack the transforms, save, and send update
-        _rotation.ApplyRotation(axis, angle);
-        _bolus.Transforms = _rotation;
-
-        //testing new rotation
-        _transform.AddRotation(axis, angle);
-        _bolus.Transform = _transform;
-
+        _bolus.AddRotation(axis.ToVector3(), angle);
         await BolusUpdated();
     }
 

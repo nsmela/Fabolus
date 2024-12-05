@@ -2,13 +2,13 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Bolus;
+using Fabolus.Wpf.Bolus;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.Import;
 using Fabolus.Wpf.Pages.Rotate;
-using Fabolus.Wpf.Bolus;
 using HelixToolkit.Wpf.SharpDX;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
@@ -19,7 +19,7 @@ public partial class MainViewModel : ObservableObject {
     [ObservableProperty] private BaseViewModel? _currentViewModel;
     [ObservableProperty] private string _currentViewTitle = "No View Selected";
     [ObservableProperty] private MeshViewModel _currentMeshView = new MeshViewModel();
-    [ObservableProperty] private SceneModel _currentSceneModel;
+    [ObservableProperty] private SceneManager _currentSceneModel;
 
     //mesh info
     [ObservableProperty] private bool _infoVisible = false;
@@ -29,7 +29,7 @@ public partial class MainViewModel : ObservableObject {
     [ObservableProperty] private string _triangleCount = NoFileText;
     [ObservableProperty] private string _volumeText = NoFileText;
 
-    private SceneModel _sceneModel;
+    private SceneManager _sceneModel;
 
     #region Stores
     private BolusStore BolusStore { get; set; }

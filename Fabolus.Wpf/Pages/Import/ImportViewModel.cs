@@ -16,7 +16,7 @@ namespace Fabolus.Wpf.Pages.Import;
 public partial class ImportViewModel : BaseViewModel {
     public override string TitleText => "Import";
 
-    public override SceneModel GetSceneModel => new SceneModel();
+    public override SceneManager GetSceneModel => new SceneManager();
 
     //commands
     #region Commands

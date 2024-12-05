@@ -1,7 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common.Mesh;
-using SceneModel = Fabolus.Wpf.Common.Scene.SceneModel;
+using SceneManager = Fabolus.Wpf.Common.Scene.SceneManager;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +12,7 @@ namespace Fabolus.Wpf.Common;
 public abstract class BaseViewModel : ObservableObject, IDisposable {
     public abstract string TitleText { get; }
 
-    public abstract SceneModel GetSceneModel { get; }
+    public abstract SceneManager GetSceneModel { get; }
 
     public void Dispose() {
         WeakReferenceMessenger.Default.UnregisterAll(this);

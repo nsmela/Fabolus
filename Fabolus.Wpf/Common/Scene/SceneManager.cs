@@ -9,11 +9,11 @@ using Material = HelixToolkit.Wpf.SharpDX.Material;
 
 namespace Fabolus.Wpf.Common.Scene;
 
-public class SceneModel : IDisposable   {
+public class SceneManager : IDisposable   {
 
     protected virtual Material _skin { get; } = PhongMaterials.Gray; 
 
-    public SceneModel() {
+    public SceneManager() {
         //messaging
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this,  (r, m) => UpdateDisplay(m.bolus));
 

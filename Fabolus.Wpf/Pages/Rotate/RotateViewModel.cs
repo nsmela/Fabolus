@@ -17,7 +17,7 @@ namespace Fabolus.Wpf.Pages.Rotate;
 public partial class RotateViewModel : BaseViewModel {
     public override string TitleText => "Rotation";
 
-    public override SceneModel GetSceneModel => new RotateSceneModel();
+    public override SceneManager GetSceneModel => new RotateSceneManager();
 
     private bool _isLocked = false;
     [ObservableProperty] private float _xAxisAngle;
