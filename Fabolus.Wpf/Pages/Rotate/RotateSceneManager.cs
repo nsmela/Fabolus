@@ -82,6 +82,21 @@ public sealed class RotateSceneManager : SceneManager {
             Skin = _overhangSkin
         });
 
+        if (_tempAngle != 0.0) {
+            models.Add(GenerateAxisWidget(bolus.Geometry.BoundingSphere.Radius));
+        }
+
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge(models));
+    }
+
+    private DisplayModel3D GenerateAxisWidget(float radius) {
+        var mesh = new MeshBuilder();
+        mesh.AddTorus(radius * 2, 2.0);
+
+        return new DisplayModel3D {
+            Geometry = mesh.ToMesh(),
+            Skin = DiffuseMaterials.Blue
+        };
+
     }
 }
