@@ -32,6 +32,7 @@ public class BolusStore {
     private Dictionary<string, BolusModel> _boli = []; //for different models used
     private BolusModel _bolus;
     private BolusRotation _rotation = new();
+    private BolusTransform _transform = new();
 
     #endregion
 
@@ -61,6 +62,10 @@ public class BolusStore {
         _rotation.ApplyRotation(axis, angle);
         _bolus.Transforms = _rotation;
 
+        //testing new rotation
+        _transform.AddRotation(axis, angle);
+        _bolus.Transform = _transform;
+
         await BolusUpdated();
     }
 
@@ -78,9 +83,11 @@ public class BolusStore {
             return;
         }
 
-        _bolus = new BolusModel(mesh);
-        _rotation = new BolusRotation();
+        _bolus = new(mesh);
+        _rotation = new();
         _bolus.Transforms = _rotation;
+        _transform = new();
+        _bolus.Transform = _transform;
 
         await BolusUpdated();
     }
@@ -90,6 +97,10 @@ public class BolusStore {
     private async Task ClearTransforms() {
         _rotation = new BolusRotation();
         _bolus.Transforms = _rotation;
+
+        //testing new transforms
+        _transform.ClearTransforms();
+        _bolus.Transform = _transform;
 
         await BolusUpdated();
     }

@@ -15,6 +15,7 @@ namespace Fabolus.Wpf.Common.Bolus;
 public class BolusModel : Fabolus.Core.Bolus.Bolus {
     public MeshGeometry3D Geometry { get; set; }
     public BolusRotation Transforms { get; set; } = new();
+    public BolusTransform Transform { get; set; } = new();
     public Vector3 TranslateOffset { get; set; } = Vector3.Zero;
 
     #region Constructors

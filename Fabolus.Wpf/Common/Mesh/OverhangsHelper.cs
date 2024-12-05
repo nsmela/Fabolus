@@ -1,5 +1,4 @@
-﻿
-using SharpDX;
+﻿using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,7 +14,6 @@ using CommunityToolkit.Mvvm.Messaging;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using System.Security.Policy;
 using HelixToolkit.Wpf.SharpDX.Model;
-
 
 namespace Fabolus.Wpf.Common.Mesh;
 public static class OverhangsHelper {

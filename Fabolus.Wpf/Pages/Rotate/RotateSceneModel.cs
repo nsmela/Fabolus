@@ -11,6 +11,7 @@ using Transform3DGroup = System.Windows.Media.Media3D.Transform3DGroup;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Rotate;
+
 public sealed class RotateSceneModel : SceneModel {
     private Vector3D _overhangAxis = new Vector3D(0, 0, -1);
     private Material _overhangSkin = new ColorStripeMaterial();
