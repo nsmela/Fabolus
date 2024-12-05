@@ -12,7 +12,7 @@ using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 using DiffuseMaterial = HelixToolkit.Wpf.SharpDX.DiffuseMaterial;
 using HelixToolkit.Wpf.SharpDX;
 using CommunityToolkit.Mvvm.Messaging;
-using static Fabolus.Wpf.Stores.BolusStore;
+using static Fabolus.Wpf.Bolus.BolusStore;
 using System.Security.Policy;
 using HelixToolkit.Wpf.SharpDX.Model;
 

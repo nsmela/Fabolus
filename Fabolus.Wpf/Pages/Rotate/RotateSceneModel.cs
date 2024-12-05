@@ -8,36 +8,15 @@ using Fabolus.Wpf.Common.Bolus;
 using Colors = System.Windows.Media.Colors;
 using Vector3D = System.Windows.Media.Media3D.Vector3D;
 using Transform3DGroup = System.Windows.Media.Media3D.Transform3DGroup;
-using static Fabolus.Wpf.Stores.BolusStore;
+using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 public sealed class RotateSceneModel : SceneModel {
     private Vector3D _overhangAxis = new Vector3D(0, 0, -1);
     private Material _overhangSkin = new ColorStripeMaterial();
-    private Transform3DGroup _transform = new Transform3DGroup();
-    private Transform3DGroup _transformBase = new Transform3DGroup();
 
     public RotateSceneModel() : base() {
         _overhangSkin = OverhangsHelper.CreateOverhangsMaterial();
-
-        WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.axis, m.angle));
-        WeakReferenceMessenger.Default.Register<ApplyRotationMessage>(this, (r, m) => ApplyRotation(m.axis, m.angle));
-        WeakReferenceMessenger.Default.Register<ClearRotationsMessage>(this, (r, m) => ClearTransforms());
-    }
-
-    private void ApplyTempRotation(Vector3D axis, float angle) {
-        _transform = new Transform3DGroup();
-        _transformBase.Children.CopyTo(_transform.Children, 0), MeshHelper.TransformFromAxis(axis, -angle)] };
-    }
-
-    private void ApplyRotation(Vector3D axis, float angle) {
-        _transformBase.Children.Add(MeshHelper.TransformFromAxis(axis, -angle));
-        _transform = _transformBase;
-    }
-
-    private void ClearTransforms() {
-        _transformBase = new Transform3DGroup();
-        _transform = _transformBase;
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {
@@ -46,28 +25,20 @@ public sealed class RotateSceneModel : SceneModel {
             return;
         }
 
-        var refAxis = _transform.Transform(_overhangAxis).ToVector3();
+        //overhangs rely on the normals of the mesh
+        //temp rotations ened to be calculated with the oposite angle
+
+        var transform = bolus.Transforms.Rotation;
+        var refAxis = bolus.Transforms.ApplyAxisRotation(_overhangAxis).ToVector3();
 
         bolus.Geometry.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(bolus.Geometry, refAxis);
 
         var models = new List<DisplayModel3D>();
         models.Add( new DisplayModel3D {
             Geometry = bolus.Geometry,
-            Transform = bolus.Transform,
+            Transform = transform,
             Skin = _overhangSkin
         });
-
-        //testing, to see how the ref angle is being managed properly
-        if (true) {
-            var mesh = new MeshBuilder();
-            mesh.AddArrow(Vector3.Zero, refAxis, 3.0, 16);
-
-            models.Add(new DisplayModel3D {
-                Geometry = mesh.ToMeshGeometry3D(),
-                Skin = PhongMaterials.Blue,
-                Transform = MeshHelper.TransformEmpty
-            });
-        }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge(models));
     }

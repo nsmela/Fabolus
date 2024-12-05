@@ -7,7 +7,7 @@ using HelixToolkit.Wpf.SharpDX;
 using System.IO;
 using System.Windows.Media.Media3D;
 
-namespace Fabolus.Wpf.Stores;
+namespace Fabolus.Wpf.Bolus;
 public class BolusStore {
 
     #region Messages
@@ -21,7 +21,6 @@ public class BolusStore {
     public sealed record ApplyTempRotationMessage(Vector3D axis, float angle);
     public sealed record ApplyRotationMessage(Vector3D axis, float angle);
     public sealed record ClearRotationsMessage();
-    public class RotationRequestMessage : RequestMessage<Transform3D> { }
 
     //request messages
     public class BolusRequestMessage : RequestMessage<BolusModel> { }
@@ -32,7 +31,7 @@ public class BolusStore {
 
     private Dictionary<string, BolusModel> _boli = []; //for different models used
     private BolusModel _bolus;
-    private Transform3DGroup _transform = new Transform3DGroup();
+    private BolusRotation _rotation = new();
 
     #endregion
 
@@ -47,25 +46,21 @@ public class BolusStore {
 
         //request messages
         WeakReferenceMessenger.Default.Register<BolusStore, BolusRequestMessage>(this, (r, m) => m.Reply(r._bolus) );
-        WeakReferenceMessenger.Default.Register<BolusStore, RotationRequestMessage>(this, (r, m) => m.Reply(r._transform) );
     }
 
     #region Messages
     private async Task AddTempTransform(Vector3D axis, float angle) {
-        //return stacked transforms without saving
-        var transform = new Transform3DGroup();
-        _transform.Children.CopyTo(transform.Children.ToArray(), 0);
-        transform.Children.Add(MeshHelper.TransformFromAxis(axis, angle));
-
-        _bolus.Transform = transform;
+        _rotation.AddTempRotation(axis, angle);
+        _bolus.Transforms = _rotation;
 
         await BolusUpdated();
     }
 
     private async Task AddTransform(Vector3D axis, float angle) {
         //stack the transforms, save, and send update
-        _transform = new Transform3DGroup { Children = [_transform, MeshHelper.TransformFromAxis(axis, angle)] };
-        _bolus.Transform = _transform;
+        _rotation.ApplyRotation(axis, angle);
+        _bolus.Transforms = _rotation;
+
         await BolusUpdated();
     }
 
@@ -84,7 +79,8 @@ public class BolusStore {
         }
 
         _bolus = new BolusModel(mesh);
-        _bolus.Transform = _transform;
+        _rotation = new BolusRotation();
+        _bolus.Transforms = _rotation;
 
         await BolusUpdated();
     }
@@ -92,8 +88,8 @@ public class BolusStore {
     private async Task BolusUpdated() => WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(_bolus));
 
     private async Task ClearTransforms() {
-        _transform = new Transform3DGroup();
-        _bolus.Transform = _transform;
+        _rotation = new BolusRotation();
+        _bolus.Transforms = _rotation;
 
         await BolusUpdated();
     }

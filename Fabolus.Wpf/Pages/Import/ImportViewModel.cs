@@ -10,7 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static Fabolus.Wpf.Stores.BolusStore;
+using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Import;
 public partial class ImportViewModel : BaseViewModel {

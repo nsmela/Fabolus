@@ -8,9 +8,9 @@ using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.Import;
 using Fabolus.Wpf.Pages.Rotate;
-using Fabolus.Wpf.Stores;
+using Fabolus.Wpf.Bolus;
 using HelixToolkit.Wpf.SharpDX;
-using static Fabolus.Wpf.Stores.BolusStore;
+using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {

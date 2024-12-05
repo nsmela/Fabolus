@@ -1,7 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
-using static Fabolus.Wpf.Stores.BolusStore;
+using static Fabolus.Wpf.Bolus.BolusStore;
 using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Media.Media3D;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
