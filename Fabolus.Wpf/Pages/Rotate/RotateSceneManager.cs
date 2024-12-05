@@ -16,7 +16,10 @@ namespace Fabolus.Wpf.Pages.Rotate;
 public sealed class RotateSceneManager : SceneManager {
     private Vector3D _overhangAxis = new Vector3D(0, 0, -1);
     private Material _overhangSkin = new ColorStripeMaterial();
-    private Transform3D _tempRotation = MeshHelper.TransformEmpty;
+    private Vector3D _tempAxis = new Vector3D(0, 0, 0);
+    private float _tempAngle = 0.0f;
+
+    private Transform3D TempRotation => MeshHelper.TransformFromAxis(_tempAxis, _tempAngle);
 
     public RotateSceneManager() {
         _overhangSkin = OverhangsHelper.CreateOverhangsMaterial();
@@ -24,16 +27,23 @@ public sealed class RotateSceneManager : SceneManager {
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.axis, m.angle));
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.bolus));
+
+        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        BolusUpdated(bolus);
     }
 
     private void ApplyTempRotation(Vector3D axis, float angle) {
-        _tempRotation = MeshHelper.TransformFromAxis(axis, angle);
+        _tempAxis = axis;
+        _tempAngle = angle;
+
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         UpdateDisplay(bolus);
     }
 
     private void BolusUpdated(BolusModel? bolus) {
-        _tempRotation = MeshHelper.TransformEmpty;
+        _tempAxis = new Vector3D(0,0,0);
+        _tempAngle = 0.0f;
+
         UpdateDisplay(bolus);
     }
 
@@ -46,14 +56,14 @@ public sealed class RotateSceneManager : SceneManager {
         //overhangs rely on the normals of the mesh
         //temp rotations ened to be calculated with the oposite angle
 
-        var refAxis = _tempRotation.Transform(_overhangAxis).ToVector3();
+        var refAxis = MeshHelper.TransformFromAxis(_tempAxis, -_tempAngle).Transform(_overhangAxis).ToVector3();
 
         bolus.Geometry.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(bolus.Geometry, refAxis);
 
         var models = new List<DisplayModel3D>();
         models.Add( new DisplayModel3D {
             Geometry = bolus.Geometry,
-            Transform = _tempRotation,
+            Transform = TempRotation,
             Skin = _overhangSkin
         });
 
