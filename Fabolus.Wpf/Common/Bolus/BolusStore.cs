@@ -4,6 +4,7 @@ using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using g3;
 using HelixToolkit.Wpf.SharpDX;
+using SharpDX;
 using System.IO;
 using System.Windows.Media.Media3D;
 
@@ -18,8 +19,7 @@ public class BolusStore {
     public sealed record BolusUpdatedMessage(BolusModel bolus);
 
     //rotations
-
-    public sealed record ApplyRotationMessage(Vector3D axis, float angle);
+    public sealed record ApplyRotationMessage(Vector3 axis, float angle);
     public sealed record ClearRotationsMessage();
 
     //request messages
@@ -31,13 +31,11 @@ public class BolusStore {
 
     private Dictionary<string, BolusModel> _boli = []; //for different models used
     private BolusModel _bolus;
-    private BolusRotation _rotation = new();
     private BolusTransform _transform = new();
 
     #endregion
 
-    public BolusStore()
-    {
+    public BolusStore() {
 
         //registering messages
         WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, async (r,m) => await BolusFromFile(m.filepath) );
@@ -50,8 +48,8 @@ public class BolusStore {
 
     #region Message Methods
 
-    private async Task AddTransform(Vector3D axis, float angle) {
-        _bolus.AddRotation(axis.ToVector3(), angle);
+    private async Task AddTransform(Vector3 axis, float angle) {
+        _bolus.AddRotation(axis, angle);
         await BolusUpdated();
     }
 
@@ -70,8 +68,6 @@ public class BolusStore {
         }
 
         _bolus = new(mesh);
-        _rotation = new();
-        _bolus.Transforms = _rotation;
         _transform = new();
         _bolus.Transform = _transform;
 
@@ -81,12 +77,9 @@ public class BolusStore {
     private async Task BolusUpdated() => WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(_bolus));
 
     private async Task ClearTransforms() {
-        _rotation = new BolusRotation();
-        _bolus.Transforms = _rotation;
-
         //testing new transforms
-        _transform.ClearTransforms();
-        _bolus.Transform = _transform;
+        _transform = new();
+        _bolus.ClearRotations();
 
         await BolusUpdated();
     }

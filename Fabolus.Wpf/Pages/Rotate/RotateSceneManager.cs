@@ -16,7 +16,7 @@ namespace Fabolus.Wpf.Pages.Rotate;
 public sealed class RotateSceneManager : SceneManager {
     private Vector3D _overhangAxis = new Vector3D(0, 0, -1);
     private Material _overhangSkin = new ColorStripeMaterial();
-    private Vector3D _tempAxis = new Vector3D(0, 0, 0);
+    private Vector3 _tempAxis = Vector3.Zero;
     private float _tempAngle = 0.0f;
 
     private Transform3D TempRotation => MeshHelper.TransformFromAxis(_tempAxis, _tempAngle);
@@ -32,7 +32,7 @@ public sealed class RotateSceneManager : SceneManager {
         BolusUpdated(bolus);
     }
 
-    private void ApplyTempRotation(Vector3D axis, float angle) {
+    private void ApplyTempRotation(Vector3 axis, float angle) {
         _tempAxis = axis;
         _tempAngle = angle;
 
@@ -41,7 +41,7 @@ public sealed class RotateSceneManager : SceneManager {
     }
 
     private void BolusUpdated(BolusModel? bolus) {
-        _tempAxis = new Vector3D(0,0,0);
+        _tempAxis = Vector3.Zero;
         _tempAngle = 0.0f;
 
         UpdateDisplay(bolus);

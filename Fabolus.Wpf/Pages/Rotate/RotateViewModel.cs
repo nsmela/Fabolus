@@ -26,9 +26,9 @@ public partial class RotateViewModel : BaseViewModel {
     [ObservableProperty] private float _lowerOverhang;
     [ObservableProperty] private float _upperOverhang;
 
-    partial void OnXAxisAngleChanged(float value) => SendTempRotation(MeshHelper.VectorXAxis, value);
-    partial void OnYAxisAngleChanged(float value) => SendTempRotation(MeshHelper.VectorYAxis, value);
-    partial void OnZAxisAngleChanged(float value) => SendTempRotation(MeshHelper.VectorZAxis, value);
+    partial void OnXAxisAngleChanged(float value) => SendTempRotation(Vector3.UnitX, value);
+    partial void OnYAxisAngleChanged(float value) => SendTempRotation(Vector3.UnitY, value);
+    partial void OnZAxisAngleChanged(float value) => SendTempRotation(Vector3.UnitZ, value);
 
     private void ResetValues() {
         _isLocked = true;
@@ -41,7 +41,7 @@ public partial class RotateViewModel : BaseViewModel {
 
     }
 
-    private void SendTempRotation(Vector3D axis, float angle) {
+    private void SendTempRotation(Vector3 axis, float angle) {
         if (_isLocked) { return; }
 
         WeakReferenceMessenger.Default.Send(new ApplyTempRotationMessage(axis, angle));
@@ -56,22 +56,22 @@ public partial class RotateViewModel : BaseViewModel {
 
     [RelayCommand]
     private void SaveRotation() {
-        Vector3D axis;
+        Vector3 axis = Vector3.Zero;
         var angle = 0.0f;
 
         //selecting the axis that was changed
         if (XAxisAngle != 0) {
-            axis = MeshHelper.VectorXAxis;
+            axis = Vector3.UnitX;
             angle = XAxisAngle;
         }
 
         if (YAxisAngle != 0) {
-            axis = MeshHelper.VectorYAxis;
+            axis = Vector3.UnitY;
             angle = YAxisAngle;
         }
 
         if (ZAxisAngle != 0) {
-            axis = MeshHelper.VectorZAxis;
+            axis = Vector3.UnitZ;
             angle = ZAxisAngle;
         }
 

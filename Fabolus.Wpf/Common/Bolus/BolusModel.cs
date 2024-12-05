@@ -14,8 +14,9 @@ using SharpDX;
 
 namespace Fabolus.Wpf.Common.Bolus;
 public class BolusModel : Fabolus.Core.Bolus.Bolus {
+    //Mesh is the raw structure, geometry is the transforms applied
+
     public MeshGeometry3D Geometry { get; set; }
-    public BolusRotation Transforms { get; set; } = new();
     public BolusTransform Transform { get; set; } = new();
     public Vector3 TranslateOffset { get; set; } = Vector3.Zero;
 
@@ -23,7 +24,7 @@ public class BolusModel : Fabolus.Core.Bolus.Bolus {
     public BolusModel() {
         Mesh = new();
         Geometry = new();
-        Transforms = new();
+        Transform = new();
     }
 
     public BolusModel(DMesh3 mesh) {
@@ -47,13 +48,13 @@ public class BolusModel : Fabolus.Core.Bolus.Bolus {
     public void SetMesh(DMesh3 mesh) {
         Mesh = mesh;
         Geometry = mesh.ToGeometry();
-        Transforms = new();
+        Transform = new();
     }
 
     public void SetGeometry(MeshGeometry3D geometry) {
         Geometry = geometry;
         Mesh = geometry.ToDMesh();
-        Transforms = new();
+        Transform = new();
     }
 
     public void AddRotation(Vector3 axis, double angle) {
@@ -61,5 +62,9 @@ public class BolusModel : Fabolus.Core.Bolus.Bolus {
         Geometry = Transform.ApplyTransforms(Mesh);
     }
 
+    public void ClearRotations() {
+        Transform = new();
+        Geometry = Mesh.ToGeometry();
+    }
     #endregion
 }

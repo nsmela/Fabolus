@@ -1,5 +1,5 @@
-﻿using System.Windows.Media.Media3D;
+﻿using SharpDX;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 
-public sealed record ApplyTempRotationMessage(Vector3D axis, float angle);
+public sealed record ApplyTempRotationMessage(Vector3 axis, float angle);
