@@ -46,7 +46,7 @@ public partial class MainViewModel : ObservableObject {
         CurrentViewTitle = viewModel.TitleText;
 
         //based on the view
-        _sceneModel = viewModel.GetSceneModel;
+        _sceneModel = viewModel.GetSceneManager;
 
     }
 

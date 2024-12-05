@@ -2,22 +2,16 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
-using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using SharpDX;
-using Vector3D = System.Windows.Media.Media3D.Vector3D;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 public partial class RotateViewModel : BaseViewModel {
     public override string TitleText => "Rotation";
 
-    public override SceneManager GetSceneModel => new RotateSceneManager();
+    public override SceneManager GetSceneManager => new RotateSceneManager();
 
     private bool _isLocked = false;
     [ObservableProperty] private float _xAxisAngle;
@@ -79,8 +73,8 @@ public partial class RotateViewModel : BaseViewModel {
     #endregion
 
     #region Overhangs
-    [ObservableProperty] private float _lowerOverhang;
-    [ObservableProperty] private float _upperOverhang;
+    [ObservableProperty] private float _lowerOverhang = RotateSceneManager.DEFAULT_OVERHANG_LOWER;
+    [ObservableProperty] private float _upperOverhang = RotateSceneManager.DEFAULT_OVERHANG_UPPER;
     private bool _isOverhangsFrozen = false;
 
     partial void OnLowerOverhangChanged(float value) => ApplyOverhangSettings();

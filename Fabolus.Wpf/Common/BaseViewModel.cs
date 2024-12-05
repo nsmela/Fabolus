@@ -12,7 +12,7 @@ namespace Fabolus.Wpf.Common;
 public abstract class BaseViewModel : ObservableObject, IDisposable {
     public abstract string TitleText { get; }
 
-    public abstract SceneManager GetSceneModel { get; }
+    public abstract SceneManager GetSceneManager { get; }
 
     public void Dispose() {
         WeakReferenceMessenger.Default.UnregisterAll(this);

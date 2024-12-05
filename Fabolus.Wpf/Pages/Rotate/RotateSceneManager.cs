@@ -14,8 +14,11 @@ using Transform3DGroup = System.Windows.Media.Media3D.Transform3DGroup;
 namespace Fabolus.Wpf.Pages.Rotate;
 
 public sealed class RotateSceneManager : SceneManager {
-    private float _overhangLowerAngle;
-    private float _overhangUpperAngle;
+    public const float DEFAULT_OVERHANG_LOWER = 50.0f;
+    public const float DEFAULT_OVERHANG_UPPER = 70.0f;
+
+    private float _overhangLowerAngle = DEFAULT_OVERHANG_LOWER;
+    private float _overhangUpperAngle = DEFAULT_OVERHANG_UPPER;
     private Vector3D _overhangAxis = new Vector3D(0, 0, -1);
     private Material _overhangSkin = new ColorStripeMaterial();
     private Vector3 _tempAxis = Vector3.Zero;
@@ -24,7 +27,7 @@ public sealed class RotateSceneManager : SceneManager {
     private Transform3D TempRotation => MeshHelper.TransformFromAxis(_tempAxis, _tempAngle);
 
     public RotateSceneManager() {
-        _overhangSkin = OverhangsHelper.CreateOverhangsMaterial();
+        _overhangSkin = OverhangsHelper.CreateOverhangsMaterial(_overhangLowerAngle, _overhangUpperAngle);
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.Axis, m.Angle));

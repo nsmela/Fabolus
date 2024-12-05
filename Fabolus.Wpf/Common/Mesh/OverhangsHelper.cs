@@ -38,7 +38,7 @@ public static class OverhangsHelper {
 
         var lowerSteps = lower;
         var upperSteps = upper - lowerSteps - offset;
-        var endSteps = max - upperSteps;
+        var endSteps = max - upper;
 
         var colors = GetGradients(BaseColor, BaseColor, lowerSteps) //bottom end, lower angle setting
             .Concat(GetGradients(BaseColor, WarningColor, offset)) //warning color transition
