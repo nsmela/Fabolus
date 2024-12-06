@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
-using Bolus = Fabolus.Core.Bolus.Bolus;
+using Bolus = Fabolus.Core.BolusModel.Bolus;
 
 namespace Fabolus.Core.Smoothing;
 
@@ -17,7 +17,7 @@ public class PoissonSmoothing {
         MessageBox.Show(message, title);
     }
 
-    public void Initialize(Fabolus.Core.Bolus.Bolus bolus) {
+    public void Initialize(Fabolus.Core.BolusModel.Bolus bolus) {
         var mesh = bolus.Mesh;
 
         if (mesh is null || mesh.TriangleCount == 0) { 
@@ -46,7 +46,7 @@ public class PoissonSmoothing {
             return;
         }
     }
-    public Fabolus.Core.Bolus.Bolus Smooth(PoissonSettings settings) {
+    public Fabolus.Core.BolusModel.Bolus Smooth(PoissonSettings settings) {
         //run poisson reconstructor
         ExecutePoisson(TEMP_FOLDER + @"temp.ply", TEMP_FOLDER + @"temp_smooth", settings.Depth, settings.Scale, settings.SamplesPerNode);
 
@@ -58,7 +58,7 @@ public class PoissonSmoothing {
         // MeshRefinement.Remesh(result, EdgeLength); //for some reason, this is creating more triangles than positions
         //cull the excess 
 
-        return new Fabolus.Core.Bolus.Bolus(result);
+        return new Fabolus.Core.BolusModel.Bolus(result);
     }
 
     private static void ExecutePoisson(string inputFile, string outputFile, int depth, float scale, int samples) {

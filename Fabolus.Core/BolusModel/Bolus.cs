@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Fabolus.Core.Bolus;
+namespace Fabolus.Core.BolusModel;
 public class Bolus {
     public DMesh3 Mesh { get; set; }
 
