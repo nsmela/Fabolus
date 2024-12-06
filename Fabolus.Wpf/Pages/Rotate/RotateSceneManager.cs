@@ -120,7 +120,7 @@ public sealed class RotateSceneManager : SceneManager {
         var models = new List<DisplayModel3D>();
 
         var builder = new MeshBuilder();
-        builder.AddCylinder(new Vector3(-xSize, 0, 0), new Vector3(xSize, 0, 0), 1.5f, 32, true, true);
+        builder.AddCylinder(new Vector3(-xSize, 0, 0), new Vector3(xSize, 0, 0), 0.75f, 32, true, true);
         models.Add(new DisplayModel3D {
             Geometry = builder.ToMesh(),
             Transform = MeshHelper.TransformEmpty,
@@ -128,9 +128,9 @@ public sealed class RotateSceneManager : SceneManager {
         });
 
         var yBuilder = new MeshBuilder();
-        builder.AddCylinder(new Vector3(0, -ySize, 0), new Vector3(0, ySize, 0), 1.5f, 32, true, true);
+        yBuilder.AddCylinder(new Vector3(0, -ySize, 0), new Vector3(0, ySize, 0), 0.75f, 32, true, true);
         models.Add(new DisplayModel3D {
-            Geometry = yBuilder.ToMesh(),
+           Geometry = yBuilder.ToMesh(),
             Transform = MeshHelper.TransformEmpty,
             Skin = DiffuseMaterials.Green,
         });
