@@ -13,8 +13,8 @@ public static class SmoothingTools {
 
     //get texture coordinates
     public static float[] GenerateTextureCoordinates(Bolus newBolus, Bolus oldBolus) {
-        var lower = -4.0f;
-        var upper = 4.0f;
+        var lower = -2.0f;
+        var upper = 2.0f;
         var spread = upper - lower;
         var mesh = oldBolus.Mesh;
         var spatial = new DMeshAABBTree3(mesh); //TODO: move to store the spatial on Bolus to improve speed
