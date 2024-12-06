@@ -1,0 +1,131 @@
+﻿<UserControl x:Class="Fabolus.Wpf.Pages.Smooth.SmoothingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Smooth"
+             xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="200">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="ShowSmoothSettings" />
+    </UserControl.Resources>
+
+    <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch" >
+        <!-- Simple User Settings -->
+        <StackPanel Margin="2" >
+            <Label Content="{Binding SmoothingLabel}" 
+                    HorizontalAlignment="Center" 
+                    VerticalAlignment="Center"
+                    FontSize="14" 
+                    FontWeight="Bold"
+                    FontFamily="\Fonts\#Poppins"/>
+        </StackPanel>
+
+        <Slider Value="{Binding SmoothingIndex, Mode=TwoWay}"
+                Minimum="0" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True"
+                mah:SliderHelper.TrackFillBrush="Black"
+                mah:SliderHelper.TrackValueFillBrush="Black"
+                Margin="12,0,12,10">
+            <Slider.Resources>
+
+            </Slider.Resources>
+        </Slider>
+
+        <!-- Advanced User Settings -->
+        <ToggleButton Content="advanced settings"
+                      HorizontalAlignment="Stretch" 
+                      VerticalAlignment="Center"
+                      Margin="4"
+                      FontSize="14" 
+                      FontWeight="Bold"
+                      Command="{Binding ToggleAdvancedModeCommand}"
+                      FontFamily="\Fonts\#Poppins" />
+
+        <!-- Hidden Advanced Settings-->
+        <StackPanel Visibility="{Binding AdvancedMode, Converter={StaticResource ShowSmoothSettings}}">
+            <StackPanel Orientation="Vertical" >
+                <Label Content="Depth"                        
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+                <Slider Value="{Binding Depth, Mode=TwoWay}"
+                            Minimum="4" 
+                            Maximum="11" 
+                            TickPlacement="TopLeft" 
+                            TickFrequency="1" 
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+            </StackPanel>
+            <StackPanel Orientation="Vertical">
+                <Label Content="Scale" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+                <Slider Value="{Binding SmoothScale, Mode=TwoWay}"
+                            Minimum="1" 
+                            Maximum="5" 
+                            TickPlacement="TopLeft" 
+                            TickFrequency="0.2" 
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+            </StackPanel>
+            <StackPanel Orientation="Vertical" >
+                <Label Content="Samples Per Node"                         
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+                <Slider Value="{Binding SamplesPerNode, Mode=TwoWay}" 
+                            Minimum="1" 
+                            Maximum="5" 
+                            TickPlacement="TopLeft" 
+                            TickFrequency="1" 
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+                <Label Content="Edge Length"
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+                <Slider Value="{Binding EdgeLength, Mode=TwoWay}" 
+                            Minimum="0.2" 
+                            Maximum="2.0" 
+                            TickPlacement="TopLeft" 
+                            TickFrequency="0.2" 
+                            IsSnapToTickEnabled="True" 
+                            Height="30"
+                            AutoToolTipPlacement="BottomRight" AutoToolTipPrecision="1"/>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Orientation="Vertical" Margin="4">
+
+
+        </StackPanel>
+
+        <Button Content="apply" 
+                Height="30" Margin="4"
+                HorizontalAlignment="Stretch"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                Command="{Binding SmoothCommand}" />
+
+        <Button Content="clear" 
+                Height="30" Margin="4"
+                HorizontalAlignment="Stretch"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                Command="{Binding ClearSmoothedCommand}" />
+
+    </StackPanel>
+</UserControl>

@@ -13,12 +13,16 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Fabolus.Wpf.Pages.Import;
-/// <summary>
-/// Interaction logic for ImportMeshView.xaml
-/// </summary>
-public partial class ImportMeshView : UserControl {
-    public ImportMeshView() {
-        InitializeComponent();
+namespace Fabolus.Wpf.Pages.Smooth
+{
+    /// <summary>
+    /// Interaction logic for SmoothingView.xaml
+    /// </summary>
+    public partial class SmoothingView : UserControl
+    {
+        public SmoothingView()
+        {
+            InitializeComponent();
+        }
     }
 }

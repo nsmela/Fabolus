@@ -14,7 +14,6 @@
     <Folder Include="Import\" />
     <Folder Include="Mold\" />
     <Folder Include="Rotation\" />
-    <Folder Include="Smoothing\" />
   </ItemGroup>
 
   <ItemGroup>
