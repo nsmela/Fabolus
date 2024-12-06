@@ -10,17 +10,16 @@ namespace Fabolus.Wpf.Pages.Smooth;
 public static class SkinHelper {
 
     private static Color4 LowerColor => new Color4(1, 0, 0, 1);
-    private static Color4 MidColor => new Color4(0, 1, 0, 1);
+    private static Color4 MidColor => new Color4(0, 0, 0, 1);
     private static Color4 UpperColor => new Color4(0, 0, 1, 1);
 
     public static Material SurfaceDifferenceSkin(float distance) {
-        var spread = distance * 2;
-        var lower = (int)distance * 2;
-        var upper = (int)distance * 2;
-        var offset = 10;
+        var lower = (int)distance * 10;
+        var upper = (int)distance * 10;
+        var offset = 5;
 
         var lowerSteps = lower - offset;
-        var midSteps = offset * 2;
+        var midSteps = offset;
 
         var endSteps = upper - offset;
 
