@@ -17,6 +17,7 @@
                 FontFamily="\Fonts\#Poppins"/>
         <Slider Minimum="-190" Maximum="190" TickFrequency="1" TickPlacement="None" 
                 Value="{Binding XAxisAngle, Mode=TwoWay}"
+                Template="{StaticResource xAxisRotationSliderTheme}"
                 b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
                 AutoToolTipPlacement="TopLeft"
                 AutoToolTipPrecision="1"
@@ -29,6 +30,7 @@
                 FontFamily="\Fonts\#Poppins"/>
         <Slider Minimum="-190" Maximum="190" TickFrequency="1" TickPlacement="None" 
                 Value="{Binding YAxisAngle, Mode=TwoWay}"
+                Template="{StaticResource yAxisRotationSliderTheme}"
                 b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
                 AutoToolTipPlacement="TopLeft"
                 AutoToolTipPrecision="1"
@@ -41,6 +43,7 @@
                 FontFamily="\Fonts\#Poppins"/>
         <Slider Minimum="-190" Maximum="190" TickFrequency="1" TickPlacement="None" 
                 Value="{Binding ZAxisAngle, Mode=TwoWay}"
+                Template="{StaticResource zAxisRotationSliderTheme}"
                 b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
                 AutoToolTipPlacement="TopLeft"
                 AutoToolTipPrecision="1"

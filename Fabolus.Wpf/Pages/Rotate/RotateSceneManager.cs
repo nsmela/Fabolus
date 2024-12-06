@@ -6,10 +6,8 @@ using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
-using Colors = System.Windows.Media.Colors;
 using Vector3D = System.Windows.Media.Media3D.Vector3D;
 using Transform3D = System.Windows.Media.Media3D.Transform3D;
-using Transform3DGroup = System.Windows.Media.Media3D.Transform3DGroup;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 
@@ -26,8 +24,11 @@ public sealed class RotateSceneManager : SceneManager {
 
     private Transform3D TempRotation => MeshHelper.TransformFromAxis(_tempAxis, _tempAngle);
 
+    private DisplayModel3D[] AxisLines { get; set; } = [];
+
     public RotateSceneManager() {
         _overhangSkin = OverhangsHelper.CreateOverhangsMaterial(_overhangLowerAngle, _overhangUpperAngle);
+        AxisLines = GenerateAxisLines(100, 100);
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.Axis, m.Angle));
@@ -86,6 +87,8 @@ public sealed class RotateSceneManager : SceneManager {
             models.Add(GenerateAxisWidget(bolus.Geometry.BoundingSphere.Radius));
         }
 
+        foreach(var model in AxisLines) { models.Add(model); }
+
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge(models));
     }
 
@@ -93,10 +96,45 @@ public sealed class RotateSceneManager : SceneManager {
         var mesh = new MeshBuilder();
         mesh.AddTorus(radius * 2, 2.0);
 
-        return new DisplayModel3D {
-            Geometry = mesh.ToMesh(),
-            Skin = DiffuseMaterials.Blue
+        Transform3D transform = _tempAxis switch {
+            { X: 1 } => MeshHelper.TransformFromAxis(Vector3.UnitY, 90.0f),
+            { Y: 1 } => MeshHelper.TransformFromAxis(Vector3.UnitX, 90.0f),
+            _ => MeshHelper.TransformEmpty,
         };
 
+        Material skin = _tempAxis switch {
+            { X: 1 } => DiffuseMaterials.Red,
+            { Y: 1 } => DiffuseMaterials.Green,
+            _ => DiffuseMaterials.Blue,
+        };
+
+        return new DisplayModel3D {
+            Geometry = mesh.ToMesh(),
+            Transform = transform,
+            Skin = skin,
+        };
+
+    }
+
+    private DisplayModel3D[] GenerateAxisLines(float xSize, float ySize) {
+        var models = new List<DisplayModel3D>();
+
+        var builder = new MeshBuilder();
+        builder.AddCylinder(new Vector3(-xSize, 0, 0), new Vector3(xSize, 0, 0), 1.5f, 32, true, true);
+        models.Add(new DisplayModel3D {
+            Geometry = builder.ToMesh(),
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Red,
+        });
+
+        var yBuilder = new MeshBuilder();
+        builder.AddCylinder(new Vector3(0, -ySize, 0), new Vector3(0, ySize, 0), 1.5f, 32, true, true);
+        models.Add(new DisplayModel3D {
+            Geometry = yBuilder.ToMesh(),
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Green,
+        });
+
+        return models.ToArray();
     }
 }

@@ -1,33 +1,15 @@
-﻿using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Media;
+﻿using HelixToolkit.Wpf.SharpDX;
+using SharpDX;
 using System.Windows.Media.Media3D;
 using Vector2Collection = HelixToolkit.Wpf.SharpDX.Vector2Collection;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
-using DiffuseMaterial = HelixToolkit.Wpf.SharpDX.DiffuseMaterial;
-using HelixToolkit.Wpf.SharpDX;
-using CommunityToolkit.Mvvm.Messaging;
-using static Fabolus.Wpf.Bolus.BolusStore;
-using System.Security.Policy;
-using HelixToolkit.Wpf.SharpDX.Model;
+
 
 namespace Fabolus.Wpf.Common.Mesh;
 public static class OverhangsHelper {
     private static Color4 BaseColor => new Color4(0.8f, 0.8f, 0.8f, 1);
     private static Color4 WarningColor => new Color4(1, 1, 0, 1);
     private static Color4 FaultColor => new Color4(1, 0, 0, 1);
-
-    public static HelixToolkit.Wpf.SharpDX.Material CreateOverhangsMaterial() {
-
-        return new ColorStripeMaterial {
-            ColorStripeX = GetGradients(BaseColor, WarningColor, FaultColor, 24).ToList(),
-            ColorStripeY = GetGradients(BaseColor, WarningColor, FaultColor, 24).ToList()
-        };
-    }
 
     public static HelixToolkit.Wpf.SharpDX.Material CreateOverhangsMaterial(float lowerAngle, float upperAngle) {
         var max = 90;
@@ -65,14 +47,6 @@ public static class OverhangsHelper {
         }
         return textureCoordinates;
     }
-
-    private static IEnumerable<Color4> GetGradients(Color4 start, Color4 mid, Color4 end, int steps) =>
-        GetGradients(start, start, 60)
-        .Concat(GetGradients(start, mid, 10))
-        .Concat(GetGradients(mid, mid, 5))
-        .Concat(GetGradients(mid, end, 15))
-        .Concat(GetGradients(end, end, 20));
-
 
     private static IEnumerable<Color4> GetGradients(Color4 start, Color4 end, int steps) {
         float stepA = ((end.Alpha - start.Alpha) / (steps - 1));
