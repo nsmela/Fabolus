@@ -1,12 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Wpf.Common.Mesh;
+using System.Windows;
 using SceneManager = Fabolus.Wpf.Common.Scene.SceneManager;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace Fabolus.Wpf.Common;
 public abstract class BaseViewModel : ObservableObject, IDisposable {
@@ -16,5 +12,9 @@ public abstract class BaseViewModel : ObservableObject, IDisposable {
 
     public void Dispose() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
+    }
+
+    protected void ErrorMessage(string title, string message) {
+        MessageBox.Show(message, title);
     }
 }

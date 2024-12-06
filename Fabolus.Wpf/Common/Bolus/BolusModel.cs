@@ -1,21 +1,17 @@
-﻿using Fabolus.Core.Common;
+﻿using Fabolus.Core;
 using g3;
-using HelixToolkit.Wpf.SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Transform3DGroup = System.Windows.Media.Media3D.Transform3DGroup;
-using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
-using Fabolus.Core;
 using SharpDX;
 
 namespace Fabolus.Wpf.Common.Bolus;
-public class BolusModel : Fabolus.Core.Bolus.Bolus {
-    //Mesh is the raw structure, geometry is the transforms applied
 
+public class BolusModel : Fabolus.Core.Bolus.Bolus {
+    //labels used to identify the bolus type
+    public const string LABEL_RAW = "raw";
+    public const string LABEL_SMOOTH = "smooth";
+    public const string LABEL_MOULD = "mould";
+
+    //Mesh is the raw structure, geometry is the transforms applied
     public MeshGeometry3D Geometry { get; set; }
     public BolusTransform Transform { get; set; } = new();
     public Vector3 TranslateOffset { get; set; } = Vector3.Zero;
@@ -35,9 +31,18 @@ public class BolusModel : Fabolus.Core.Bolus.Bolus {
         SetGeometry(geometry);
     }
 
+    public BolusModel(Fabolus.Core.Bolus.Bolus bolus) {
+        SetMesh(bolus.Mesh);
+    }
+
     #endregion
 
     #region Public Methods
+
+    public void ApplyTransform(BolusTransform transform) {
+        Transform = transform;
+        Geometry = Transform.ApplyTransforms(Mesh);
+    }
 
     public bool IsLoaded =>
         Mesh is not null &&
@@ -57,14 +62,5 @@ public class BolusModel : Fabolus.Core.Bolus.Bolus {
         Transform = new();
     }
 
-    public void AddRotation(Vector3 axis, double angle) {
-        Transform.AddRotation(axis, angle);
-        Geometry = Transform.ApplyTransforms(Mesh);
-    }
-
-    public void ClearRotations() {
-        Transform = new();
-        Geometry = Mesh.ToGeometry();
-    }
     #endregion
 }

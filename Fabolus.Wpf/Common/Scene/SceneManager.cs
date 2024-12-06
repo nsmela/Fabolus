@@ -15,7 +15,7 @@ public class SceneManager : IDisposable   {
 
     public SceneManager() {
         //messaging
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this,  (r, m) => UpdateDisplay(m.bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this,  (r, m) => UpdateDisplay(m.Bolus));
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         UpdateDisplay(bolus);
@@ -23,7 +23,7 @@ public class SceneManager : IDisposable   {
     }
 
     protected virtual void UpdateDisplay(BolusModel? bolus) {
-        if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions.Count == 0) {
+        if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions is null || bolus.Geometry.Positions.Count == 0) {
             WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([]));
             return;
         }

@@ -32,7 +32,7 @@ public sealed class RotateSceneManager : SceneManager {
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.Axis, m.Angle));
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.Bolus));
         WeakReferenceMessenger.Default.Register<ApplyOverhangSettings>(this, (r, m) => ApplyOverhangSettings(m.LowerAngle, m.UpperAngle));
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
@@ -77,7 +77,7 @@ public sealed class RotateSceneManager : SceneManager {
         bolus.Geometry.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(bolus.Geometry, refAxis);
 
         var models = new List<DisplayModel3D>();
-        models.Add( new DisplayModel3D {
+        models.Add(new DisplayModel3D {
             Geometry = bolus.Geometry,
             Transform = TempRotation,
             Skin = _overhangSkin
@@ -87,7 +87,7 @@ public sealed class RotateSceneManager : SceneManager {
             models.Add(GenerateAxisWidget(bolus.Geometry.BoundingSphere.Radius));
         }
 
-        foreach(var model in AxisLines) { models.Add(model); }
+        foreach (var model in AxisLines) { models.Add(model); }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge(models));
     }
@@ -130,7 +130,7 @@ public sealed class RotateSceneManager : SceneManager {
         var yBuilder = new MeshBuilder();
         yBuilder.AddCylinder(new Vector3(0, -ySize, 0), new Vector3(0, ySize, 0), 0.75f, 32, true, true);
         models.Add(new DisplayModel3D {
-           Geometry = yBuilder.ToMesh(),
+            Geometry = yBuilder.ToMesh(),
             Transform = MeshHelper.TransformEmpty,
             Skin = DiffuseMaterials.Green,
         });

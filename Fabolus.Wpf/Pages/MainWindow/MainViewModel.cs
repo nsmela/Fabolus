@@ -1,7 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Bolus;
 using Fabolus.Wpf.Bolus;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
@@ -9,7 +8,7 @@ using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.Import;
 using Fabolus.Wpf.Pages.Rotate;
-using HelixToolkit.Wpf.SharpDX;
+using Fabolus.Wpf.Pages.Smooth;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
@@ -55,7 +54,7 @@ public partial class MainViewModel : ObservableObject {
         BolusStore = new();
 
         //messages
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.Bolus));
 
         NavigateTo(new ImportViewModel());
     }
@@ -67,8 +66,8 @@ public partial class MainViewModel : ObservableObject {
     #region Commands
     [RelayCommand] public async Task SwitchToImportView() => NavigateTo(new ImportViewModel());
     [RelayCommand] public async Task SwitchToRotationView() => NavigateTo(new RotateViewModel());
-    /*
     [RelayCommand] public async Task SwitchToSmoothingView() => NavigateTo(new SmoothingViewModel());
+    /*
     [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new AirChannelViewModel());
     [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MoldViewModel());
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());

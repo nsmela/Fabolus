@@ -1,36 +1,37 @@
 ﻿using g3;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
+using Bolus = Fabolus.Core.Bolus.Bolus;
 
 namespace Fabolus.Core.Smoothing;
 
 public record struct PoissonSettings(int Depth, float Scale, int SamplesPerNode, float EdgeLength);
 
-public class PoissonSmoothing : ISmoothingModel {
+public class PoissonSmoothing {
     private static string BASE_DIRECTORY = AppDomain.CurrentDomain.BaseDirectory + @"\Files\";
     private static string TEMP_FOLDER = BASE_DIRECTORY + @"\temp\";
     private static string RECONSTRUCTOR_FILE_PATH = BASE_DIRECTORY + @"PoissonRecon.exe";
-    
-    public PoissonSettings? Settings { get; set; } 
 
-    public DMesh3 Smooth(DMesh3 mesh) {
-        throw new NotImplementedException();
+    private void ErrorMessage(string title, string message) {
+        MessageBox.Show(message, title);
     }
 
-    public void Initialize(DMesh3 mesh) {
+    public void Initialize(Fabolus.Core.Bolus.Bolus bolus) {
+        var mesh = bolus.Mesh;
+
+        if (mesh is null || mesh.TriangleCount == 0) { 
+            ErrorMessage("Error initializing smoothing", $"Poisson Smoothing needs a valid DMesh3 object to initialize");
+            return;
+        }
+
         //create output file
         //prevents multiple calls to the same thing
         //preemptively save the bolus as a temp file to save time smoothing with poisson
 
         //check the poisson reconstructor exists
         if (!File.Exists(RECONSTRUCTOR_FILE_PATH)) {
-            MessageBox.Show(string.Format("Poisson Reconstructor at {0} was not found!", RECONSTRUCTOR_FILE_PATH), "Developer");
+            ErrorMessage("Poisson Reconstructor was not found!", $"File not found at {RECONSTRUCTOR_FILE_PATH}");
             return;
         }
 
@@ -45,35 +46,50 @@ public class PoissonSmoothing : ISmoothingModel {
             return;
         }
     }
+    public Fabolus.Core.Bolus.Bolus Smooth(PoissonSettings settings) {
+        //run poisson reconstructor
+        ExecutePoisson(TEMP_FOLDER + @"temp.ply", TEMP_FOLDER + @"temp_smooth", settings.Depth, settings.Scale, settings.SamplesPerNode);
 
-    private static void ExecutePoisson(string inputFile, string outputFile, int depth, float scale, int samples) {
-        if (File.Exists(inputFile)) {
-            //Use ProcessStartInfo class
-            ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.CreateNoWindow = true;
-            startInfo.UseShellExecute = true;
-            startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            startInfo.FileName = RECONSTRUCTOR_FILE_PATH;
-            startInfo.Arguments = string.Format(@" --in ""{0}"" --out ""{1}"" --depth {2} --scale {3} --samplesPerNode {4}",
-                inputFile, //in
-                outputFile, //out
-                depth.ToString(), //depth
-                scale.ToString(), //scale
-                samples.ToString()); //samples
+        //load new mesh from ply in folder
+        var result = ReadPLYFileToDMesh(TEMP_FOLDER + @"temp_smooth.ply");
 
-            //send the command
-            try {
-                using (Process exeProcess = Process.Start(startInfo)) {
-                    exeProcess.WaitForExit();
-                }
 
-            } catch (Exception ex) {
-                MessageBox.Show("Recon failed! " + ex.Message);
-            }
-        }
+        //reduce the mesh size 
+        // MeshRefinement.Remesh(result, EdgeLength); //for some reason, this is creating more triangles than positions
+        //cull the excess 
+
+        return new Fabolus.Core.Bolus.Bolus(result);
     }
 
-    public static void SaveDMeshToPLYFile(DMesh3 mesh, string outputFileName) {
+    private static void ExecutePoisson(string inputFile, string outputFile, int depth, float scale, int samples) {
+        if (!File.Exists(inputFile)) { throw new FileNotFoundException("Poisson failed to find inital file", inputFile); }
+
+        //Use ProcessStartInfo class
+        ProcessStartInfo startInfo = new ProcessStartInfo();
+        startInfo.CreateNoWindow = true;
+        startInfo.UseShellExecute = true;
+        startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+        startInfo.FileName = RECONSTRUCTOR_FILE_PATH;
+        startInfo.Arguments = string.Format(@" --in ""{0}"" --out ""{1}"" --depth {2} --scale {3} --samplesPerNode {4}",
+            inputFile, //in
+            outputFile, //out
+            depth.ToString(), //depth
+            scale.ToString(), //scale
+            samples.ToString()); //samples
+
+        //send the command
+        try {
+            using (Process exeProcess = Process.Start(startInfo)) {
+                exeProcess.WaitForExit();
+            }
+
+        } catch (Exception ex) {
+            MessageBox.Show("Recon failed! " + ex.Message);
+        }
+        
+    }
+
+    private static void SaveDMeshToPLYFile(DMesh3 mesh, string outputFileName) {
         if (mesh == null)
             return;
 
@@ -128,7 +144,6 @@ public class PoissonSmoothing : ISmoothingModel {
             }
         }
     }
-
     private static DMesh3 ReadPLYFileToDMesh(string filepath) {
         //verify file exists
         if (File.Exists(filepath)) {

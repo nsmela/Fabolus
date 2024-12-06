@@ -5,6 +5,8 @@
              xmlns:mesh="clr-namespace:Fabolus.Wpf.Common.Mesh"
              xmlns:import="clr-namespace:Fabolus.Wpf.Pages.Import"
              xmlns:rotate="clr-namespace:Fabolus.Wpf.Pages.Rotate"
+             xmlns:smooth="clr-namespace:Fabolus.Wpf.Pages.Smooth"
+             xmlns:poisson="clr-namespace:Fabolus.Wpf.Pages.Smooth.Poisson"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -15,8 +17,7 @@
                 <!-- Theme setting -->
                 <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Themes/Light.Blue.xaml" />
                 <!-- Custome Theme -->
-                <ResourceDictionary Source="Themes\AxisRotationSliderTheme.xaml
-" />
+                <ResourceDictionary Source="Themes\AxisRotationSliderTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- binding Views to ViewModels -->
@@ -30,6 +31,14 @@
 
             <DataTemplate DataType="{x:Type rotate:RotateViewModel}">
                 <rotate:RotateToolsView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type smooth:SmoothingViewModel }">
+                <smooth:SmoothingView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type poisson:PoissonViewModel}">
+                <poisson:PoissonView />
             </DataTemplate>
 
         </ResourceDictionary>
