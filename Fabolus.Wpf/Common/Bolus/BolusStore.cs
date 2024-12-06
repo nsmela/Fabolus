@@ -11,11 +11,11 @@ public class BolusStore {
     #region Messages
     //importing file
     public sealed record AddBolusFromFileMessage(string Filepath);
-    public sealed record AddBolusMessage(string Label, BolusModel Bolus);
+    public sealed record AddBolusMessage(BolusModel Bolus, BolusType BolusType);
 
     //utility
     public sealed record BolusUpdatedMessage(BolusModel Bolus);
-    public sealed record ClearBolusMessage(string Label);
+    public sealed record ClearBolusMessage(BolusType BolusType);
 
     //rotations
     public sealed record ApplyRotationMessage(Vector3 Axis, float Angle);
@@ -28,13 +28,13 @@ public class BolusStore {
 
     #region Fields and Properties
 
-    private Dictionary<string, BolusModel> _boli = []; //for different models used
+    private Dictionary<BolusType, BolusModel> _boli = []; //for different models used
     private BolusTransform _transform = new();
 
     private BolusModel LatestBolus() {
-        if (_boli.ContainsKey(BolusModel.LABEL_MOULD)) { return _boli[BolusModel.LABEL_MOULD]; }
-        if (_boli.ContainsKey(BolusModel.LABEL_SMOOTH)) { return _boli[BolusModel.LABEL_SMOOTH]; }
-        if (_boli.ContainsKey(BolusModel.LABEL_RAW)) { return _boli[BolusModel.LABEL_RAW]; }
+        if (_boli.ContainsKey(BolusType.Mould)) { return _boli[BolusType.Mould]; }
+        if (_boli.ContainsKey(BolusType.Smooth)) { return _boli[BolusType.Smooth]; }
+        if (_boli.ContainsKey(BolusType.Raw)) { return _boli[BolusType.Raw]; }
 
         return new BolusModel();
     }
@@ -44,10 +44,10 @@ public class BolusStore {
     public BolusStore() {
 
         //registering messages
-        WeakReferenceMessenger.Default.Register<AddBolusMessage>(this, async (r, m) => await AddBolus(m.Label, m.Bolus));
+        WeakReferenceMessenger.Default.Register<AddBolusMessage>(this, async (r, m) => await AddBolus(m.Bolus, m.BolusType));
         WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, async (r,m) => await BolusFromFile(m.Filepath));
         WeakReferenceMessenger.Default.Register<ApplyRotationMessage>(this, async (r, m) => await AddTransform(m.Axis, m.Angle));
-        WeakReferenceMessenger.Default.Register<ClearBolusMessage>(this, async (r, m) => await ClearBolus(m.Label));
+        WeakReferenceMessenger.Default.Register<ClearBolusMessage>(this, async (r, m) => await ClearBolus(m.BolusType));
         WeakReferenceMessenger.Default.Register<ClearRotationsMessage>(this, async (r, m) => await ClearTransforms());
 
         //request messages
@@ -56,8 +56,9 @@ public class BolusStore {
 
     #region Message Methods
 
-    private async Task AddBolus(string label, BolusModel bolus) {
-        _boli.Add(label, bolus);
+    private async Task AddBolus(BolusModel bolus, BolusType type) {
+        bolus.BolusType = type;
+        _boli.Add(type, bolus);
         await BolusUpdated();
     }
 
@@ -82,7 +83,7 @@ public class BolusStore {
             return;
         }
 
-        _boli[BolusModel.LABEL_RAW] = new(mesh);
+        _boli[BolusType.Raw] = new(mesh);
         _transform = new();
 
         await BolusUpdated();
@@ -94,14 +95,14 @@ public class BolusStore {
         WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(bolus));
     }
 
-    private async Task BolusUpdated(string label) {
-        if (!_boli.ContainsKey(label)) { throw new Exception("Bolus Label " + label + "was not found!"); }
+    private async Task BolusUpdated(BolusType type) {
+        if (!_boli.ContainsKey(type)) { throw new Exception($"Bolus Label {type} was not found!"); }
 
-        WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(_boli[label]));
+        WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(_boli[type]));
     }
 
-    private async Task ClearBolus(string label) {
-        if (_boli.ContainsKey(label)) { _boli.Remove(label); }
+    private async Task ClearBolus(BolusType type) {
+        if (_boli.ContainsKey(type)) { _boli.Remove(type); }
         await BolusUpdated();
     }
 

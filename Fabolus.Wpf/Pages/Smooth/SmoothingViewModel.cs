@@ -48,10 +48,10 @@ public partial class SmoothingViewModel : BaseViewModel {
 
         var smoothedBolus = await Task.Run(() => SetSmoothingViewModel.SmoothBolus(_bolus));
 
-        WeakReferenceMessenger.Default.Send(new AddBolusMessage(BolusModel.LABEL_SMOOTH, smoothedBolus));
+        WeakReferenceMessenger.Default.Send(new AddBolusMessage(smoothedBolus, BolusType.Smooth));
     }
 
-    [RelayCommand] private void ClearSmoothed() => WeakReferenceMessenger.Default.Send(new ClearBolusMessage(BolusModel.LABEL_SMOOTH));
+    [RelayCommand] private void ClearSmoothed() => WeakReferenceMessenger.Default.Send(new ClearBolusMessage(BolusType.Smooth));
 
     #endregion
 

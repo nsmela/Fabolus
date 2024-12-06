@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Fabolus.Domain\Fabolus.Core.csproj" />
+    <ProjectReference Include="..\Fabolus.Core\Fabolus.Core.csproj" />
   </ItemGroup>
 
 </Project>

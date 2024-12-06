@@ -5,13 +5,10 @@ using SharpDX;
 
 namespace Fabolus.Wpf.Common.Bolus;
 
-public class BolusModel : Fabolus.Core.Bolus.Bolus {
-    //labels used to identify the bolus type
-    public const string LABEL_RAW = "raw";
-    public const string LABEL_SMOOTH = "smooth";
-    public const string LABEL_MOULD = "mould";
+public class BolusModel : Fabolus.Core.BolusModel.Bolus {
 
     //Mesh is the raw structure, geometry is the transforms applied
+    public BolusType BolusType { get; set; } = BolusType.Raw;
     public MeshGeometry3D Geometry { get; set; }
     public BolusTransform Transform { get; set; } = new();
     public Vector3 TranslateOffset { get; set; } = Vector3.Zero;
@@ -31,7 +28,7 @@ public class BolusModel : Fabolus.Core.Bolus.Bolus {
         SetGeometry(geometry);
     }
 
-    public BolusModel(Fabolus.Core.Bolus.Bolus bolus) {
+    public BolusModel(Fabolus.Core.BolusModel.Bolus bolus) {
         SetMesh(bolus.Mesh);
     }
 
