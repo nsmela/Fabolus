@@ -131,6 +131,7 @@ public class PoissonSmoothing {
             for (int v = 0; v < mesh.VertexCount; v++) {
                 Vector3d normal = mesh.GetVertexNormal(v);
 
+                //ref: https://learn.microsoft.com/en-us/dotnet/standard/base-types/standard-numeric-format-strings
                 writer.Write(mesh.GetVertex(v).x.ToAscii() + " ");
                 writer.Write(mesh.GetVertex(v).y.ToAscii() + " ");
                 writer.Write(mesh.GetVertex(v).z.ToAscii() + " ");
