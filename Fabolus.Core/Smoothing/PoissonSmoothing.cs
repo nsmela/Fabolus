@@ -14,11 +14,11 @@ public class PoissonSmoothing {
     private static string TEMP_FOLDER = BASE_DIRECTORY + @"\temp\";
     private static string RECONSTRUCTOR_FILE_PATH = BASE_DIRECTORY + @"PoissonRecon.exe";
 
-    private void ErrorMessage(string title, string message) {
+    private static void ErrorMessage(string title, string message) {
         MessageBox.Show(message, title);
     }
 
-    public void Initialize(Fabolus.Core.BolusModel.Bolus bolus) {
+    public void Initialize(Bolus bolus) {
         var mesh = bolus.Mesh;
 
         if (mesh is null || mesh.TriangleCount == 0) { 
@@ -47,23 +47,31 @@ public class PoissonSmoothing {
             return;
         }
     }
-    public Fabolus.Core.BolusModel.Bolus Smooth(PoissonSettings settings) {
+
+    public Bolus? Smooth(PoissonSettings settings) {
         //run poisson reconstructor
-        ExecutePoisson(TEMP_FOLDER + @"temp.ply", TEMP_FOLDER + @"temp_smooth", settings.Depth, settings.Scale, settings.SamplesPerNode);
+        var isSuccessful = ExecutePoisson(TEMP_FOLDER + @"temp.ply", TEMP_FOLDER + @"temp_smooth", settings.Depth, settings.Scale, settings.SamplesPerNode);
+
+        if (!isSuccessful) { return null; }
 
         //load new mesh from ply in folder
         var result = ReadPLYFileToDMesh(TEMP_FOLDER + @"temp_smooth.ply");
-
 
         //reduce the mesh size 
         // MeshRefinement.Remesh(result, EdgeLength); //for some reason, this is creating more triangles than positions
         //cull the excess 
 
-        return new Fabolus.Core.BolusModel.Bolus(result);
+        return result is null 
+            ? null
+            : new Bolus(result);
     }
 
-    private static void ExecutePoisson(string inputFile, string outputFile, int depth, float scale, int samples) {
-        if (!File.Exists(inputFile)) { throw new FileNotFoundException("Poisson failed to find inital file", inputFile); }
+    private static bool ExecutePoisson(string inputFile, string outputFile, int depth, float scale, int samples) {
+
+        if (!File.Exists(inputFile)) {
+            MessageBox.Show($"Poisson failed to find inital file: \r\n {inputFile}", "Smoothing Failed");
+            return false; //recon failed
+        }
 
         //Use ProcessStartInfo class
         ProcessStartInfo startInfo = new ProcessStartInfo();
@@ -86,13 +94,14 @@ public class PoissonSmoothing {
 
         } catch (Exception ex) {
             MessageBox.Show("Recon failed! " + ex.Message);
+            return false;
         }
-        
+
+        return true;
     }
 
-    private static void SaveDMeshToPLYFile(DMesh3 mesh, string outputFileName) {
-        if (mesh == null)
-            return;
+    private static bool SaveDMeshToPLYFile(DMesh3 mesh, string outputFileName) {
+        if (mesh is null) { return false; }
 
         MeshNormals.QuickCompute(mesh);
 
@@ -144,60 +153,61 @@ public class PoissonSmoothing {
                 i++;
             }
         }
+
+        return true;
     }
-    private static DMesh3 ReadPLYFileToDMesh(string filepath) {
+    private static DMesh3? ReadPLYFileToDMesh(string filepath) {
         //verify file exists
-        if (File.Exists(filepath)) {
-            List<string> headers = new List<string>();
+        if (!File.Exists(filepath)) {
+            ErrorMessage($"The file {filepath} does not exist!", "Failed to read ply file");
+            return null;
+        }
 
-            bool endheader = false;
-            using (BinaryReader b = new BinaryReader(File.Open(filepath, FileMode.Open))) {
-                //reads the header
-                while (!endheader) {
-                    string line = ReadReturnTerminatedString(b);
-                    headers.Add(line);
-                    if (line == "end_header") {
-                        endheader = true;
-                    }
+        List<string> headers = new List<string>();
+
+        bool endheader = false;
+        using (BinaryReader b = new BinaryReader(File.Open(filepath, FileMode.Open))) {
+            //reads the header
+            while (!endheader) {
+                string line = ReadReturnTerminatedString(b);
+                headers.Add(line);
+                if (line == "end_header") {
+                    endheader = true;
                 }
-
-                //determining the vertexes and faces
-                int vertexRef = headers.FindIndex(element => element.StartsWith("element vertex", StringComparison.Ordinal));
-                string text = headers[vertexRef].Substring(headers[vertexRef].LastIndexOf(' ') + 1);
-                int number_of_vertexes = Convert.ToInt32(text);
-
-                int faceRef = headers.FindIndex(element => element.StartsWith("element face", StringComparison.Ordinal));
-                text = headers[faceRef].Substring(headers[faceRef].LastIndexOf(' ') + 1);
-                int number_of_faces = Convert.ToInt32(text);
-
-                //read the vertexes
-                DMesh3 mesh = new DMesh3(true); //want normals
-                for (int i = 0; i < number_of_vertexes; i++) {
-                    float x, y, z;
-                    x = b.ReadSingle();
-                    y = b.ReadSingle();
-                    z = b.ReadSingle();
-
-                    mesh.AppendVertex(new Vector3d(x, y, z));
-                }
-
-                //read the faces
-                for (int i = 0; i < number_of_faces; i++) {
-                    b.ReadByte();//skips the first bye, always '3'
-                    int v0 = b.ReadInt32();
-                    int v1 = b.ReadInt32();
-                    int v2 = b.ReadInt32();
-
-                    mesh.AppendTriangle(v0, v1, v2);
-                }
-
-                return mesh;
             }
 
-        } else {
-            MessageBox.Show("The file " + filepath + " does not exist!");
+            //determining the vertexes and faces
+            int vertexRef = headers.FindIndex(element => element.StartsWith("element vertex", StringComparison.Ordinal));
+            string text = headers[vertexRef].Substring(headers[vertexRef].LastIndexOf(' ') + 1);
+            int number_of_vertexes = Convert.ToInt32(text);
+
+            int faceRef = headers.FindIndex(element => element.StartsWith("element face", StringComparison.Ordinal));
+            text = headers[faceRef].Substring(headers[faceRef].LastIndexOf(' ') + 1);
+            int number_of_faces = Convert.ToInt32(text);
+
+            //read the vertexes
+            DMesh3 mesh = new DMesh3(true); //want normals
+            for (int i = 0; i < number_of_vertexes; i++) {
+                float x, y, z;
+                x = b.ReadSingle();
+                y = b.ReadSingle();
+                z = b.ReadSingle();
+
+                mesh.AppendVertex(new Vector3d(x, y, z));
+            }
+
+            //read the faces
+            for (int i = 0; i < number_of_faces; i++) {
+                b.ReadByte();//skips the first bye, always '3'
+                int v0 = b.ReadInt32();
+                int v1 = b.ReadInt32();
+                int v2 = b.ReadInt32();
+
+                mesh.AppendTriangle(v0, v1, v2);
+            }
+
+            return mesh;
         }
-        return null;
     }
     private static string ReadReturnTerminatedString(BinaryReader stream) {
         string str = "";
@@ -211,5 +221,5 @@ public class PoissonSmoothing {
 
 internal static class Extensions {
     public static string ToAscii(this double value) =>
-        value.ToString("E", CultureInfo.InvariantCulture);
+        value.ToString("E", CultureInfo.InvariantCulture); //output exponent while ignoring culture settings on computer
 }
