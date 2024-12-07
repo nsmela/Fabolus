@@ -54,20 +54,20 @@ public partial class MainViewModel : ObservableObject {
         BolusStore = new();
 
         //messages
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.Bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
         WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, (r,m) => BolusLoaded(m.Filepath));
 
         NavigateTo(new ImportViewModel());
     }
 
-    private void BolusUpdated(BolusModel bolus) {
+    private void BolusUpdated() {
         var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
 
         MeshLoaded = boli.Length > 0;
 
         var text = string.Empty;
 
-        foreach (var b in boli) {
+        foreach (var bolus in boli) {
             var volume = bolus.Volume;
             text += $"[{bolus.BolusType}]: {string.Format("{0:0,0.0} mL", volume)}\r\n";
         }

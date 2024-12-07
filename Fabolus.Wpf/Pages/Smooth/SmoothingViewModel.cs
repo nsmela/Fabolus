@@ -5,13 +5,8 @@ using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Pages.Smooth.Marching_Cubes;
 using Fabolus.Wpf.Pages.Smooth.Poisson;
-using g3;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Smooth;
@@ -24,9 +19,19 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     #endregion
 
-    #region Properties and their Events
+    #region Properties and Events
+
+    private BaseSmoothingToolViewModel GetView(int index) => index switch {
+        0 => new PoissonViewModel(),
+        1 => new MarchingCubesViewModel(),
+        _ => throw new IndexOutOfRangeException("Index out of range")
+    };
 
     [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new PoissonViewModel();
+    [ObservableProperty] private int _smoothingViewIndex = 0;
+    partial void OnSmoothingViewIndexChanged(int value) {
+        SetSmoothingViewModel = GetView(value);
+    }
     private BolusModel? _bolus;
 
     #endregion

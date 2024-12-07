@@ -1,0 +1,67 @@
+﻿<UserControl x:Class="Fabolus.Wpf.Pages.Smooth.Marching_Cubes.MarchingCubesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Smooth.Marching_Cubes"
+             mc:Ignorable="d" 
+             d:DesignWidth="200">
+    <StackPanel Orientation="Vertical">
+        <Label Content="edge size" 
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            FontSize="12" 
+            FontWeight="Bold"
+            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding EdgeLength, Mode=TwoWay}"
+            Minimum="0.2" 
+            Maximum="2" 
+            TickFrequency="0.2" 
+            TickPlacement="TopLeft" 
+            IsSnapToTickEnabled="True" 
+            Height="30"/>
+
+        <Label Content="smoothing speed"                        
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            FontSize="12" 
+            FontWeight="Bold"
+            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding SmoothSpeed, Mode=TwoWay}"
+            Minimum="0.1" 
+            Maximum="1" 
+            TickPlacement="TopLeft" 
+            TickFrequency="0.1" 
+            IsSnapToTickEnabled="True" 
+            Height="30"/>
+
+        <Label Content="iterations" 
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            FontSize="12" 
+            FontWeight="Bold"
+            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding Iterations, Mode=TwoWay}"
+            Minimum="1" 
+            Maximum="5" 
+            TickPlacement="TopLeft" 
+            TickFrequency="1" 
+            IsSnapToTickEnabled="True" 
+            Height="30"/>
+
+        <Label Content="marching cubes"                         
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            FontSize="12" 
+            FontWeight="Bold"
+            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding Cells, Mode=TwoWay}" 
+            Minimum="0" 
+            Maximum="256" 
+            TickPlacement="TopLeft" 
+            TickFrequency="16" 
+            IsSnapToTickEnabled="True" 
+            Height="30"/>
+        
+    </StackPanel>
+</UserControl>

@@ -17,7 +17,6 @@ public class SmoothSceneManager : SceneManager {
     public const float DEFAULT_SURFACE_DISTANCE = 2.0f;
 
     private Material _surfaceDistanceSkin;
-    private BolusModel _oldBolus;
     private float _surfaceDistance = DEFAULT_SURFACE_DISTANCE;
 
     public SmoothSceneManager() {
@@ -26,8 +25,8 @@ public class SmoothSceneManager : SceneManager {
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(m.Bolus));
 
-        _oldBolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-        UpdateDisplay(_oldBolus);
+        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        UpdateDisplay(bolus);
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {
@@ -39,7 +38,9 @@ public class SmoothSceneManager : SceneManager {
         Material material; 
 
         if (bolus.BolusType is BolusType.Smooth) {
-            var coordinates = SmoothingTools.GenerateTextureCoordinates(bolus, _oldBolus);
+            var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+            var rawBolus = boli.Where(x => x.BolusType == BolusType.Raw).First();
+            var coordinates = SmoothingTools.GenerateTextureCoordinates(bolus, rawBolus);
             
             var textcoords = new Vector2Collection();
             var count = bolus.Geometry.Positions.Count();

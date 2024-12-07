@@ -7,6 +7,7 @@
              xmlns:rotate="clr-namespace:Fabolus.Wpf.Pages.Rotate"
              xmlns:smooth="clr-namespace:Fabolus.Wpf.Pages.Smooth"
              xmlns:poisson="clr-namespace:Fabolus.Wpf.Pages.Smooth.Poisson"
+             xmlns:marching="clr-namespace:Fabolus.Wpf.Pages.Smooth.Marching_Cubes"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -39,6 +40,10 @@
 
             <DataTemplate DataType="{x:Type poisson:PoissonViewModel}">
                 <poisson:PoissonView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type marching:MarchingCubesViewModel}">
+                <marching:MarchingCubesView />
             </DataTemplate>
 
         </ResourceDictionary>

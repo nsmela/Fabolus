@@ -39,6 +39,16 @@ public class Bolus {
 
     #endregion
 
+    #region Public Methods
+
+    public void CopyOffsets(Bolus bolus) {
+        XOffset = bolus.XOffset;
+        YOffset = bolus.YOffset;
+        ZOffset = bolus.ZOffset;
+    }
+
+    #endregion
+
     #region Private Methods
 
     protected void SetOffsets() {
