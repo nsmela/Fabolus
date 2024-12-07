@@ -1,5 +1,6 @@
 ﻿using g3;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 using Bolus = Fabolus.Core.BolusModel.Bolus;
@@ -121,12 +122,12 @@ public class PoissonSmoothing {
             for (int v = 0; v < mesh.VertexCount; v++) {
                 Vector3d normal = mesh.GetVertexNormal(v);
 
-                writer.Write(mesh.GetVertex(v).x.ToString("e") + " ");
-                writer.Write(mesh.GetVertex(v).y.ToString("e") + " ");
-                writer.Write(mesh.GetVertex(v).z.ToString("e") + " ");
-                writer.Write(normal.x.ToString("e") + " ");
-                writer.Write(normal.y.ToString("e") + " ");
-                writer.Write(normal.z.ToString("e"));
+                writer.Write(mesh.GetVertex(v).x.ToAscii() + " ");
+                writer.Write(mesh.GetVertex(v).y.ToAscii() + " ");
+                writer.Write(mesh.GetVertex(v).z.ToAscii() + " ");
+                writer.Write(normal.x.ToAscii() + " ");
+                writer.Write(normal.y.ToAscii() + " ");
+                writer.Write(normal.z.ToAscii());
 
                 writer.WriteLine();
             }
@@ -205,5 +206,10 @@ public class PoissonSmoothing {
             str = str + ch;
         return str;
     }
+
 }
 
+internal static class Extensions {
+    public static string ToAscii(this double value) =>
+        value.ToString("E", CultureInfo.InvariantCulture);
+}
