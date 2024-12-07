@@ -61,9 +61,18 @@ public partial class MainViewModel : ObservableObject {
     }
 
     private void BolusUpdated(BolusModel bolus) {
-        MeshLoaded = bolus.IsLoaded;
-        var volume = bolus.Volume;
-        VolumeText = $"[{bolus.BolusType}]: {string.Format("{0:0,0.0} mL", volume)}";
+        var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+
+        MeshLoaded = boli.Length > 0;
+
+        var text = string.Empty;
+
+        foreach (var b in boli) {
+            var volume = bolus.Volume;
+            text += $"[{bolus.BolusType}]: {string.Format("{0:0,0.0} mL", volume)}\r\n";
+        }
+
+        VolumeText = text;
     }
 
     private void BolusLoaded(string filepath) {

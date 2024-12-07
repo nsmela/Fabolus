@@ -23,6 +23,7 @@ public class BolusStore {
 
     //request messages
     public class BolusRequestMessage : RequestMessage<BolusModel> { }
+    public class AllBolusRequestMessage : RequestMessage<BolusModel[]> { }
 
     #endregion
 
@@ -52,6 +53,7 @@ public class BolusStore {
 
         //request messages
         WeakReferenceMessenger.Default.Register<BolusStore, BolusRequestMessage>(this, (r, m) => m.Reply(r.LatestBolus()));
+        WeakReferenceMessenger.Default.Register<BolusStore, AllBolusRequestMessage>(this, (r, m) => m.Reply(r._boli.Values.ToArray()));
     }
 
     #region Message Methods

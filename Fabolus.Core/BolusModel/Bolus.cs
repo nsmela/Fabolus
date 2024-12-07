@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 
 namespace Fabolus.Core.BolusModel;
 public class Bolus {
+
     #region Public Properties and Fields
+
     public DMesh3 Mesh { get; set; }
     public double XOffset { get; protected set; }
     public double YOffset { get; protected set; }
@@ -31,7 +33,7 @@ public class Bolus {
     }
 
     public Bolus(DMesh3 mesh) {
-        Mesh = mesh;
+        Mesh = OrientationCentre(mesh);
         SetOffsets();
     }
 
@@ -53,6 +55,13 @@ public class Bolus {
 
     }
 
+    private static DMesh3 OrientationCentre(DMesh3 mesh) {
+        double x = mesh.CachedBounds.Center.x * -1;
+        double y = mesh.CachedBounds.Center.y * -1;
+        double z = mesh.CachedBounds.Center.z * -1;
+        MeshTransforms.Translate(mesh, x, y, z);
+        return mesh;
+    }
     #endregion
 
 }

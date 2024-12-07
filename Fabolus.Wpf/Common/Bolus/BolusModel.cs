@@ -20,16 +20,18 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Transform = new();
     }
 
-    public BolusModel(DMesh3 mesh) {
-        SetMesh(mesh);
+    public BolusModel(DMesh3 mesh) : base(mesh) {
+        Geometry = mesh.ToGeometry();
+        Transform = new();
     }
 
     public BolusModel(MeshGeometry3D geometry) {
         SetGeometry(geometry);
     }
 
-    public BolusModel(Fabolus.Core.BolusModel.Bolus bolus) {
-        SetMesh(bolus.Mesh);
+    public BolusModel(Fabolus.Core.BolusModel.Bolus bolus) : base(bolus.Mesh) {
+        Geometry = bolus.Mesh.ToGeometry();
+        Transform = new();
     }
 
     #endregion
