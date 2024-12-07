@@ -55,12 +55,19 @@ public partial class MainViewModel : ObservableObject {
 
         //messages
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.Bolus));
+        WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, (r,m) => BolusLoaded(m.Filepath));
 
         NavigateTo(new ImportViewModel());
     }
 
     private void BolusUpdated(BolusModel bolus) {
         MeshLoaded = bolus.IsLoaded;
+        var volume = bolus.Volume;
+        VolumeText = $"[{bolus.BolusType}]: {string.Format("{0:0,0.0} mL", volume)}";
+    }
+
+    private void BolusLoaded(string filepath) {
+        FilePath = filepath;
     }
 
     #region Commands

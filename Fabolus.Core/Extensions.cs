@@ -35,7 +35,6 @@ public static class Extensions {
         return DMesh3Builder.Build(vertices, triangles, normals);
     }
 
-    public static Vector3d ToVector3d(this Vector3 vector) => new Vector3d(vector.X, vector.Y, vector.Z);
     public static MeshGeometry3D ToGeometry(this DMesh3 mesh) {
         if (mesh is null || mesh.VertexCount == 0) { return new MeshGeometry3D(); }
 
