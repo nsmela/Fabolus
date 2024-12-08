@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common.Bolus;
+using System.Collections.ObjectModel;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Smooth.Poisson;
@@ -21,11 +22,15 @@ internal partial class PoissonViewModel : BaseSmoothingToolViewModel {
         { "smooth", new PoissonSettings { Depth = 8, Scale = 1.4f, SamplesPerNode = 4, EdgeLength = 0.4f } },
     };
 
-    private string SelectedSetting { get; set; } = "standard";
+    [ObservableProperty] private string _selectedSetting = "standard";
+    [ObservableProperty] private int _smoothingIndex = 0;
+
+    partial void OnSmoothingIndexChanged(int value) => SelectedSetting = (_defaultSmoothSettings.Keys.ToArray())[value];
+
     private PoissonSmoothing PoissonSmoothing { get; init; } = new PoissonSmoothing();
 
     public PoissonViewModel() {
-        SetSettings(SelectedSetting);
+        SetSettings(_selectedSetting);
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
     }
 
@@ -45,6 +50,8 @@ internal partial class PoissonViewModel : BaseSmoothingToolViewModel {
         SmoothScale = settings.Scale;
         SamplesPerNode = settings.SamplesPerNode;
         EdgeLength = settings.EdgeLength;
+
+        SmoothingIndex = _defaultSmoothSettings.Keys.ToList().IndexOf(label);
     }
 
     public override BolusModel SmoothBolus(BolusModel bolus) {

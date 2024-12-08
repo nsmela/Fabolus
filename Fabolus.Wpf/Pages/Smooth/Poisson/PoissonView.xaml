@@ -3,10 +3,26 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro" 
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Smooth.Poisson"
              mc:Ignorable="d" 
              d:DesignWidth="200">
     <StackPanel Orientation="Vertical">
+        <Label Content="{Binding SelectedSetting}" 
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            FontSize="14" 
+            FontWeight="Bold"
+            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding SmoothingIndex, Mode=TwoWay}"
+                Minimum="0" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True"
+                mah:SliderHelper.TrackFillBrush="Black"
+                mah:SliderHelper.TrackValueFillBrush="Black"
+                Margin="12,0,12,10">
+            <Slider.Resources>
+
+            </Slider.Resources>
+        </Slider>
         <Label Content="Depth"                        
             HorizontalAlignment="Center" 
             VerticalAlignment="Center"
