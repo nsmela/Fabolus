@@ -9,7 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="AirChannel\" />
     <Folder Include="Export\" />
     <Folder Include="Import\" />
     <Folder Include="Mold\" />

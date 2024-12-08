@@ -6,6 +6,7 @@ using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Pages.Channels;
 using Fabolus.Wpf.Pages.Import;
 using Fabolus.Wpf.Pages.Rotate;
 using Fabolus.Wpf.Pages.Smooth;
@@ -67,8 +68,8 @@ public partial class MainViewModel : ObservableObject {
     [RelayCommand] public async Task SwitchToImportView() => NavigateTo(new ImportViewModel());
     [RelayCommand] public async Task SwitchToRotationView() => NavigateTo(new RotateViewModel());
     [RelayCommand] public async Task SwitchToSmoothingView() => NavigateTo(new SmoothingViewModel());
+    [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new ChannelsViewModel());
     /*
-    [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new AirChannelViewModel());
     [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MoldViewModel());
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());
     */

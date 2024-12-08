@@ -10,6 +10,7 @@
              xmlns:marching="clr-namespace:Fabolus.Wpf.Pages.Smooth.Marching_Cubes"
              xmlns:laplacian="clr-namespace:Fabolus.Wpf.Pages.Smooth.Laplacian"
              xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
+             xmlns:channels="clr-namespace:Fabolus.Wpf.Pages.Channels"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -54,6 +55,10 @@
 
             <DataTemplate DataType="{x:Type meshinfo:MeshInfoViewModel}">
                 <meshinfo:MeshInfoView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type channels:ChannelsViewModel}">
+                <channels:ChannelsView />
             </DataTemplate>
             
         </ResourceDictionary>
