@@ -66,7 +66,7 @@ public sealed class RotateSceneManager : SceneManager {
 
     protected override void UpdateDisplay(BolusModel? bolus) {
         if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions.Count == 0) {
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([]));
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;
         }
 
@@ -90,7 +90,7 @@ public sealed class RotateSceneManager : SceneManager {
 
         foreach (var model in AxisLines) { models.Add(model); }
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge(models));
+        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
 
     private DisplayModel3D GenerateAxisWidget(float radius) {

@@ -33,7 +33,7 @@ public class SmoothSceneManager : SceneManager {
 
     protected override void UpdateDisplay(BolusModel? bolus) {
         if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions.Count == 0) {
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge([]));
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;
         }
 
@@ -64,7 +64,7 @@ public class SmoothSceneManager : SceneManager {
             Skin = material
         });
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessasge(models));
+        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
 
 }

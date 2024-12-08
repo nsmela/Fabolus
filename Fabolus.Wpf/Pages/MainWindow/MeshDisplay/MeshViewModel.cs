@@ -1,6 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common.Mesh;
+using Fabolus.Wpf.Common.Mouse;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using SharpDX.Direct3D11;
@@ -31,6 +33,7 @@ public partial class MeshViewModel : ObservableObject {
     [ObservableProperty] private ICommand _leftMouseCommand = ViewportCommands.Pan;
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
+    [ObservableProperty] private ICommand _mouseMoveCommand = new MouseMove();
 
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
@@ -39,7 +42,8 @@ public partial class MeshViewModel : ObservableObject {
 
     public MeshViewModel() {
         Grid.Geometry = GenerateGrid();
-        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessasge>(this, (r, m) => UpdateDisplay(m.models));
+        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, (r, m) => UpdateDisplay(m.models));
+        WeakReferenceMessenger.Default.Register<MeshSetInputBindingsMessage>(this, (r, m) => UpdateInputBindings(m.LeftMouseButton, m.MiddleMouseButton, m.RightMouseButton));
     }
 
     private void UpdateDisplay(IList<DisplayModel3D> models) {
@@ -59,6 +63,12 @@ public partial class MeshViewModel : ObservableObject {
             }
         }, null);
 
+    }
+
+    private void UpdateInputBindings(RoutedCommand left, RoutedCommand middle, RoutedCommand right) {
+        LeftMouseCommand = left;
+        MiddleMouseCommand = middle;
+        RightMouseCommand = right;
     }
 
     protected LineGeometry3D GenerateGrid(float minX = -100, float maxX = 100, float minY = -100, float maxY = 100, float spacing = 10) {
