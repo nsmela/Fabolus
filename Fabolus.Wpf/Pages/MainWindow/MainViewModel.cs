@@ -29,6 +29,9 @@ public partial class MainViewModel : ObservableObject {
     [ObservableProperty] private string _triangleCount = NoFileText;
     [ObservableProperty] private string _volumeText = NoFileText;
 
+    //debug info
+    [ObservableProperty] private string _debugText = NoFileText;
+
     private SceneManager _sceneModel;
 
     #region Stores
@@ -47,6 +50,7 @@ public partial class MainViewModel : ObservableObject {
 
         //based on the view
         _sceneModel = viewModel.GetSceneManager;
+        DebugText = CurrentMeshView.Camera.Position.ToString();
 
     }
 

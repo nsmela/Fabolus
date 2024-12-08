@@ -67,7 +67,7 @@
         <StackPanel Grid.Row="2" Grid.ColumnSpan="2" 
                     Margin="2">
             <Label HorizontalAlignment="Right"
-                   Content="{Binding BolusVolume}" />
+                   Content="{Binding DebugText}" />
         </StackPanel>
         
         <!--  MeshView -->
