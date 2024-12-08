@@ -8,7 +8,7 @@ using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 namespace Fabolus.Wpf.Common.Mesh;
 public static class OverhangsHelper {
     private static Color4 BaseColor => new Color4(0.8f, 0.8f, 0.8f, 1);
-    private static Color4 WarningColor => new Color4(1, 1, 0, 1);
+    private static Color4 WarningColor => new Color4(0.8f, 0.8f, 0.8f, 1);
     private static Color4 FaultColor => new Color4(1, 0, 0, 1);
 
     public static HelixToolkit.Wpf.SharpDX.Material CreateOverhangsMaterial(float lowerAngle, float upperAngle) {

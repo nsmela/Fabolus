@@ -18,11 +18,11 @@
                 Minimum="0" Maximum="2" TickFrequency="1" IsSnapToTickEnabled="True"
                 mah:SliderHelper.TrackFillBrush="Black"
                 mah:SliderHelper.TrackValueFillBrush="Black"
-                Margin="12,0,12,10">
-            <Slider.Resources>
-
-            </Slider.Resources>
-        </Slider>
+                mah:SliderHelper.TrackFillPressedBrush="Black"
+                mah:SliderHelper.TrackValueFillPressedBrush="Black"
+                mah:SliderHelper.TrackFillHoverBrush="Black"
+                mah:SliderHelper.TrackValueFillHoverBrush="Black"
+                Margin="12,0,12,10" />
         <Label Content="Depth"                        
             HorizontalAlignment="Center" 
             VerticalAlignment="Center"

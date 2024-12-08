@@ -31,9 +31,12 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new PoissonViewModel();
     [ObservableProperty] private int _smoothingViewIndex = 0;
+
     partial void OnSmoothingViewIndexChanged(int value) {
         SetSmoothingViewModel = GetView(value);
+        ClearSmoothed();
     }
+
     private BolusModel? _bolus;
 
     #endregion

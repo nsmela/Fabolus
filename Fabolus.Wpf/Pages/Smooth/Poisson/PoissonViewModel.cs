@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common.Bolus;
+using SharpDX.Direct3D9;
 using System.Collections.ObjectModel;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
@@ -22,15 +23,15 @@ internal partial class PoissonViewModel : BaseSmoothingToolViewModel {
         { "smooth", new PoissonSettings { Depth = 8, Scale = 1.4f, SamplesPerNode = 4, EdgeLength = 0.4f } },
     };
 
-    [ObservableProperty] private string _selectedSetting = "standard";
+    [ObservableProperty] private string _selectedSetting;
     [ObservableProperty] private int _smoothingIndex = 0;
 
-    partial void OnSmoothingIndexChanged(int value) => SelectedSetting = (_defaultSmoothSettings.Keys.ToArray())[value];
+    partial void OnSmoothingIndexChanged(int value) => SetSettings(value);
 
     private PoissonSmoothing PoissonSmoothing { get; init; } = new PoissonSmoothing();
 
     public PoissonViewModel() {
-        SetSettings(_selectedSetting);
+        SmoothingIndex = 1;
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
     }
 
@@ -40,10 +41,15 @@ internal partial class PoissonViewModel : BaseSmoothingToolViewModel {
             SamplesPerNode = this.SamplesPerNode,
             Scale = this.SmoothScale,
             EdgeLength = this.EdgeLength
-        };
+    };
 
-    private void SetSettings(string label) {
-        if (!_defaultSmoothSettings.ContainsKey(label)) { throw new Exception($"Label {label} is not found in default Poisson settings."); }
+    private void SetSettings(int index) {
+        if (!(_defaultSmoothSettings.Count >= index)) { throw new IndexOutOfRangeException(); }
+
+        var label = (_defaultSmoothSettings
+            .Keys
+            .ToArray())
+            [index] ;
 
         var settings = _defaultSmoothSettings[label];
         Depth = settings.Depth;
@@ -51,7 +57,7 @@ internal partial class PoissonViewModel : BaseSmoothingToolViewModel {
         SamplesPerNode = settings.SamplesPerNode;
         EdgeLength = settings.EdgeLength;
 
-        SmoothingIndex = _defaultSmoothSettings.Keys.ToList().IndexOf(label);
+        SelectedSetting = label;
     }
 
     public override BolusModel SmoothBolus(BolusModel bolus) {
