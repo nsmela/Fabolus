@@ -6,6 +6,7 @@ using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Media.Media3D;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
+using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 
 namespace Fabolus.Wpf.Common.Scene;
 

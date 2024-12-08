@@ -1,28 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Media.Media3D;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Wpf.Common.Mesh;
 using HelixToolkit.Wpf.SharpDX;
+using SharpDX;
+using SharpDX.Direct3D11;
+using System.Windows.Input;
+using System.Windows.Media.Media3D;
 using Camera = HelixToolkit.Wpf.SharpDX.Camera;
 using Color = System.Windows.Media.Color;
-using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
-using Material = HelixToolkit.Wpf.SharpDX.Material;
-using SharpDX;
-using System.Windows.Media;
-using System.Windows.Input;
-using CommunityToolkit.Mvvm.Messaging;
-using SharpDX.Direct3D11;
+using Colors = System.Windows.Media.Colors;
 
-namespace Fabolus.Wpf.Common.Mesh;
+namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 
-//messages
-public sealed record MeshDisplayUpdatedMessasge(List<DisplayModel3D> models);
+public partial class MeshViewModel : ObservableObject {
 
-public partial class MeshViewModel : ObservableObject
-{
     [ObservableProperty] private Camera _camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera();
     [ObservableProperty] private IEffectsManager _effectsManager = new DefaultEffectsManager();
 
@@ -30,7 +21,7 @@ public partial class MeshViewModel : ObservableObject
     [ObservableProperty] private Color _ambientLightColor = Colors.GhostWhite;
 
     //mesh settings
-    [ObservableProperty] private FillMode _fillMode = FillMode.Solid;
+    [ObservableProperty] private FillMode _fillMode = SharpDX.Direct3D11.FillMode.Solid;
     [ObservableProperty] private bool _shadows = false;
 
     //models
@@ -44,10 +35,9 @@ public partial class MeshViewModel : ObservableObject
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
-    [ObservableProperty] private Transform3D _mainTransform = MeshHelper.TransformEmpty; 
+    [ObservableProperty] private Transform3D _mainTransform = MeshHelper.TransformEmpty;
 
-    public MeshViewModel()
-    {
+    public MeshViewModel() {
         Grid.Geometry = GenerateGrid();
         WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessasge>(this, (r, m) => UpdateDisplay(m.models));
     }

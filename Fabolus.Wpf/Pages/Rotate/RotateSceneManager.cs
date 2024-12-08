@@ -8,6 +8,7 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
 using Vector3D = System.Windows.Media.Media3D.Vector3D;
 using Transform3D = System.Windows.Media.Media3D.Transform3D;
+using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 

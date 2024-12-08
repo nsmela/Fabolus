@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Fabolus.Wpf.Common.Mesh
+namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay
 {
     /// <summary>
     /// Interaction logic for MeshView.xaml

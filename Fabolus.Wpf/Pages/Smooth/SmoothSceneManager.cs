@@ -3,6 +3,8 @@ using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Pages.MainWindow;
+using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using System;
 using System.Collections.Generic;
