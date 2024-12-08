@@ -22,6 +22,7 @@
             FontFamily="\Fonts\#Poppins">
             <ComboBoxItem IsSelected="True">Poisson Reconstruction</ComboBoxItem>
             <ComboBoxItem>Marching Cubes</ComboBoxItem>
+            <ComboBoxItem>Laplacian</ComboBoxItem>
         </ComboBox>
 
         <ContentControl Content="{Binding SetSmoothingViewModel}"/>

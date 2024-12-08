@@ -5,6 +5,7 @@ using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Pages.Smooth.Laplacian;
 using Fabolus.Wpf.Pages.Smooth.Marching_Cubes;
 using Fabolus.Wpf.Pages.Smooth.Poisson;
 using static Fabolus.Wpf.Bolus.BolusStore;
@@ -24,6 +25,7 @@ public partial class SmoothingViewModel : BaseViewModel {
     private BaseSmoothingToolViewModel GetView(int index) => index switch {
         0 => new PoissonViewModel(),
         1 => new MarchingCubesViewModel(),
+        2 => new LaplacianViewModel(),
         _ => throw new IndexOutOfRangeException("Index out of range")
     };
 

@@ -8,6 +8,8 @@
              xmlns:smooth="clr-namespace:Fabolus.Wpf.Pages.Smooth"
              xmlns:poisson="clr-namespace:Fabolus.Wpf.Pages.Smooth.Poisson"
              xmlns:marching="clr-namespace:Fabolus.Wpf.Pages.Smooth.Marching_Cubes"
+             xmlns:laplacian="clr-namespace:Fabolus.Wpf.Pages.Smooth.Laplacian"
+             xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -46,6 +48,14 @@
                 <marching:MarchingCubesView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type laplacian:LaplacianViewModel}">
+                <laplacian:LaplacianView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type meshinfo:MeshInfoViewModel}">
+                <meshinfo:MeshInfoView />
+            </DataTemplate>
+            
         </ResourceDictionary>
     </Application.Resources>
 </Application>

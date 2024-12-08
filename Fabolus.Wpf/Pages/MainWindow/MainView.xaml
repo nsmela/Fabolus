@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Fabolus.Wpf.Pages.MainWindow"
         xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro" 
-        xmlns:common="clr-namespace:Fabolus.Wpf.Common.Mesh"
+        xmlns:common="clr-namespace:Fabolus.Wpf.Common.Mesh" 
+        xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
         mc:Ignorable="d"
         Title="FABOLUS" Height="550" Width="800" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -79,12 +80,7 @@
                  HorizontalAlignment="Right" 
                  VerticalAlignment="Top" 
                   >
-            <StackPanel Orientation="Vertical" Width="140" MinWidth="140" MaxWidth="200" >
-                <Label Content="File Name" Margin="0,-8,0,0"/>
-                <Label Content="{Binding FilePath}" Margin="10,-8,0,0"/>
-                <Label Content="Volume(s)" Margin="0,-8,0,0"/>
-                <Label Content="{Binding VolumeText}" Margin="10,-8,0,0"/>
-            </StackPanel>
+            <meshinfo:MeshInfoView />
         </GroupBox>
         
     </Grid>
