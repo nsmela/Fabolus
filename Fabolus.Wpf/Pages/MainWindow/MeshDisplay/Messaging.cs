@@ -1,4 +1,5 @@
 ﻿using Fabolus.Wpf.Common.Mesh;
+using HelixToolkit.Wpf.SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,3 +15,7 @@ public sealed record MeshSetInputBindingsMessage(
     RoutedCommand LeftMouseButton,
     RoutedCommand MiddleMouseButton,
     RoutedCommand RightMouseButton);
+
+public sealed record MeshMouseDownMessage(object? sender, MouseMove3DEventArgs args);
+public sealed record MeshMouseMoveMessage(object? sender, MouseMove3DEventArgs args);
+public sealed record MeshMouseUpMessage(object? sender, MouseMove3DEventArgs args);

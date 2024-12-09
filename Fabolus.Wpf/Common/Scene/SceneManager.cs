@@ -13,14 +13,11 @@ public class SceneManager : IDisposable   {
     protected virtual Material _skin { get; } = PhongMaterials.Gray; 
 
     public SceneManager() {
-        //messaging
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this,  (r, m) => UpdateDisplay(m.Bolus));
-
+        SetMessaging();
         SetDefaultInputBindings();
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         UpdateDisplay(bolus);
-
     }
 
     protected virtual void UpdateDisplay(BolusModel? bolus) {
@@ -38,11 +35,26 @@ public class SceneManager : IDisposable   {
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([display]));
     }
 
-    protected void SetDefaultInputBindings() {
-        WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
-            LeftMouseButton: ViewportCommands.Pan,
-            MiddleMouseButton: ViewportCommands.Zoom,
-            RightMouseButton: ViewportCommands.Rotate));
+    protected void SetMessaging() {
+        //messaging
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(m.Bolus));
+        WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.sender, m.args));
+        WeakReferenceMessenger.Default.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.sender, m.args));
+        WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.sender, m.args));
+    }
+
+    protected void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
+        LeftMouseButton: ViewportCommands.Pan,
+        MiddleMouseButton: ViewportCommands.Zoom,
+        RightMouseButton: ViewportCommands.Rotate));
+
+    protected virtual void OnMouseDown(object? sender, Mouse3DEventArgs args) {
+    }
+
+    protected virtual void OnMouseMove(object? sender, Mouse3DEventArgs args) {
+    }
+
+    protected virtual void OnMouseUp(object? sender, Mouse3DEventArgs args) {
     }
 
     public void Dispose() {

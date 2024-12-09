@@ -34,9 +34,6 @@ public partial class MeshViewModel : ObservableObject {
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
 
-    //mouse event handlers
-    [ObservableProperty] private ICommand _onMouseMoveCommand;
-
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
