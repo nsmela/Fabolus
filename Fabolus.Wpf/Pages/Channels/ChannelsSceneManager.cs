@@ -19,14 +19,15 @@ using Material = HelixToolkit.Wpf.SharpDX.Material;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
-public record struct AirChannel(Vector3 Point, MeshGeometry3D Mesh) {
-    public Guid GUID => Mesh.GUID;
+public record struct AirChannel(Vector3 Point, MeshGeometry3D Geometry) {
+    public Guid GUID => Geometry.GUID;
 }
 
 public class ChannelsSceneManager : SceneManager {
 
-    private List<AirChannel> _channels = [];
+    private Dictionary<Guid, AirChannel> _channels = [];
     private Material _channelSkin = DiffuseMaterials.Emerald;
+    private Material _selectedSkin = DiffuseMaterials.Jade;
 
     private MeshGeometry3D Sphere(Vector3 point, double radius) {
         var builder = new MeshBuilder();
@@ -48,21 +49,35 @@ public class ChannelsSceneManager : SceneManager {
         if (e.LeftButton == MouseButtonState.Released) { return; }
 
         var meshHit = (MeshGeometryModel3D)args.HitTestResult.ModelHit;
+        var meshId = meshHit.Geometry.GUID;
 
-        if (meshHit.Geometry.GUID == _bolusId) {
+        //hit the mesh
+        if (meshId == _bolusId) {
             var point = args.HitTestResult.PointHit;
             var channel = new AirChannel {
                 Point = point,
-                Mesh = Sphere(point, 2.0)
+                Geometry = Sphere(point, 2.0)
             };
 
-            _channels.Add(channel);
+            _channels.Add(channel.GUID, channel);
+            _selectedAirChannel = channel.GUID;
             var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
             UpdateDisplay(bolus);
             return;
         }
 
+        //hit an air channel
+        if (_channels.ContainsKey(meshId)) {
+            _selectedAirChannel = meshId;
+            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+            UpdateDisplay(bolus);
+            return;
+        }
 
+        _selectedAirChannel = null;
+        var result = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        UpdateDisplay(result);
+        return;
     }
 
     protected override void OnMouseMove(object? sender, Mouse3DEventArgs args) {
@@ -89,11 +104,15 @@ public class ChannelsSceneManager : SceneManager {
             Skin = _skin
         });
 
-        _channels.ForEach(x => models.Add(new DisplayModel3D {
-            Geometry = x.Mesh,
-            Transform = MeshHelper.TransformEmpty,
-            Skin = _channelSkin
-        }));
+        foreach(var channel in _channels.Values) {
+            models.Add(new DisplayModel3D {
+                Geometry = channel.Geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = channel.GUID == _selectedAirChannel
+                 ? _selectedSkin
+                 : _channelSkin
+            });
+        }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
