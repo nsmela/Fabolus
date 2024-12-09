@@ -2,26 +2,16 @@
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
+using static Fabolus.Wpf.Bolus.BolusStore;
+using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media.Media3D;
-using static Fabolus.Wpf.Bolus.BolusStore;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
 
 namespace Fabolus.Wpf.Pages.Channels;
-
-public record struct AirChannel(Vector3 Point, MeshGeometry3D Geometry) {
-    public Guid GUID => Geometry.GUID;
-}
 
 public class ChannelsSceneManager : SceneManager {
 
@@ -53,15 +43,17 @@ public class ChannelsSceneManager : SceneManager {
 
         //hit the mesh
         if (meshId == _bolusId) {
+            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
             var point = args.HitTestResult.PointHit;
-            var channel = new AirChannel {
-                Point = point,
-                Geometry = Sphere(point, 2.0)
-            };
+            var channel = new AirChannel(
+                type: Core.AirChannel.ChannelTypes.Straight,
+                depth: 2.0f,
+                diameter: 5.0f,
+                height:bolus.Response.Geometry.Bound.Height,
+                origin: point);
 
             _channels.Add(channel.GUID, channel);
             _selectedAirChannel = channel.GUID;
-            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
             UpdateDisplay(bolus);
             return;
         }
