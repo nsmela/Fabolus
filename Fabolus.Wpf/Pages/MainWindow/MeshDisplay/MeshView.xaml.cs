@@ -24,5 +24,6 @@ namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay
         {
             InitializeComponent();
         }
+
     }
 }
