@@ -27,7 +27,7 @@ public class ChannelsSceneManager : SceneManager {
 
     private Dictionary<Guid, AirChannel> _channels = [];
     private Material _channelSkin = DiffuseMaterials.Emerald;
-    private Material _selectedSkin = DiffuseMaterials.Jade;
+    private Material _selectedSkin = DiffuseMaterials.LightGreen;
 
     private MeshGeometry3D Sphere(Vector3 point, double radius) {
         var builder = new MeshBuilder();
@@ -74,10 +74,6 @@ public class ChannelsSceneManager : SceneManager {
             return;
         }
 
-        _selectedAirChannel = null;
-        var result = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-        UpdateDisplay(result);
-        return;
     }
 
     protected override void OnMouseMove(object? sender, Mouse3DEventArgs args) {
