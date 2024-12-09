@@ -1,4 +1,6 @@
-﻿using HelixToolkit.Wpf.SharpDX;
+﻿using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
+using HelixToolkit.Wpf.SharpDX;
 
 namespace Fabolus.Wpf.Common.Mesh;
 
@@ -11,17 +13,15 @@ public sealed class InteractiveModel3D : GroupModel3D, IHitable, ISelectable {
         this.Mouse3DUp += OnMouseUp;
     }
 
-    private void OnMouseDown(object? sender, MouseDown3DEventArgs e) {
-        var text = e.ToString();
-    }
+    private void OnMouseDown(object? sender, MouseDown3DEventArgs e) =>
+        WeakReferenceMessenger.Default.Send(new MeshMouseDownMessage(sender, e));
 
-    private void OnMouseMove(object? sender, MouseMove3DEventArgs e) {
-        var text = e.ToString();
-    }
 
-    private void OnMouseUp(object? sender, MouseUp3DEventArgs e) {
-        var text = e.ToString();
-    }
+    private void OnMouseMove(object? sender, MouseMove3DEventArgs e) =>
+        WeakReferenceMessenger.Default.Send(new MeshMouseMoveMessage(sender, e));
+
+    private void OnMouseUp(object? sender, MouseUp3DEventArgs e) =>
+        WeakReferenceMessenger.Default.Send(new MeshMouseUpMessage(sender, e));
 
 }
 

@@ -36,8 +36,10 @@ public class SceneManager : IDisposable   {
     }
 
     protected void SetMessaging() {
-        //messaging
+        //bolus
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(m.Bolus));
+
+        //mouse actions
         WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.sender, m.args));
         WeakReferenceMessenger.Default.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.sender, m.args));
         WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.sender, m.args));

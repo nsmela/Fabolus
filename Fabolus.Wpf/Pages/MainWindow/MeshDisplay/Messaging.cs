@@ -16,6 +16,6 @@ public sealed record MeshSetInputBindingsMessage(
     RoutedCommand MiddleMouseButton,
     RoutedCommand RightMouseButton);
 
-public sealed record MeshMouseDownMessage(object? sender, MouseMove3DEventArgs args);
+public sealed record MeshMouseDownMessage(object? sender, MouseDown3DEventArgs args);
 public sealed record MeshMouseMoveMessage(object? sender, MouseMove3DEventArgs args);
-public sealed record MeshMouseUpMessage(object? sender, MouseMove3DEventArgs args);
+public sealed record MeshMouseUpMessage(object? sender, MouseUp3DEventArgs args);
