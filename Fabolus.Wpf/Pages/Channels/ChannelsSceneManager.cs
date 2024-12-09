@@ -14,29 +14,55 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Media3D;
 using static Fabolus.Wpf.Bolus.BolusStore;
+using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
+using Material = HelixToolkit.Wpf.SharpDX.Material;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
+public record struct AirChannel(Vector3 Point, MeshGeometry3D Mesh) {
+    public Guid GUID => Mesh.GUID;
+}
+
 public class ChannelsSceneManager : SceneManager {
 
-    private List<Vector3> _points = [];
-    private HelixToolkit.Wpf.SharpDX.MeshGeometry3D Sphere(Vector3 point, double radius) {
+    private List<AirChannel> _channels = [];
+    private Material _channelSkin = DiffuseMaterials.Emerald;
+
+    private MeshGeometry3D Sphere(Vector3 point, double radius) {
         var builder = new MeshBuilder();
         builder.AddSphere(point, radius);
         return builder.ToMeshGeometry3D();
     }
+
+    private Guid? _selectedAirChannel;
+    private Guid? _bolusId;
 
     public ChannelsSceneManager() : base() {
 
     }
 
     protected override void OnMouseDown(object? sender, Mouse3DEventArgs args) {
+        if (_bolusId is null) { throw new NullReferenceException("Bolus id is null!"); }
+
         var e = (MouseEventArgs)args.OriginalInputEventArgs;
         if (e.LeftButton == MouseButtonState.Released) { return; }
 
-        _points.Add(args.HitTestResult.PointHit);
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-        UpdateDisplay(bolus);
+        var meshHit = (MeshGeometryModel3D)args.HitTestResult.ModelHit;
+
+        if (meshHit.Geometry.GUID == _bolusId) {
+            var point = args.HitTestResult.PointHit;
+            var channel = new AirChannel {
+                Point = point,
+                Mesh = Sphere(point, 2.0)
+            };
+
+            _channels.Add(channel);
+            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+            UpdateDisplay(bolus);
+            return;
+        }
+
+
     }
 
     protected override void OnMouseMove(object? sender, Mouse3DEventArgs args) {
@@ -55,16 +81,18 @@ public class ChannelsSceneManager : SceneManager {
 
         var models = new List<DisplayModel3D>();
 
+        _bolusId = bolus.Geometry.GUID;
+
         models.Add( new DisplayModel3D {
             Geometry = bolus.Geometry,
             Transform = MeshHelper.TransformEmpty,
             Skin = _skin
         });
 
-        _points.ForEach(x => models.Add(new DisplayModel3D {
-            Geometry = Sphere(x, 2.0),
+        _channels.ForEach(x => models.Add(new DisplayModel3D {
+            Geometry = x.Mesh,
             Transform = MeshHelper.TransformEmpty,
-            Skin = DiffuseMaterials.Emerald
+            Skin = _channelSkin
         }));
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
