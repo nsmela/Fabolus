@@ -14,6 +14,7 @@ public static class ChannelGenerator {
 
         public ChannelTypes ChannelType { get; set; } = ChannelTypes.None;
         public float Diameter { get; set; } = 5.0f;
+        public float Depth { get; set; } = 1.0f;
         public float Height { get; set; } = 20.0f;
         public Vector3d Origin { get; set; } = Vector3d.Zero;
     }

@@ -34,54 +34,48 @@ public static class AngledChannelGenerator {
     public static DMesh3 Build(this AngledSettings settings) {
         var mesh = new MeshEditor(new DMesh3());
 
-        mesh.AppendMesh(AddCone(
-            axis: settings.Direction, 
-            origin: settings.Origin, 
-            length: settings.TipLength, 
-            radius: settings.Diameter/2));
+        var direction = settings.Direction.Normalized;
 
         var coneEndPoint = settings.Origin + (settings.Direction * settings.TipLength); //end of cone, start of bend
-        var angle = settings.Direction.AngleD(Vector3d.Zero);
+        var angle = 360 - settings.Direction.AngleD(Vector3d.AxisZ);
         var tubeRadius = settings.Diameter / 2;
 
         //create path
-        var path = AddBend(coneEndPoint, 270.0, tubeRadius, 0.2); //list of points along a bend upwards
-
-        //use the path points to calculate the next points for the channel
-        var bendPath = new List<Vector3d>();
-        foreach(var point in path) {
-            bendPath.Add(new Vector3d(
-                x: coneEndPoint.x + point.x, //xy share same values
-                y: coneEndPoint.y + point.x, //xy share same values
-                z: coneEndPoint.z + point.z
-                ));
-        }
+        var path = new List<Vector3d>();
+        path.Add(settings.Origin);
+        path.Add(coneEndPoint);
+        path.AddRange(AddBend(coneEndPoint, settings.Direction, angle, tubeRadius, 1.0)); //list of points along a bend upwards
 
         //adding straight channel upwards
-        var lastPoint = bendPath.Last();
-        bendPath.Add(new Vector3d(lastPoint.x, lastPoint.y, settings.Height));
+        var lastPoint = path.Last();
+        path.Add(new Vector3d(lastPoint.x, lastPoint.y, settings.Height));
 
         //create tube
-        var curve = new DCurve3(bendPath, false);
+        var curve = new DCurve3(path, false);
         var shape = Polygon2d.MakeCircle(tubeRadius, SEGMENTS);
         var tube = new TubeGenerator(curve, shape);
         tube.Generate();
         mesh.AppendMesh(tube.MakeDMesh());
+        var result = mesh.Mesh;
+        MeshNormals.QuickCompute(result);
 
-        return mesh.Mesh;
+        return result;
+        
     }
 
-    public static List<Vector3d> AddBend(Vector3d origin, double startAngle, double tubeRadius, double radiusOffset) {
-        var arc = new Arc2d(Vector2d.Zero, tubeRadius + radiusOffset, startAngle, 0.0);
+    public static List<Vector3d> AddBend(Vector3d origin, Vector3d direction, double startAngle, double tubeRadius, double radiusOffset) {
+        var radius = radiusOffset + tubeRadius;
+        var arc = new Arc2d(Vector2d.Zero, radius, startAngle, 0.0);
 
         var points = new List<Vector3d>();
+        var dir = direction.Normalized;
         double span = (1 / (double)SEGMENTS);
         for (int i = 1; i <= SEGMENTS; i++) {
             var point = arc.SampleT(span * i);
             points.Add(new Vector3d(
-                origin.x + point.x,
-                origin.y + point.x,
-                origin.z + point.y));
+                origin.x + (dir.x * point.x),
+                origin.y + (dir.y * point.x),
+                origin.z + radius + point.y));
         }
 
         return points;
@@ -103,5 +97,26 @@ public static class AngledChannelGenerator {
         MeshTransforms.Translate(mesh, origin);
         
         return mesh;
+    }
+
+    private static DMesh3 AddPipe(IList<Vector3d> curves, IList<Vector3d> axis, IList<double> radii) {
+
+        var pipeCurves = new List<Vector3d>();
+        pipeCurves.AddRange(curves);
+        for(int i = curves.Count(); i < 0; i--) {
+            var point = curves[i];
+            pipeCurves.Add(point + Vector3d.AxisZ * radii[i]);
+
+        }
+
+        var builder = new Curve3Curve3RevolveGenerator {
+            Curve = pipeCurves.ToArray(),
+            Axis = axis.ToArray(),
+            Slices = SEGMENTS,
+            NoSharedVertices = false
+        };
+
+        builder.Generate();
+        return builder.MakeDMesh();
     }
 }
