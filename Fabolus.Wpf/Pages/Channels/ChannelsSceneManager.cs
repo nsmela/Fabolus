@@ -36,17 +36,18 @@ public class ChannelsSceneManager : SceneManager {
 
         var meshHit = (MeshGeometryModel3D)args.HitTestResult.ModelHit;
         var meshId = meshHit.Geometry.GUID;
+        var hitNormal = args.HitTestResult.NormalAtHit;
 
         //hit the mesh
         if (meshId == _bolusId) {
             var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
             var point = args.HitTestResult.PointHit;
-            var channel = new AirChannel(
-                type: Core.AirChannel.ChannelTypes.Straight,
+            var channel = new AngledAirChannel(
                 depth: 2.0f,
                 diameter: 5.0f,
-                height:bolus.Response.Geometry.Bound.Height,
-                origin: point);
+                height: bolus.Response.Geometry.Bound.Height,
+                origin: point,
+                normal: hitNormal);
 
             _channels.Add(channel.GUID, channel);
             _selectedAirChannel = channel.GUID;
@@ -99,7 +100,7 @@ public class ChannelsSceneManager : SceneManager {
         }
 
         //testing
-        var test = new AngledAirChannel(Vector3.Zero, 20.0, 5.0, 1.0);
+        var test = new AngledAirChannel(Vector3.Zero, Vector3.UnitZ, 100.0, 5.0, 1.0);
         models.Add(new DisplayModel3D {
             Geometry = test.Geometry,
             Transform = MeshHelper.TransformEmpty,

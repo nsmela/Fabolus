@@ -12,13 +12,15 @@ namespace Fabolus.Wpf.Features.Channels;
 public record AngledAirChannel : AirChannel {
     public AngledAirChannel() { }
 
-    public Vector3 Normal { get; set; } = Vector3.UnitZ;
+    public Vector3 Normal { get; set; } = Vector3.UnitX;
+    public double TipLength { get; set; } = 10.0;
 
-    public AngledAirChannel(Vector3 origin, double height, double diameter, double depth) {
+    public AngledAirChannel(Vector3 origin, Vector3 normal, double height, double diameter, double depth) {
         Anchor = origin;
         Height = height;
         Diameter = diameter;
         Depth = depth;
+        Normal = normal;
 
         X = origin.X;
         Y = origin.Y;
@@ -34,6 +36,7 @@ public record AngledAirChannel : AirChannel {
             .SetDirection(Normal.X, Normal.Y, Normal.Z)
             .SetOrigin(X, Y, Z)
             .SetLength(Height)
+            .SetTipLength(TipLength)
             .Build()
             .ToGeometry();
     }
