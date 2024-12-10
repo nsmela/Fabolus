@@ -10,6 +10,8 @@ using SharpDX;
 using System.Windows.Input;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
+using Fabolus.Core.AirChannel.Builders;
+using Fabolus.Core;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
