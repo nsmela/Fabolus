@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Fabolus.Core.AirChannel;
 public enum ChannelTypes {
+    None,
     Straight,
     AngledHead,
     Path

@@ -12,6 +12,7 @@ using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 namespace Fabolus.Wpf.Features.Channels;
 
 public record AirChannel : Channel {
+    public AirChannel() { }
 
     public AirChannel(ChannelTypes type, Vector3 origin, double height, double diameter, double depth) {
         Type = type;
@@ -26,8 +27,8 @@ public record AirChannel : Channel {
 
         Build();
 
-        //Geometry = Mesh.ToGeometry();
-        Geometry = AngledChannelGenerator.Build(this).ToGeometry();
+        Geometry = Mesh.ToGeometry();
+        Geometry = StraightChannelGenerator.Build(this).ToGeometry();
     }
 
     public Guid GUID => Geometry.GUID;
@@ -37,5 +38,5 @@ public record AirChannel : Channel {
     public double Height { get; set; }
     public double Diameter { get; set; }
     public double Depth { get; set; }
-    public MeshGeometry3D Geometry { get; private set; }
+    public MeshGeometry3D Geometry { get; protected set; }
 }

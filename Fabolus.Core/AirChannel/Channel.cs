@@ -22,13 +22,31 @@ public record Channel {
     public ChannelTypes ChannelType { get; set; } = ChannelTypes.Straight;
 
     public Vector3d Origin => new Vector3d(X, Y, Z);
-    public DMesh3? Mesh { get; private set; }
+    public DMesh3? Mesh { get; protected set; }
 
     public Channel() {
         Build();
     }
 
-    public void Build() {
+    public virtual void Build() {
         Mesh = StraightChannelGenerator.Build(this);
+    }
+}
+
+public record AngledChannel : Channel {
+    public double BottomDiameter { get; set; } = 1.0;
+    public Vector3d Normal { get; set; } = Vector3d.Zero;
+
+    public AngledChannel() {
+        Build();
+    }
+
+    public override void Build() {
+        var mesh = ChannelGenerator
+            .AngledChannel()
+            .SetDiameters(BottomDiameter, Diameter)
+            .SetDirection(Normal)
+            .Build();
+            
     }
 }

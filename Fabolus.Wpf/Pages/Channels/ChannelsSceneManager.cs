@@ -21,22 +21,6 @@ public class ChannelsSceneManager : SceneManager {
     private Material _channelSkin = DiffuseMaterials.Emerald;
     private Material _selectedSkin = DiffuseMaterials.LightGreen;
 
-    private MeshGeometry3D Sphere(Vector3 point, double radius) {
-        var builder = new MeshBuilder();
-        builder.AddSphere(point, radius);
-        return builder.ToMeshGeometry3D();
-    }
-
-    private MeshGeometry3D Bend(Vector3 point, double radius) {
-        var builder = new MeshBuilder();
-        var path = new List<Vector3>();
-        Curve.AddBend(new g3.Vector3d(point.X, point.Y, point.Z), 270.0, 3.0, 0.2).ForEach(x => path.Add(new Vector3((float)x.x, (float)x.y, (float)x.z)));
-        var p = path.Last();
-        path.Add(new Vector3((float)p.X, (float)p.Y, 100.0f)); //creates tube upwards
-        builder.AddTube(path, 3.0, 32, false, true, true);
-        return builder.ToMeshGeometry3D();
-    }
-
     private Guid? _selectedAirChannel;
     private Guid? _bolusId;
 
@@ -114,8 +98,10 @@ public class ChannelsSceneManager : SceneManager {
             });
         }
 
+        //testing
+        var test = new AngledAirChannel(Vector3.Zero, 20.0, 5.0, 1.0);
         models.Add(new DisplayModel3D {
-            Geometry = Bend(Vector3.Zero, 3.0),
+            Geometry = test.Geometry,
             Transform = MeshHelper.TransformEmpty,
             Skin = DiffuseMaterials.Ruby,
         });
