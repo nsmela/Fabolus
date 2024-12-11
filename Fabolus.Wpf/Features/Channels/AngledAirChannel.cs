@@ -30,15 +30,14 @@ public record AngledAirChannel : AirChannel {
     }
 
     public override void Build() {
-        Geometry = ChannelGenerator
-            .AngledChannel()
-            .SetDiameters(1.0, Diameter)
-            .SetDirection(Normal.X, Normal.Y, Normal.Z)
-            .SetOrigin(X, Y, Z)
-            .SetLength(Height)
-            .SetTipLength(TipLength)
-            .Generate()
-            .ToGeometry();
+        Geometry = AngledChannelGenerator.New()
+            .WithDepth(1.0)
+            .WithDiameters(1.0, Diameter)
+            .WithDirection(Normal)
+            .WithOrigin(Anchor)
+            .WithHeight(Height)
+            .WithTipLength(TipLength)
+            .Build();
     }
 
 
