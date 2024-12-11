@@ -38,6 +38,12 @@ public record AngledAirChannel : AirChannel {
             .WithHeight(Height)
             .WithTipLength(TipLength)
             .Build();
+
+        //Geometry = Fabolus.Core.AirChannel.Builders.ChannelGenerator
+         //   .AngledChannel()
+          //  .SetDirection(Normal.X, Normal.Y, Normal.Z)
+          //  .Build()
+           // .ToGeometry();
     }
 
 
