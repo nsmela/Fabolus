@@ -102,19 +102,12 @@ public static class AngledChannelGenerator {
     }
 
     public static DMesh3 Generate(this AngledSettings settings) {
-        var curve = new List<Vector3d>();
-        curve.Add(Vector3d.Zero);
-        curve.Add(new Vector3d(0, settings.TipLength, 0));
-        curve.Add(new Vector3d(0, settings.TipLength + settings.Diameter / 2, 0));
-        curve.Add(new Vector3d(0, settings.TipLength + settings.Diameter, settings.Diameter));
-        curve.Add(new Vector3d(0, settings.TipLength + settings.Diameter, settings.Height));
+        var origin = settings.Origin;
+        var normal = settings.Direction;
 
-        var radii = new List<double>();
-        radii.Add(1.0);
-        radii.Add(settings.Diameter / 2);
-        radii.Add(settings.Diameter / 2);
-        radii.Add(settings.Diameter / 2);
-        radii.Add(settings.Diameter / 2);
+        var (curve, radii) = GetConeCurve(settings);
+
+        return ToDebugMesh(curve.ToArray(), radii.ToArray());
 
         //create on the xz plane (z is up) 
         //make a circle for each section
@@ -141,7 +134,7 @@ public static class AngledChannelGenerator {
             //frame?
             var frame = new Frame3f(point, direction);
 
-            var circle = new Circle3d(frame, radius, 2);
+            var circle = new Circle3d(frame, radius);
             var points = new List<Vector3d>();
             var span = 1 / (double)SEGMENTS;
             for(int j = 1; j <= SEGMENTS; j++) {
@@ -165,12 +158,48 @@ public static class AngledChannelGenerator {
 
         //close ends
         //first loop is closed
-        var index = mesh.Mesh.AppendVertex(Vector3d.Zero);
+        var index = mesh.Mesh.AppendVertex(origin);
         mesh.AddTriangleFan_OrderedVertexLoop(index, loops[0]);
 
 
         //return mesh
         MeshNormals.QuickCompute(mesh.Mesh);
+        return mesh.Mesh;
+    }
+
+    private static (List<Vector3d> points, List<double> radii) GetConeCurve(AngledSettings settings) {
+        var angle = Vector3d.AngleD(Vector3d.AxisZ, settings.Direction);
+        var direction = MeshTransforms.Rotate(
+            Vector3d.Zero,
+            Vector3d.AxisX,
+            new Quaterniond(Vector3d.AxisY, angle));
+
+        List<Vector3d> points = [
+            Vector3d.Zero - direction * settings.Depth,
+            Vector3d.Zero,
+            Vector3d.Zero + direction * settings.TipLength];
+
+        List<double> radii = [
+            settings.BottomDiameter / 2,
+            settings.BottomDiameter / 2,
+            settings.Diameter / 2];
+
+        return (points, radii);
+    }
+
+    private static DMesh3 ToDebugMesh(Vector3d[] points, double[] radii) {
+        var mesh = new MeshEditor(new DMesh3());
+
+        for (int i = 0; i < points.Length; i++) {
+            var builder = new Sphere3Generator_NormalizedCube {
+                Radius = radii[i]
+            };
+            var sphere = builder.MakeDMesh();
+            MeshTransforms.Translate(sphere, points[i]);
+
+            mesh.AppendMesh(sphere);
+        }
+
         return mesh.Mesh;
     }
 }
