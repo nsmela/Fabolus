@@ -101,7 +101,7 @@ public static class AngledChannelGenerator {
         return mesh;
     }
 
-    private static DMesh3 Generate(this AngledSettings settings) {
+    public static DMesh3 Generate(this AngledSettings settings) {
         var curve = new List<Vector3d>();
         curve.Add(Vector3d.Zero);
         curve.Add(new Vector3d(0, settings.TipLength, 0));
@@ -128,28 +128,49 @@ public static class AngledChannelGenerator {
         curve.Add(curve.Last() + Vector3d.AxisZ); //adds a last one to prevent indexing issues
 
         //create each loop
+        var loops = new List<int[]>(); //loops are an array of vertices indices
+        var mesh = new MeshEditor(new DMesh3()); //result mesh
+
+        //add vertices for the loops
+        //store vertices indices as int[] to stitch later
         for(int i = 0; i < count; i++) {
             var point = curve[i];
             var radius = radii[i];
-            var normal = (curve[i + 1] - point).Normalized;
+            var direction = (curve[i + 1] - point).Normalized;
 
-            var circle = new Circle3d(point, radius);
+            //frame?
+            var frame = new Frame3f(point, direction);
+
+            var circle = new Circle3d(frame, radius, 2);
             var points = new List<Vector3d>();
             var span = 1 / (double)SEGMENTS;
-            for(int j = 1; j < SEGMENTS; j++) {
+            for(int j = 1; j <= SEGMENTS; j++) {
                 points.Add(circle.SampleT(span * j));
             }
 
             //create loop
+            var indices = new List<int>();
+            foreach(var p in points) {
+                indices.Add(mesh.Mesh.AppendVertex(p));
+            }
 
-            //transform loop
-
+            loops.Add(indices.ToArray());
         }
 
+
         //connect edge loops
+        for(int i = 0; i + 1 < loops.Count(); i++) {
+            mesh.StitchLoop(loops[i], loops[i + 1]);
+        }
 
         //close ends
+        //first loop is closed
+        var index = mesh.Mesh.AppendVertex(Vector3d.Zero);
+        mesh.AddTriangleFan_OrderedVertexLoop(index, loops[0]);
+
 
         //return mesh
+        MeshNormals.QuickCompute(mesh.Mesh);
+        return mesh.Mesh;
     }
 }

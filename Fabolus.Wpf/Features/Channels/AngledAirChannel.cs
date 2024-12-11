@@ -37,7 +37,7 @@ public record AngledAirChannel : AirChannel {
             .SetOrigin(X, Y, Z)
             .SetLength(Height)
             .SetTipLength(TipLength)
-            .Build()
+            .Generate()
             .ToGeometry();
     }
 
