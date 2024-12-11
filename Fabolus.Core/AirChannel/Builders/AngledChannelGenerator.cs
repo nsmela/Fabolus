@@ -18,6 +18,8 @@ public static class AngledChannelGenerator {
     }
 
     //ref: https://github.com/gradientspace/geometry3Sharp/blob/8f185f19a96966237ef631d97da567f380e10b6b/mesh_generators/GenCylGenerators.cs
+    //Circle3d https://github.com/gradientspace/geometry3Sharp/blob/8f185f19a96966237ef631d97da567f380e10b6b/shapes3/Circle3.cs#L6
+    //EdgeLoop https://github.com/gradientspace/geometry3Sharp/blob/8f185f19a96966237ef631d97da567f380e10b6b/mesh/EdgeLoop.cs#L12
 
     public static AngledSettings SetDiameters(this AngledSettings settings, double start, double top) =>
         settings = settings with { BottomDiameter = start, Diameter = (float)top };
@@ -99,24 +101,55 @@ public static class AngledChannelGenerator {
         return mesh;
     }
 
-    private static DMesh3 AddPipe(IList<Vector3d> curves, IList<Vector3d> axis, IList<double> radii) {
+    private static DMesh3 Generate(this AngledSettings settings) {
+        var curve = new List<Vector3d>();
+        curve.Add(Vector3d.Zero);
+        curve.Add(new Vector3d(0, settings.TipLength, 0));
+        curve.Add(new Vector3d(0, settings.TipLength + settings.Diameter / 2, 0));
+        curve.Add(new Vector3d(0, settings.TipLength + settings.Diameter, settings.Diameter));
+        curve.Add(new Vector3d(0, settings.TipLength + settings.Diameter, settings.Height));
 
-        var pipeCurves = new List<Vector3d>();
-        pipeCurves.AddRange(curves);
-        for(int i = curves.Count(); i < 0; i--) {
-            var point = curves[i];
-            pipeCurves.Add(point + Vector3d.AxisZ * radii[i]);
+        var radii = new List<double>();
+        radii.Add(1.0);
+        radii.Add(settings.Diameter / 2);
+        radii.Add(settings.Diameter / 2);
+        radii.Add(settings.Diameter / 2);
+        radii.Add(settings.Diameter / 2);
+
+        //create on the xz plane (z is up) 
+        //make a circle for each section
+        //use circles to make edge loops
+        //stitch edge loops together
+        //rotate mesh to the correct orientation
+
+        var edges = new List<EdgeLoop>();
+
+        var count = curve.Count();
+        curve.Add(curve.Last() + Vector3d.AxisZ); //adds a last one to prevent indexing issues
+
+        //create each loop
+        for(int i = 0; i < count; i++) {
+            var point = curve[i];
+            var radius = radii[i];
+            var normal = (curve[i + 1] - point).Normalized;
+
+            var circle = new Circle3d(point, radius);
+            var points = new List<Vector3d>();
+            var span = 1 / (double)SEGMENTS;
+            for(int j = 1; j < SEGMENTS; j++) {
+                points.Add(circle.SampleT(span * j));
+            }
+
+            //create loop
+
+            //transform loop
 
         }
 
-        var builder = new Curve3Curve3RevolveGenerator {
-            Curve = pipeCurves.ToArray(),
-            Axis = axis.ToArray(),
-            Slices = SEGMENTS,
-            NoSharedVertices = false
-        };
+        //connect edge loops
 
-        builder.Generate();
-        return builder.MakeDMesh();
+        //close ends
+
+        //return mesh
     }
 }
