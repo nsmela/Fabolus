@@ -46,23 +46,7 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
     public AngledChannelGenerator WithTipLength(double length) => this with { TipLength = length };
 
     public override MeshGeometry3D Build() {
-        var (curve, radii) = GetConeValues();
-        var mesh = new MeshBuilder();
-        mesh.AddTube(curve, null, radii.ToArray(), SEGMENTS, false, true, true);
-
-        mesh.AddArrow(Origin, Origin + Normal * (float)TipLength, 0.5);
-        var (bend, radiii) = BendValues();
-        if (bend.Count > 0) { mesh.AddBox(bend[0], 1.0, 1.0, 1.0); }
-
-        foreach(var point in bend) {
-            mesh.AddSphere(point, 0.5);
-        }
-
-        return mesh.ToMeshGeometry3D();
-    }
-
-    public  MeshGeometry3D Generate() {
-        var curve = Fabolus.Core.AirChannel.AngledChannelCurve.FullCurve(
+        var curve = Fabolus.Core.AirChannel.AngledChannelCurve.Curve(
             Origin.ToVector3d(),
             Normal.ToVector3d(),
             TipLength,
@@ -71,7 +55,7 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
             .ToList();
 
         var radii = new List<double> { BottomRadius, BottomRadius };
-        for(int i = 2; i < curve.Count(); i++) {
+        for (int i = 2; i < curve.Count(); i++) {
             radii.Add(Radius);
         }
 
@@ -79,69 +63,10 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
         var count = curve.Count();
         var last = curve.Last();
         curve.Add(new Vector3 { X = last.X, Y = last.Y, Z = last.Z + 50 });
-        for(int i = 0; i < count; i++) {
+        for (int i = 0; i < count; i++) {
             mesh.AddArrow(curve[i], curve[i + 1], 0.5);
         }
         return mesh.ToMeshGeometry3D();
-    }
-
-    private (List<Vector3> points, List<double> radii) GetBendValues() {
-        var direction = Normal;
-        var radius = (float)(Radius + 1.0f); //offset the radius
-        var origin = Origin + Normal * (float)TipLength;
-        var circleCentre = new Vector3(origin.X, origin.Y, origin.Z + radius);
-        var span = Math.PI / (double)SEGMENTS;
-
-        var points = new List<Vector3>();
-        var point = new Vector3(origin.X, origin.Y, origin.Z) + direction;
-        var limit = circleCentre.Z;
-        var offsetVector = new Vector3 {
-            X = (float)Math.Cos(span) * radius * direction.X,
-            Y = (float)Math.Cos(span) * radius * direction.Y,
-            Z = (float)Math.Sin(span) * radius,
-        };
-
-        for (int i = 1; point.Z < circleCentre.Z; i++) {
-            points.Add(point);
-            var offset = new Vector3 {
-                X = (float)Math.Cos(span * i) * radius * direction.X,
-                Y = (float)Math.Cos(span * i) * radius * direction.Y,
-                Z = (float)Math.Sin(span * i) * radius,
-            };
-            point += offset;
-        }
-
-
-        var radii = points.Select(x => Radius).ToList(); //creates an array of doubles the length of points
-
-        return (points, radii);
-    }
-
-    private (List<Vector3> points, List<double> radii) BendValues() {
-        var origin = Origin + Normal * (float)TipLength;
-        var bendOrigin = origin.ToVector3d();
-        var vectors = Fabolus.Core.AirChannel.AngledChannelCurve.Curve2(bendOrigin, new g3.Vector3d(Normal.X, Normal.Y, Normal.Z), Radius, 1.0);
-        var points = vectors.Select(x => new Vector3((float)x.x, (float)x.y, (float)x.z)).ToList();
-        var radii = points.Select(x => Radius).ToList(); //creates an array of doubles the length of points
-
-        return (points, radii);
-    }
-
-    private (List<Vector3> points, List<double> radii) GetConeValues() {
-        var direction = ConvertDirection;
-
-        var points = new List<Vector3> {
-            Origin - this.Normal * (float)this.Depth,
-            Origin,
-            Origin + Normal * (float)this.TipLength,
-        };
-
-        List<double> radii = [
-            this.BottomRadius,
-            this.BottomRadius,
-            this.Radius];
-
-        return (points, radii.ToList());
     }
 
 }

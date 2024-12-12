@@ -10,50 +10,11 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Fabolus.Core.AirChannel;
+
+/// <summary>
+/// Generates a curve for the angled channel on a 2d XY plane and then converts to a XYZ 3d path
+/// </summary>
 public static class AngledChannelCurve {
-    private const int SEGMENTS = 8;
-
-    public static List<Vector3d> Curve(Vector3d origin, Vector3d direction, double radius, double offset = 1.0) {
-        var dir = direction.Normalized;
-        var angle = 360.0 - Vector3d.AngleD(Vector3d.AxisZ, dir);
-
-        //or use vectors to make the arc
-        var arc = new Arc2d(new Vector2d(0, radius), radius, angle, 360.0);
-
-        var points = new List<Vector3d>();
-        points.Add(origin);
-        double span = (1 / (double)SEGMENTS);
-        for (double i = span; i <= 1.0; i+= span) {
-            var point = arc.SampleT(i);
-            points.Add(new Vector3d(
-                origin.x + (dir.x *  point.x),
-                origin.y + (dir.y * point.x),
-                origin.z + point.y));
-        }
-
-        return points;
-    }
-
-    public static List<Vector3d> Curve2(Vector3d origin, Vector3d direction, double radius, double offset = 1.0) {
-        var dir = direction.Normalized;
-        //set reference axis to apply the upwards rotation
-        //set it by finding the angle the normal is from Vector3d.AxisX
-        var xAngle = Vector3d.AxisX.AngleD(dir);
-        var rotation = new Quaterniond(Vector3d.AxisZ, xAngle - 90);
-        var refAxis = MeshTransforms.Rotate(Vector3d.AxisX, Vector3d.Zero, rotation);
-
-        //apply rotation to direction to make a new vector and multiple by distance
-        //add to points
-
-        var rot = new Quaterniond(refAxis, 15.0);
-        var vec = MeshTransforms.Rotate(dir, Vector3d.Zero, rot) * radius / 2;
-        var points = new List<Vector3d>();
-        while (Vector3d.AxisZ.AngleD(vec) > 20) {
-            points.Add(origin + vec);
-            vec = MeshTransforms.Rotate(vec, Vector3d.Zero, rot) * radius / 2;
-        }
-        return points;
-    }
 
     /// <summary>
     /// Points are mapped onto a 2d arc and then rotated to match the input direction
@@ -62,24 +23,12 @@ public static class AngledChannelCurve {
     /// <param name="normal">The normal of the point on the mesh</param>
     /// <param name="radius">The channel's diameter</param>
     /// <returns>List of Vector3d representing the path for the channel</returns>
-    public static List<Vector3d> FullCurve(Vector3d origin, Vector3d normal, double tipLength, double radius) {
-        var zAngleRads = Vector3d.AxisZ.AngleR(normal);
+    public static List<Vector3d> Curve(Vector3d origin, Vector3d normal, double tipLength, double radius) {
 
-        //normally, x = Cos(angle), y = Sin(angle), but our angle is a distance from ref
-        //so we switch Cos and Sin calculations
-        var dir = new Vector2d {
-            y = Math.Cos(zAngleRads),
-            x = Math.Sin(zAngleRads)
-        };
-        dir = dir.Normalized;
+        var dir = Direction(normal);
 
         //creating cone points first
-        var depth = 2.0;
-        var points = new List<Vector2d> {
-            (dir * - depth) ,
-            Vector2d.Zero,
-            (dir * tipLength),
-        };
+        var points = ConePath(dir, 1.5, tipLength);
 
         //adding the bend
         points.AddRange(Arc(points.Last(), dir, radius));
@@ -97,13 +46,17 @@ public static class AngledChannelCurve {
         return curve.Select(v => v + origin).ToList(); //translate
     }
 
-    private static double AngleDXY(Vector3d vector) {
-        var axis = Vector2d.AxisX;
-        var v = new Vector2d { x = vector.x, y = vector.y };
+    private static Vector2d Direction(Vector3d normal) {
+        var zAngleRads = Vector3d.AxisZ.AngleR(normal);
 
-        var angle = Vector2d.AngleD(axis, v);
-        if (v.y <= 0) { angle *= -1; }
-        return angle;
+        //normally, x = Cos(angle), y = Sin(angle), but our angle is a distance from ref
+        //so we switch Cos and Sin calculations
+        var dir = new Vector2d {
+            y = Math.Cos(zAngleRads),
+            x = Math.Sin(zAngleRads)
+        };
+
+        return dir.Normalized;
     }
 
     private static List<Vector2d> Arc(Vector2d origin, Vector2d direction, double radius) {
@@ -124,5 +77,21 @@ public static class AngledChannelCurve {
         }
         return points.Select(p => p + origin - p0).ToList();
     }
+
+    private static double AngleDXY(Vector3d vector) {
+        var axis = Vector2d.AxisX;
+        var v = new Vector2d { x = vector.x, y = vector.y };
+
+        var angle = Vector2d.AngleD(axis, v);
+        if (v.y <= 0) { angle *= -1; }
+        return angle;
+    }
+
+    private static List<Vector2d> ConePath(Vector2d direction, double depth, double tipLength) =>
+        new List<Vector2d> {
+            (direction * - depth) ,
+            Vector2d.Zero,
+            (direction * tipLength),
+        };
 
 }
