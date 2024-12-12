@@ -3,6 +3,7 @@ using HelixToolkit.Wpf.SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -52,12 +53,66 @@ public static class AngledChannelCurve {
         return points;
     }
 
-    private static Vector2d Perpendicular(Vector3d vector) {
-        var angle = vector.AngleR(Vector3d.AxisZ) - (Math.PI / 2.0);
-        return new Vector2d {
-            x = (float)Math.Cos(angle),
-            y = (float)Math.Sin(angle),
+    /// <summary>
+    /// Points are mapped onto a 2d arc and then rotated to match the input direction
+    /// </summary>
+    /// <param name="origin">The point on the mesh</param>
+    /// <param name="normal">The normal of the point on the mesh</param>
+    /// <param name="radius">The channel's diameter</param>
+    /// <returns>List of Vector3d representing the path for the channel</returns>
+    public static List<Vector3d> FullCurve(Vector3d origin, Vector3d normal, double tipLength, double radius) {
+        var zAngleRads = Vector3d.AxisZ.AngleR(normal);
+
+        //normally, x = Cos(angle), y = Sin(angle), but our angle is a distance from ref
+        //so we switch Cos and Sin calculations
+        var dir = new Vector2d {
+            y = Math.Cos(zAngleRads),
+            x = Math.Sin(zAngleRads)
         };
+
+        //creating cone points first
+        var depth = 2.0;
+        var points = new List<Vector2d> {
+            (dir * - depth) ,
+            Vector2d.Zero,
+            (dir * tipLength),
+        };
+
+        //aligning curve to normal
+        var angleX = AngleDXY(normal);
+
+        var rot = new Quaterniond(Vector3d.AxisZ, angleX);
+        var curve = points.Select(p => new Vector3d {
+                x = p.x,
+                y = 0,
+                z = p.y
+            }).ToList();
+        curve = curve.Select(v => MeshTransforms.Rotate(v, Vector3d.Zero, rot)).ToList(); //rotations
+        return curve.Select(v => v + origin).ToList(); //translate
+
+        //adding the bend
+        var centreAngle = zAngleRads + MathUtil.HalfPI; //perpendicular to direction
+        var circleCentre = new Vector2d {
+            x = Math.Cos(centreAngle) * radius,
+            y = Math.Sin(centreAngle) * radius
+        };
+
+        var arc = new Arc2d(circleCentre, Vector2d.Zero, new Vector2d(radius, radius));
+        double span = (1 / (double)SEGMENTS);
+        for (double i = span; i <= 1.0; i += span) {
+            points.Add( arc.SampleT(i));
+        }
+
+
+    }
+
+    private static double AngleDXY(Vector3d vector) {
+        var axis = Vector2d.AxisX;
+        var v = new Vector2d { x = vector.x, y = vector.y };
+
+        var angle = Vector2d.AngleD(axis, v);
+        if (v.y <= 0) { angle *= -1; }
+        return angle;
     }
     
 }

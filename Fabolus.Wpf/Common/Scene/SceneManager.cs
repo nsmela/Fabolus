@@ -5,6 +5,7 @@ using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using HelixToolkit.Wpf.SharpDX;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
+using System.Windows;
 
 namespace Fabolus.Wpf.Common.Scene;
 
@@ -45,7 +46,7 @@ public class SceneManager : IDisposable   {
         WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.sender, m.args));
     }
 
-    protected void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
+    protected virtual void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
         LeftMouseButton: ViewportCommands.Pan,
         MiddleMouseButton: ViewportCommands.Zoom,
         RightMouseButton: ViewportCommands.Rotate));
@@ -53,7 +54,7 @@ public class SceneManager : IDisposable   {
     protected virtual void OnMouseDown(object? sender, Mouse3DEventArgs args) {
     }
 
-    protected virtual void OnMouseMove(object? sender, Mouse3DEventArgs args) {
+    protected virtual void OnMouseMove(object? sender, MouseMove3DEventArgs args) {
     }
 
     protected virtual void OnMouseUp(object? sender, Mouse3DEventArgs args) {

@@ -33,7 +33,8 @@ public record AngledAirChannel : AirChannel {
             .WithOrigin(Anchor)
             .WithHeight(Height)
             .WithTipLength(TipLength)
-            .Build();
+            .Generate();
+            //.Build();
 
     }
 

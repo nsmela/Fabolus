@@ -9,7 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Common\Extensions\" />
     <Folder Include="Pages\Mold\" />
     <Folder Include="Pages\Export\" />
   </ItemGroup>

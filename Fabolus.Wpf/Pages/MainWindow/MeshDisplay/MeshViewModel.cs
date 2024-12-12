@@ -6,6 +6,7 @@ using Fabolus.Wpf.Common.Mouse;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using SharpDX.Direct3D11;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Media3D;
 using Camera = HelixToolkit.Wpf.SharpDX.Camera;
@@ -89,6 +90,11 @@ public partial class MeshViewModel : ObservableObject {
         }
 
         return grid.ToLineGeometry3D();
+    }
+
+    [RelayCommand]
+    private void OnMouseMove() {
+        var text = string.Empty; //test
     }
 }
 

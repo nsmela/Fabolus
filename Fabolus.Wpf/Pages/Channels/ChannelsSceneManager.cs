@@ -25,14 +25,57 @@ public class ChannelsSceneManager : SceneManager {
     private Guid? _bolusId;
 
     public ChannelsSceneManager() : base() {
-
     }
+
+    protected override void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
+    LeftMouseButton: ViewportCommands.Pan,
+    MiddleMouseButton: ViewportCommands.Zoom,
+    RightMouseButton: ViewportCommands.Rotate));
 
     protected override void OnMouseDown(object? sender, Mouse3DEventArgs args) {
         if (_bolusId is null) { throw new NullReferenceException("Bolus id is null!"); }
 
+        var meshHit = (MeshGeometryModel3D)args.HitTestResult.ModelHit;
+        var meshId = meshHit.Geometry.GUID;
+        var hitNormal = args.HitTestResult.NormalAtHit;
+
+        //hit the mesh
+        if (meshId == _bolusId) {
+            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+            var point = args.HitTestResult.PointHit;
+            var channel = new AngledAirChannel(
+                depth: 2.0f,
+                diameter: 5.0f,
+                height: bolus.Response.Geometry.Bound.Height,
+                origin: point,
+                normal: hitNormal);
+
+            _channels.Clear();
+            _channels.Add(channel.GUID, channel);
+            _selectedAirChannel = channel.GUID;
+            UpdateDisplay(bolus);
+            return;
+        }
+
+        //hit an air channel
+        if (_channels.ContainsKey(meshId)) {
+            _selectedAirChannel = meshId;
+            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+            UpdateDisplay(bolus);
+            return;
+        }
+
+    }
+
+    protected override void OnMouseMove(object? sender, MouseMove3DEventArgs args) {
+
+    }
+
+    protected override void OnMouseUp(object? sender, Mouse3DEventArgs args) {
+        if (_bolusId is null) { throw new NullReferenceException("Bolus id is null!"); }
+
         var e = (MouseEventArgs)args.OriginalInputEventArgs;
-        if (e.LeftButton == MouseButtonState.Released) { return; }
+        if (e.LeftButton == MouseButtonState.Pressed) { return; }
 
         var meshHit = (MeshGeometryModel3D)args.HitTestResult.ModelHit;
         var meshId = meshHit.Geometry.GUID;
@@ -62,15 +105,6 @@ public class ChannelsSceneManager : SceneManager {
             UpdateDisplay(bolus);
             return;
         }
-
-    }
-
-    protected override void OnMouseMove(object? sender, Mouse3DEventArgs args) {
-        base.OnMouseMove(sender, args);
-    }
-
-    protected override void OnMouseUp(object? sender, Mouse3DEventArgs args) {
-        base.OnMouseUp(sender, args);
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {

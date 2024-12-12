@@ -1,7 +1,7 @@
 ﻿using Fabolus.Core;
 using Fabolus.Core.AirChannel;
 using Fabolus.Core.AirChannel.Builders;
-using g3;
+using Fabolus.Wpf.Common.Extensions;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using System;
@@ -61,6 +61,30 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
         return mesh.ToMeshGeometry3D();
     }
 
+    public  MeshGeometry3D Generate() {
+        var curve = Fabolus.Core.AirChannel.AngledChannelCurve.FullCurve(
+            Origin.ToVector3d(),
+            Normal.ToVector3d(),
+            TipLength,
+            Radius)
+            .ToVector3()
+            .ToList();
+
+        var radii = new List<double> { BottomRadius, BottomRadius };
+        for(int i = 2; i < curve.Count(); i++) {
+            radii.Add(Radius);
+        }
+
+        var mesh = new MeshBuilder();
+        var count = curve.Count();
+        var last = curve.Last();
+        curve.Add(new Vector3 { X = last.X, Y = last.Y, Z = last.Z + 50 });
+        for(int i = 0; i < count; i++) {
+            mesh.AddArrow(curve[i], curve[i + 1], 0.5);
+        }
+        return mesh.ToMeshGeometry3D();
+    }
+
     private (List<Vector3> points, List<double> radii) GetBendValues() {
         var direction = Normal;
         var radius = (float)(Radius + 1.0f); //offset the radius
@@ -95,11 +119,7 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
 
     private (List<Vector3> points, List<double> radii) BendValues() {
         var origin = Origin + Normal * (float)TipLength;
-        var bendOrigin = new Vector3d {
-            x = origin.X,
-            y = origin.Y,
-            z = origin.Z
-        };
+        var bendOrigin = origin.ToVector3d();
         var vectors = Fabolus.Core.AirChannel.AngledChannelCurve.Curve2(bendOrigin, new g3.Vector3d(Normal.X, Normal.Y, Normal.Z), Radius, 1.0);
         var points = vectors.Select(x => new Vector3((float)x.x, (float)x.y, (float)x.z)).ToList();
         var radii = points.Select(x => Radius).ToList(); //creates an array of doubles the length of points
