@@ -54,18 +54,18 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
             .ToVector3()
             .ToList();
 
+        var mesh = new MeshBuilder();
+        var count = curve.Count();
+        var last = curve.Last();
+        curve.Add(new Vector3 { X = last.X, Y = last.Y, Z = last.Z + 50 });
+
         var radii = new List<double> { BottomRadius, BottomRadius };
         for (int i = 2; i < curve.Count(); i++) {
             radii.Add(Radius);
         }
 
-        var mesh = new MeshBuilder();
-        var count = curve.Count();
-        var last = curve.Last();
-        curve.Add(new Vector3 { X = last.X, Y = last.Y, Z = last.Z + 50 });
-        for (int i = 0; i < count; i++) {
-            mesh.AddArrow(curve[i], curve[i + 1], 0.5);
-        }
+        mesh.AddTube(curve, null, radii.ToArray(), 16, false, true, true);
+
         return mesh.ToMeshGeometry3D();
     }
 
