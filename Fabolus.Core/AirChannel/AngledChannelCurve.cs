@@ -2,8 +2,10 @@
 using HelixToolkit.Wpf.SharpDX;
 using System;
 using System.Collections.Generic;
+using System.DirectoryServices;
 using System.Linq;
 using System.Net.WebSockets;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -69,6 +71,7 @@ public static class AngledChannelCurve {
             y = Math.Cos(zAngleRads),
             x = Math.Sin(zAngleRads)
         };
+        dir = dir.Normalized;
 
         //creating cone points first
         var depth = 2.0;
@@ -78,7 +81,10 @@ public static class AngledChannelCurve {
             (dir * tipLength),
         };
 
-        //aligning curve to normal
+        //adding the bend
+        points.AddRange(Arc(points.Last(), dir, radius));
+
+        //aligning curve to origin and normal
         var angleX = AngleDXY(normal);
 
         var rot = new Quaterniond(Vector3d.AxisZ, angleX);
@@ -89,21 +95,6 @@ public static class AngledChannelCurve {
             }).ToList();
         curve = curve.Select(v => MeshTransforms.Rotate(v, Vector3d.Zero, rot)).ToList(); //rotations
         return curve.Select(v => v + origin).ToList(); //translate
-
-        //adding the bend
-        var centreAngle = zAngleRads + MathUtil.HalfPI; //perpendicular to direction
-        var circleCentre = new Vector2d {
-            x = Math.Cos(centreAngle) * radius,
-            y = Math.Sin(centreAngle) * radius
-        };
-
-        var arc = new Arc2d(circleCentre, Vector2d.Zero, new Vector2d(radius, radius));
-        double span = (1 / (double)SEGMENTS);
-        for (double i = span; i <= 1.0; i += span) {
-            points.Add( arc.SampleT(i));
-        }
-
-
     }
 
     private static double AngleDXY(Vector3d vector) {
@@ -114,5 +105,39 @@ public static class AngledChannelCurve {
         if (v.y <= 0) { angle *= -1; }
         return angle;
     }
-    
-}
+
+    private static List<Vector2d> Arc2(Vector2d origin, Vector2d direction, double radius) {
+        var circleCentre = origin + direction.Perp * radius * -1;
+        var start = origin;
+        var end = circleCentre + Vector2d.AxisX * radius;
+
+        var arc = new Arc2d(
+            vCenter: origin + direction.Perp * radius,
+            vStart: origin,
+            vEnd: circleCentre + Vector2d.AxisX * radius);
+        arc.IsReversed = true;
+
+        var resolution = 1 / (double)8;
+        var points = new List<Vector2d>();
+        for (double span = 0; span <= 1.0; span += resolution) {
+            points.Add(arc.SampleT(span));
+        }
+        return points;
+    }
+
+    private static List<Vector2d> Arc(Vector2d origin, Vector2d direction, double radius) {
+        var dir = direction.Normalized;
+        var start = 270.0;
+        var end = 360.0;
+        var centre = dir.Perp * radius  * -1;
+
+        var arc = new Arc2d(centre, radius, start, end);
+        var resolution = 1 / (double)4;
+        var points = new List<Vector2d>();
+        for (double span = 0; span <= 1.0; span += resolution) {
+            points.Add(arc.SampleT(span));
+        }
+        return points.Select(p => p + origin).ToList();
+    }
+
+    }
