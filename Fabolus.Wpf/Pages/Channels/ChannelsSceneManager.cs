@@ -6,12 +6,10 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
 using System.Windows.Input;
-using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
-using Fabolus.Core.AirChannel.Builders;
-using Fabolus.Core;
+
+using Fabolus.Wpf.Features.Channels.Angled;
 
 namespace Fabolus.Wpf.Pages.Channels;
 

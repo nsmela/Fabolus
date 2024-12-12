@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Fabolus.Wpf.Features.Channels;
+namespace Fabolus.Wpf.Features.Channels.Angled;
 
 /// <summary>
 /// Create the mesh for the angled channel
@@ -18,8 +18,6 @@ namespace Fabolus.Wpf.Features.Channels;
 /// </summary>
 public sealed record AngledChannelGenerator : ChannelGenerator {
 
-    private double Angle => Vector3.UnitZ.AngleBetween(this.Normal); //radians
-    private double RefAngle => (2.5 * Math.PI) - Angle; //2D angle 
     private double BottomDiameter { get; set; } = 1.0;
     private double BottomRadius => BottomDiameter / 2;
     private double TipLength { get; set; } = 10.0;
@@ -31,22 +29,17 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
     //Vector3 Extensions: https://github.com/helix-toolkit/helix-toolkit/blob/3e3f7527b10028d5e81686b7e6d82ef3aac11a37/Source/HelixToolkit.SharpDX.Shared/Extensions/Vector3DExtensions.cs#L46
 
     public static AngledChannelGenerator New() => new();
-    private Vector2 ConvertDirection => 
-        new Vector2 {
-            X = (float)Math.Cos(this.RefAngle),
-            Y = (float)Math.Sin(this.RefAngle)
-        };
-    
-    public AngledChannelGenerator WithDepth(double depth) => this with { Depth = depth };
+
+    public AngledChannelGenerator WithDepth(float depth) => this with { Depth = depth };
     public AngledChannelGenerator WithDiameters(double start, double top) =>
         this with { BottomDiameter = (float)start, Diameter = (float)top };
     public AngledChannelGenerator WithDirection(Vector3 normal) => this with { Normal = normal };
-    public AngledChannelGenerator WithHeight(double zHeight) => this with { MaxHeight = zHeight };
+    public AngledChannelGenerator WithHeight(float zHeight) => this with { MaxHeight = zHeight };
     public AngledChannelGenerator WithOrigin(Vector3 origin) => this with { Origin = origin };
-    public AngledChannelGenerator WithTipLength(double length) => this with { TipLength = length };
+    public AngledChannelGenerator WithTipLength(float length) => this with { TipLength = length };
 
     public override MeshGeometry3D Build() {
-        var curve = Fabolus.Core.AirChannel.AngledChannelCurve.Curve(
+        var curve = AngledChannelCurve.Curve(
             Origin.ToVector3d(),
             Normal.ToVector3d(),
             TipLength,
