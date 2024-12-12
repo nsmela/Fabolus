@@ -127,17 +127,18 @@ public static class AngledChannelCurve {
 
     private static List<Vector2d> Arc(Vector2d origin, Vector2d direction, double radius) {
         var dir = direction.Normalized;
-        var start = 270.0;
+        var start = 360- Vector2d.AxisY.AngleD(dir);
         var end = 360.0;
-        var centre = dir.Perp * radius  * -1;
+        var centre = Vector2d.Zero;
 
         var arc = new Arc2d(centre, radius, start, end);
+        var p0 = arc.P0;
         var resolution = 1 / (double)4;
         var points = new List<Vector2d>();
-        for (double span = 0; span <= 1.0; span += resolution) {
+        for (double span = resolution; span <= 1.0; span += resolution) {
             points.Add(arc.SampleT(span));
         }
-        return points.Select(p => p + origin).ToList();
+        return points.Select(p => p + origin - p0).ToList();
     }
 
     }
