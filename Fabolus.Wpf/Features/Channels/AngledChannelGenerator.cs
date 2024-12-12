@@ -39,7 +39,7 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
     
     public AngledChannelGenerator WithDepth(double depth) => this with { Depth = depth };
     public AngledChannelGenerator WithDiameters(double start, double top) =>
-        this with { BottomDiameter = start, Diameter = (float)top };
+        this with { BottomDiameter = (float)start, Diameter = (float)top };
     public AngledChannelGenerator WithDirection(Vector3 normal) => this with { Normal = normal };
     public AngledChannelGenerator WithHeight(double zHeight) => this with { MaxHeight = zHeight };
     public AngledChannelGenerator WithOrigin(Vector3 origin) => this with { Origin = origin };

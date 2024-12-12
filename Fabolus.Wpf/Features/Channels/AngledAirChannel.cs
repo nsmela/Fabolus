@@ -22,14 +22,10 @@ public record AngledAirChannel : AirChannel {
         Depth = depth;
         Normal = normal;
 
-        X = origin.X;
-        Y = origin.Y;
-        Z = origin.Z;
-
         Build();
     }
 
-    public override void Build() {
+    public void Build() {
         Geometry = AngledChannelGenerator.New()
             .WithDepth(1.0)
             .WithDiameters(1.0, Diameter)
@@ -39,11 +35,6 @@ public record AngledAirChannel : AirChannel {
             .WithTipLength(TipLength)
             .Build();
 
-        //Geometry = Fabolus.Core.AirChannel.Builders.ChannelGenerator
-         //   .AngledChannel()
-          //  .SetDirection(Normal.X, Normal.Y, Normal.Z)
-          //  .Build()
-           // .ToGeometry();
     }
 
 

@@ -99,14 +99,6 @@ public class ChannelsSceneManager : SceneManager {
             });
         }
 
-        //testing
-        var test = new AngledAirChannel(Vector3.Zero, Vector3.UnitZ, 100.0, 5.0, 1.0);
-        models.Add(new DisplayModel3D {
-            Geometry = test.Geometry,
-            Transform = MeshHelper.TransformEmpty,
-            Skin = DiffuseMaterials.Ruby,
-        });
-
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
 }
