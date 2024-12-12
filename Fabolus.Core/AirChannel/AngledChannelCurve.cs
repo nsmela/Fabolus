@@ -106,34 +106,18 @@ public static class AngledChannelCurve {
         return angle;
     }
 
-    private static List<Vector2d> Arc2(Vector2d origin, Vector2d direction, double radius) {
-        var circleCentre = origin + direction.Perp * radius * -1;
-        var start = origin;
-        var end = circleCentre + Vector2d.AxisX * radius;
-
-        var arc = new Arc2d(
-            vCenter: origin + direction.Perp * radius,
-            vStart: origin,
-            vEnd: circleCentre + Vector2d.AxisX * radius);
-        arc.IsReversed = true;
-
-        var resolution = 1 / (double)8;
-        var points = new List<Vector2d>();
-        for (double span = 0; span <= 1.0; span += resolution) {
-            points.Add(arc.SampleT(span));
-        }
-        return points;
-    }
-
     private static List<Vector2d> Arc(Vector2d origin, Vector2d direction, double radius) {
         var dir = direction.Normalized;
-        var start = 360- Vector2d.AxisY.AngleD(dir);
+        var angle = Vector2d.AxisY.AngleD(dir);
+        var start = 360 - angle;
         var end = 360.0;
-        var centre = Vector2d.Zero;
 
-        var arc = new Arc2d(centre, radius, start, end);
+        var segmentAngle = 15.0;
+        var anglePerSegment = angle / segmentAngle;
+        var resolution = 1 / anglePerSegment;
+
+        var arc = new Arc2d(Vector2d.Zero, radius, start, end);
         var p0 = arc.P0;
-        var resolution = 1 / (double)4;
         var points = new List<Vector2d>();
         for (double span = resolution; span <= 1.0; span += resolution) {
             points.Add(arc.SampleT(span));
@@ -141,4 +125,4 @@ public static class AngledChannelCurve {
         return points.Select(p => p + origin - p0).ToList();
     }
 
-    }
+}
