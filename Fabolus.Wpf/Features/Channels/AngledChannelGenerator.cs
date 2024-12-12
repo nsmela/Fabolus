@@ -100,7 +100,7 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
             y = origin.Y,
             z = origin.Z
         };
-        var vectors = Fabolus.Core.AirChannel.AngledChannelCurve.Curve(bendOrigin, new g3.Vector3d(Normal.X, Normal.Y, Normal.Z), Radius, 1.0);
+        var vectors = Fabolus.Core.AirChannel.AngledChannelCurve.Curve2(bendOrigin, new g3.Vector3d(Normal.X, Normal.Y, Normal.Z), Radius, 1.0);
         var points = vectors.Select(x => new Vector3((float)x.x, (float)x.y, (float)x.z)).ToList();
         var radii = points.Select(x => Radius).ToList(); //creates an array of doubles the length of points
 

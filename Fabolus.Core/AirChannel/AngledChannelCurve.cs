@@ -36,35 +36,19 @@ public static class AngledChannelCurve {
         //set reference axis to apply the upwards rotation
         //set it by finding the angle the normal is from Vector3d.AxisX
         var xAngle = Vector3d.AxisX.AngleD(dir);
-        var rotation = new Quaterniond(Vector3d.AxisZ, xAngle);
+        var rotation = new Quaterniond(Vector3d.AxisZ, xAngle - 90);
         var refAxis = MeshTransforms.Rotate(Vector3d.AxisX, Vector3d.Zero, rotation);
-        
+
         //apply rotation to direction to make a new vector and multiple by distance
         //add to points
 
-
-
-
-
-
-
-        var angle = 360.0 - Vector3d.AngleD(Vector3d.AxisZ, dir);
-
-        //or use vectors to make the arc
-        var perp = Perpendicular(dir);
-        var arc = new Arc2d(perp, Vector2d.Zero, perp + Vector2d.AxisX);
-
+        var rot = new Quaterniond(refAxis, 15.0);
+        var vec = MeshTransforms.Rotate(dir, Vector3d.Zero, rot) * radius / 2;
         var points = new List<Vector3d>();
-        points.Add(origin);
-        double span = (arc.ArcLength / (double)SEGMENTS);
-        for (int i = 0; i <= SEGMENTS; i++) {
-            var point = arc.SampleT(span * i);
-            points.Add(new Vector3d(
-                origin.x + (dir.x * point.x),
-                origin.y + (dir.y * point.x),
-                origin.z + point.y));
+        while (Vector3d.AxisZ.AngleD(vec) > 20) {
+            points.Add(origin + vec);
+            vec = MeshTransforms.Rotate(vec, Vector3d.Zero, rot) * radius / 2;
         }
-
         return points;
     }
 
