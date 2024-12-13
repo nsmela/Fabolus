@@ -22,10 +22,14 @@ public partial class ChannelsViewModel : BaseViewModel {
     [ObservableProperty] private string[] _channelNames = [];
     [ObservableProperty] private int _activeToolIndex = 0;
 
+    private bool _isBusy = false;
     partial void OnActiveToolIndexChanged(int value) {
-        AirChannel channel = ((ChannelTypes)value).ToAirChannel();
+        if (_isBusy) { return; }
+        _isBusy = true;
 
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(channel));
+        WeakReferenceMessenger.Default.Send(new SetChannelTypeMessage((ChannelTypes)value));
+        
+        _isBusy = false;
     }
 
     private AirChannel _previewChannel;
@@ -35,8 +39,8 @@ public partial class ChannelsViewModel : BaseViewModel {
         ChannelNames = EnumHelper.GetEnumDescriptions<ChannelTypes>().ToArray();
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.channels));
-        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await PreviewUpdated(m.settings));
+        WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
+        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await PreviewUpdated(m.Settings));
 
         var preview = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
         PreviewUpdated(preview);
@@ -54,15 +58,10 @@ public partial class ChannelsViewModel : BaseViewModel {
         if (_previewChannel is not null && preview.ChannelType == _previewChannel.ChannelType) { return; }
 
         //state machine, end previous view and start new view
-
         _previewChannel = preview;
-        CurrentChannelViewModel = preview.ChannelType switch {
-            ChannelTypes.Straight => new StraightChannelsViewModel(),
-            ChannelTypes.AngledHead => new AngledChannelsViewModel(),
-            _ => throw new NotImplementedException()
-        };
+        CurrentChannelViewModel = preview.ChannelType.ToViewModel();
 
-        ActiveToolIndex = (int)preview.ChannelType;
+        if ((int)preview.ChannelType != ActiveToolIndex) { ActiveToolIndex = (int)preview.ChannelType; }
     }
 
     #region Commands

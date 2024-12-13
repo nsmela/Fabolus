@@ -16,8 +16,8 @@ public abstract record AirChannel {
     public Guid GUID => Geometry.GUID;
     public Vector3 Anchor { get; set; }
     public float Height { get; set; }
-    public float Diameter { get; set; }
-    public float Depth { get; set; }
+    public float Diameter { get; set; } = 5.0f;
+    public float Depth { get; set; } = 1.0f;
     public MeshGeometry3D Geometry { get; protected set; }
 
 }

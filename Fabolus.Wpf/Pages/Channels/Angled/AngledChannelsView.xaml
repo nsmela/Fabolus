@@ -27,7 +27,7 @@
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding ConeDiameter, Mode=TwoWay}"
+        <Slider Value="{Binding ChannelConeDiameter, Mode=TwoWay}"
                             Minimum="0.5" Maximum="8.0" 
                             TickFrequency="0.5" 
                             TickPlacement="TopLeft" 
@@ -41,7 +41,7 @@
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding ConeLength, Mode=TwoWay}"
+        <Slider Value="{Binding ChannelConeLength, Mode=TwoWay}"
                             Minimum="2" Maximum="16.0" 
                             TickFrequency="1.0" 
                             TickPlacement="TopLeft" 

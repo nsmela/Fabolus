@@ -37,7 +37,7 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
             TipLength = ChannelConeLength
         };
 
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(channel));
+        WeakReferenceMessenger.Default.Send(new SetChannelSettingsMessage(channel));
 
         _isBusy = false;
     }

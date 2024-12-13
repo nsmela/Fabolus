@@ -46,7 +46,7 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
             TipLength = ChannelNozzleLength
         };
 
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(channel));
+        WeakReferenceMessenger.Default.Send(new SetChannelSettingsMessage(channel));
 
         _isBusy = false;
     }

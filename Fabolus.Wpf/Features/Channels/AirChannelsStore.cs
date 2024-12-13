@@ -1,4 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.AirChannel;
+using Fabolus.Wpf.Common.Helpers;
 using Fabolus.Wpf.Features.Channels.Straight;
 using System;
 using System.Collections.Generic;
@@ -8,18 +10,28 @@ using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Features.Channels;
 public class AirChannelsStore {
-    private AirChannel _preview = new StraightAirChannel(); //acts as the settings for the selected channel type
+    private ChannelTypes _selectedType;
+    private Dictionary<ChannelTypes, AirChannel> _settings = []; //saved channel settings
     private List<AirChannel> _channels = [];
+    private AirChannel Preview => _settings[_selectedType];
 
     public AirChannelsStore() {
+        _settings = EnumHelper
+            .GetEnums<ChannelTypes>()
+            .Select(c => c.ToAirChannel())
+            .ToDictionary( x => x.ChannelType);
+
+        _selectedType = ChannelTypes.Straight;
+
         //messaging
-        WeakReferenceMessenger.Default.Register<AddAirChannelMessage>(this, async (r,m) => await AddChannel(m.channel));
+        WeakReferenceMessenger.Default.Register<AddAirChannelMessage>(this, async (r,m) => await AddChannel(m.Channel));
         WeakReferenceMessenger.Default.Register<ClearAirChannelsMessage>(this, async (r, m) => await ClearChannels());
-        WeakReferenceMessenger.Default.Register<RemoveAirChannelMessage>(this, async (r, m) => await RemoveChannel(m.channel));
-        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r,m) => await SetPreview(m.settings));
+        WeakReferenceMessenger.Default.Register<RemoveAirChannelMessage>(this, async (r, m) => await RemoveChannel(m.Channel));
+        WeakReferenceMessenger.Default.Register<SetChannelTypeMessage>(this, async (r, m) => await SetType(m.Type));
+        WeakReferenceMessenger.Default.Register<SetChannelSettingsMessage>(this, async (r, m) => await SetPreview(m.Settings));
 
         WeakReferenceMessenger.Default.Register<AirChannelsRequestMessage>(this, (r, m) => m.Reply(_channels.ToArray()));
-        WeakReferenceMessenger.Default.Register<ChannelsSettingsRequestMessage>(this, (r, m) => m.Reply(_preview));
+        WeakReferenceMessenger.Default.Register<ChannelsSettingsRequestMessage>(this, (r, m) => m.Reply(Preview));
     }
 
     private async Task AddChannel(AirChannel channel) {
@@ -40,11 +52,23 @@ public class AirChannelsStore {
     }
 
     private async Task SetPreview(AirChannel channel) {
-        _preview = channel;
-        await OnChannelsUpdated();
+        var type = channel.ChannelType;
+        _settings[type] = channel;
+
+        if (type != _selectedType) { return; }
+        await OnSettingsChanged();
+    }
+
+    private async Task SetType(ChannelTypes type) {
+        _selectedType = type;
+        await OnSettingsChanged();
     }
 
     private async Task OnChannelsUpdated() {
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels.ToArray()));  
+    }
+
+    private async Task OnSettingsChanged() {
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(Preview));
     }
 }
