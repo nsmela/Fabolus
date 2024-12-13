@@ -41,7 +41,21 @@
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding ChannelDiameter, Mode=TwoWay}"
+        <Slider Value="{Binding ChannelNozzleDiameter, Mode=TwoWay}"
+                            Minimum="2" Maximum="10" 
+                            TickFrequency="0.5" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="1"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+        <Label Content="tip length" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding ChannelNozzleLength, Mode=TwoWay}"
                             Minimum="2" Maximum="10" 
                             TickFrequency="0.5" 
                             TickPlacement="TopLeft" 

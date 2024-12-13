@@ -10,6 +10,7 @@ using Fabolus.Wpf.Pages.Import;
 using Fabolus.Wpf.Pages.Rotate;
 using Fabolus.Wpf.Pages.Smooth;
 using static Fabolus.Wpf.Bolus.BolusStore;
+using Fabolus.Wpf.Features.Channels;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
@@ -34,7 +35,8 @@ public partial class MainViewModel : ObservableObject {
     private SceneManager _sceneModel;
 
     #region Stores
-    private BolusStore BolusStore { get; set; }
+    private BolusStore BolusStore { get; set; } = new();
+    private AirChannelsStore AirChannelsStore { get; set; } = new();
     #endregion
 
     private void NavigateTo(BaseViewModel viewModel) {
@@ -55,7 +57,6 @@ public partial class MainViewModel : ObservableObject {
 
     public MainViewModel()
     {
-        BolusStore = new();
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
 
         NavigateTo(new ImportViewModel());
