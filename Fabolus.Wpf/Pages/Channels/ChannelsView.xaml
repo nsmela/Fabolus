@@ -21,6 +21,9 @@
                       Width="164">
             </ComboBox>
         </StackPanel>
+
+        <ContentControl Content="{Binding CurrentChannelViewModel}" />
+
         <StackPanel HorizontalAlignment="Stretch" 
                     VerticalAlignment="Top" 
                     Margin="4,8,4,0"
@@ -42,7 +45,7 @@
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
                         Margin="2"
-                Command="{Binding ClearAirChannelsCommand}" />
+                Command="{Binding ClearChannelsCommand}" />
             </StackPanel>
         </StackPanel>
     </StackPanel>
