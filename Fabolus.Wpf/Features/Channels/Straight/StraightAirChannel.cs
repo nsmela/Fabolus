@@ -1,4 +1,5 @@
 ﻿using Fabolus.Core.AirChannel;
+using HelixToolkit.Wpf.SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,8 +12,14 @@ public sealed record StraightAirChannel : AirChannel {
     public float TipLength { get; set; } = 4.0f;
     public float BottomDiameter { get; set; } = 4.0f;
     public float BottomRadius => BottomDiameter / 2;
+    public override AirChannel WithHit(HitTestResult hit) {
+        var result = this with { Anchor = hit.PointHit };
+        result.Build();
+        return result;
+    }
 
     public void Build() {
         //call to channel generator
     }
+
 }

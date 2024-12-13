@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core;
 using Fabolus.Core.AirChannel;
+using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using System;
 using System.Collections.Generic;
@@ -18,6 +19,7 @@ public abstract record AirChannel {
     public float Height { get; set; }
     public float Diameter { get; set; } = 5.0f;
     public float Depth { get; set; } = 1.0f;
+    public abstract AirChannel WithHit(HitTestResult hit);
     public MeshGeometry3D Geometry { get; protected set; }
 
 }

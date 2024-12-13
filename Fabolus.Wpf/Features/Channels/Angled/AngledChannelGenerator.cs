@@ -18,7 +18,7 @@ namespace Fabolus.Wpf.Features.Channels.Angled;
 public sealed record AngledChannelGenerator : ChannelGenerator {
 
     private double BottomDiameter { get; set; } = 1.0;
-    private double BottomRadius => BottomDiameter / 2;
+    private double BottomRadius => BottomDiameter / 2.0;
     private double TipLength { get; set; } = 10.0;
 
     private AngledChannelGenerator() { }
@@ -42,7 +42,8 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
             Origin.ToVector3d(),
             Normal.ToVector3d(),
             TipLength,
-            Radius)
+            Radius,
+            MaxHeight)
             .ToVector3()
             .ToList();
 

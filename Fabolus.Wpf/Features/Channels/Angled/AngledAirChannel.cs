@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SharpDX;
+using HelixToolkit.Wpf.SharpDX;
 
 namespace Fabolus.Wpf.Features.Channels.Angled;
 public record AngledAirChannel : AirChannel {
@@ -25,10 +26,16 @@ public record AngledAirChannel : AirChannel {
         Build();
     }
 
+    public override AirChannel WithHit(HitTestResult hit) {
+        var result = this with { Anchor = hit.PointHit, Normal = hit.NormalAtHit };
+        result.Build();
+        return result;
+    }
+
     public void Build() {
         Geometry = AngledChannelGenerator.New()
-            .WithDepth(1.0f)
-            .WithDiameters(1.0, Diameter)
+            .WithDepth(Depth)
+            .WithDiameters(BottomDiameter, Diameter)
             .WithDirection(Normal)
             .WithOrigin(Anchor)
             .WithHeight(Height)

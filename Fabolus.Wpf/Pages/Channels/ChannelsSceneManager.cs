@@ -16,13 +16,23 @@ namespace Fabolus.Wpf.Pages.Channels;
 public class ChannelsSceneManager : SceneManager {
 
     private Dictionary<Guid, AirChannel> _channels = [];
+    private AirChannel _preview;
+    private MeshGeometry3D? _previewMesh;
     private Material _channelSkin = DiffuseMaterials.Emerald;
     private Material _selectedSkin = DiffuseMaterials.LightGreen;
 
     private Guid? _selectedAirChannel;
     private Guid? _bolusId;
+    private float _maxHeight;
 
     public ChannelsSceneManager() : base() {
+        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
+        var preview = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
+        SettingsUpdated(preview);
+    }
+
+    private async Task SettingsUpdated(AirChannel settings) {
+        _preview = settings;
     }
 
     protected override void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
@@ -31,61 +41,35 @@ public class ChannelsSceneManager : SceneManager {
     RightMouseButton: ViewportCommands.Rotate));
 
     protected override void OnMouseDown(object? sender, Mouse3DEventArgs args) {
-        if (_bolusId is null) { throw new NullReferenceException("Bolus id is null!"); }
-
-        var meshHit = (MeshGeometryModel3D)args.HitTestResult.ModelHit;
-        var meshId = meshHit.Geometry.GUID;
-        var hitNormal = args.HitTestResult.NormalAtHit;
-
-        //hit the mesh
-        if (meshId == _bolusId) {
-            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-            var point = args.HitTestResult.PointHit;
-            var channel = new AngledAirChannel(
-                depth: 2.0f,
-                diameter: 5.0f,
-                height: bolus.Response.Geometry.Bound.Height,
-                origin: point,
-                normal: hitNormal);
-
-            _channels.Clear();
-            _channels.Add(channel.GUID, channel);
-            _selectedAirChannel = channel.GUID;
-            UpdateDisplay(bolus);
-            return;
-        }
-
-        //hit an air channel
-        if (_channels.ContainsKey(meshId)) {
-            _selectedAirChannel = meshId;
-            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-            UpdateDisplay(bolus);
-            return;
-        }
 
     }
 
     protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
+        _previewMesh = null;
         if (hits is null || hits.Count() == 0) { return; }
 
-        var meshHit = hits[0];
-        var meshId = meshHit.Geometry.GUID;
-        if (meshId == _bolusId) {
-            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-            var point = meshHit.PointHit;
-            var channel = new AngledAirChannel(
-                depth: 2.0f,
-                diameter: 5.0f,
-                height: bolus.Response.Geometry.Bound.Height,
-                origin: point,
-                normal: meshHit.NormalAtHit);
+        //check if clicked on an air channel
+        var id = hits[0].Geometry.GUID;
+        var channelHit = _channels.ContainsKey(id) 
+            ? _channels[id]
+            : null;
 
-            _channels.Clear();
-            _channels.Add(channel.GUID, channel);
-            _selectedAirChannel = channel.GUID;
+        if (channelHit is not null) {
+
+            return;
+        }
+
+        //check if clicked on the bolus
+        var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == _bolusId);
+        if (bolusHit is not null) {
+            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+            var channel = (_preview with { Height = _maxHeight }).WithHit(bolusHit);
+
+            _previewMesh = channel.Geometry;
             UpdateDisplay(bolus);
             return;
         }
+
     }
 
     protected override void OnMouseUp(object? sender, Mouse3DEventArgs args) {
@@ -133,6 +117,7 @@ public class ChannelsSceneManager : SceneManager {
         var models = new List<DisplayModel3D>();
 
         _bolusId = bolus.Geometry.GUID;
+        _maxHeight = bolus.Geometry.Bound.Height + 10.0f;
 
         models.Add( new DisplayModel3D {
             Geometry = bolus.Geometry,
@@ -147,6 +132,14 @@ public class ChannelsSceneManager : SceneManager {
                 Skin = channel.GUID == _selectedAirChannel
                  ? _selectedSkin
                  : _channelSkin
+            });
+        }
+
+        if (_previewMesh is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _previewMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Ruby
             });
         }
 
