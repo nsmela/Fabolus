@@ -20,6 +20,14 @@ public sealed record StraightAirChannel : AirChannel {
 
     public void Build() {
         //call to channel generator
+        Geometry = StraightChannelGenerator
+            .New()
+            .WithDepth(Depth)
+            .WithDiameters(BottomDiameter, Diameter)
+            .WithHeight(Height)
+            .WithOrigin(Anchor)
+            .WithTipLength(TipLength)
+            .Build();
     }
 
 }

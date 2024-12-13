@@ -38,14 +38,14 @@ public class SceneManager : IDisposable   {
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([display]));
     }
 
-    protected void SetMessaging() {
+    protected virtual void SetMessaging() {
         //bolus
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(m.Bolus));
 
         //mouse actions
-        WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.sender, m.args));
-        WeakReferenceMessenger.Default.Register<MouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
-        WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.sender, m.args));
+        WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.Hits, m.OriginalEventArgs));
+        WeakReferenceMessenger.Default.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
+        WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.Hits, m.OriginalEventArgs));
     }
 
     protected virtual void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
@@ -53,13 +53,13 @@ public class SceneManager : IDisposable   {
         MiddleMouseButton: ViewportCommands.Zoom,
         RightMouseButton: ViewportCommands.Rotate));
 
-    protected virtual void OnMouseDown(object? sender, Mouse3DEventArgs args) {
+    protected virtual void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
     }
 
     protected virtual void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
     }
 
-    protected virtual void OnMouseUp(object? sender, Mouse3DEventArgs args) {
+    protected virtual void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
     }
 
     public void Dispose() {

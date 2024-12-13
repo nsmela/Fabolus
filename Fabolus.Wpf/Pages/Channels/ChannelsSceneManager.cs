@@ -9,12 +9,11 @@ using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Input;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
 
-using Fabolus.Wpf.Features.Channels.Angled;
-
 namespace Fabolus.Wpf.Pages.Channels;
 
 public class ChannelsSceneManager : SceneManager {
 
+    private BolusModel _bolus;
     private Dictionary<Guid, AirChannel> _channels = [];
     private AirChannel _preview;
     private MeshGeometry3D? _previewMesh;
@@ -22,13 +21,45 @@ public class ChannelsSceneManager : SceneManager {
     private Material _selectedSkin = DiffuseMaterials.LightGreen;
 
     private Guid? _selectedAirChannel;
-    private Guid? _bolusId;
-    private float _maxHeight;
+    private Guid? BolusId => _bolus?.Geometry?.GUID;
+    private float MaxHeight => _bolus?.Geometry?.Bound.Height ?? 50.0f;
 
-    public ChannelsSceneManager() : base() {
+    public ChannelsSceneManager() {
+        SetMessaging();
+    }
+
+    protected override void SetMessaging() {
+        WeakReferenceMessenger.Default.UnregisterAll(this);
+
+        //bolus
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, async (r, m) => await BolusUpdated(m.Bolus));
+
+        //mouse actions
+        WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.Hits, m.OriginalEventArgs));
+        WeakReferenceMessenger.Default.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
+        WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.Hits, m.OriginalEventArgs));
+
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
+        WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
+        
         var preview = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
-        SettingsUpdated(preview);
+        _preview = preview;
+
+        var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
+        _channels = channels.ToDictionary(x => x.GUID);
+
+        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+        BolusUpdated(bolus);
+    }
+
+    private async Task BolusUpdated(BolusModel? bolus) {
+        _bolus = bolus;
+        UpdateDisplay(null);
+    }
+
+    private async Task ChannelsUpdated(AirChannel[] channels) {
+        _channels = channels.ToDictionary(x => x.GUID);
+        UpdateDisplay(null);
     }
 
     private async Task SettingsUpdated(AirChannel settings) {
@@ -36,12 +67,35 @@ public class ChannelsSceneManager : SceneManager {
     }
 
     protected override void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
-    LeftMouseButton: ViewportCommands.Pan,
-    MiddleMouseButton: ViewportCommands.Zoom,
-    RightMouseButton: ViewportCommands.Rotate));
+        LeftMouseButton: ViewportCommands.Pan,
+        MiddleMouseButton: ViewportCommands.Zoom,
+        RightMouseButton: ViewportCommands.Rotate));
 
-    protected override void OnMouseDown(object? sender, Mouse3DEventArgs args) {
+    protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
+        _previewMesh = null;
+        if (hits is null || hits.Count() == 0) { return; }
 
+        //check if clicked on an air channel
+        var id = hits[0].Geometry.GUID;
+        var channelHit = _channels.ContainsKey(id)
+            ? _channels[id]
+            : null;
+
+        if (channelHit is not null) {
+            _selectedAirChannel = id;
+            return;
+        }
+
+        //check if clicked on the bolus
+        var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
+        if (bolusHit is not null) {
+            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+            var channel = (_preview with { Height = MaxHeight }).WithHit(bolusHit);
+
+            WeakReferenceMessenger.Default.Send(new AddAirChannelMessage(channel));
+            UpdateDisplay(bolus);
+            return;
+        }
     }
 
     protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
@@ -50,77 +104,37 @@ public class ChannelsSceneManager : SceneManager {
 
         //check if clicked on an air channel
         var id = hits[0].Geometry.GUID;
-        var channelHit = _channels.ContainsKey(id) 
+        var channelHit = _channels.ContainsKey(id)
             ? _channels[id]
             : null;
 
         if (channelHit is not null) {
-
+            
             return;
         }
 
         //check if clicked on the bolus
-        var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == _bolusId);
+        var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
         if (bolusHit is not null) {
-            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-            var channel = (_preview with { Height = _maxHeight }).WithHit(bolusHit);
+            var channel = (_preview with { Height = MaxHeight }).WithHit(bolusHit);
 
             _previewMesh = channel.Geometry;
-            UpdateDisplay(bolus);
+            UpdateDisplay(null);
             return;
         }
 
-    }
-
-    protected override void OnMouseUp(object? sender, Mouse3DEventArgs args) {
-        if (_bolusId is null) { throw new NullReferenceException("Bolus id is null!"); }
-
-        var e = (MouseEventArgs)args.OriginalInputEventArgs;
-        if (e.LeftButton == MouseButtonState.Pressed) { return; }
-
-        var meshHit = (MeshGeometryModel3D)args.HitTestResult.ModelHit;
-        var meshId = meshHit.Geometry.GUID;
-        var hitNormal = args.HitTestResult.NormalAtHit;
-
-        //hit the mesh
-        if (meshId == _bolusId) {
-            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-            var point = args.HitTestResult.PointHit;
-            var channel = new AngledAirChannel(
-                depth: 2.0f,
-                diameter: 5.0f,
-                height: bolus.Response.Geometry.Bound.Height,
-                origin: point,
-                normal: hitNormal);
-
-            _channels.Add(channel.GUID, channel);
-            _selectedAirChannel = channel.GUID;
-            UpdateDisplay(bolus);
-            return;
-        }
-
-        //hit an air channel
-        if (_channels.ContainsKey(meshId)) {
-            _selectedAirChannel = meshId;
-            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-            UpdateDisplay(bolus);
-            return;
-        }
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {
-        if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions is null || bolus.Geometry.Positions.Count == 0) {
+        if (_bolus is null || _bolus.Geometry is null || _bolus.Geometry.Positions is null || _bolus.Geometry.Positions.Count == 0) {
             WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;
         }
 
         var models = new List<DisplayModel3D>();
 
-        _bolusId = bolus.Geometry.GUID;
-        _maxHeight = bolus.Geometry.Bound.Height + 10.0f;
-
         models.Add( new DisplayModel3D {
-            Geometry = bolus.Geometry,
+            Geometry = _bolus.Geometry,
             Transform = MeshHelper.TransformEmpty,
             Skin = _skin
         });
