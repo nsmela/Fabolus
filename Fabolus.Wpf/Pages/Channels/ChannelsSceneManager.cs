@@ -66,7 +66,26 @@ public class ChannelsSceneManager : SceneManager {
     }
 
     protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
-        base.OnMouseMove(hits, args);
+        if (hits is null || hits.Count() == 0) { return; }
+
+        var meshHit = hits[0];
+        var meshId = meshHit.Geometry.GUID;
+        if (meshId == _bolusId) {
+            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+            var point = meshHit.PointHit;
+            var channel = new AngledAirChannel(
+                depth: 2.0f,
+                diameter: 5.0f,
+                height: bolus.Response.Geometry.Bound.Height,
+                origin: point,
+                normal: meshHit.NormalAtHit);
+
+            _channels.Clear();
+            _channels.Add(channel.GUID, channel);
+            _selectedAirChannel = channel.GUID;
+            UpdateDisplay(bolus);
+            return;
+        }
     }
 
     protected override void OnMouseUp(object? sender, Mouse3DEventArgs args) {
