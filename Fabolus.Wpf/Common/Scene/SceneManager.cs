@@ -6,6 +6,8 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 using HelixToolkit.Wpf.SharpDX;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
 using System.Windows;
+using Fabolus.Wpf.Common.Mouse;
+using System.Windows.Input;
 
 namespace Fabolus.Wpf.Common.Scene;
 
@@ -42,7 +44,7 @@ public class SceneManager : IDisposable   {
 
         //mouse actions
         WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.sender, m.args));
-        WeakReferenceMessenger.Default.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.sender, m.args));
+        WeakReferenceMessenger.Default.Register<MouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
         WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.sender, m.args));
     }
 
@@ -54,7 +56,7 @@ public class SceneManager : IDisposable   {
     protected virtual void OnMouseDown(object? sender, Mouse3DEventArgs args) {
     }
 
-    protected virtual void OnMouseMove(object? sender, MouseMove3DEventArgs args) {
+    protected virtual void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
     }
 
     protected virtual void OnMouseUp(object? sender, Mouse3DEventArgs args) {

@@ -18,6 +18,7 @@
             TextBrush="Black"
             FXAALevel="High"
             ModelUpDirection="0, 0, 1"
+            MouseMove="view1_MouseMove"
             UseDefaultGestures="False">
             <hx:Viewport3DX.InputBindings>
                 <KeyBinding Key="B" Command="hx:ViewportCommands.BackView" />

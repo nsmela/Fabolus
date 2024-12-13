@@ -65,8 +65,8 @@ public class ChannelsSceneManager : SceneManager {
 
     }
 
-    protected override void OnMouseMove(object? sender, MouseMove3DEventArgs args) {
-
+    protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
+        base.OnMouseMove(hits, args);
     }
 
     protected override void OnMouseUp(object? sender, Mouse3DEventArgs args) {

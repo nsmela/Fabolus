@@ -91,9 +91,5 @@ public partial class MeshViewModel : ObservableObject {
         return grid.ToLineGeometry3D();
     }
 
-    [RelayCommand]
-    private void OnMouseMove() {
-        var text = string.Empty; //test
-    }
 }
 
