@@ -1,4 +1,5 @@
 ﻿using Fabolus.Core;
+using Fabolus.Wpf.Common.Extensions;
 using g3;
 using SharpDX;
 using System;

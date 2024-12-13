@@ -9,3 +9,6 @@ Ref: https://math.stackexchange.com/questions/886982/formula-to-display-a-3d-90-
 - starts as far back as (0, -1) on circle
 - create a formula/function
 - direction/normal is multiplied by the x coordinate to give direction and distance
+
+## Design
+Core is used to define curves, the interface generates the mesh. Once I'm more familiar with DMesh and the mesh generation, we can move the mesh generation to the Core library.

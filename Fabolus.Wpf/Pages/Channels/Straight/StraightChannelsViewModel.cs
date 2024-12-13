@@ -2,13 +2,9 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Channels.Straight;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Pages.Channels.Straight;
+
 public partial class StraightChannelsViewModel : BaseChannelsViewModel {
 
     [ObservableProperty] private float _channelDepth;
@@ -23,13 +19,10 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
 
     private bool _isBusy = false;
 
-    public StraightChannelsViewModel() : base(){
-        
-    }
-
+    public StraightChannelsViewModel() : base(){ }
     protected override async Task SettingsUpdated(AirChannel? preview) {
         var channel = preview as StraightAirChannel;
-        if (channel is null) { throw new ArgumentNullException(nameof(preview)); }
+        if (channel is null) { return; }
         if (_isBusy) { return; }
 
         _isBusy = true;

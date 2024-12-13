@@ -1,6 +1,5 @@
 ﻿using Fabolus.Core;
 using Fabolus.Core.AirChannel;
-using Fabolus.Core.AirChannel.Builders;
 using Fabolus.Wpf.Common.Extensions;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;

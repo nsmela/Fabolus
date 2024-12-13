@@ -35,29 +35,4 @@ public static class Extensions {
         return DMesh3Builder.Build(vertices, triangles, normals);
     }
 
-    public static MeshGeometry3D ToGeometry(this DMesh3 mesh) {
-        if (mesh is null || mesh.VertexCount == 0) { return new MeshGeometry3D(); }
-
-        //compacting the DMesh to the indices are true
-        MeshGeometry3D geometry = new();
-
-        //calculate positions and normals
-        geometry.Positions = new();
-        foreach (var vert in mesh.Vertices()) {
-            geometry.Positions.Add(new Vector3((float)vert.x, (float)vert.y, (float)vert.z));
-        }
-
-        //calculate faces
-        geometry.TriangleIndices = new();
-        foreach (var i in mesh.Triangles()) {
-            geometry.TriangleIndices.Add(i.a);
-            geometry.TriangleIndices.Add(i.b);
-            geometry.TriangleIndices.Add(i.c);
-        }
-
-        geometry.Normals = MeshHelper.CalculateNormals(geometry);
-
-        return geometry;
-
-    }
 }

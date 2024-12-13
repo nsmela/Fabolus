@@ -1,0 +1,67 @@
+﻿<UserControl x:Class="Fabolus.Wpf.Pages.Channels.Angled.AngledChannelsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Channels.Angled"
+             mc:Ignorable="d" 
+             d:DesignWidth="200">
+    <StackPanel>
+        <Label Content="penetration depth" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding ChannelDepth, Mode=TwoWay}"
+                            Minimum=".25" Maximum="4.0" 
+                            TickFrequency="0.25" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="2"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+        <Label Content="cone diameter" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding ConeDiameter, Mode=TwoWay}"
+                            Minimum="0.5" Maximum="8.0" 
+                            TickFrequency="0.5" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="2"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+        <Label Content="cone length" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding ConeLength, Mode=TwoWay}"
+                            Minimum="2" Maximum="16.0" 
+                            TickFrequency="1.0" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="1"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+        <Label Content="channel diameter" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding ChannelDiameter, Mode=TwoWay}"
+                            Minimum="2" Maximum="10" 
+                            TickFrequency="0.5" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="1"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+    </StackPanel>
+</UserControl>

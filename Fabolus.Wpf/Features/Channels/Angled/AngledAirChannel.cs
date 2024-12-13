@@ -1,5 +1,4 @@
-﻿using Fabolus.Core.AirChannel.Builders;
-using Fabolus.Core.AirChannel;
+﻿using Fabolus.Core.AirChannel;
 using Fabolus.Core;
 using System;
 using System.Collections.Generic;
@@ -10,11 +9,12 @@ using SharpDX;
 
 namespace Fabolus.Wpf.Features.Channels.Angled;
 public record AngledAirChannel : AirChannel {
-    public AngledAirChannel() { }
     public override ChannelTypes ChannelType => ChannelTypes.AngledHead;
     public Vector3 Normal { get; set; } = Vector3.UnitZ;
     public float TipLength { get; set; } = 10.0f;
+    public float BottomDiameter { get; set; } = 3.0f;
 
+    public AngledAirChannel() { }
     public AngledAirChannel(Vector3 origin, Vector3 normal, float height, float diameter, float depth) {
         Anchor = origin;
         Height = height;

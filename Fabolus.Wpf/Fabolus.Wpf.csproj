@@ -11,7 +11,6 @@
   <ItemGroup>
     <Folder Include="Features\Channels\Contoured\" />
     <Folder Include="Features\Channels\Path\" />
-    <Folder Include="Pages\Channels\Angled\" />
     <Folder Include="Pages\Channels\Contoured\" />
     <Folder Include="Pages\Channels\Path\" />
     <Folder Include="Pages\Mold\" />

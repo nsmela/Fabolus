@@ -1,6 +1,5 @@
 ﻿using Fabolus.Core;
 using Fabolus.Core.AirChannel;
-using Fabolus.Core.AirChannel.Builders;
 using SharpDX;
 using System;
 using System.Collections.Generic;
@@ -14,7 +13,6 @@ namespace Fabolus.Wpf.Features.Channels;
 public abstract record AirChannel {
     public AirChannel() { }
     public abstract ChannelTypes ChannelType { get; } 
-
     public Guid GUID => Geometry.GUID;
     public Vector3 Anchor { get; set; }
     public float Height { get; set; }

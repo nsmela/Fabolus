@@ -12,6 +12,7 @@
              xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
              xmlns:channels="clr-namespace:Fabolus.Wpf.Pages.Channels"
              xmlns:straight="clr-namespace:Fabolus.Wpf.Pages.Channels.Straight"
+             xmlns:angled="clr-namespace:Fabolus.Wpf.Pages.Channels.Angled"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -65,7 +66,11 @@
             <DataTemplate DataType="{x:Type straight:StraightChannelsViewModel}">
                 <straight:StraightChannelsView />
             </DataTemplate>
-            
+
+            <DataTemplate DataType="{x:Type angled:AngledChannelsViewModel}">
+                <angled:AngledChannelsView />
+            </DataTemplate>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>
