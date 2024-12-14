@@ -18,7 +18,7 @@ public class ChannelsSceneManager : SceneManager {
     private AirChannel _preview;
     private MeshGeometry3D? _previewMesh;
     private Material _channelSkin = DiffuseMaterials.Emerald;
-    private Material _selectedSkin = DiffuseMaterials.LightGreen;
+    private Material _selectedSkin = DiffuseMaterials.Turquoise;
 
     private Guid? _selectedAirChannel;
     private Guid? BolusId => _bolus?.Geometry?.GUID;
@@ -41,7 +41,7 @@ public class ChannelsSceneManager : SceneManager {
 
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
-        
+
         var preview = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
         _preview = preview;
 
@@ -66,14 +66,15 @@ public class ChannelsSceneManager : SceneManager {
         _preview = settings;
     }
 
-    protected override void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
-        LeftMouseButton: ViewportCommands.Pan,
-        MiddleMouseButton: ViewportCommands.Zoom,
-        RightMouseButton: ViewportCommands.Rotate));
-
     protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
         _previewMesh = null;
         if (hits is null || hits.Count() == 0) { return; }
+
+        var mouse = args as MouseButtonEventArgs;
+        if (mouse.RightButton == MouseButtonState.Pressed
+            || mouse.MiddleButton == MouseButtonState.Pressed) {
+            return;
+        }
 
         //check if clicked on an air channel
         var id = hits[0].Geometry.GUID;
@@ -83,6 +84,7 @@ public class ChannelsSceneManager : SceneManager {
 
         if (channelHit is not null) {
             _selectedAirChannel = id;
+            UpdateDisplay(null);
             return;
         }
 
@@ -91,6 +93,7 @@ public class ChannelsSceneManager : SceneManager {
         if (bolusHit is not null) {
             var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
             var channel = (_preview with { Height = MaxHeight }).WithHit(bolusHit);
+            _selectedAirChannel = channel.Geometry.GUID;
 
             WeakReferenceMessenger.Default.Send(new AddAirChannelMessage(channel));
             UpdateDisplay(bolus);
@@ -100,7 +103,18 @@ public class ChannelsSceneManager : SceneManager {
 
     protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
         _previewMesh = null;
-        if (hits is null || hits.Count() == 0) { return; }
+        if (hits is null || hits.Count() == 0) {
+            UpdateDisplay(null);
+            return; 
+        }
+
+        var mouse = args as MouseEventArgs;
+        if (mouse.RightButton == MouseButtonState.Pressed
+            || mouse.MiddleButton == MouseButtonState.Pressed
+            || mouse.LeftButton == MouseButtonState.Pressed) {
+            UpdateDisplay(null);
+            return;
+        }
 
         //check if clicked on an air channel
         var id = hits[0].Geometry.GUID;
@@ -109,7 +123,7 @@ public class ChannelsSceneManager : SceneManager {
             : null;
 
         if (channelHit is not null) {
-            
+            UpdateDisplay(null);
             return;
         }
 
