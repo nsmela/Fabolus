@@ -20,6 +20,10 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
     private bool _isBusy = false;
 
     public StraightChannelsViewModel() : base(){ }
+    public StraightChannelsViewModel(StraightAirChannel settings) : base() {
+        SettingsUpdated(settings);
+    }
+
     protected override async Task SettingsUpdated(AirChannel? preview) {
         var channel = preview as StraightAirChannel;
         if (channel is null) { return; }

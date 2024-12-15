@@ -13,6 +13,7 @@ public class AirChannelsStore {
     private ChannelTypes _selectedType;
     private Dictionary<ChannelTypes, AirChannel> _settings = []; //saved channel settings
     private List<AirChannel> _channels = [];
+    private Guid? _selectedChannel;
     private AirChannel Preview => _settings[_selectedType];
 
     public AirChannelsStore() {
@@ -29,6 +30,7 @@ public class AirChannelsStore {
         WeakReferenceMessenger.Default.Register<RemoveAirChannelMessage>(this, async (r, m) => await RemoveChannel(m.Channel));
         WeakReferenceMessenger.Default.Register<SetChannelTypeMessage>(this, async (r, m) => await SetType(m.Type));
         WeakReferenceMessenger.Default.Register<SetChannelSettingsMessage>(this, async (r, m) => await SetPreview(m.Settings));
+        WeakReferenceMessenger.Default.Register<SetSelectedChannelMessage>(this, async (r,m) => await SetSelectedChannel(m.ChannelId));
 
         WeakReferenceMessenger.Default.Register<AirChannelsRequestMessage>(this, (r, m) => m.Reply(_channels.ToArray()));
         WeakReferenceMessenger.Default.Register<ChannelsSettingsRequestMessage>(this, (r, m) => m.Reply(Preview));
@@ -62,6 +64,10 @@ public class AirChannelsStore {
     private async Task SetType(ChannelTypes type) {
         _selectedType = type;
         await OnSettingsChanged();
+    }
+
+    private async Task SetSelectedChannel(Guid channelId) {
+        _selectedChannel = channelId;
     }
 
     private async Task OnChannelsUpdated() {

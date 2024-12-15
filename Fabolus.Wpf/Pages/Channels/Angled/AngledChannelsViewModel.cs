@@ -1,10 +1,10 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.Channels;
-
 using Fabolus.Wpf.Features.Channels.Angled;
 
 namespace Fabolus.Wpf.Pages.Channels.Angled;
+
 public partial class AngledChannelsViewModel : BaseChannelsViewModel {
     [ObservableProperty] private float _channelConeDiameter;
     [ObservableProperty] private float _channelConeLength;
@@ -19,6 +19,10 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
     private bool _isBusy = false;
 
     public AngledChannelsViewModel() : base() { }
+
+    public AngledChannelsViewModel(AngledAirChannel settings) : base() {
+        SettingsUpdated(settings);
+    }
 
     private async Task SetSettings() {
         if (_isBusy) { return; }

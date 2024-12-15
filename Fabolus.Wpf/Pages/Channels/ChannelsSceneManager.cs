@@ -83,9 +83,7 @@ public class ChannelsSceneManager : SceneManager {
             : null;
 
         if (channelHit is not null) {
-            _selectedAirChannel = id;
-            UpdateDisplay(null);
-            return;
+            UpdateSelectedChannel(id);
         }
 
         //check if clicked on the bolus
@@ -172,5 +170,11 @@ public class ChannelsSceneManager : SceneManager {
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+    }
+
+    private async Task UpdateSelectedChannel(Guid id) {
+        _selectedAirChannel = id;
+        UpdateDisplay(null);
+        return;
     }
 }

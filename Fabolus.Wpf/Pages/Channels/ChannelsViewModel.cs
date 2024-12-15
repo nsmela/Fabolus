@@ -41,6 +41,7 @@ public partial class ChannelsViewModel : BaseViewModel {
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await PreviewUpdated(m.Settings));
+        //WeakReferenceMessenger.Default.Register<SetSelectedChannelMessage>(this, async (r, m) => await SetSelectedChannel(m.ChannelId));
 
         var preview = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
         PreviewUpdated(preview);
@@ -62,6 +63,10 @@ public partial class ChannelsViewModel : BaseViewModel {
         CurrentChannelViewModel = preview.ChannelType.ToViewModel();
 
         if ((int)preview.ChannelType != ActiveToolIndex) { ActiveToolIndex = (int)preview.ChannelType; }
+    }
+
+    protected async Task SetSelectedChannel(AirChannel settings) {
+
     }
 
     #region Commands
