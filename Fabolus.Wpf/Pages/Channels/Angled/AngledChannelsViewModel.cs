@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.AirChannel;
+using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Channels.Angled;
 
@@ -20,10 +22,6 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
 
     public AngledChannelsViewModel() : base() { }
 
-    public AngledChannelsViewModel(AirChannel? settings) : base() {
-        SettingsUpdated(settings);
-    }
-
     private async Task SetSettings() {
         if (_isBusy) { return; }
         _isBusy = true;
@@ -35,17 +33,18 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
             TipLength = ChannelConeLength
         };
 
-        //need a mesh to generate a GUID
-        //also prevents multiple building
         channel.Build();
-        WeakReferenceMessenger.Default.Send(new SetChannelSettingsMessage(channel));
+        _settings[ChannelTypes.AngledHead] = channel;
+
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
 
         _isBusy = false;
     }
 
-    protected override async Task SettingsUpdated(AirChannel? preview) {
+    protected override async Task SettingsUpdated(AirChannelSettings settings) {
+        _settings = settings;
         if (_isBusy) { return; }
-        var channel = preview as AngledAirChannel;
+        var channel = _settings[ChannelTypes.AngledHead] as AngledAirChannel;
         if (channel is null) { return; }
 
         _isBusy = true;

@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
 using System;
 using System.Collections.Generic;
@@ -9,13 +10,17 @@ using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Pages.Channels;
 public abstract class BaseChannelsViewModel : ObservableObject {
-    protected AirChannel[] _channels = [];
-    protected AirChannel _settings;
+    protected AirChannelsCollection _channels = [];
+    protected AirChannelSettings _settings;
 
     protected BaseChannelsViewModel() {
         SetMessaging();
-        var preview = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
-        SettingsUpdated(preview);
+
+        var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
+        _channels = channels;
+
+        var settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
+        SettingsUpdated(settings);
     }
 
     protected virtual void SetMessaging() {
@@ -24,11 +29,11 @@ public abstract class BaseChannelsViewModel : ObservableObject {
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r,m) => await SettingsUpdated(m.Settings));
     }
 
-    protected virtual async Task ChannelsUpdated(AirChannel[]? channels) {
+    protected virtual async Task ChannelsUpdated(AirChannelsCollection channels) {
         _channels = channels;
     }
 
-    protected virtual async Task SettingsUpdated(AirChannel? preview) {
-        _settings = preview;
+    protected virtual async Task SettingsUpdated(AirChannelSettings settings) {
+        _settings = settings;
     }
 }

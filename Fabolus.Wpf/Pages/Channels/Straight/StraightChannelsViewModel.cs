@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.AirChannel;
+using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Channels.Straight;
 
@@ -20,12 +22,10 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
     private bool _isBusy = false;
 
     public StraightChannelsViewModel() : base(){ }
-    public StraightChannelsViewModel(AirChannel? settings) : base() {
-        SettingsUpdated(settings);
-    }
 
-    protected override async Task SettingsUpdated(AirChannel? preview) {
-        var channel = preview as StraightAirChannel;
+    protected override async Task SettingsUpdated(AirChannelSettings settings) {
+        _settings = settings;
+        var channel = _settings[ChannelTypes.Straight] as StraightAirChannel;
         if (channel is null) { return; }
         if (_isBusy) { return; }
 
@@ -50,10 +50,10 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
             TipLength = ChannelNozzleLength
         };
 
-        //need a mesh to generate a GUID
-        //also prevents multiple building
         channel.Build();
-        WeakReferenceMessenger.Default.Send(new SetChannelSettingsMessage(channel));
+        _settings[ChannelTypes.Straight] = channel;
+
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
 
         _isBusy = false;
     }

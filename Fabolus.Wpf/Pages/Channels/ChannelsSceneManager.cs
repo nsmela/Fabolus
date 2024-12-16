@@ -8,19 +8,20 @@ using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Input;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
+using Fabolus.Wpf.Features;
+using System;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
 public class ChannelsSceneManager : SceneManager {
 
     private BolusModel _bolus;
-    private Dictionary<Guid, AirChannel> _channels = [];
-    private AirChannel _preview;
+    private AirChannelsCollection _channels = [];
+    private AirChannelSettings _settings;
     private MeshGeometry3D? _previewMesh;
     private Material _channelSkin = DiffuseMaterials.Emerald;
     private Material _selectedSkin = DiffuseMaterials.Turquoise;
 
-    private AirChannel? _selectedAirChannel;
     private Guid? BolusId => _bolus?.Geometry?.GUID;
     private float MaxHeight => _bolus?.Geometry?.Bound.Height ?? 50.0f;
 
@@ -50,11 +51,11 @@ public class ChannelsSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
 
-        var preview = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
-        _preview = preview;
+        var settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
+        _settings = settings;
 
         var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
-        _channels = channels.ToDictionary(x => x.GUID);
+        _channels = channels;
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         BolusUpdated(bolus);
@@ -65,13 +66,14 @@ public class ChannelsSceneManager : SceneManager {
         UpdateDisplay(null);
     }
 
-    private async Task ChannelsUpdated(AirChannel[] channels) {
-        _channels = channels.ToDictionary(x => x.GUID);
+    private async Task ChannelsUpdated(AirChannelsCollection channels) {
+        _channels = channels;
         UpdateDisplay(null);
     }
 
-    private async Task SettingsUpdated(AirChannel settings) {
-        _preview = settings;
+    private async Task SettingsUpdated(AirChannelSettings settings) {
+        _settings = settings;
+        UpdateDisplay(null);
     }
 
     protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
@@ -101,16 +103,7 @@ public class ChannelsSceneManager : SceneManager {
 
         //check if clicked on the bolus
         var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
-        if (bolusHit is not null) {
-            var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-            var channel = (_preview with { Height = MaxHeight, GUID = Guid.NewGuid() }).WithHit(bolusHit);
-            _selectedAirChannel = channel;
-
-            WeakReferenceMessenger.Default.Send(new AddAirChannelMessage(channel));
-            UpdateDisplay(bolus);
-            return;
-        }
-
+        AddChannel(bolusHit);
 
     }
 
@@ -140,13 +133,7 @@ public class ChannelsSceneManager : SceneManager {
 
         //check if clicked on the bolus
         var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
-        if (bolusHit is not null) {
-            var channel = (_preview with { Height = MaxHeight }).WithHit(bolusHit);
-
-            _previewMesh = channel.Geometry;
-            UpdateDisplay(null);
-            return;
-        }
+        SetPreviewChannel(bolusHit);
 
     }
 
@@ -168,7 +155,7 @@ public class ChannelsSceneManager : SceneManager {
             models.Add(new DisplayModel3D {
                 Geometry = channel.Geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = channel.GUID == _selectedAirChannel?.GUID
+                Skin = _channels.IsActiveChannel(channel)
                  ? _selectedSkin
                  : _channelSkin
             });
@@ -185,13 +172,32 @@ public class ChannelsSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
 
-    private async Task UpdateSelectedChannel(AirChannel channel) {
-        _selectedAirChannel = channel is null || !_channels.ContainsKey(channel.GUID) 
-            ? null
-            : _channels[channel.GUID];
+    private async Task UpdateSelectedChannel(AirChannel? channel) {
+        _channels.SetActiveChannel(channel?.Geometry.GUID);
 
-        WeakReferenceMessenger.Default.Send(new SetSelectedChannelMessage(_selectedAirChannel));
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
         UpdateDisplay(null);
-        return;
+    }
+
+    private async Task AddChannel(HitTestResult? hit) {
+        if (hit is null) { return; }
+        var channel = _settings.NewChannel() with { Height = MaxHeight };
+        channel = channel.WithHit(hit);
+        _channels.Add(channel);
+
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+    }
+
+    private async Task SetPreviewChannel(HitTestResult? hit) {
+        if (hit is null) {
+            _channels.PreviewChannel = null;
+        } else {
+            var channel = _settings.NewChannel() with { Height = MaxHeight };
+            channel = channel.WithHit(hit);
+            _channels.PreviewChannel = channel;
+            _previewMesh = channel.Geometry;
+        }
+
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
     }
 }
