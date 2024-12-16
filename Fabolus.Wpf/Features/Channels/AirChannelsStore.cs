@@ -1,18 +1,12 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Common.Helpers;
-using Fabolus.Wpf.Features.Channels.Straight;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Features.Channels;
 public class AirChannelsStore {
     private ChannelTypes _selectedType;
     private Dictionary<ChannelTypes, AirChannel> _settings = []; //saved channel settings
-    private List<AirChannel> _channels = [];
+    private Dictionary<Guid, AirChannel> _channels = [];
     private Guid? _selectedChannel;
     private AirChannel Preview => _settings[_selectedType];
 
@@ -24,20 +18,22 @@ public class AirChannelsStore {
 
         _selectedType = ChannelTypes.Straight;
 
+        _channels = [];
+
         //messaging
         WeakReferenceMessenger.Default.Register<AddAirChannelMessage>(this, async (r,m) => await AddChannel(m.Channel));
         WeakReferenceMessenger.Default.Register<ClearAirChannelsMessage>(this, async (r, m) => await ClearChannels());
         WeakReferenceMessenger.Default.Register<RemoveAirChannelMessage>(this, async (r, m) => await RemoveChannel(m.Channel));
         WeakReferenceMessenger.Default.Register<SetChannelTypeMessage>(this, async (r, m) => await SetType(m.Type));
-        WeakReferenceMessenger.Default.Register<SetChannelSettingsMessage>(this, async (r, m) => await SetPreview(m.Settings));
+        WeakReferenceMessenger.Default.Register<SetChannelSettingsMessage>(this, async (r, m) => await UpdateSettings(m.Settings));
         WeakReferenceMessenger.Default.Register<SetSelectedChannelMessage>(this, async (r,m) => await SetSelectedChannel(m.Channel));
 
-        WeakReferenceMessenger.Default.Register<AirChannelsRequestMessage>(this, (r, m) => m.Reply(_channels.ToArray()));
+        WeakReferenceMessenger.Default.Register<AirChannelsRequestMessage>(this, (r, m) => m.Reply(_channels.Values.ToArray()));
         WeakReferenceMessenger.Default.Register<ChannelsSettingsRequestMessage>(this, (r, m) => m.Reply(Preview));
     }
 
     private async Task AddChannel(AirChannel channel) {
-        _channels.Add(channel);
+        _channels.Add(channel.GUID, channel);
         await OnChannelsUpdated();
     }
 
@@ -47,13 +43,25 @@ public class AirChannelsStore {
     }
 
     private async Task RemoveChannel(AirChannel channel) {
-        if (!_channels.Contains(channel)) { throw new ArgumentNullException("air channel was not found"); }
+        if (!_channels.ContainsKey(channel.GUID)) { throw new ArgumentNullException("air channel was not found"); }
     
-        _channels.Remove(channel);
+        _channels.Remove(channel.GUID);
         await OnChannelsUpdated();
     }
 
-    private async Task SetPreview(AirChannel channel) {
+    private async Task UpdateSettings(AirChannel channel) {
+        //see if channel already exists
+        //if channel id matches, it's a selected channel, not just settings update
+        if ( _selectedChannel is not null) {
+            var newChannel = channel with {
+                Anchor = _channels[_selectedChannel.Value].Anchor,
+                GUID = _selectedChannel.Value,
+            };
+            _channels[_selectedChannel.Value] = newChannel;
+            await OnSettingsChanged();
+            await OnChannelsUpdated();
+        }
+
         var type = channel.ChannelType;
         _settings[type] = channel;
 
@@ -71,7 +79,7 @@ public class AirChannelsStore {
     }
 
     private async Task OnChannelsUpdated() {
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels.ToArray()));  
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels.Values.ToArray()));  
     }
 
     private async Task OnSettingsChanged() {

@@ -20,9 +20,17 @@ public class ChannelsSceneManager : SceneManager {
     private Material _channelSkin = DiffuseMaterials.Emerald;
     private Material _selectedSkin = DiffuseMaterials.Turquoise;
 
-    private Guid? _selectedAirChannel;
+    private AirChannel? _selectedAirChannel;
     private Guid? BolusId => _bolus?.Geometry?.GUID;
     private float MaxHeight => _bolus?.Geometry?.Bound.Height ?? 50.0f;
+
+    private AirChannel? GetChannelByGeometryId(Guid id) {
+        if (!_channels.Any(c => c.Value.Geometry.GUID == id)) {
+            return null;
+        }
+
+        return _channels.FirstOrDefault(c => c.Value.Geometry.GUID == id).Value;
+    }
 
     public ChannelsSceneManager() {
         SetMessaging();
@@ -67,36 +75,43 @@ public class ChannelsSceneManager : SceneManager {
     }
 
     protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
-        _previewMesh = null;
-        if (hits is null || hits.Count() == 0) { return; }
-
+        //catch and ignored mouse buttons and exit
         var mouse = args as MouseButtonEventArgs;
         if (mouse.RightButton == MouseButtonState.Pressed
             || mouse.MiddleButton == MouseButtonState.Pressed) {
             return;
         }
 
+        //clear if nothing was hit
+        _previewMesh = null;
+        if (hits is null || hits.Count() == 0) {
+            //if nothing hit, then deselect the channel
+            UpdateSelectedChannel(null);
+            return;
+        }
+
         //check if clicked on an air channel
         var id = hits[0].Geometry.GUID;
-        var channelHit = _channels.ContainsKey(id)
-            ? _channels[id]
-            : null;
+        var channelHit = GetChannelByGeometryId(id);
 
         if (channelHit is not null) {
-            UpdateSelectedChannel(id);
+            UpdateSelectedChannel(channelHit);
+            return;
         }
 
         //check if clicked on the bolus
         var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
         if (bolusHit is not null) {
             var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-            var channel = (_preview with { Height = MaxHeight }).WithHit(bolusHit);
-            _selectedAirChannel = channel.Geometry.GUID;
+            var channel = (_preview with { Height = MaxHeight, GUID = Guid.NewGuid() }).WithHit(bolusHit);
+            _selectedAirChannel = channel;
 
             WeakReferenceMessenger.Default.Send(new AddAirChannelMessage(channel));
             UpdateDisplay(bolus);
             return;
         }
+
+
     }
 
     protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
@@ -114,11 +129,9 @@ public class ChannelsSceneManager : SceneManager {
             return;
         }
 
-        //check if clicked on an air channel
+        //check if over an air channel
         var id = hits[0].Geometry.GUID;
-        var channelHit = _channels.ContainsKey(id)
-            ? _channels[id]
-            : null;
+        var channelHit = GetChannelByGeometryId(id);
 
         if (channelHit is not null) {
             UpdateDisplay(null);
@@ -155,7 +168,7 @@ public class ChannelsSceneManager : SceneManager {
             models.Add(new DisplayModel3D {
                 Geometry = channel.Geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = channel.GUID == _selectedAirChannel
+                Skin = channel.GUID == _selectedAirChannel?.GUID
                  ? _selectedSkin
                  : _channelSkin
             });
@@ -172,8 +185,12 @@ public class ChannelsSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
 
-    private async Task UpdateSelectedChannel(Guid id) {
-        _selectedAirChannel = id;
+    private async Task UpdateSelectedChannel(AirChannel channel) {
+        _selectedAirChannel = channel is null || !_channels.ContainsKey(channel.GUID) 
+            ? null
+            : _channels[channel.GUID];
+
+        WeakReferenceMessenger.Default.Send(new SetSelectedChannelMessage(_selectedAirChannel));
         UpdateDisplay(null);
         return;
     }

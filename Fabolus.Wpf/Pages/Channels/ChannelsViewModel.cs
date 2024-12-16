@@ -6,10 +6,7 @@ using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Helpers;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features.Channels;
-using Fabolus.Wpf.Features.Channels.Angled;
-using Fabolus.Wpf.Features.Channels.Straight;
-using Fabolus.Wpf.Pages.Channels.Angled;
-using Fabolus.Wpf.Pages.Channels.Straight;
+using System.Windows.Controls;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
@@ -41,7 +38,7 @@ public partial class ChannelsViewModel : BaseViewModel {
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await PreviewUpdated(m.Settings));
-        //WeakReferenceMessenger.Default.Register<SetSelectedChannelMessage>(this, async (r, m) => await SetSelectedChannel(m.ChannelId));
+        WeakReferenceMessenger.Default.Register<SetSelectedChannelMessage>(this, async (r, m) => await SetSelectedChannel(m.Channel));
 
         var preview = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
         PreviewUpdated(preview);
@@ -65,7 +62,18 @@ public partial class ChannelsViewModel : BaseViewModel {
         if ((int)preview.ChannelType != ActiveToolIndex) { ActiveToolIndex = (int)preview.ChannelType; }
     }
 
-    protected async Task SetSelectedChannel(AirChannel settings) {
+    protected async Task SetSelectedChannel(AirChannel? settings) {
+        //if null, use the preview channel instead
+        if (settings is null) { return; }
+
+        //preview matches selected channel
+        if (_previewChannel is not null && settings.ChannelType != _previewChannel.ChannelType) {
+            CurrentChannelViewModel = settings.ChannelType.ToViewModel(settings); //create the view model with the settings
+            if ((int)settings.ChannelType != ActiveToolIndex) { ActiveToolIndex = (int)settings.ChannelType; }
+        }
+
+        _previewChannel = settings;
+
 
     }
 

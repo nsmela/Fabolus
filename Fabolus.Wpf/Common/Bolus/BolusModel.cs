@@ -1,8 +1,8 @@
 ﻿using Fabolus.Core;
+using Fabolus.Wpf.Common.Extensions;
+using SharpDX;
 using DMesh3 = g3.DMesh3;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
-using SharpDX;
-using Fabolus.Wpf.Common.Extensions;
 
 namespace Fabolus.Wpf.Common.Bolus;
 

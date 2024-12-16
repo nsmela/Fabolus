@@ -20,7 +20,7 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
 
     public AngledChannelsViewModel() : base() { }
 
-    public AngledChannelsViewModel(AngledAirChannel settings) : base() {
+    public AngledChannelsViewModel(AirChannel? settings) : base() {
         SettingsUpdated(settings);
     }
 
@@ -35,6 +35,9 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
             TipLength = ChannelConeLength
         };
 
+        //need a mesh to generate a GUID
+        //also prevents multiple building
+        channel.Build();
         WeakReferenceMessenger.Default.Send(new SetChannelSettingsMessage(channel));
 
         _isBusy = false;

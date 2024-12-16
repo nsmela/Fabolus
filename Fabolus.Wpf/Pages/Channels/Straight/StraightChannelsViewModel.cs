@@ -20,7 +20,7 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
     private bool _isBusy = false;
 
     public StraightChannelsViewModel() : base(){ }
-    public StraightChannelsViewModel(StraightAirChannel settings) : base() {
+    public StraightChannelsViewModel(AirChannel? settings) : base() {
         SettingsUpdated(settings);
     }
 
@@ -50,6 +50,9 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
             TipLength = ChannelNozzleLength
         };
 
+        //need a mesh to generate a GUID
+        //also prevents multiple building
+        channel.Build();
         WeakReferenceMessenger.Default.Send(new SetChannelSettingsMessage(channel));
 
         _isBusy = false;

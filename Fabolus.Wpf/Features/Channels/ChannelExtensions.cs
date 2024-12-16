@@ -25,4 +25,11 @@ public static class ChannelExtensions {
             ChannelTypes.Straight => new StraightChannelsViewModel(),
             ChannelTypes.AngledHead => new AngledChannelsViewModel(),
             _ => throw new NotImplementedException($"{type.GetDescriptionString()} is not listed as a ChannelType")};
+
+    public static BaseChannelsViewModel ToViewModel(this ChannelTypes type, AirChannel? settings) =>
+    type switch {
+        ChannelTypes.Straight => new StraightChannelsViewModel(settings),
+        ChannelTypes.AngledHead => new AngledChannelsViewModel(settings),
+        _ => throw new NotImplementedException($"{type.GetDescriptionString()} is not listed as a ChannelType")
+    };
 }
