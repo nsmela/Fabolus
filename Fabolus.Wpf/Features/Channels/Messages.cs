@@ -12,7 +12,7 @@ public sealed record SetChannelSettingsMessage(AirChannel Settings);
 public sealed record SetChannelTypeMessage(ChannelTypes Type);
 
 //selected channel
-public sealed record SetSelectedChannelMessage(Guid? ChannelId);
+public sealed record SetSelectedChannelMessage(AirChannel? Channel);
 public sealed record SelectedChannelUpdatedMessage(AirChannel settings);
 
 //requests
