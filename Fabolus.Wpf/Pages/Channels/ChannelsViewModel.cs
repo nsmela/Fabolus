@@ -69,5 +69,13 @@ public partial class ChannelsViewModel : BaseViewModel {
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels.Clear()));
     }
 
+    [RelayCommand]
+    private void DeleteChannel() {
+        if (_channels.GetActiveChannel is null) { return; }
+
+        _channels.RemoveActiveChannel();
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+    }
+
     #endregion
 }

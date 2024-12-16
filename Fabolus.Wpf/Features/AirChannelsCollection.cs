@@ -25,6 +25,13 @@ public class AirChannelsCollection : Dictionary<Guid, AirChannel> {
         ? this[ActiveChannel.Value] == channel
         : false;
 
+
+    public void RemoveActiveChannel() {
+        if (ActiveChannel is null) { return; }
+
+        this.Remove(ActiveChannel.Value);
+    }
+
     public AirChannel? PreviewChannel { get; set; }
 
     public AirChannelsCollection Add(AirChannel channel) {
@@ -34,8 +41,6 @@ public class AirChannelsCollection : Dictionary<Guid, AirChannel> {
     }
 
     public new AirChannelsCollection Clear() {
-        this.Clear();
-        ActiveChannel = null;
-        return this;
+        return new AirChannelsCollection();
     }
 }

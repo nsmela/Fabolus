@@ -185,7 +185,7 @@ public class ChannelsSceneManager : SceneManager {
         channel = channel.WithHit(hit);
         _channels.Add(channel);
 
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+        UpdateSelectedChannel(channel);
     }
 
     private async Task SetPreviewChannel(HitTestResult? hit) {
