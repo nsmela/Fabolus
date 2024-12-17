@@ -32,4 +32,13 @@ public class AirChannelSettings : Dictionary<ChannelTypes, AirChannel> {
     public void SetSelectedType(ChannelTypes value) {
         SelectedType = value;
     }
+
+    public AirChannelSettings Copy() {
+        var settings = new AirChannelSettings();
+        var values = this.Values;
+        foreach (var (key, value) in this.Select(x => x)) {
+            settings.Add(key, value);
+        }
+        return settings;
+    } 
 }

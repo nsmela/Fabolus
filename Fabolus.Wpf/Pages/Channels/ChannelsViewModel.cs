@@ -25,7 +25,7 @@ public partial class ChannelsViewModel : BaseViewModel {
         if (_isBusy) { return; }
         _isBusy = true;
 
-        var settings = _settings;
+        var settings = _settings.Copy();
         settings.SetSelectedType((ChannelTypes)value);
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(settings));
         
@@ -40,10 +40,9 @@ public partial class ChannelsViewModel : BaseViewModel {
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
-        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
+        //WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
 
-        var settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
-        SettingsUpdated(settings);
+        _settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
 
         var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
         ChannelsUpdated(channels);
@@ -51,6 +50,18 @@ public partial class ChannelsViewModel : BaseViewModel {
 
     private async Task ChannelsUpdated(AirChannelsCollection channels) {
         _channels = channels;
+
+        var activeChannel = channels.GetActiveChannel;
+        var currentType = _settings.SelectedType;
+
+        ChannelTypes type = (ChannelTypes)0;
+        if (activeChannel != null) { type = activeChannel.ChannelType; }
+
+        if (type != currentType) {
+            _settings.SetSelectedType(type);
+            WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+            CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
+        }
     }
 
     private async Task SettingsUpdated(AirChannelSettings settings) {
