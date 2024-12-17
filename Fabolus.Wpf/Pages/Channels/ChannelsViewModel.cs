@@ -28,6 +28,9 @@ public partial class ChannelsViewModel : BaseViewModel {
         var settings = _settings.Copy();
         settings.SetSelectedType((ChannelTypes)value);
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(settings));
+        if (settings.SelectedType != _channels.GetActiveChannel?.ChannelType) {
+            CurrentChannelViewModel = settings.SelectedType.ToViewModel(); //create the view model with the settings
+        }
         
         _isBusy = false;
     }
@@ -40,12 +43,16 @@ public partial class ChannelsViewModel : BaseViewModel {
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
-        //WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
 
         _settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
 
         var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
-        ChannelsUpdated(channels);
+        _channels.SetActiveChannel(null);
+        _channels = channels;
+
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        var type = _settings.SelectedType;
+        CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
     }
 
     private async Task ChannelsUpdated(AirChannelsCollection channels) {
@@ -58,19 +65,15 @@ public partial class ChannelsViewModel : BaseViewModel {
         if (activeChannel != null) { type = activeChannel.ChannelType; }
 
         if (type != currentType) {
+            _isBusy = true;
+            ActiveToolIndex = (int)type;
+            _isBusy = false;
+
             _settings.SetSelectedType(type);
             WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
             CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
         }
-    }
-
-    private async Task SettingsUpdated(AirChannelSettings settings) {
-        if (_settings is null || _settings.SelectedType != settings.SelectedType) {
-            CurrentChannelViewModel = settings.SelectedType.ToViewModel(); //create the view model with the settings
-            if ((int)settings.SelectedType != ActiveToolIndex) { ActiveToolIndex = (int)settings.SelectedType; }
-        }
-
-        _settings = settings;
+        
     }
 
     #region Commands

@@ -14,6 +14,7 @@ namespace Fabolus.Wpf.Features.Channels;
 public abstract record AirChannel {
     public AirChannel() { }
 
+    public Guid GUID { get; init; } = Guid.NewGuid();
     public abstract ChannelTypes ChannelType { get; }
     public Vector3 Anchor { get; set; }
     public float Height { get; set; }

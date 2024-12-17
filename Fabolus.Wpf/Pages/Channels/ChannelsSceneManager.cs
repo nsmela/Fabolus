@@ -173,8 +173,12 @@ public class ChannelsSceneManager : SceneManager {
     }
 
     private async Task UpdateSelectedChannel(AirChannel? channel) {
-        _channels.SetActiveChannel(channel?.Geometry.GUID);
+        if (channel is not null) {
+            _settings[channel.ChannelType] = channel;
+            WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        }
 
+        _channels.SetActiveChannel(channel?.GUID);
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
         UpdateDisplay(null);
     }

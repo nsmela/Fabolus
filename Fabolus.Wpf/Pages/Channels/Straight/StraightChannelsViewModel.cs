@@ -43,6 +43,29 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
         if (_isBusy) { return; }
         _isBusy = true;
 
+        await ApplySettingsToChannel();
+        await ApplySettings();
+
+        _isBusy = false;
+    }
+
+    private async Task ApplySettingsToChannel() {
+        //there is an active channel
+        var channel = _channels.GetActiveChannel as StraightAirChannel;
+        if(channel is null) { return; }
+        channel = channel with {
+            Depth = ChannelDepth,
+            Diameter = ChannelDiameter,
+            BottomDiameter = ChannelNozzleDiameter,
+            TipLength = ChannelNozzleLength
+        };
+
+        channel.Build();
+        _channels[channel.GUID] = channel;
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+    }
+
+    private async Task ApplySettings() {
         var channel = new StraightAirChannel {
             Depth = ChannelDepth,
             Diameter = ChannelDiameter,
@@ -54,7 +77,5 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
         _settings[ChannelTypes.Straight] = channel;
 
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
-
-        _isBusy = false;
     }
 }

@@ -18,7 +18,9 @@ public class AirChannelsCollection : Dictionary<Guid, AirChannel> {
             return;
         }
 
-        ActiveChannel = this.FirstOrDefault(x => x.Value.Geometry.GUID == id).Key;
+        if (!this.ContainsKey(id.Value)) { throw new KeyNotFoundException($"Invalid key {id} was used to set active channel"); }
+
+        ActiveChannel = id;
     }
 
     public bool IsActiveChannel(AirChannel channel) => ActiveChannel is not null 
@@ -30,13 +32,16 @@ public class AirChannelsCollection : Dictionary<Guid, AirChannel> {
         if (ActiveChannel is null) { return; }
 
         this.Remove(ActiveChannel.Value);
+        ActiveChannel = null;
     }
 
     public AirChannel? PreviewChannel { get; set; }
 
     public AirChannelsCollection Add(AirChannel channel) {
         var id = Guid.NewGuid();
+        channel = channel with { GUID = id };
         this.Add(id, channel);
+        ActiveChannel = id;
         return this;
     }
 
