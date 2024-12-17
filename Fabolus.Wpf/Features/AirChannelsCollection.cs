@@ -38,10 +38,10 @@ public class AirChannelsCollection : Dictionary<Guid, AirChannel> {
     public AirChannel? PreviewChannel { get; set; }
 
     public AirChannelsCollection Add(AirChannel channel) {
-        var id = Guid.NewGuid();
-        channel = channel with { GUID = id };
-        this.Add(id, channel);
-        ActiveChannel = id;
+        //var id = Guid.NewGuid();
+        //channel = channel with { GUID = id };
+        this.Add(channel.GUID, channel);
+        ActiveChannel = channel.GUID;
         return this;
     }
 

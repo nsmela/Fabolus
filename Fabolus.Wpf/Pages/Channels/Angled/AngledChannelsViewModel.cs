@@ -4,6 +4,7 @@ using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Channels.Angled;
+using Fabolus.Wpf.Features.Channels.Straight;
 
 namespace Fabolus.Wpf.Pages.Channels.Angled;
 
@@ -26,24 +27,15 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
         if (_isBusy) { return; }
         _isBusy = true;
 
-        var channel = new AngledAirChannel {
-            Depth = ChannelDepth,
-            Diameter = ChannelDiameter,
-            BottomDiameter = ChannelConeDiameter,
-            TipLength = ChannelConeLength
-        };
-
-        channel.Build();
-        _settings[ChannelTypes.AngledHead] = channel;
-
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        await ApplySettingsToChannel();
+        await ApplySettings();
 
         _isBusy = false;
     }
 
     protected override async Task SettingsUpdated(AirChannelSettings settings) {
-        _settings = settings;
         if (_isBusy) { return; }
+        _settings = settings;
         var channel = _settings[ChannelTypes.AngledHead] as AngledAirChannel;
         if (channel is null) { return; }
 
@@ -54,6 +46,38 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
         ChannelConeDiameter = channel.BottomDiameter;
         ChannelConeLength = channel.TipLength; 
 
+        _isBusy = false;
+    }
+
+    private async Task ApplySettingsToChannel() {
+        //there is an active channel
+        var channel = _channels.GetActiveChannel as AngledAirChannel;
+        if (channel is null) { return; }
+        channel = channel with {
+            Depth = ChannelDepth,
+            Diameter = ChannelDiameter,
+            BottomDiameter = ChannelConeDiameter,
+            TipLength = ChannelConeLength
+        };
+
+        channel.Build();
+        _channels[channel.GUID] = channel;
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+    }
+
+    private async Task ApplySettings() {
+        var channel = new AngledAirChannel {
+            Depth = ChannelDepth,
+            Diameter = ChannelDiameter,
+            BottomDiameter = ChannelConeDiameter,
+            TipLength = ChannelConeLength
+        };
+
+        channel.Build();
+        _settings[ChannelTypes.AngledHead] = channel;
+
+        _isBusy = true;
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
         _isBusy = false;
     }
 }

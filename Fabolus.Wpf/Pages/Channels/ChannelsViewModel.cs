@@ -49,20 +49,20 @@ public partial class ChannelsViewModel : BaseViewModel {
         var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
         _channels.SetActiveChannel(null);
         _channels = channels;
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings)); //clearing settings because new view
 
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
         var type = _settings.SelectedType;
         CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
     }
 
     private async Task ChannelsUpdated(AirChannelsCollection channels) {
         _channels = channels;
+        if (channels.GetActiveChannel is null) { return; }
 
         var activeChannel = channels.GetActiveChannel;
         var currentType = _settings.SelectedType;
 
-        ChannelTypes type = (ChannelTypes)0;
-        if (activeChannel != null) { type = activeChannel.ChannelType; }
+        var type = activeChannel.ChannelType; 
 
         if (type != currentType) {
             _isBusy = true;
