@@ -16,10 +16,9 @@ public abstract record AirChannel {
 
     public Guid GUID { get; init; } = Guid.NewGuid();
     public abstract ChannelTypes ChannelType { get; }
-    public Vector3 Anchor { get; set; }
     public float Height { get; set; }
     public float Diameter { get; set; } = 5.0f;
-    public float Depth { get; set; } = 1.0f;
+    public float Depth { get; set; } = 0.5f;
     public abstract AirChannel WithHit(HitTestResult hit);
     public MeshGeometry3D Geometry { get; protected set; }
 

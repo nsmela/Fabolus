@@ -1,13 +1,7 @@
-﻿using Fabolus.Core;
-using Fabolus.Core.AirChannel;
+﻿using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Common.Extensions;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Features.Channels.Angled;
 
@@ -38,6 +32,7 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
     public AngledChannelGenerator WithTipLength(float length) => this with { TipLength = length };
 
     public override MeshGeometry3D Build() {
+        //generate list of points for the angled channel
         var curve = AngledChannelCurve.Curve(
             Origin.ToVector3d(),
             Normal.ToVector3d(),

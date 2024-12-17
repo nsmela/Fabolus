@@ -10,4 +10,5 @@ namespace Fabolus.Core.AirChannel;
 public enum ChannelTypes {
     [Description("Straight")] Straight,
     [Description("Angled")] AngledHead,
+    [Description("Path")] Path,
 }

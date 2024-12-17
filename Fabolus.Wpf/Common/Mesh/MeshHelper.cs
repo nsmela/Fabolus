@@ -14,9 +14,6 @@ namespace Fabolus.Wpf.Common.Mesh
 {
     public static class MeshHelper
     {
-        public static Vector3D VectorXAxis => new Vector3D(1,0,0);
-        public static Vector3D VectorYAxis => new Vector3D(0,1,0);
-        public static Vector3D VectorZAxis => new Vector3D(0,0,1);
         public static Vector3D VectorZero => new Vector3D(0,0,0);
         public static Transform3D TransformFromAxis(Vector3D axis, float angle) {
             var rotation = new AxisAngleRotation3D(axis, angle);
