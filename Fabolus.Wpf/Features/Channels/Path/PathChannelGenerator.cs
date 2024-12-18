@@ -7,31 +7,42 @@ using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 namespace Fabolus.Wpf.Features.Channels.Path;
 public sealed record PathChannelGenerator : ChannelGenerator {
     private float Depth { get; set; }
-    private float Height { get; set; }
+    private float LowerHeight { get; set; }
     private Vector3[] Path { get; set; }
-    private float Radius { get; set; }
+    private float Offset { get; set; }
+    private float LowerRadius { get; set; }
+    private float TopHeight { get; set; }
     private float UpperRadius { get; set; }
     private float UpperHeight { get; set; }
-    private float TopHeight { get; set; }
-    private float Offset { get; set; }
 
     private PathChannelGenerator() { }
     public static PathChannelGenerator New() => new PathChannelGenerator();
+    public PathChannelGenerator WithDepth(float depth) => this with { Depth = depth };
+    public PathChannelGenerator WithHeight(float lowerHeight, float upperHeight, float topHeight) => 
+        this with { LowerHeight = lowerHeight, UpperHeight = upperHeight, TopHeight = topHeight };
+    public PathChannelGenerator WithPath(Vector3[] path) => this with { Path = path };
+    public PathChannelGenerator WithOffet(float offset) => this with { Offset = offset };
+    public PathChannelGenerator WithRadius(float lowerRadius, float upperRadius) =>
+        this with { LowerRadius = lowerRadius, UpperRadius = upperRadius };
+
+
     public override MeshGeometry3D Build() {
         if (Path.Length < 2) { throw new Exception("PathChannel requires 2 or more points to generate"); }
         
         var mesh = new MeshBuilder();
 
-        var lowerPoints = GetPathOutline(Path, Radius, -Depth);
+        var lowerPoints = GetPathOutline(Path, LowerRadius, -Depth);
         var midLowerPoints = ExtrudePoints(lowerPoints, Depth + UpperHeight);
-        var upperPoints = GetPathOutline(Path, UpperRadius, UpperHeight + UpperRadius - Radius);
-        var topPoints = upperPoints.Select(v => new Point3D(v.X, v.Y, TopHeight)).ToArray();
+        var upperPoints = GetPathOutline(Path, UpperRadius, UpperHeight + UpperRadius - LowerRadius);
+        var topPoints = upperPoints.Select(v => new Vector3(v.X, v.Y, TopHeight)).ToArray();
 
         CapContour(ref mesh, Path, lowerPoints, true);
         JoinPoints(ref mesh, lowerPoints, midLowerPoints);
         JoinPoints(ref mesh, midLowerPoints, upperPoints);
         JoinPoints(ref mesh, upperPoints, topPoints);
         CapContour(ref mesh, Path, topPoints);
+
+        return mesh.ToMeshGeometry3D();
     }
 
     private static void CapContour(ref MeshBuilder mesh, Vector3[] path, Vector3[] points, bool reverse = false) {
@@ -83,26 +94,24 @@ public sealed record PathChannelGenerator : ChannelGenerator {
 
     }
 
-    private List<Point3D> ExtrudePoints(List<Point3D> points, float height) {
-        if (points is null || points.Count < 2) return null;
+    private Vector3[] ExtrudePoints(Vector3[] points, float height) {
+        var verticalOffset = Vector3.UnitZ * height;
+        var upperPoints = new List<Vector3>();
+        points.ToList().ForEach(p => upperPoints.Add(p + verticalOffset));
 
-        var verticalOffset = new Vector3D(0, 0, height);
-        var upperPoints = new List<Point3D>();
-        points.ForEach(p => upperPoints.Add(p + verticalOffset));
-
-        return upperPoints;
+        return upperPoints.ToArray();
     }
 
-    private void JoinPoints(ref MeshBuilder mesh, List<Point3D> lowerPoints, List<Point3D> upperPoints) {
-        if (lowerPoints is null || lowerPoints.Count < 2) return;
-        if (upperPoints is null || upperPoints.Count < 2) return;
+    private void JoinPoints(ref MeshBuilder mesh, Vector3[] lowerPoints, Vector3[] upperPoints) {
+        if (lowerPoints is null || lowerPoints.Length < 2) { return; }
+        if (upperPoints is null || upperPoints.Length < 2) { return; }
 
-        for (int i = 0; i < lowerPoints.Count; i++) {
-            var next = (i + 1 < lowerPoints.Count) ? i + 1 : 0;
-            var p1 = upperPoints[i].ToVector3();
-            var p2 = lowerPoints[i].ToVector3(); 
-            var p3 = lowerPoints[next].ToVector3();
-            var p4 = upperPoints[next].ToVector3();
+        for (int i = 0; i < lowerPoints.Length; i++) {
+            var next = (i + 1 < lowerPoints.Length) ? i + 1 : 0;
+            var p1 = upperPoints[i];
+            var p2 = lowerPoints[i]; 
+            var p3 = lowerPoints[next];
+            var p4 = upperPoints[next];
             mesh.AddQuad(p1, p2, p3, p4);
         }
     }
@@ -124,7 +133,7 @@ public sealed record PathChannelGenerator : ChannelGenerator {
         return indices;
     }
 
-    private List<Vector3> GetPathOutline(Vector3[] vectors, float radius, float verticalOffset = 0.0f) {
+    private Vector3[] GetPathOutline(Vector3[] vectors, float radius, float verticalOffset = 0.0f) {
         var path = vectors.Select(v => new Point3D(v.X, v.Y, v.Z)).ToList();
         var direction = new Vector3D();
         var horizontalOffset = new Vector3D();
@@ -154,12 +163,12 @@ public sealed record PathChannelGenerator : ChannelGenerator {
         right.ForEach(p => points.Add(p));
         startArcPoints.ForEach(p => points.Add(p));
 
-        if (verticalOffset == 0) { return points.Select(p => p.ToVector3()).ToList(); }
+        if (verticalOffset == 0) { return points.Select(p => p.ToVector3()).ToArray(); }
 
         var vertOffset = new Vector3D(0, 0, verticalOffset);
         var offsetPoints = new List<Point3D>();
         points.ForEach(p => offsetPoints.Add(p + vertOffset));
-        return offsetPoints.Select(p => p.ToVector3()).ToList();
+        return offsetPoints.Select(p => p.ToVector3()).ToArray();
 
     }
 

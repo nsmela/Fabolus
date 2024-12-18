@@ -2,13 +2,9 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Pages.Channels;
+
 public abstract class BaseChannelsViewModel : ObservableObject {
     protected AirChannelsCollection _channels = [];
     protected AirChannelSettings _settings;
