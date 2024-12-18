@@ -1,15 +1,9 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.AirChannel;
-using Fabolus.Wpf.Features.Channels.Straight;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features;
 using SharpDX.Direct2D1;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Fabolus.Wpf.Features.Channels.Path;
 
 namespace Fabolus.Wpf.Pages.Channels.Path;
@@ -39,10 +33,11 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
 
         _isBusy = true;
 
-        ChannelDepth = channel.Depth;
-        ChannelDiameter = channel.Diameter;
-        ChannelNozzleDiameter = channel.BottomDiameter;
-        ChannelNozzleLength = channel.TipLength;
+        Depth = channel.Depth;
+        LowerDiameter = channel.Diameter;
+        UpperDiameter = channel.UpperDiameter;
+        LowerHeight = channel.Height;
+        UpperHeight = channel.UpperHeight;
 
         _isBusy = false;
     }
@@ -59,13 +54,14 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
 
     private async Task ApplySettingsToChannel() {
         //there is an active channel
-        var channel = _channels.GetActiveChannel as StraightAirChannel;
+        var channel = _channels.GetActiveChannel as PathAirChannel;
         if (channel is null) { return; }
         channel = channel with {
-            Depth = ChannelDepth,
-            Diameter = ChannelDiameter,
-            BottomDiameter = ChannelNozzleDiameter,
-            TipLength = ChannelNozzleLength
+            Depth = this.Depth,
+            Height = this.LowerHeight,
+            UpperHeight = this.UpperHeight,
+            Diameter = this.LowerDiameter,
+            UpperDiameter = UpperDiameter,
         };
 
         channel.Build();
@@ -74,15 +70,15 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
     }
 
     private async Task ApplySettings() {
-        var channel = new StraightAirChannel {
-            Depth = ChannelDepth,
-            Diameter = ChannelDiameter,
-            BottomDiameter = ChannelNozzleDiameter,
-            TipLength = ChannelNozzleLength
+        var channel = new PathAirChannel {
+            Depth = this.Depth,
+            Height = this.LowerHeight,
+            UpperHeight = this.UpperHeight,
+            UpperDiameter = UpperDiameter,
         };
 
         channel.Build();
-        _settings[ChannelTypes.Straight] = channel;
+        _settings[ChannelTypes.Path] = channel;
 
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
     }

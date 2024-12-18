@@ -18,7 +18,7 @@ public record PathAirChannel : AirChannel {
 
     //get data from the Hit result and build the mesh
     public override AirChannel WithHit(HitTestResult hit) {
-        PathPoints.Add(hit.PointHit);
+        PathPoints = new() { hit.PointHit };
         var result = this with { PathPoints = this.PathPoints };
         result.Build();
         return result;

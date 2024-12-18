@@ -1,4 +1,5 @@
-﻿using HelixToolkit.Wpf.SharpDX;
+﻿using Fabolus.Wpf.Common.Mesh;
+using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
@@ -25,9 +26,8 @@ public sealed record PathChannelGenerator : ChannelGenerator {
     public PathChannelGenerator WithRadius(float lowerRadius, float upperRadius) =>
         this with { LowerRadius = lowerRadius, UpperRadius = upperRadius };
 
-
     public override MeshGeometry3D Build() {
-        if (Path.Length < 2) { throw new Exception("PathChannel requires 2 or more points to generate"); }
+        if (Path.Length == 0) { throw new Exception("PathChannel requires one or more points to generate"); }
         
         var mesh = new MeshBuilder();
 
@@ -73,10 +73,12 @@ public sealed record PathChannelGenerator : ChannelGenerator {
             endPoints.Reverse();
             startPoints.Reverse();
         }
-
-        mesh.AddPolygon(endPoints);
-        mesh.AddPolygon(startPoints);
-
+        try {
+            mesh.AddPolygon(endPoints);
+            mesh.AddPolygon(startPoints);
+        }catch(Exception ex) {
+            var text = ex.InnerException;
+        }
         for (int i = 0; i < pathCount - 1; i++) {
             var p1 = points[startArc - i];
             var p2 = points[startArc - i - 1];
@@ -116,24 +118,9 @@ public sealed record PathChannelGenerator : ChannelGenerator {
         }
     }
 
-    //calculating triangles via indices instead of adding polygons
-    private Int32Collection? JoinPoints(List<Point3D> lowerPoints, List<Point3D> upperPoints) {
-        if (lowerPoints is null || lowerPoints.Count < 2) { return null; }
-        if (upperPoints is null || upperPoints.Count < 2) { return null; }
-
-        var indices = new Int32Collection();
-        var lowerCount = lowerPoints.Count;
-        for (int i = 0; i < lowerPoints.Count; i++) {
-            var next = (i + 1 < lowerPoints.Count) ? i + 1 : 0;
-            indices.Append(lowerCount + i);
-            indices.Append(i);
-            indices.Append(next);
-            indices.Append(lowerCount + next);
-        }
-        return indices;
-    }
-
     private Vector3[] GetPathOutline(Vector3[] vectors, float radius, float verticalOffset = 0.0f) {
+        if (vectors.Length == 1) { return MeshHelper.CreateCircle(vectors[0], Vector3.UnitZ, radius, SEGMENTS); }
+
         var path = vectors.Select(v => new Point3D(v.X, v.Y, v.Z)).ToList();
         var direction = new Vector3D();
         var horizontalOffset = new Vector3D();
@@ -170,14 +157,6 @@ public sealed record PathChannelGenerator : ChannelGenerator {
         points.ForEach(p => offsetPoints.Add(p + vertOffset));
         return offsetPoints.Select(p => p.ToVector3()).ToArray();
 
-    }
-
-    private static Vector3 GetDirection(Vector3 start, Vector3 end) {
-        var direction = end - start;
-        direction.Z = 0;
-        direction.Normalize();
-
-        return direction;
     }
 
     private Vector3D GetDirection(Point3D start, Point3D end) {

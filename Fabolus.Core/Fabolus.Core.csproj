@@ -9,10 +9,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Export\" />
-    <Folder Include="Import\" />
+    <Compile Remove="Export\**" />
+    <Compile Remove="Import\**" />
+    <Compile Remove="Rotation\**" />
+    <EmbeddedResource Remove="Export\**" />
+    <EmbeddedResource Remove="Import\**" />
+    <EmbeddedResource Remove="Rotation\**" />
+    <None Remove="Export\**" />
+    <None Remove="Import\**" />
+    <None Remove="Rotation\**" />
+    <Page Remove="Export\**" />
+    <Page Remove="Import\**" />
+    <Page Remove="Rotation\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Mold\" />
-    <Folder Include="Rotation\" />
   </ItemGroup>
 
   <ItemGroup>

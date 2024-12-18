@@ -13,6 +13,7 @@
              xmlns:channels="clr-namespace:Fabolus.Wpf.Pages.Channels"
              xmlns:straight="clr-namespace:Fabolus.Wpf.Pages.Channels.Straight"
              xmlns:angled="clr-namespace:Fabolus.Wpf.Pages.Channels.Angled"
+             xmlns:path="clr-namespace:Fabolus.Wpf.Pages.Channels.Path"             
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -71,6 +72,10 @@
                 <angled:AngledChannelsView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type path:PathChannelsViewModel}">
+                <path:PathChannelsView />
+            </DataTemplate>
+            
         </ResourceDictionary>
     </Application.Resources>
 </Application>
