@@ -9,12 +9,17 @@ using SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 
 namespace Fabolus.Wpf.Features.Channels.Angled;
-public record AngledAirChannel : AirChannel {
-    public override ChannelTypes ChannelType => ChannelTypes.AngledHead;
+public record AngledAirChannel : IAirChannel {
+    public ChannelTypes ChannelType => ChannelTypes.AngledHead;
     public Vector3 Anchor { get; set; }
+    public float Depth { get; set; } = 0.5f;
+    public float Diameter { get; set; } = 4.0f;
+    public float Height { get; set; } = 5.0f;
     public Vector3 Normal { get; set; } = Vector3.UnitZ;
     public float TipLength { get; set; } = 6.0f;
     public float BottomDiameter { get; set; } = 5.0f;
+    public Guid GUID { get; init; }
+    public MeshGeometry3D Geometry { get; set; }
 
     public AngledAirChannel() { }
     public AngledAirChannel(Vector3 origin, Vector3 normal, float height, float diameter, float depth) {
@@ -27,7 +32,7 @@ public record AngledAirChannel : AirChannel {
         Build();
     }
 
-    public override AirChannel WithHit(HitTestResult hit) {
+    public IAirChannel WithHit(HitTestResult hit, bool isPreview = false) {
         var result = this with { Anchor = hit.PointHit, Normal = hit.NormalAtHit };
         result.Build();
         return result;
@@ -45,5 +50,11 @@ public record AngledAirChannel : AirChannel {
 
     }
 
+    public static AirChannel New() {
+        throw new NotImplementedException();
+    }
 
+    AirChannel IAirChannel.WithHit(HitTestResult hit, bool isPreview) {
+        throw new NotImplementedException();
+    }
 }

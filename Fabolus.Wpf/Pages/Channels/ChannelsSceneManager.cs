@@ -197,7 +197,7 @@ public class ChannelsSceneManager : SceneManager {
             _channels.PreviewChannel = null;
         } else {
             var channel = _settings.NewChannel() with { Height = MaxHeight };
-            channel = channel.WithHit(hit);
+            channel = channel.WithHit(hit, true);
             _channels.PreviewChannel = channel;
             _previewMesh = channel.Geometry;
         }

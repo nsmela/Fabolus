@@ -28,7 +28,7 @@ public sealed record PathChannelGenerator : ChannelGenerator {
 
     public override MeshGeometry3D Build() {
         if (Path.Length == 0) { throw new Exception("PathChannel requires one or more points to generate"); }
-        
+        if (Path.Length == 1) { return Sphere(Path[0], 3.0f); }
         var mesh = new MeshBuilder();
 
         var lowerPoints = GetPathOutline(Path, LowerRadius, -Depth);
@@ -42,6 +42,12 @@ public sealed record PathChannelGenerator : ChannelGenerator {
         JoinPoints(ref mesh, upperPoints, topPoints);
         CapContour(ref mesh, Path, topPoints);
 
+        return mesh.ToMeshGeometry3D();
+    }
+
+    public MeshGeometry3D Sphere(Vector3 origin, float radius) {
+        var mesh = new MeshBuilder();
+        mesh.AddSphere(origin, radius, SEGMENTS);
         return mesh.ToMeshGeometry3D();
     }
 

@@ -16,7 +16,7 @@ public sealed record StraightAirChannel : AirChannel {
     public float TipLength { get; set; } = 4.0f;
     public float BottomDiameter { get; set; } = 4.0f;
     public float BottomRadius => BottomDiameter / 2;
-    public override AirChannel WithHit(HitTestResult hit) {
+    public override AirChannel WithHit(HitTestResult hit, bool isPreview = false) {
         var result = this with { Anchor = hit.PointHit };
         result.Build();
         return result;

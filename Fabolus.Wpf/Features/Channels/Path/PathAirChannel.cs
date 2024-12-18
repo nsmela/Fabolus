@@ -17,8 +17,10 @@ public record PathAirChannel : AirChannel {
     public float TopHeight { get; set; } = 20.0f;
 
     //get data from the Hit result and build the mesh
-    public override AirChannel WithHit(HitTestResult hit) {
-        PathPoints = new() { hit.PointHit };
+    public override AirChannel WithHit(HitTestResult hit, bool isPreview = false) {
+        if (isPreview) { PathPoints = new() { hit.PointHit }; }
+        else { PathPoints.Add(hit.PointHit); }
+
         var result = this with { PathPoints = this.PathPoints };
         result.Build();
         return result;
