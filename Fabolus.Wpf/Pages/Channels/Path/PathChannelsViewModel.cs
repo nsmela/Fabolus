@@ -34,7 +34,7 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
         _isBusy = true;
 
         Depth = channel.Depth;
-        LowerDiameter = channel.Diameter;
+        LowerDiameter = channel.LowerDiameter;
         UpperDiameter = channel.UpperDiameter;
         LowerHeight = channel.Height;
         UpperHeight = channel.UpperHeight;
@@ -60,7 +60,7 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
             Depth = this.Depth,
             Height = this.LowerHeight,
             UpperHeight = this.UpperHeight,
-            Diameter = this.LowerDiameter,
+            LowerDiameter = this.LowerDiameter,
             UpperDiameter = UpperDiameter,
         };
 

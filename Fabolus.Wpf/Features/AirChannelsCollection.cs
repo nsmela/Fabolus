@@ -1,14 +1,10 @@
 ﻿using Fabolus.Wpf.Features.Channels;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Features;
-public class AirChannelsCollection : Dictionary<Guid, AirChannel> {
+
+public class AirChannelsCollection : Dictionary<Guid, IAirChannel> {
     private Guid? ActiveChannel { get; set; } = null;
-    public AirChannel? GetActiveChannel => ActiveChannel is not null
+    public IAirChannel? GetActiveChannel => ActiveChannel is not null
         ? this[ActiveChannel.Value]
         : null;
 
@@ -23,7 +19,7 @@ public class AirChannelsCollection : Dictionary<Guid, AirChannel> {
         ActiveChannel = id;
     }
 
-    public bool IsActiveChannel(AirChannel channel) => ActiveChannel is not null 
+    public bool IsActiveChannel(IAirChannel channel) => ActiveChannel is not null 
         ? this[ActiveChannel.Value] == channel
         : false;
 
@@ -35,9 +31,9 @@ public class AirChannelsCollection : Dictionary<Guid, AirChannel> {
         ActiveChannel = null;
     }
 
-    public AirChannel? PreviewChannel { get; set; }
+    public IAirChannel? PreviewChannel { get; set; }
 
-    public AirChannelsCollection Add(AirChannel channel) {
+    public AirChannelsCollection Add(IAirChannel channel) {
         //var id = Guid.NewGuid();
         //channel = channel with { GUID = id };
         this.Add(channel.GUID, channel);

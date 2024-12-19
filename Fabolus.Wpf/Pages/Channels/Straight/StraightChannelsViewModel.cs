@@ -32,8 +32,8 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
         _isBusy = true;
 
         ChannelDepth = channel.Depth;
-        ChannelDiameter = channel.Diameter;
-        ChannelNozzleDiameter = channel.BottomDiameter;
+        ChannelDiameter = channel.LowerDiameter;
+        ChannelNozzleDiameter = channel.LowerDiameter;
         ChannelNozzleLength = channel.TipLength;
 
         _isBusy = false;
@@ -55,8 +55,8 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
         if(channel is null) { return; }
         channel = channel with {
             Depth = ChannelDepth,
-            Diameter = ChannelDiameter,
-            BottomDiameter = ChannelNozzleDiameter,
+            UpperDiameter = ChannelDiameter,
+            LowerDiameter = ChannelNozzleDiameter,
             TipLength = ChannelNozzleLength
         };
 
@@ -68,8 +68,8 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
     private async Task ApplySettings() {
         var channel = new StraightAirChannel {
             Depth = ChannelDepth,
-            Diameter = ChannelDiameter,
-            BottomDiameter = ChannelNozzleDiameter,
+            UpperDiameter = ChannelDiameter,
+            LowerDiameter = ChannelNozzleDiameter,
             TipLength = ChannelNozzleLength
         };
 

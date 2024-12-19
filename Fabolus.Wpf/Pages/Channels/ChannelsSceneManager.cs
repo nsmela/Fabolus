@@ -25,7 +25,7 @@ public class ChannelsSceneManager : SceneManager {
     private Guid? BolusId => _bolus?.Geometry?.GUID;
     private float MaxHeight => _bolus?.Geometry?.Bound.Height ?? 50.0f;
 
-    private AirChannel? GetChannelByGeometryId(Guid id) {
+    private IAirChannel? GetChannelByGeometryId(Guid id) {
         if (!_channels.Any(c => c.Value.Geometry.GUID == id)) {
             return null;
         }
@@ -134,7 +134,6 @@ public class ChannelsSceneManager : SceneManager {
         //check if clicked on the bolus
         var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
         SetPreviewChannel(bolusHit);
-
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {
@@ -172,7 +171,7 @@ public class ChannelsSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
 
-    private async Task UpdateSelectedChannel(AirChannel? channel) {
+    private async Task UpdateSelectedChannel(IAirChannel? channel) {
         if (channel is not null) {
             _settings[channel.ChannelType] = channel;
             WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
@@ -185,7 +184,8 @@ public class ChannelsSceneManager : SceneManager {
 
     private async Task AddChannel(HitTestResult? hit) {
         if (hit is null) { return; }
-        var channel = _settings.NewChannel() with { Height = MaxHeight };
+        var channel = _settings.NewChannel();
+        channel.Height = MaxHeight;
         channel = channel.WithHit(hit);
         _channels.Add(channel);
 
@@ -193,10 +193,10 @@ public class ChannelsSceneManager : SceneManager {
     }
 
     private async Task SetPreviewChannel(HitTestResult? hit) {
-        if (hit is null) {
-            _channels.PreviewChannel = null;
-        } else {
-            var channel = _settings.NewChannel() with { Height = MaxHeight };
+        if (hit is null) { _channels.PreviewChannel = null; }
+        else {
+            var channel = _settings.NewChannel();
+            channel.Height = MaxHeight;
             channel = channel.WithHit(hit, true);
             _channels.PreviewChannel = channel;
             _previewMesh = channel.Geometry;

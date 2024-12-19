@@ -8,9 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Features;
-public class AirChannelSettings : Dictionary<ChannelTypes, AirChannel> {
+public class AirChannelSettings : Dictionary<ChannelTypes, IAirChannel> {
     public ChannelTypes SelectedType { get; private set; }
-    public AirChannel NewChannel() => this[SelectedType] with { GUID = Guid.NewGuid() };
+    public IAirChannel NewChannel() => this[SelectedType].New();
     
     public static AirChannelSettings Initialize() {
         var settings = new AirChannelSettings();

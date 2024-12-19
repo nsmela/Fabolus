@@ -8,16 +8,21 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Features.Channels.Straight;
-public sealed record StraightAirChannel : AirChannel {
+public sealed record StraightAirChannel : IAirChannel {
     public StraightAirChannel() : base() { }
 
-    public override ChannelTypes ChannelType => ChannelTypes.Straight;
-    public Vector3 Anchor { get; set; }
+    public ChannelTypes ChannelType => ChannelTypes.Straight;
+    public float Depth { get; set; } = 0.5f;
+    public MeshGeometry3D Geometry { get; set; }
+    public Guid GUID { get; init; }
+    public float Height { get; set; } = 10.0f;
+    public float LowerDiameter { get; set; } = 4.0f;
+    public Vector3 Origin { get; set; }
     public float TipLength { get; set; } = 4.0f;
-    public float BottomDiameter { get; set; } = 4.0f;
-    public float BottomRadius => BottomDiameter / 2;
-    public override AirChannel WithHit(HitTestResult hit, bool isPreview = false) {
-        var result = this with { Anchor = hit.PointHit };
+    public float UpperDiameter { get; set; } = 5.0f;
+
+    public IAirChannel WithHit(HitTestResult hit, bool isPreview = false) {
+        var result = this with { Origin = hit.PointHit };
         result.Build();
         return result;
     }
@@ -27,11 +32,12 @@ public sealed record StraightAirChannel : AirChannel {
         Geometry = StraightChannelGenerator
             .New()
             .WithDepth(Depth)
-            .WithDiameters(BottomDiameter, Diameter)
+            .WithDiameters(LowerDiameter, UpperDiameter)
             .WithHeight(Height)
-            .WithOrigin(Anchor)
+            .WithOrigin(Origin)
             .WithTipLength(TipLength)
             .Build();
     }
 
+    public IAirChannel New() => this with { GUID = Guid.NewGuid() };
 }

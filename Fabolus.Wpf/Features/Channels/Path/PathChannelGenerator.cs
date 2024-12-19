@@ -33,7 +33,7 @@ public sealed record PathChannelGenerator : ChannelGenerator {
 
         var lowerPoints = GetPathOutline(Path, LowerRadius, -Depth);
         var midLowerPoints = ExtrudePoints(lowerPoints, Depth + UpperHeight);
-        var upperPoints = GetPathOutline(Path, UpperRadius, UpperHeight + UpperRadius - LowerRadius);
+        var upperPoints = GetPathOutline(Path, UpperRadius, UpperHeight);
         var topPoints = upperPoints.Select(v => new Vector3(v.X, v.Y, TopHeight)).ToArray();
 
         CapContour(ref mesh, Path, lowerPoints, true);

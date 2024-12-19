@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 namespace Fabolus.Wpf.Features.Channels;
 
 public static class ChannelExtensions {
-    public static AirChannel ToAirChannel(this ChannelTypes type) =>
+    public static IAirChannel ToAirChannel(this ChannelTypes type) =>
         type switch {
             ChannelTypes.Straight => new StraightAirChannel(),
             ChannelTypes.AngledHead => new AngledAirChannel(),
