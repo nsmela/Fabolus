@@ -43,6 +43,7 @@ public partial class ChannelsViewModel : BaseViewModel {
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
+        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
 
         _settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
 
@@ -74,6 +75,12 @@ public partial class ChannelsViewModel : BaseViewModel {
             CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
         }
         
+    }
+
+    private async Task SettingsUpdated(AirChannelSettings settings) {
+        if (_isBusy) { return; }
+
+        _settings = settings;
     }
 
     #region Commands

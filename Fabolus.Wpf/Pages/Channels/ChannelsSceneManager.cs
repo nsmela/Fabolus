@@ -187,9 +187,17 @@ public class ChannelsSceneManager : SceneManager {
         var channel = _settings.NewChannel();
         channel.Height = MaxHeight;
         channel = channel.WithHit(hit);
-        _channels.Add(channel);
 
-        await UpdateSelectedChannel(channel);
+        //changing the AirChannelSettings to match the newly selected channel
+        _settings[channel.ChannelType] = channel;
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+
+        //setting the AirChannelsCollection
+        _channels.Add(channel);
+        _channels.SetActiveChannel(channel?.GUID);
+
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+        UpdateDisplay(null);
     }
 
     private async Task SetPreviewChannel(HitTestResult? hit) {
@@ -203,5 +211,6 @@ public class ChannelsSceneManager : SceneManager {
         }
 
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+        UpdateDisplay(null);
     }
 }
