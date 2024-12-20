@@ -174,6 +174,7 @@ public class ChannelsSceneManager : SceneManager {
     private async Task UpdateSelectedChannel(IAirChannel? channel) {
         if (channel is not null) {
             _settings[channel.ChannelType] = channel;
+            _settings.SetSelectedType(channel.ChannelType);
             WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
         }
 

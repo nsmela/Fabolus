@@ -8,6 +8,7 @@ namespace Fabolus.Wpf.Pages.Channels;
 public abstract class BaseChannelsViewModel : ObservableObject {
     protected AirChannelsCollection _channels = [];
     protected AirChannelSettings _settings;
+    protected bool _isBusy = false; //used to lock object when sending messages to prevent reading message it sent
 
     protected BaseChannelsViewModel() {
         SetMessaging();

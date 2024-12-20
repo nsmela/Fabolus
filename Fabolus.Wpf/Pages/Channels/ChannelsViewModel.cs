@@ -25,12 +25,13 @@ public partial class ChannelsViewModel : BaseViewModel {
         if (_isBusy) { return; }
         _isBusy = true;
 
-        var settings = _settings.Copy();
-        settings.SetSelectedType((ChannelTypes)value);
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(settings));
-        if (settings.SelectedType != _channels.GetActiveChannel?.ChannelType) {
-            CurrentChannelViewModel = settings.SelectedType.ToViewModel(); //create the view model with the settings
-        }
+        _channels.SetActiveChannel(null); //clears current selected channel when selecting a new channel type
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+
+        _settings.SetSelectedType((ChannelTypes)value);
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
+        
         
         _isBusy = false;
     }
