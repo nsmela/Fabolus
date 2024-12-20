@@ -20,24 +20,18 @@ public partial class ChannelsViewModel : BaseViewModel {
     [ObservableProperty] private string[] _channelNames = [];
     [ObservableProperty] private int _activeToolIndex = 0;
 
-    private bool _isBusy = false;
     private ChannelTypes CurrentType {
         get => (ChannelTypes)ActiveToolIndex;
         set => ActiveToolIndex = (int)value;
     }
 
     partial void OnActiveToolIndexChanged(int value) {
-        if (_isBusy) { return; }
-        _isBusy = true;
-
         _channels.SetActiveChannel(null); //clears current selected channel when selecting a new channel type
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
 
         _settings.SetSelectedType((ChannelTypes)value);
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
         CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
-       
-        _isBusy = false;
     }
 
     private AirChannelsCollection _channels = [];
@@ -47,8 +41,8 @@ public partial class ChannelsViewModel : BaseViewModel {
         ChannelNames = EnumHelper.GetEnumDescriptions<ChannelTypes>().ToArray();
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
-        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
+        WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(r, m.Channels));
+        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(r, m.Settings));
 
         _settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
 
@@ -60,26 +54,23 @@ public partial class ChannelsViewModel : BaseViewModel {
         CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
     }
 
-    private async Task ChannelsUpdated(AirChannelsCollection channels) {
+    private async Task ChannelsUpdated(object sender, AirChannelsCollection channels) {
+        if (sender.GetType() == typeof(ChannelsViewModel)) { return; } // if this sent the msg, ignore it
         _channels = channels;
         if (channels.GetActiveChannel is null) { return; }
 
         var activeChannel = channels.GetActiveChannel;
-
         var type = activeChannel.ChannelType; 
 
         if (type != CurrentType) {
-            _isBusy = true;
             ActiveToolIndex = (int)type;
-            _isBusy = false;
-
             CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
         }
         
     }
 
-    private async Task SettingsUpdated(AirChannelSettings settings) {
-        if (_isBusy) { return; }
+    private async Task SettingsUpdated(object sender, AirChannelSettings settings) {
+        if (sender.GetType() == typeof(ChannelsViewModel)) { return; } // if this sent the msg, ignore it
 
         _settings = settings;
     }
