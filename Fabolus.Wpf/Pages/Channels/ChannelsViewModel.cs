@@ -81,6 +81,10 @@ public partial class ChannelsViewModel : BaseViewModel {
     [RelayCommand]
     private void ClearChannels() {
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels.Clear()));
+
+        //clearing path points in settings
+        _settings.RemoveActiveChannel();
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
     }
 
     [RelayCommand]
@@ -89,6 +93,10 @@ public partial class ChannelsViewModel : BaseViewModel {
 
         _channels.RemoveActiveChannel();
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+
+        //clearing path points in settings
+        _settings.RemoveActiveChannel();
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
     }
 
     #endregion

@@ -12,14 +12,14 @@ namespace Fabolus.Wpf.Features.Channels.Path;
 public record PathAirChannel : IAirChannel {
     public ChannelTypes ChannelType => ChannelTypes.Path;
     public float Depth { get; set; } = 0.5f;
+    public MeshGeometry3D Geometry { get; set; }
+    public Guid GUID { get; init; }
     public float Height { get; set; } = 5.0f;
     public float LowerDiameter { get; set; } = 3.0f;
+    public float LowerHeight { get; set; } = 20.0f;
     public List<Vector3> PathPoints { get; set; } = [];
     public float UpperDiameter { get; set; } = 8.0f;
     public float UpperHeight { get; set; } = 5.0f;
-    public float TopHeight { get; set; } = 20.0f;
-    public Guid GUID { get; init; }
-    public MeshGeometry3D Geometry { get; set; }
 
     //get data from the Hit result and build the mesh
     public IAirChannel WithHit(HitTestResult hit, bool isPreview = false) {
@@ -34,7 +34,7 @@ public record PathAirChannel : IAirChannel {
     public void Build() {
         Geometry = PathChannelGenerator.New()
             .WithDepth(Depth)
-            .WithHeight(Height, UpperHeight, TopHeight)
+            .WithLength(Height, UpperHeight, Height)
             .WithPath(PathPoints.ToArray())
             .WithRadius(LowerDiameter / 2.0f, UpperDiameter / 2.0f)
             .Build();

@@ -8,19 +8,19 @@ using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 namespace Fabolus.Wpf.Features.Channels.Path;
 public sealed record PathChannelGenerator : ChannelGenerator {
     private float Depth { get; set; }
-    private float LowerHeight { get; set; }
+    private float LowerLength { get; set; }
     private Vector3[] Path { get; set; }
     private float Offset { get; set; }
     private float LowerRadius { get; set; }
     private float TopHeight { get; set; }
     private float UpperRadius { get; set; }
-    private float UpperHeight { get; set; }
+    private float UpperUpper { get; set; }
 
     private PathChannelGenerator() { }
     public static PathChannelGenerator New() => new PathChannelGenerator();
     public PathChannelGenerator WithDepth(float depth) => this with { Depth = depth };
-    public PathChannelGenerator WithHeight(float lowerHeight, float upperHeight, float topHeight) => 
-        this with { LowerHeight = lowerHeight, UpperHeight = upperHeight, TopHeight = topHeight };
+    public PathChannelGenerator WithLength(float lowerLength, float upperLength, float topHeight) => 
+        this with { LowerLength = lowerLength, UpperUpper = upperLength, TopHeight = topHeight };
     public PathChannelGenerator WithPath(Vector3[] path) => this with { Path = path };
     public PathChannelGenerator WithOffet(float offset) => this with { Offset = offset };
     public PathChannelGenerator WithRadius(float lowerRadius, float upperRadius) =>
@@ -32,9 +32,9 @@ public sealed record PathChannelGenerator : ChannelGenerator {
         var mesh = new MeshBuilder();
 
         var lowerPoints = GetPathOutline(Path, LowerRadius, -Depth);
-        var midLowerPoints = ExtrudePoints(lowerPoints, Depth + UpperHeight);
-        var upperPoints = GetPathOutline(Path, UpperRadius, UpperHeight);
-        var topPoints = upperPoints.Select(v => new Vector3(v.X, v.Y, TopHeight)).ToArray();
+        var midLowerPoints = ExtrudePoints(lowerPoints, Depth + LowerLength);
+        var upperPoints = GetPathOutline(Path, UpperRadius, LowerLength + UpperUpper);
+        var topPoints = upperPoints.Select(v => new Vector3(v.X, v.Y, 200.0f)).ToArray();
 
         CapContour(ref mesh, Path, lowerPoints, true);
         JoinPoints(ref mesh, lowerPoints, midLowerPoints);
@@ -53,7 +53,7 @@ public sealed record PathChannelGenerator : ChannelGenerator {
 
     private static void CapContour(ref MeshBuilder mesh, Vector3[] path, Vector3[] points, bool reverse = false) {
         var pathCount = path.Length;
-        var arcCount = SEGMENTS / 2;
+        var arcCount = SEGMENTS;
 
         int left = 0; //starts at 0
         int endArc = left + pathCount - 1;

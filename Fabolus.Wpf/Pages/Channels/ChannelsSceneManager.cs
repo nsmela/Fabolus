@@ -189,7 +189,7 @@ public class ChannelsSceneManager : SceneManager {
         channel = channel.WithHit(hit);
         _channels.Add(channel);
 
-        UpdateSelectedChannel(channel);
+        await UpdateSelectedChannel(channel);
     }
 
     private async Task SetPreviewChannel(HitTestResult? hit) {
