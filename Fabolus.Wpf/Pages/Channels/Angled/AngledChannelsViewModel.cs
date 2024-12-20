@@ -23,6 +23,38 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
 
     public AngledChannelsViewModel() : base() { }
 
+    private async Task ApplySettings() {
+        var channel = new AngledAirChannel {
+            Depth = ChannelDepth,
+            Diameter = ChannelDiameter,
+            BottomDiameter = ChannelConeDiameter,
+            TipLength = ChannelConeLength
+        };
+
+        channel.Build();
+        _settings[ChannelTypes.AngledHead] = channel;
+
+        _isBusy = true;
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        _isBusy = false;
+    }
+
+    private async Task ApplySettingsToChannel() {
+        //there is an active channel
+        var channel = _channels.GetActiveChannel as AngledAirChannel;
+        if (channel is null) { return; }
+        channel = channel with {
+            Depth = ChannelDepth,
+            Diameter = ChannelDiameter,
+            BottomDiameter = ChannelConeDiameter,
+            TipLength = ChannelConeLength
+        };
+
+        channel.Build();
+        _channels[channel.GUID] = channel;
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+    }
+
     private async Task SetSettings() {
         if (_isBusy) { return; }
         _isBusy = true;
@@ -49,35 +81,4 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
         _isBusy = false;
     }
 
-    private async Task ApplySettingsToChannel() {
-        //there is an active channel
-        var channel = _channels.GetActiveChannel as AngledAirChannel;
-        if (channel is null) { return; }
-        channel = channel with {
-            Depth = ChannelDepth,
-            Diameter = ChannelDiameter,
-            BottomDiameter = ChannelConeDiameter,
-            TipLength = ChannelConeLength
-        };
-
-        channel.Build();
-        _channels[channel.GUID] = channel;
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
-    }
-
-    private async Task ApplySettings() {
-        var channel = new AngledAirChannel {
-            Depth = ChannelDepth,
-            Diameter = ChannelDiameter,
-            BottomDiameter = ChannelConeDiameter,
-            TipLength = ChannelConeLength
-        };
-
-        channel.Build();
-        _settings[ChannelTypes.AngledHead] = channel;
-
-        _isBusy = true;
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
-        _isBusy = false;
-    }
 }

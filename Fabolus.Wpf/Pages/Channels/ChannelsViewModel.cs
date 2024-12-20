@@ -21,6 +21,11 @@ public partial class ChannelsViewModel : BaseViewModel {
     [ObservableProperty] private int _activeToolIndex = 0;
 
     private bool _isBusy = false;
+    private ChannelTypes CurrentType {
+        get => (ChannelTypes)ActiveToolIndex;
+        set => ActiveToolIndex = (int)value;
+    }
+
     partial void OnActiveToolIndexChanged(int value) {
         if (_isBusy) { return; }
         _isBusy = true;
@@ -31,8 +36,7 @@ public partial class ChannelsViewModel : BaseViewModel {
         _settings.SetSelectedType((ChannelTypes)value);
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
         CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
-        
-        
+       
         _isBusy = false;
     }
 
@@ -51,10 +55,9 @@ public partial class ChannelsViewModel : BaseViewModel {
         var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
         _channels.SetActiveChannel(null);
         _channels = channels;
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings)); //clearing settings because new view
 
-        var type = _settings.SelectedType;
-        CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
+        CurrentType = _settings.SelectedType; //set active index and generates view model
+        CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
     }
 
     private async Task ChannelsUpdated(AirChannelsCollection channels) {
@@ -62,17 +65,14 @@ public partial class ChannelsViewModel : BaseViewModel {
         if (channels.GetActiveChannel is null) { return; }
 
         var activeChannel = channels.GetActiveChannel;
-        var currentType = _settings.SelectedType;
 
         var type = activeChannel.ChannelType; 
 
-        if (type != currentType) {
+        if (type != CurrentType) {
             _isBusy = true;
             ActiveToolIndex = (int)type;
             _isBusy = false;
 
-            _settings.SetSelectedType(type);
-            WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
             CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
         }
         

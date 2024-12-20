@@ -2,13 +2,9 @@
 using Fabolus.Wpf.Common.Helpers;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Channels.Path;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Features;
+
 public class AirChannelSettings : Dictionary<ChannelTypes, IAirChannel> {
     public ChannelTypes SelectedType { get; private set; }
     public IAirChannel NewChannel() => this[SelectedType].New();

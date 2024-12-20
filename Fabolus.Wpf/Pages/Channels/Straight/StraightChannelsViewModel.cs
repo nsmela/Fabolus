@@ -53,11 +53,21 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
     }
 
+    private async Task SetSettings() {
+        if (_isBusy) { return; }
+        _isBusy = true;
+
+        await ApplySettingsToChannel();
+        await ApplySettings();
+
+        _isBusy = false;
+    }
+
     protected override async Task SettingsUpdated(AirChannelSettings settings) {
+        if (_isBusy) { return; }
         _settings = settings;
         var channel = _settings[ChannelTypes.Straight] as StraightAirChannel;
         if (channel is null) { return; }
-        if (_isBusy) { return; }
 
         _isBusy = true;
 
@@ -65,16 +75,6 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
         ChannelDiameter = channel.LowerDiameter;
         ChannelNozzleDiameter = channel.LowerDiameter;
         ChannelNozzleLength = channel.TipLength;
-
-        _isBusy = false;
-    }
-
-    private async Task SetSettings() {
-        if (_isBusy) { return; }
-        _isBusy = true;
-
-        await ApplySettingsToChannel();
-        await ApplySettings();
 
         _isBusy = false;
     }
