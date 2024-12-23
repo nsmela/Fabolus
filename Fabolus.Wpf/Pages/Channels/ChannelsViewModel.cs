@@ -26,11 +26,16 @@ public partial class ChannelsViewModel : BaseViewModel {
     }
 
     partial void OnActiveToolIndexChanged(int value) {
+        if (_isBusy) { return; }
+
+        _isBusy = true;
         WeakReferenceMessenger.Default.Send(new ChannelTypeSetMessage((ChannelTypes)value));
+        _isBusy = false;
     }
 
     private AirChannelsCollection _channels = [];
     private AirChannelSettings _settings;
+    private bool _isBusy = false;
 
     public ChannelsViewModel() {
         ChannelNames = EnumHelper.GetEnumDescriptions<ChannelTypes>().ToArray();
@@ -61,7 +66,6 @@ public partial class ChannelsViewModel : BaseViewModel {
             ActiveToolIndex = (int)type;
             CurrentChannelViewModel = type.ToViewModel(); //create the view model with the settings
         }
-        
     }
 
     private async Task SettingsUpdated(object sender, AirChannelSettings settings) {

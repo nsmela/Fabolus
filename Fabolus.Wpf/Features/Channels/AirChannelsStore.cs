@@ -41,9 +41,10 @@ public class AirChannelsStore {
 
     private async Task SetActiveChannel(Guid? id) {
         if (id != null) {
-            var type = _channels[id.Value].ChannelType;
-            _settings.SetSelectedType(type);
-            WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+            var channel = _channels[id.Value];
+            _settings.SetSelectedType(channel.ChannelType);
+            _settings[channel.ChannelType] = channel;
+            WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings.Copy()));
         }
 
         _channels.SetActiveChannel(id);
@@ -72,7 +73,7 @@ public class AirChannelsStore {
         _settings.SetSelectedType(type ?? ChannelTypes.Straight);
 
         //TODO handle updating anything related and send update messages
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings.Copy()));
 
         _channels.SetActiveChannel(null);
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));

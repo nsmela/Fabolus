@@ -36,6 +36,8 @@ public class AirChannelSettings : Dictionary<ChannelTypes, IAirChannel> {
         foreach (var (key, value) in this.Select(x => x)) {
             settings.Add(key, value);
         }
+
+        settings.SetSelectedType(this.SelectedType);
         return settings;
     }
 

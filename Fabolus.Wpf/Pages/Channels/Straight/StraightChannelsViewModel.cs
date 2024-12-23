@@ -72,7 +72,7 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
         _isBusy = true;
 
         ChannelDepth = channel.Depth;
-        ChannelDiameter = channel.LowerDiameter;
+        ChannelDiameter = channel.UpperDiameter;
         ChannelNozzleDiameter = channel.LowerDiameter;
         ChannelNozzleLength = channel.TipLength;
 
