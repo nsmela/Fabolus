@@ -30,4 +30,11 @@ public static class ChannelExtensions {
             ChannelTypes.Path => new PathChannelsViewModel(),
             _ => throw new NotImplementedException($"{type.GetDescriptionString()} is not listed as a ChannelType")};
 
-}
+    public static IAirChannel ApplySettings(this IAirChannel channel, AirChannelSettings settings) => channel.ChannelType switch {
+        ChannelTypes.Straight => (channel as StraightAirChannel).ApplySettings(settings),
+        ChannelTypes.AngledHead => (channel as AngledAirChannel).ApplySettings(settings),
+        ChannelTypes.Path => (channel as PathAirChannel).ApplySettings(settings),
+        _ => throw new NotImplementedException($"{channel.ChannelType.GetDescriptionString()} is not listed as a ChannelType")
+    };
+};
+

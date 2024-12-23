@@ -26,12 +26,7 @@ public partial class ChannelsViewModel : BaseViewModel {
     }
 
     partial void OnActiveToolIndexChanged(int value) {
-        _channels.SetActiveChannel(null); //clears current selected channel when selecting a new channel type
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
-
-        _settings.SetSelectedType((ChannelTypes)value);
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
-        CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
+        WeakReferenceMessenger.Default.Send(new ChannelTypeSetMessage((ChannelTypes)value));
     }
 
     private AirChannelsCollection _channels = [];
@@ -70,7 +65,10 @@ public partial class ChannelsViewModel : BaseViewModel {
     }
 
     private async Task SettingsUpdated(object sender, AirChannelSettings settings) {
-        if (sender.GetType() == typeof(ChannelsViewModel)) { return; } // if this sent the msg, ignore it
+        if (settings.SelectedType != _settings.SelectedType) {
+            ActiveToolIndex = (int)settings.SelectedType;
+            CurrentChannelViewModel = settings.SelectedType.ToViewModel(); //create the view model with the settings
+        }
 
         _settings = settings;
     }
@@ -79,23 +77,14 @@ public partial class ChannelsViewModel : BaseViewModel {
 
     [RelayCommand]
     private void ClearChannels() {
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels.Clear()));
-
-        //clearing path points in settings
-        _settings.RemoveActiveChannel();
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        WeakReferenceMessenger.Default.Send(new ChannelClearMessage());
     }
 
     [RelayCommand]
     private void DeleteChannel() {
         if (_channels.GetActiveChannel is null) { return; }
 
-        _channels.RemoveActiveChannel();
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
-
-        //clearing path points in settings
-        _settings.RemoveActiveChannel();
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        WeakReferenceMessenger.Default.Send(new ChannelRemoveMessage(_channels.GetActiveChannel.GUID));
     }
 
     #endregion

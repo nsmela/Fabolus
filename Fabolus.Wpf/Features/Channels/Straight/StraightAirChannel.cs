@@ -21,10 +21,17 @@ public sealed record StraightAirChannel : IAirChannel {
     public float TipLength { get; set; } = 4.0f;
     public float UpperDiameter { get; set; } = 5.0f;
 
-    public IAirChannel WithHit(HitTestResult hit, bool isPreview = false) {
-        var result = this with { Origin = hit.PointHit };
-        result.Build();
-        return result;
+    public IAirChannel ApplySettings(AirChannelSettings settings) {
+        var setting = settings[this.ChannelType] as StraightAirChannel;
+        var channel = this with {
+            Depth = setting.Depth,
+            LowerDiameter = setting.LowerDiameter,
+            UpperDiameter = setting.UpperDiameter,
+            TipLength = setting.TipLength,
+        };
+
+        channel.Build();
+        return channel;
     }
 
     public void Build() {
@@ -40,4 +47,11 @@ public sealed record StraightAirChannel : IAirChannel {
     }
 
     public IAirChannel New() => this with { GUID = Guid.NewGuid() };
+
+    public IAirChannel WithHit(HitTestResult hit, bool isPreview = false) {
+        var result = this with { Origin = hit.PointHit };
+        result.Build();
+        return result;
+    }
+
 }

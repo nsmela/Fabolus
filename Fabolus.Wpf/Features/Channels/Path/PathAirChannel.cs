@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Features.Channels.Angled;
+using Fabolus.Wpf.Features.Channels.Straight;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using System;
@@ -21,14 +22,19 @@ public record PathAirChannel : IAirChannel {
     public float UpperDiameter { get; set; } = 8.0f;
     public float UpperHeight { get; set; } = 5.0f;
 
-    //get data from the Hit result and build the mesh
-    public IAirChannel WithHit(HitTestResult hit, bool isPreview = false) {
-        if (isPreview) { PathPoints = new() { hit.PointHit }; }
-        else { PathPoints.Add(hit.PointHit); }
+    public IAirChannel ApplySettings(AirChannelSettings settings) {
+        var setting = settings[this.ChannelType] as PathAirChannel;
+        var channel = this with {
+            Depth = setting.Depth,
+            LowerDiameter = setting.LowerDiameter,
+            UpperDiameter = setting.UpperDiameter,
+            LowerHeight = setting.LowerHeight,
+            UpperHeight = setting.UpperHeight,
+            Height = setting.Height,
+        };
 
-        var result = this with { PathPoints = this.PathPoints };
-        result.Build();
-        return result;
+        channel.Build();
+        return channel;
     }
 
     public void Build() {
@@ -42,4 +48,15 @@ public record PathAirChannel : IAirChannel {
     }
 
     public IAirChannel New() => this with { GUID = Guid.NewGuid() };
+
+    //get data from the Hit result and build the mesh
+    public IAirChannel WithHit(HitTestResult hit, bool isPreview = false) {
+        if (isPreview) { PathPoints = new() { hit.PointHit }; }
+        else { PathPoints.Add(hit.PointHit); }
+
+        var result = this with { PathPoints = this.PathPoints };
+        result.Build();
+        return result;
+    }
+
 }

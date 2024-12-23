@@ -5,9 +5,11 @@ namespace Fabolus.Wpf.Features;
 
 public class AirChannelsCollection : Dictionary<Guid, IAirChannel> {
     private Guid? ActiveChannel { get; set; } = null;
-    public IAirChannel? GetActiveChannel => ActiveChannel is not null
+    public IAirChannel? GetActiveChannel => HasActiveChannel
         ? this[ActiveChannel.Value]
         : null;
+
+    public bool HasActiveChannel => ActiveChannel is not null;
 
     public void SetActiveChannel(Guid? id) {
         if (id is null) { 
@@ -20,7 +22,7 @@ public class AirChannelsCollection : Dictionary<Guid, IAirChannel> {
         ActiveChannel = id;
     }
 
-    public bool IsActiveChannel(IAirChannel channel) => ActiveChannel is not null 
+    public bool IsActiveChannel(IAirChannel channel) => HasActiveChannel 
         ? this[ActiveChannel.Value] == channel
         : false;
 

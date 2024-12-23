@@ -172,15 +172,8 @@ public class ChannelsSceneManager : SceneManager {
     }
 
     private async Task UpdateSelectedChannel(IAirChannel? channel) {
-        if (channel is not null) {
-            _settings[channel.ChannelType] = channel;
-            _settings.SetSelectedType(channel.ChannelType);
-            WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
-        }
-
-        _channels.SetActiveChannel(channel?.GUID);
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
-        UpdateDisplay(null);
+        Guid? id = channel is null ? null : channel.GUID;
+        WeakReferenceMessenger.Default.Send(new ActiveChannelSetMessage(id));
     }
 
     private async Task AddChannel(HitTestResult? hit) {
@@ -189,16 +182,8 @@ public class ChannelsSceneManager : SceneManager {
         channel.Height = MaxHeight;
         channel = channel.WithHit(hit);
 
-        //changing the AirChannelSettings to match the newly selected channel
-        _settings[channel.ChannelType] = channel;
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
-
-        //setting the AirChannelsCollection
-        _channels.Add(channel);
-        _channels.SetActiveChannel(channel?.GUID);
-
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
-        UpdateDisplay(null);
+        WeakReferenceMessenger.Default.Send(new ChannelAddMessage(channel));
+        //response from AirChannelStore should update display
     }
 
     private async Task SetPreviewChannel(HitTestResult? hit) {
