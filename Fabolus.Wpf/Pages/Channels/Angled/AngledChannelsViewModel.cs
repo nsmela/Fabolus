@@ -4,7 +4,6 @@ using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Channels.Angled;
-using Fabolus.Wpf.Features.Channels.Straight;
 
 namespace Fabolus.Wpf.Pages.Channels.Angled;
 
@@ -39,9 +38,13 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
         _isBusy = false;
     }
 
+
     private async Task ApplySettingsToChannel() {
+        if (!IsActiveChannelSelected) { return; }
+
         //there is an active channel
-        var channel = _channels.GetActiveChannel as AngledAirChannel;
+
+        var channel = _channels[_activeChannel.GUID] as AngledAirChannel;
         if (channel is null) { return; }
         channel = channel with {
             Depth = ChannelDepth,
@@ -59,8 +62,8 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
         if (_isBusy) { return; }
         _isBusy = true;
 
-        await ApplySettingsToChannel();
         await ApplySettings();
+        await ApplySettingsToChannel();
 
         _isBusy = false;
     }

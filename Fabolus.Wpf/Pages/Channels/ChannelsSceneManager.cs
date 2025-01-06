@@ -10,6 +10,7 @@ using System.Windows.Input;
 using Material = HelixToolkit.Wpf.SharpDX.Material;
 using Fabolus.Wpf.Features;
 using System;
+using Fabolus.Core.AirChannel;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
@@ -19,6 +20,7 @@ public class ChannelsSceneManager : SceneManager {
     private AirChannelsCollection _channels = [];
     private AirChannelSettings _settings;
     private MeshGeometry3D? _previewMesh;
+    private IAirChannel _activeChannel;
     private Material _channelSkin = DiffuseMaterials.Emerald;
     private Material _selectedSkin = DiffuseMaterials.Turquoise;
 
@@ -50,9 +52,11 @@ public class ChannelsSceneManager : SceneManager {
 
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
+        WeakReferenceMessenger.Default.Register<ActiveChannelUpdatedMessage>(this, async (r, m) => await ActiveAirChannelUpdated(m.Channel));
 
         var settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
         _settings = settings;
+        _activeChannel = WeakReferenceMessenger.Default.Send(new ActiveChannelRequestMessage()).Response;
 
         var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
         _channels = channels;
@@ -61,6 +65,11 @@ public class ChannelsSceneManager : SceneManager {
         BolusUpdated(bolus);
     }
 
+    private async Task ActiveAirChannelUpdated(IAirChannel channel) {
+        _activeChannel = channel;
+        UpdateDisplay(null);
+    }
+    
     private async Task BolusUpdated(BolusModel? bolus) {
         _bolus = bolus;
         UpdateDisplay(null);
@@ -103,7 +112,7 @@ public class ChannelsSceneManager : SceneManager {
 
         //check if clicked on the bolus
         var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
-        AddChannel(bolusHit);
+        AddChannel(bolusHit); // will also update display via response from messaging
 
     }
 
@@ -154,7 +163,7 @@ public class ChannelsSceneManager : SceneManager {
             models.Add(new DisplayModel3D {
                 Geometry = channel.Geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = _channels.IsActiveChannel(channel)
+                Skin = channel.GUID == _activeChannel.GUID
                  ? _selectedSkin
                  : _channelSkin
             });
@@ -172,31 +181,40 @@ public class ChannelsSceneManager : SceneManager {
     }
 
     private async Task UpdateSelectedChannel(IAirChannel? channel) {
-        Guid? id = channel is null ? null : channel.GUID;
-        WeakReferenceMessenger.Default.Send(new ActiveChannelSetMessage(id));
+        if (channel is null) {
+            var newChannel = _settings[_activeChannel.ChannelType];
+            WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(newChannel));
+            return;
+        }
+
+        _settings[channel.ChannelType] = channel;
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(channel));
     }
 
     private async Task AddChannel(HitTestResult? hit) {
         if (hit is null) { return; }
-        var channel = _settings.NewChannel();
+        var channel = _activeChannel.New();
         channel.Height = MaxHeight;
         channel = channel.WithHit(hit);
+        _channels.Add(channel);
 
-        WeakReferenceMessenger.Default.Send(new ChannelAddMessage(channel));
-        //response from AirChannelStore should update display
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
     }
 
     private async Task SetPreviewChannel(HitTestResult? hit) {
-        if (hit is null) { _channels.PreviewChannel = null; }
+        if (hit is null) { 
+            _channels.PreviewChannel = null;
+        }
         else {
-            var channel = _settings.NewChannel();
+            var channel = _activeChannel.New();
             channel.Height = MaxHeight;
             channel = channel.WithHit(hit, true);
             _channels.PreviewChannel = channel;
             _previewMesh = channel.Geometry;
         }
 
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+        //WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
         UpdateDisplay(null);
     }
 }

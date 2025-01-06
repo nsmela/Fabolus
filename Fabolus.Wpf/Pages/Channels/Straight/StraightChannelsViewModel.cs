@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
+using Fabolus.Wpf.Features.Channels.Angled;
 using Fabolus.Wpf.Features.Channels.Straight;
 
 namespace Fabolus.Wpf.Pages.Channels.Straight;
@@ -38,9 +39,10 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
     }
 
     private async Task ApplySettingsToChannel() {
+        if (!IsActiveChannelSelected) { return; }
         //there is an active channel
-        var channel = _channels.GetActiveChannel as StraightAirChannel;
-        if (channel is null) { return; }
+
+        var channel = _channels[_activeChannel.GUID] as StraightAirChannel;
         channel = channel with {
             Depth = ChannelDepth,
             UpperDiameter = ChannelDiameter,

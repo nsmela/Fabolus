@@ -5,6 +5,7 @@ using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features;
 using SharpDX.Direct2D1;
 using Fabolus.Wpf.Features.Channels.Path;
+using Fabolus.Wpf.Features.Channels.Angled;
 
 namespace Fabolus.Wpf.Pages.Channels.Path;
 public partial class PathChannelsViewModel : BaseChannelsViewModel {
@@ -53,9 +54,11 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
     }
 
     private async Task ApplySettingsToChannel() {
+        if (!IsActiveChannelSelected) { return; }
+
         //there is an active channel
-        var channel = _channels.GetActiveChannel as PathAirChannel;
-        if (channel is null) { return; }
+
+        var channel = _channels[_activeChannel.GUID] as PathAirChannel;
         channel = channel with {
             Depth = this.Depth,
             Height = this.LowerHeight,
