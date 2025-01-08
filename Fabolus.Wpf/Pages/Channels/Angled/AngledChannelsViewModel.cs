@@ -62,8 +62,8 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
         if (_isBusy) { return; }
         _isBusy = true;
 
-        await ApplySettings();
         await ApplySettingsToChannel();
+        await ApplySettings();
 
         _isBusy = false;
     }

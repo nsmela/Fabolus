@@ -54,13 +54,10 @@ public class ChannelsSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
         WeakReferenceMessenger.Default.Register<ActiveChannelUpdatedMessage>(this, async (r, m) => await ActiveAirChannelUpdated(m.Channel));
 
-        var settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
-        _settings = settings;
+        _settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
         _activeChannel = WeakReferenceMessenger.Default.Send(new ActiveChannelRequestMessage()).Response;
-
-        var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
-        _channels = channels;
-
+        _channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
+ 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         BolusUpdated(bolus);
     }
@@ -200,6 +197,7 @@ public class ChannelsSceneManager : SceneManager {
         _channels.Add(channel);
 
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+        WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(channel));
     }
 
     private async Task SetPreviewChannel(HitTestResult? hit) {
