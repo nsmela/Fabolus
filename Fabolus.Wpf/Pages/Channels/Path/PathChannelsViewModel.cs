@@ -100,17 +100,20 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
     public async Task ClearPathPoints() {
         if (!HasPathChannel) { return; }
 
-        //clear preview
-        var setting = _settings[ChannelTypes.Path] as PathAirChannel;
-        _settings[ChannelTypes.Path] = setting with { PathPoints = [] };
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
-
         // clear storage
         var id = _channels.First(x => x.Value.ChannelType == ChannelTypes.Path).Key;
         _channels.Remove(id);
 
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
 
+        //clear preview
+        var setting = _settings[ChannelTypes.Path] as PathAirChannel;
+        _settings[ChannelTypes.Path] = setting with { PathPoints = [] };
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+
+        //clear active channel
+        _activeChannel = setting.New();
+        WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(_activeChannel));
     }
 
 }
