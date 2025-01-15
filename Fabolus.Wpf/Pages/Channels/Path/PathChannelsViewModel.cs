@@ -68,7 +68,15 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
         };
 
         channel.Build();
+
+        //paths channel only has a single channel within the AirChannelsCollection
+        if (_channels.Any(x => x.Value.ChannelType == ChannelTypes.Path)) {
+            var id = _channels.First(x => x.Value.ChannelType == ChannelTypes.Path).Key;
+            channel = channel with { GUID = id };
+        }
+
         _channels[channel.GUID] = channel;
+
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
     }
 
