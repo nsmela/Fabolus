@@ -77,5 +77,13 @@
             AutoToolTipPrecision="2"
             IsSnapToTickEnabled="True" 
             Height="30"/>
+        <Button Content="Reset Path" 
+                Height="30" Width="120"
+                HorizontalAlignment="Stretch"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                Margin="2"
+                Command="{Binding ClearPathPointsCommand}" />
     </StackPanel>
 </UserControl>

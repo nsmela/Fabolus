@@ -6,6 +6,7 @@ using Fabolus.Wpf.Features;
 using SharpDX.Direct2D1;
 using Fabolus.Wpf.Features.Channels.Path;
 using Fabolus.Wpf.Features.Channels.Angled;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Fabolus.Wpf.Pages.Channels.Path;
 public partial class PathChannelsViewModel : BaseChannelsViewModel {
@@ -23,6 +24,7 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
     partial void OnUpperHeightChanged(float value) => SetSettings();
 
     private bool _isBusy = false;
+    private bool HasPathChannel => _channels.Any(x => x.Value.ChannelType == ChannelTypes.Path);
 
     public PathChannelsViewModel() : base() { }
 
@@ -70,7 +72,7 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
         channel.Build();
 
         //paths channel only has a single channel within the AirChannelsCollection
-        if (_channels.Any(x => x.Value.ChannelType == ChannelTypes.Path)) {
+        if (HasPathChannel) {
             var id = _channels.First(x => x.Value.ChannelType == ChannelTypes.Path).Key;
             channel = channel with { GUID = id };
         }
@@ -93,4 +95,22 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
 
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
     }
+
+    [RelayCommand]
+    public async Task ClearPathPoints() {
+        if (!HasPathChannel) { return; }
+
+        //clear preview
+        var setting = _settings[ChannelTypes.Path] as PathAirChannel;
+        _settings[ChannelTypes.Path] = setting with { PathPoints = [] };
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+
+        // clear storage
+        var id = _channels.First(x => x.Value.ChannelType == ChannelTypes.Path).Key;
+        _channels.Remove(id);
+
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+
+    }
+
 }
