@@ -3,9 +3,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features;
-using SharpDX.Direct2D1;
 using Fabolus.Wpf.Features.Channels.Path;
-using Fabolus.Wpf.Features.Channels.Angled;
 using CommunityToolkit.Mvvm.Input;
 
 namespace Fabolus.Wpf.Pages.Channels.Path;
