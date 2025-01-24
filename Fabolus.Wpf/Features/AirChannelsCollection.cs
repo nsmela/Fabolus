@@ -18,6 +18,13 @@ public class AirChannelsCollection : Dictionary<Guid, IAirChannel> {
         return new AirChannelsCollection();
     }
 
+    public AirChannelsCollection RemovePaths() {
+        var id = this.FirstOrDefault(x => x.Value.ChannelType == Core.AirChannel.ChannelTypes.Path).Key;
+        this.Remove(id);
+        return this;
+
+    }
+
     private void ProcessPathChannel(PathAirChannel channel) {
         if (this.Any(x => x.Value.ChannelType == Core.AirChannel.ChannelTypes.Path)) {
             var id = this.FirstOrDefault(x => x.Value.ChannelType == Core.AirChannel.ChannelTypes.Path).Key;

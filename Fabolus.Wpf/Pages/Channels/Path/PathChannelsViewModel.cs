@@ -99,14 +99,13 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
         if (!HasPathChannel) { return; }
 
         // clear storage
-        var id = _channels.First(x => x.Value.ChannelType == ChannelTypes.Path).Key;
-        _channels.Remove(id);
+        _channels.RemovePaths();
 
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
 
         //clear preview
-        var setting = _settings[ChannelTypes.Path] as PathAirChannel;
-        _settings[ChannelTypes.Path] = setting with { PathPoints = [] };
+        var setting = _settings[ChannelTypes.Path] as PathAirChannel with { PathPoints = [] };
+        _settings[ChannelTypes.Path] = setting;
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
 
         //clear active channel

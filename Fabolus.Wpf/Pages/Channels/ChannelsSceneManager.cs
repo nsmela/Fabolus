@@ -212,7 +212,6 @@ public class ChannelsSceneManager : SceneManager {
             _previewMesh = channel.Geometry;
         }
 
-        //WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
         UpdateDisplay(null);
     }
 }
