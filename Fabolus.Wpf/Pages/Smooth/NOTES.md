@@ -1,7 +1,14 @@
 # Notes on Implementing Smoothing
 
 ## Poisson Recon
-
+- https://mark-borg.github.io/blog/2017/interop/
+- a lot of data types there, each you want access to would require marshalling: https://learn.microsoft.com/en-us/dotnet/framework/interop/interop-marshalling
+- start, with the tiniest programs on both ends and then grow them out
+- get the c++ app to return an int, then a string, then a custom data type
+- then load the library as a dll and work on returning data types
+- you'll need to make a .dll from c++ to load in c#
+- command lines are parsed here: https://github.com/mkazhdan/PoissonRecon/blob/4ffa838cd3ea4348ac02b2883692d4338312150d/Src/PoissonRecon.cpp#L584
+- which lead to Execute: https://github.com/mkazhdan/PoissonRecon/blob/4ffa838cd3ea4348ac02b2883692d4338312150d/Src/PoissonRecon.cpp#L272
 ## Marching Cubes
 
 ## Mesh distance map
