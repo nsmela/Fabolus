@@ -9,6 +9,9 @@
 - you'll need to make a .dll from c++ to load in c#
 - command lines are parsed here: https://github.com/mkazhdan/PoissonRecon/blob/4ffa838cd3ea4348ac02b2883692d4338312150d/Src/PoissonRecon.cpp#L584
 - which lead to Execute: https://github.com/mkazhdan/PoissonRecon/blob/4ffa838cd3ea4348ac02b2883692d4338312150d/Src/PoissonRecon.cpp#L272
+- porting is your best option here, and chat can help you with the tricky syntax stuff
+- use ChatGPT or CoPilot to convert the code over or read it
+  
 ## Marching Cubes
 
 ## Mesh distance map
