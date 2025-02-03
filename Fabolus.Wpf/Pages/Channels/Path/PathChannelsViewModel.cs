@@ -58,7 +58,7 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
 
         //there is an active channel
 
-        var channel = _channels[_activeChannel.GUID] as PathAirChannel;
+        var channel = _channels.PathChannel();
         channel = channel with {
             Depth = this.Depth,
             Height = this.LowerHeight,
@@ -76,7 +76,6 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
         }
 
         _channels[channel.GUID] = channel;
-
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
     }
 
