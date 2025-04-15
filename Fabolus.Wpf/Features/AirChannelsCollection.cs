@@ -35,8 +35,6 @@ public class AirChannelsCollection : Dictionary<Guid, IAirChannel> {
         this.RemovePaths();
     }
 
-
-
     public AirChannelsCollection RemovePaths() {
         var id = this.FirstOrDefault(x => x.Value.ChannelType == Core.AirChannel.ChannelTypes.Path).Key;
         this.Remove(id);
