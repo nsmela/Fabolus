@@ -34,11 +34,10 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
     public override MeshGeometry3D Build() {
         //generate list of points for the angled channel
         var curve = AngledChannelCurve.Curve(
-            Origin.ToVector3d(),
-            Normal.ToVector3d(),
-            TipLength,
-            Radius,
-            MaxHeight)
+                Origin.ToVector3d(),
+                Normal.ToVector3d(),
+                TipLength,
+                Radius)
             .ToVector3()
             .ToList();
 
