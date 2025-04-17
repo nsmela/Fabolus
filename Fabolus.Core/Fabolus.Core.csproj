@@ -24,12 +24,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Mold\" />
+    <PackageReference Include="geometry3Sharp" Version="1.0.324" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="geometry3Sharp" Version="1.0.324" />
-    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
+    <Folder Include="Libraries\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ClassLibrary">
+      <HintPath>Libraries\TriangleNet.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>
