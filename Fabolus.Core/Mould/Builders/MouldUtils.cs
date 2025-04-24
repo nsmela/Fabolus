@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Fabolus.Core.Mould.Builders;
-public static class MoldUtils {
+public static class MouldUtils {
     public static DMesh3 OffsetMeshD(DMesh3 mesh, double offset, int resolution = 64) {
         BoundedImplicitFunction3d meshImplicit = meshToImplicitF(mesh, resolution, offset);
         return generatMeshF(new ImplicitOffset3d() { A = meshImplicit, Offset = offset }, resolution);
@@ -41,15 +41,4 @@ public static class MoldUtils {
         return c.Mesh;   // write mesh
     }
 
-    public static DMesh3 InflateMesh(DMesh3 mesh, double offset) {
-        DMesh3 result = new(mesh, false, true, false);
-
-        var points = mesh.Vertices().Select(v => new MR.DotNet.Vector3f((float)v.x, (float)v.y, (float)v.z)).ToList();
-        var triangles = mesh.Triangles().Select(t => new MR.DotNet.ThreeVertIds(t.a, t.b, t.c)).ToList();
-
-        //convert DMesh3 to Mesh
-        Mesh inflatedMesh = Mesh.FromTriangles(points, triangles);
-
-        return result;
-    }
 }

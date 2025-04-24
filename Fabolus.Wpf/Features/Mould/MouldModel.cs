@@ -15,6 +15,6 @@ public sealed record MouldModel {
     public MouldModel() { }
 
     public MouldModel(SimpleMouldGenerator generator) {
-        Geometry = generator.BuildPreview().ToGeometry();
+        Geometry = generator.Build().ToGeometry();
     }
 }
