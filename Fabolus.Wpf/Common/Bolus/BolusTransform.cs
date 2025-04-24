@@ -15,15 +15,15 @@ namespace Fabolus.Wpf.Common.Bolus;
 public class BolusTransform {
     private List<Quaterniond> _rotations { get; set; } = [];
 
-    public MeshGeometry3D ApplyTransforms(DMesh3 mesh) {
+    #region Public Methods
+
+    public DMesh3 ApplyTransforms(DMesh3 mesh) {
         var result = new DMesh3();
         result.Copy(mesh);
 
         _rotations.ForEach(transform => { MeshTransforms.Rotate(result, Vector3d.Zero, transform); });
-        return result.ToGeometry();
+        return result;
     }
-
-    #region Public Methods
 
     public void AddRotation(Vector3 axis, double angle) {
         var vector = new Vector3d(axis.X, axis.Y, axis.Z);

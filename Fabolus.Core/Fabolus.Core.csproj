@@ -24,18 +24,31 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="geometry3Sharp" Version="1.0.324" />
-    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
+    <None Remove="TriangleNet.dll" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Libraries\" />
+    <PackageReference Include="geometry3Sharp" Version="1.0.324" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
+    <PackageReference Include="MeshLib" Version="3.0.5.215" />
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="ClassLibrary">
       <HintPath>Libraries\TriangleNet.dll</HintPath>
     </Reference>
+    <Reference Include="ClassLibrary">
+      <HintPath>Libraries\TriangleNet.dll</HintPath>
+    </Reference>
+    <Reference Include="ClassLibrary">
+      <HintPath>Libraries\TriangleNet.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Libraries\TriangleNet.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
 </Project>

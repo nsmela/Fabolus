@@ -1,4 +1,5 @@
 ﻿using g3;
+using static MR.DotNet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,7 +37,19 @@ public static class MoldUtils {
         c.CubeSize = c.Bounds.MaxDim / numcells;
         c.Bounds.Expand(3 * c.CubeSize);                            // leave a buffer of cells
         c.Generate();
-        MeshNormals.QuickCompute(c.Mesh);                           // generate normals
+        g3.MeshNormals.QuickCompute(c.Mesh);                           // generate normals
         return c.Mesh;   // write mesh
+    }
+
+    public static DMesh3 InflateMesh(DMesh3 mesh, double offset) {
+        DMesh3 result = new(mesh, false, true, false);
+
+        var points = mesh.Vertices().Select(v => new MR.DotNet.Vector3f((float)v.x, (float)v.y, (float)v.z)).ToList();
+        var triangles = mesh.Triangles().Select(t => new MR.DotNet.ThreeVertIds(t.a, t.b, t.c)).ToList();
+
+        //convert DMesh3 to Mesh
+        Mesh inflatedMesh = Mesh.FromTriangles(points, triangles);
+
+        return result;
     }
 }

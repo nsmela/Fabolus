@@ -31,7 +31,8 @@ public partial class MouldViewModel : BaseViewModel {
             throw new NullReferenceException("Bolus is null in MouldViewModel");
         }
 
-        var mould = new MouldModel(SimpleMouldGenerator.New().WithBolus(Bolus.Mesh));
+        var mesh = Bolus.TransformedMesh;
+        var mould = new MouldModel(SimpleMouldGenerator.New().WithBolus(mesh));
 
         WeakReferenceMessenger.Default.Send(new MouldUpdatedMessage(mould));
     }

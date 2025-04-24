@@ -1,21 +1,27 @@
-﻿using g3;
+﻿using Fabolus.Core.BolusModel;
+using Fabolus.Core.Common;
+using g3;
+using System.Collections.Generic;
+using TriangleNet.Geometry;
+using TriangleNet.Meshing;
 
 namespace Fabolus.Core.Mould.Builders;
 public sealed record SimpleMouldGenerator {
-    private DMesh3? BolusReference { get; set; } //mesh to invert while entirely within
+    private DMesh3 BolusReference { get; set; } //mesh to invert while entirely within
     private double MaxHeight { get; set; } = 100.0;
     private double MinHeight { get; set; } = -100.0;
     private double OffsetXY { get; set; } = 3.0;
     private double OffsetTop { get; set; } = 3.0;
     private double OffsetBottom { get; set; } = 3.0;
-    private double Resolution { get; set; } = 3.0;
+    private double Resolution { get; set; } = 1.0;
     private DMesh3[] ToolMeshes { get; set; } = []; // mesh to boolean subtract from the mold
 
     public static SimpleMouldGenerator New() => new();
     public SimpleMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
-    public SimpleMouldGenerator WithBolus(DMesh3 bolusMesh) => this with { BolusReference = bolusMesh };
+    public SimpleMouldGenerator WithBolus(DMesh3 bolus) => this with { BolusReference = bolus };
     public SimpleMouldGenerator WithHeights(double maxHeight, double minHeight) => this with { MaxHeight = maxHeight, MinHeight = minHeight };
     public SimpleMouldGenerator WithOffsets(double offset) => this with { OffsetTop = offset, OffsetBottom = offset, OffsetXY = offset };
+    public SimpleMouldGenerator WithResolution(int resolution) => this with { Resolution = resolution };
     public SimpleMouldGenerator WithToolMeshes(DMesh3[] toolMeshes) => this with { ToolMeshes = toolMeshes };
     public SimpleMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public SimpleMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
@@ -35,28 +41,26 @@ public sealed record SimpleMouldGenerator {
         var maxBolusHeight = (float)(BolusReference.CachedBounds.Max.z + BolusReference.CachedBounds.Height);
         var maxHeight = maxBolusHeight + OffsetTop;
         var heightOffset = maxHeight - (maxBolusHeight + OffsetTop);
-        var contour = GetContour(BolusReference);
-        var mesh = ContourToMesh(contour);
 
-        return MoldUtils.OffsetMeshD(BolusReference, OffsetXY);
+        var offsetMesh = MoldUtils.OffsetMeshD(BolusReference, OffsetXY);
+
+        return CalculateContour(offsetMesh);
     }
 
-    private List<Vector3d> GetContour(DMesh3 mesh) {
-        if (mesh is null) { return []; }
+    private List<Vector3d> GetContour(DMesh3 mesh, double resolution = 1.0f, int padding = 3) {
+        if (mesh is null) { return null; }
 
-        var spatial = new DMeshAABBTree3(mesh);
-        spatial.Build();
+        var spatial = new DMeshAABBTree3(mesh, true);
 
         //try a hit test for each cube?
-        var z = mesh.CachedBounds.Max.z + 2.0; //where hit tests will start
+        var z = mesh.CachedBounds.Max.z + 2.0f; //where hit tests will start
         var min = new Vector2d(mesh.CachedBounds.Min.x, mesh.CachedBounds.Min.y);
         var max = new Vector2d(mesh.CachedBounds.Max.x, mesh.CachedBounds.Max.y);
 
-        var padding = 3;
         var dimensions = new Index2i(
-            (int)((max.x - min.x) / Resolution) + padding * 2, //for the negative and plus side of x
-            (int)((max.y - min.y) / Resolution) + padding * 2
-        );
+            (int)((max.x - min.x) / resolution) + padding * 2, //for the negative and plus side of x
+            (int)((max.y - min.y) / resolution) + padding * 2
+            );
 
         var map = new bool[dimensions.a, dimensions.b]; //stores the results of hits
 
@@ -65,11 +69,11 @@ public sealed record SimpleMouldGenerator {
         var points = new List<System.Windows.Point>();
         int minX = dimensions.a, minY = dimensions.b;
         for (int x = 0; x < dimensions.a; x++) {
-            var xSet = min.x + 0.5f + (x * Resolution);
+            var xSet = min.x + 0.5f + (x * resolution);
             if (x < minX) { minX = x; }
 
             for (int y = 0; y < dimensions.b; y++) {
-                var ySet = min.y + 0.5f + (y * Resolution);
+                var ySet = min.y + 0.5f + (y * resolution);
                 hitRay.Origin = new Vector3d(xSet, ySet, z);
 
                 var hit = spatial.FindNearestHitTriangle(hitRay);
@@ -103,8 +107,8 @@ public sealed record SimpleMouldGenerator {
 
             //only add to contour if the new direction is different
             if (nextDirection != direction) contour.Add(new Vector3d(
-                (currentPoint.x + 0.5f) * Resolution + min.x,
-                (currentPoint.y + 0.5f) * Resolution + min.y,
+                (currentPoint.x + 0.5f) * resolution + min.x,
+                (currentPoint.y + 0.5) * resolution + min.y,
                 bottom_z));
 
             direction = nextDirection;
@@ -121,16 +125,31 @@ public sealed record SimpleMouldGenerator {
     }
 
     private DMesh3 ContourToMesh(List<Vector3d> contour) {
-        var verts = new List<Vector2d>();
-        contour.ForEach(v => verts.Add(new Vector2d(v.x, v.y)));
+        //get silhouette
+        var silhouette = new MeshSilhouette(BolusReference);
+        silhouette.Compute(Vector3d.AxisZ);
 
-        var polygon = new Polygon2d(verts);
-        var generator = new TriangulatedPolygonGenerator {
-            Polygon = new(polygon)
-        }.Generate();
-        
-        return generator.MakeDMesh();
-        
+        //create polygon
+        Vector3d[] bottomLoop = contour.Select(v => new Vector3d(v.x, v.y, MinHeight)).ToArray();
+        DMesh3 mesh = new();
+
+        int n = bottomLoop.Count();
+        var bottomLoopIndices = new int[n];
+        for(int i = 0; i < n; i++) {
+            bottomLoopIndices[i] = mesh.AppendVertex(bottomLoop[i]);
+        }
+
+        var z_offset = 20.0;
+        Vector3d[] upperLoop = bottomLoop.Select(v => new Vector3d(v.x, v.y, MaxHeight)).ToArray();
+        var upperLoopIndices = new int[n];
+        for (int i = 0; i < n; i++) {
+            upperLoopIndices[i] = mesh.AppendVertex(upperLoop[i]);
+        }
+
+        MeshEditor editor = new(mesh);
+        editor.StitchLoop(bottomLoopIndices, upperLoopIndices);
+
+        return editor.Mesh;
     }
 
     private static int GridPosition(Vector2i position) => GridPosition(position.x, position.y);
@@ -185,22 +204,56 @@ public sealed record SimpleMouldGenerator {
         pVector *= -1;
         var position = GridPosition(pVector);
         int pX, pY;
+        int sizeX = map.GetLength(0);
+        int sizeY = map.GetLength(1);
 
         //cycle clockwise until a new spot is hit
         for (int i = 0; i < 9; i++) {
             position++;
-            if (position > 8) position = 1;
+            if (position > 8) { position = 1; }
 
             pVector = GridPosition(position);
             pX = x + pVector.x;
             pY = y + pVector.y;
 
             //check if map is true or false at this position
-            if (pX >= 0 && pY >= 0 && map[pX, pY]) return position;
+            if (pX < 0 || pX >= sizeX)  { continue; }
+            if (pY < 0 || pY >= sizeY) { continue; }
+            if (map[pX, pY]) { return position; }
 
         }
 
         return -1;
+    }
+
+    private DMesh3 CalculateContour(DMesh3 mesh) {
+        //get the edges around the mesh
+        var contour = GetContour(mesh, Resolution);
+
+        var zHeight = (float)(MaxHeight) + OffsetTop;
+        var zBottom = contour[0].z - OffsetBottom;
+
+        //create polygon
+        DMesh3 result = new();
+
+        int n = contour.Count();
+        Vector3d[] bottomLoop = contour.Select(v => new Vector3d(v.x, v.y, MinHeight)).ToArray();
+        var bottomLoopIndices = new int[n];
+        for (int i = 0; i < n; i++) {
+            bottomLoopIndices[i] = result.AppendVertex(bottomLoop[i]);
+        }
+
+        var z_offset = 20.0;
+        Vector3d[] upperLoop = bottomLoop.Select(v => new Vector3d(v.x, v.y, MaxHeight)).ToArray();
+        var upperLoopIndices = new int[n];
+        for (int i = 0; i < n; i++) {
+            upperLoopIndices[i] = result.AppendVertex(upperLoop[i]);
+        }
+
+        MeshEditor editor = new(result);
+        editor.StitchLoop(bottomLoopIndices, upperLoopIndices);
+
+        return editor.Mesh;
     }
 
 }
