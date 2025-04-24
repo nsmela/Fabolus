@@ -93,7 +93,7 @@ public partial class ChannelsViewModel : BaseViewModel {
     private void DeleteChannel() {
         if (_activeChannel is null) { return; }
         if (!_channels.ContainsKey(_activeChannel.GUID)) { return; }
-        _channels.Remove(_activeChannel.GUID);
+        _channels.Remove(_activeChannel);
 
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
 

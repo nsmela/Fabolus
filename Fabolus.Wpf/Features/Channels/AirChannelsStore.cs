@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.AirChannel;
+using Fabolus.Wpf.Pages.Rotate;
 
 namespace Fabolus.Wpf.Features.Channels;
 public class AirChannelsStore {
@@ -18,6 +19,7 @@ public class AirChannelsStore {
         WeakReferenceMessenger.Default.Register<ActiveChannelUpdatedMessage>(this, (r,m) => _activeChannel = m.Channel);
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, (r, m) => _channels = m.Channels);
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, (r, m) => _settings = m.Settings);
+        WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => _channels = _channels.Clear()); //remove channels if bolus is rotated
 
         //requests
         WeakReferenceMessenger.Default.Register<ActiveChannelRequestMessage>(this, (r, m) => m.Reply(_activeChannel));

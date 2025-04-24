@@ -7,6 +7,9 @@ using System.Text;
 using System.Threading.Tasks;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
+using TriangleNet;
+using TriangleNet.Geometry;
+using TriangleNet.Meshing;
 
 namespace Fabolus.Core;
 public static class Extensions {
@@ -35,4 +38,25 @@ public static class Extensions {
         return DMesh3Builder.Build(vertices, triangles, normals);
     }
 
+    public static DMesh3 ToDmesh(this TriangleNet.Geometry.Polygon polygon, double z = 0.0) {
+        var mesh = new GenericMesher().Triangulate(polygon);
+
+        DMesh3 result = new();
+        
+        foreach(var point in mesh.Vertices) {
+            result.AppendVertex(new Vector3d(point.X, point.Y, z));
+        }
+
+        foreach(var tri in mesh.Triangles) {
+            var index = new Index3i {
+                a = tri.GetVertex(0).ID,
+                b = tri.GetVertex(1).ID,
+                c = tri.GetVertex(2).ID,
+            };
+
+            result.AppendTriangle(index);
+        }
+
+        return result;
+    }
 }

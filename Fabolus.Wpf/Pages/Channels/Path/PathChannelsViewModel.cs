@@ -3,9 +3,8 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features;
-using SharpDX.Direct2D1;
 using Fabolus.Wpf.Features.Channels.Path;
-using Fabolus.Wpf.Features.Channels.Angled;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Fabolus.Wpf.Pages.Channels.Path;
 public partial class PathChannelsViewModel : BaseChannelsViewModel {
@@ -23,6 +22,7 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
     partial void OnUpperHeightChanged(float value) => SetSettings();
 
     private bool _isBusy = false;
+    private bool HasPathChannel => _channels.Any(x => x.Value.ChannelType == ChannelTypes.Path);
 
     public PathChannelsViewModel() : base() { }
 
@@ -58,7 +58,7 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
 
         //there is an active channel
 
-        var channel = _channels[_activeChannel.GUID] as PathAirChannel;
+        var channel = _channels.PathChannel();
         channel = channel with {
             Depth = this.Depth,
             Height = this.LowerHeight,
@@ -68,6 +68,13 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
         };
 
         channel.Build();
+
+        //paths channel only has a single channel within the AirChannelsCollection
+        if (HasPathChannel) {
+            var id = _channels.First(x => x.Value.ChannelType == ChannelTypes.Path).Key;
+            channel = channel with { GUID = id };
+        }
+
         _channels[channel.GUID] = channel;
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
     }
@@ -85,4 +92,24 @@ public partial class PathChannelsViewModel : BaseChannelsViewModel {
 
         WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
     }
+
+    [RelayCommand]
+    public async Task ClearPathPoints() {
+        if (!HasPathChannel) { return; }
+
+        // clear storage
+        _channels.RemovePaths();
+
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+
+        //clear preview
+        var setting = _settings[ChannelTypes.Path] as PathAirChannel with { PathPoints = [] };
+        _settings[ChannelTypes.Path] = setting;
+        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+
+        //clear active channel
+        _activeChannel = setting.New();
+        WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(_activeChannel));
+    }
+
 }

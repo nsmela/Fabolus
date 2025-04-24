@@ -23,7 +23,7 @@ public static class AngledChannelCurve {
     /// <param name="normal">The normal of the point on the mesh</param>
     /// <param name="radius">The channel's diameter</param>
     /// <returns>List of Vector3d representing the path for the channel</returns>
-    public static List<Vector3d> Curve(Vector3d origin, Vector3d normal, double tipLength, double radius, double topZ) {
+    public static List<Vector3d> Curve(Vector3d origin, Vector3d normal, double tipLength, double radius) {
 
         var dir = Direction(normal);
 
@@ -32,8 +32,6 @@ public static class AngledChannelCurve {
 
         //adding the bend
         points.AddRange(Arc(points.Last(), dir, radius));
-        var last = points.Last();
-        points.Add(new Vector2d(last.x, topZ - origin.z));
 
         //aligning curve to origin and normal
         var angleX = AngleDXY(normal);

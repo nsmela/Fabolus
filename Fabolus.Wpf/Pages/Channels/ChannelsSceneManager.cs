@@ -191,7 +191,7 @@ public class ChannelsSceneManager : SceneManager {
 
     private async Task AddChannel(HitTestResult? hit) {
         if (hit is null) { return; }
-        var channel = _activeChannel.New();
+        var channel = _settings[_activeChannel.ChannelType].New();
         channel.Height = MaxHeight;
         channel = channel.WithHit(hit);
         _channels.Add(channel);
@@ -205,14 +205,13 @@ public class ChannelsSceneManager : SceneManager {
             _channels.PreviewChannel = null;
         }
         else {
-            var channel = _activeChannel.New();
+            var channel = _settings[_activeChannel.ChannelType].New();
             channel.Height = MaxHeight;
             channel = channel.WithHit(hit, true);
             _channels.PreviewChannel = channel;
             _previewMesh = channel.Geometry;
         }
 
-        //WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
         UpdateDisplay(null);
     }
 }

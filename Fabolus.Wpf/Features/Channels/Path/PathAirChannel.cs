@@ -40,7 +40,7 @@ public record PathAirChannel : IAirChannel {
     public void Build() {
         Geometry = PathChannelGenerator.New()
             .WithDepth(Depth)
-            .WithLength(Height, UpperHeight, Height)
+            .WithLength(LowerHeight, UpperHeight, Height)
             .WithPath(PathPoints.ToArray())
             .WithRadius(LowerDiameter / 2.0f, UpperDiameter / 2.0f)
             .Build();

@@ -42,8 +42,10 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
 
     public void ApplyTransform(BolusTransform transform) {
         Transform = transform;
-        Geometry = Transform.ApplyTransforms(Mesh);
+        Geometry = Transform.ApplyTransforms(Mesh).ToGeometry();
     }
+
+    public DMesh3 TransformedMesh => Transform.ApplyTransforms(Mesh);
 
     public bool IsLoaded =>
         Mesh is not null &&

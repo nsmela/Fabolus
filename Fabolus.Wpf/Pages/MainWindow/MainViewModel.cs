@@ -11,6 +11,8 @@ using Fabolus.Wpf.Pages.Rotate;
 using Fabolus.Wpf.Pages.Smooth;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Wpf.Features.Channels;
+using Fabolus.Wpf.Features.Mould;
+using Fabolus.Wpf.Pages.Mould;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
@@ -37,6 +39,8 @@ public partial class MainViewModel : ObservableObject {
     #region Stores
     private BolusStore BolusStore { get; set; } = new();
     private AirChannelsStore AirChannelsStore { get; set; } = new();
+    private MouldStore MoldStore { get; set; } = new();
+
     #endregion
 
     private void NavigateTo(BaseViewModel viewModel) {
@@ -73,8 +77,8 @@ public partial class MainViewModel : ObservableObject {
     [RelayCommand] public async Task SwitchToRotationView() => NavigateTo(new RotateViewModel());
     [RelayCommand] public async Task SwitchToSmoothingView() => NavigateTo(new SmoothingViewModel());
     [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new ChannelsViewModel());
+    [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MouldViewModel());
     /*
-    [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MoldViewModel());
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());
     */
     #endregion

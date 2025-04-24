@@ -1,0 +1,35 @@
+﻿<UserControl x:Class="Fabolus.Wpf.Pages.Mould.MouldView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Mould"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <StackPanel HorizontalAlignment="Stretch" 
+                VerticalAlignment="Top" 
+                Margin="4,0,4,0">
+        <Label Content="mold type" HorizontalAlignment="Center" 
+                        VerticalAlignment="Center"
+                        FontSize="12" 
+                        FontWeight="Bold"
+                        FontFamily="\Fonts\#Poppins"/>
+
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="4">
+            <ComboBox SelectedIndex="{Binding ActiveToolIndex}"
+                      ItemsSource="{Binding MoldNames}"
+                      IsSynchronizedWithCurrentItem="True"
+                      Width="164">
+            </ComboBox>
+        </StackPanel>
+
+        <Button Content="generate" 
+                Height="30" Margin="4"
+                HorizontalAlignment="Stretch"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                Command="{Binding GenerateMouldCommand}" />
+
+    </StackPanel>
+</UserControl>
