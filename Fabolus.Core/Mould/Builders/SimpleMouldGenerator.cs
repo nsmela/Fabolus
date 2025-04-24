@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.BolusModel;
 using Fabolus.Core.Common;
+using Fabolus.Core.Mould.Utils;
 using g3;
 using gs;
 using System.Collections.Generic;
@@ -12,12 +13,8 @@ namespace Fabolus.Core.Mould.Builders;
 /// </summary>
 public sealed record SimpleMouldGenerator : MouldGenerator {
     private DMesh3 BolusReference { get; set; } //mesh to invert while entirely within
-    private double MaxHeight { get; set; } = 100.0;
-    private double MinHeight { get; set; } = -100.0;
-    private double OffsetXY { get; set; } = 3.0;
-    private double OffsetTop { get; set; } = 3.0;
-    private double OffsetBottom { get; set; } = 3.0;
-    private double ContourResolution { get; set; } = 2.0; //xy contour detection grid size (lower is better, but slower)
+    private double MaxHeight { get; set; } = 10.0;
+    private double MinHeight { get; set; } = 0.0;
     private int CalculationResolution { get; set; } = 32; //how accurate the implicit meshs are (higher is better, but slower)
     private DMesh3[] ToolMeshes { get; set; } = []; // mesh to boolean subtract from the mold
 
@@ -25,7 +22,8 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
     public SimpleMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
     public SimpleMouldGenerator WithBolus(DMesh3 bolus) => this with { BolusReference = bolus };
     public SimpleMouldGenerator WithOffsets(double offset) => this with { OffsetTop = offset, OffsetBottom = offset, OffsetXY = offset };
-    public SimpleMouldGenerator WithResolution(int resolution) => this with { Resolution = resolution };
+    public SimpleMouldGenerator WithCalculationResolution(int resolution) => this with { CalculationResolution = resolution };
+    public SimpleMouldGenerator WithContourResolution(int resolution) => this with { ContourResolution = resolution };
     public SimpleMouldGenerator WithToolMeshes(DMesh3[] toolMeshes) => this with { ToolMeshes = toolMeshes };
     public SimpleMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public SimpleMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
@@ -38,7 +36,12 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
 
         var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
 
-        return CalculateContour(offsetMesh);
+        var mould = CalculateContour(offsetMesh);
+        if (ToolMeshes is null || ToolMeshes.Count() == 0) {
+            return mould;
+        }
+
+        return BooleanOperators.Subtraction(mould, ToolMeshes[0]);
     }
 
     private List<Vector3d> GetContour(DMesh3 mesh, int padding = 3) {

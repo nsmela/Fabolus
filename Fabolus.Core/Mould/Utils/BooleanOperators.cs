@@ -1,4 +1,5 @@
 ﻿using g3;
+using static MR.DotNet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,35 +29,35 @@ public static class BooleanOperators {
         c.CubeSize = c.Bounds.MaxDim / 96;
         c.Bounds.Expand(3 * c.CubeSize);
         c.Generate();
-        MeshNormals.QuickCompute(c.Mesh);
+        g3.MeshNormals.QuickCompute(c.Mesh);
 
         return c.Mesh;
     }
 
-    public static DMesh3 Subtraction(DMesh3 mesh1, DMesh3 mesh2, int resolution = 128) {
-        if (mesh1 is null || mesh1.TriangleCount <= 0) return mesh2;
-        if (mesh2 is null || mesh2.TriangleCount <= 0) return mesh1;
-
-        var task1 = Task.Run(() => meshToImplicitF(mesh1, resolution, 0.2f));
-        var task2 = Task.Run(() => meshToImplicitF(mesh2, resolution, 0.2f));
-
-        Task.WaitAll(task1, task2);
-
-        //take the difference of the bolus mesh minus the tools
-        ImplicitDifference3d mesh = new ImplicitDifference3d() { A = task1.Result, B = task2.Result };
-
-        //calculate the boolean mesh
-        MarchingCubes c = new MarchingCubes();
-        c.Implicit = mesh;
-        c.RootMode = MarchingCubes.RootfindingModes.LerpSteps;
-        c.RootModeSteps = 5;
-        c.Bounds = mesh.Bounds();
-        c.CubeSize = 1.0f; //c.Bounds.MaxDim / 64;
-        c.Bounds.Expand(3 * c.CubeSize);
-        c.Generate();
-
-        return c.Mesh;
-    }
+    //public static DMesh3 Subtraction(DMesh3 mesh1, DMesh3 mesh2, int resolution = 128) {
+    //    if (mesh1 is null || mesh1.TriangleCount <= 0) return mesh2;
+    //    if (mesh2 is null || mesh2.TriangleCount <= 0) return mesh1;
+    //
+    //    var task1 = Task.Run(() => meshToImplicitF(mesh1, resolution, 0.2f));
+    //    var task2 = Task.Run(() => meshToImplicitF(mesh2, resolution, 0.2f));
+    //
+    //    Task.WaitAll(task1, task2);
+    //
+    //    //take the difference of the bolus mesh minus the tools
+    //    ImplicitDifference3d mesh = new ImplicitDifference3d() { A = task1.Result, B = task2.Result };
+    //
+    //    //calculate the boolean mesh
+    //    MarchingCubes c = new MarchingCubes();
+    //    c.Implicit = mesh;
+    //    c.RootMode = MarchingCubes.RootfindingModes.LerpSteps;
+    //    c.RootModeSteps = 5;
+    //    c.Bounds = mesh.Bounds();
+    //    c.CubeSize = 1.0f; //c.Bounds.MaxDim / 64;
+    //    c.Bounds.Expand(3 * c.CubeSize);
+    //    c.Generate();
+    //
+    //    return c.Mesh;
+    //}
 
 
     // meshToImplicitF() generates a narrow-band distance-field and
@@ -80,9 +81,36 @@ public static class BooleanOperators {
         c.CubeSize = c.Bounds.MaxDim / numcells;
         c.Bounds.Expand(3 * c.CubeSize);                            // leave a buffer of cells
         c.Generate();
-        MeshNormals.QuickCompute(c.Mesh);                           // generate normals
+        g3.MeshNormals.QuickCompute(c.Mesh);                           // generate normals
         return c.Mesh;   // write mesh
     }
 
+    public static DMesh3 Subtraction(DMesh3 body, DMesh3 tool) {
+        Mesh bodyMesh = body.ToMesh();
+        Mesh toolMesh = tool.ToMesh();
+
+        var result = Boolean(bodyMesh, toolMesh, BooleanOperation.DifferenceAB);
+        return result.mesh.ToDMesh();
+
+    }
+
+    private static Mesh ToMesh(this DMesh3 mesh) {
+        List<MR.DotNet.Vector3f> verts = mesh.Vertices().Select(v => new MR.DotNet.Vector3f((float)v.x, (float)v.y, (float)v.z)).ToList();
+        List<ThreeVertIds> tris = mesh.Triangles().Select(t => new ThreeVertIds(t.a, t.b, t.c)).ToList();
+        return Mesh.FromTriangles(verts, tris);
+    }
+
+    private static DMesh3 ToDMesh(this Mesh mesh) {
+        DMesh3 result = new();
+
+        foreach (var p in mesh.Points) {
+            result.AppendVertex(new Vector3d(p.X, p.Y, p.Z));
+        }
+        foreach(var t in mesh.Triangulation) {
+            result.AppendTriangle(t.v0.Id, t.v1.Id, t.v2.Id);
+        }
+
+        return result;
+    }
 }
 
