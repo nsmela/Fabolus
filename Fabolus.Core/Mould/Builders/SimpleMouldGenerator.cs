@@ -34,14 +34,22 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         MaxHeight = BolusReference.CachedBounds.Max.z + OffsetTop;
         MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
 
+        //generate the inflated mesh
         var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
 
-        var mould = CalculateContour(offsetMesh);
+        //create the mould
+        MeshEditor mouldEditor = new(BolusReference);
+        mouldEditor.ReverseTriangles(BolusReference.TriangleIndices()); //add and reverse the bolus mesh
+        mouldEditor.AppendMesh(CalculateContour(offsetMesh));
+
         if (ToolMeshes is null || ToolMeshes.Count() == 0) {
-            return mould;
+            return mouldEditor.Mesh;
         }
 
-        return BooleanOperators.Subtraction(mould, ToolMeshes[0]);
+        MeshEditor toolsEditor = new(new DMesh3());
+        toolsEditor.Join(ToolMeshes);
+
+        return mouldEditor.BooleanSubtract(toolsEditor.Mesh);
     }
 
     private List<Vector3d> GetContour(DMesh3 mesh, int padding = 3) {
