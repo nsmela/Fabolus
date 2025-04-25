@@ -38,18 +38,16 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
 
         //create the mould
-        MeshEditor mouldEditor = new(BolusReference);
-        mouldEditor.ReverseTriangles(BolusReference.TriangleIndices()); //add and reverse the bolus mesh
-        mouldEditor.AppendMesh(CalculateContour(offsetMesh));
+        var result = BooleanOperators.Subtraction(CalculateContour(offsetMesh), BolusReference);
 
         if (ToolMeshes is null || ToolMeshes.Count() == 0) {
-            return mouldEditor.Mesh;
+            return result;
         }
 
         MeshEditor toolsEditor = new(new DMesh3());
         toolsEditor.Join(ToolMeshes);
 
-        return mouldEditor.BooleanSubtract(toolsEditor.Mesh);
+        return BooleanOperators.Subtraction(result, toolsEditor.Mesh);
     }
 
     private List<Vector3d> GetContour(DMesh3 mesh, int padding = 3) {

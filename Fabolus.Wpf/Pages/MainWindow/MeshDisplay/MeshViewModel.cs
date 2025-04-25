@@ -57,7 +57,7 @@ public partial class MeshViewModel : ObservableObject {
                     Geometry = model.Geometry,
                     Material = model.Skin,
                     Transform = model.Transform,
-                    CullMode = CullMode.Back,
+                    CullMode = model.Cull ? CullMode.Front : CullMode.Back,
                 });
             }
         }, null);

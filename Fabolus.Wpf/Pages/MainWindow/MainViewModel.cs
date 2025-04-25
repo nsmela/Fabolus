@@ -13,6 +13,7 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Mould;
 using Fabolus.Wpf.Pages.Mould;
+using Fabolus.Wpf.Pages.Export;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
@@ -78,8 +79,7 @@ public partial class MainViewModel : ObservableObject {
     [RelayCommand] public async Task SwitchToSmoothingView() => NavigateTo(new SmoothingViewModel());
     [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new ChannelsViewModel());
     [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MouldViewModel());
-    /*
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());
-    */
+
     #endregion
 }

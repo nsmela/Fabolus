@@ -17,4 +17,12 @@ public sealed record MouldModel {
     public MouldModel(SimpleMouldGenerator generator) {
         Geometry = generator.Build().ToGeometry();
     }
+
+    public bool IsValid() {
+        if (Geometry is null || Geometry.TriangleIndices.Count() == 0) { return false; }
+
+        return true;
+    }
+
+    public bool IsNotValid() => !IsValid();
 }

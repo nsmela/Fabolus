@@ -53,6 +53,14 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Geometry is not null &&
         Geometry.Positions.Count > 0;
 
+    public bool IsValid() {
+        if (Geometry is null || Geometry.TriangleIndices.Count() == 0) { return false; }
+
+        return true;
+    }
+
+    public bool IsNotValid() => !IsValid();
+
     public void SetMesh(DMesh3 mesh) {
         Mesh = mesh;
         Geometry = mesh.ToGeometry();

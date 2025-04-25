@@ -77,7 +77,8 @@ public class MouldSceneModel : SceneManager {
             models.Add(new DisplayModel3D {
                 Geometry = _mould.Geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = _mouldSkin
+                Skin = _mouldSkin,
+                Cull = true
             });
         }
 
