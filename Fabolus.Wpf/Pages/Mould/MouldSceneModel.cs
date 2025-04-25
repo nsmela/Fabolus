@@ -19,7 +19,7 @@ namespace Fabolus.Wpf.Pages.Mould;
 public class MouldSceneModel : SceneManager {
     private BolusModel _bolus;
     private AirChannelsCollection _channels = [];
-    private MouldModel _mould;
+    private MouldModel? _mould;
     private Material _mouldSkin = DiffuseMaterials.Ruby;
     private Material _channelsSkin = DiffuseMaterials.Glass;
 
@@ -40,6 +40,7 @@ public class MouldSceneModel : SceneManager {
 
         _bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         _channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage());
+        _mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>();
     }
 
     private async Task BolusUpdated(BolusModel bolus) {
