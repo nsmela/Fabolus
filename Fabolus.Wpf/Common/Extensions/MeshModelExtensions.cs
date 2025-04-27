@@ -1,6 +1,6 @@
 ﻿using Fabolus.Core.Meshes;
-using g3;
 using HelixToolkit.Wpf.SharpDX;
+using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,7 +18,7 @@ public static class MeshModelExtensions {
         geometry.Append(
             mesh.TriangleVectors().Select(v => new Point3D(v.Item1, v.Item2, v.Item3)).ToArray(), //3D vert positions
             mesh.TriangleIndices(), //index of each triangle's vertex
-            NormalsList(mesh), //normals
+            mesh.NormalVectors().Select(v => new Vector3 ((float)v.Item1, (float)v.Item2, (float)v.Item3)).ToArray(), //normals
             null); // texture coordinates
 
         return geometry.ToMeshGeometry3D();
