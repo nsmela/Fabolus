@@ -15,7 +15,8 @@ public class MeshModel {
     public IEnumerable<(double, double, double)> TriangleVectors() => Mesh.Vertices().Select(v => (v.x, v.y, v.z));
     public IEnumerable<(double, double, double)> NormalVectors() {
         for (int i = 0; i < mesh.VertexCount; i++) {
-            yield return mesh.GetVertexNormal(i).ToVector3());
+            var vector = mesh.GetVertexNormal(i);
+            yield return (vector.a, vector.b, vector.c);
         }
     }
 
