@@ -36,7 +36,7 @@ public partial class MouldViewModel : BaseViewModel {
             throw new NullReferenceException("Bolus is null in MouldViewModel");
         }
 
-        var mesh = Bolus.TransformedMesh;
+        //var mesh = Bolus.TransformedMesh;
         //var tools = AirChannels.Values.Select(c => c.Geometry.ToDMesh()).ToArray();
         //var mould = new MouldModel(SimpleMouldGenerator.New().WithToolMeshes(tools).WithBolus(mesh));
 

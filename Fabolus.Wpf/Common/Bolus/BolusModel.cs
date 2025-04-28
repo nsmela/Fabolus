@@ -1,7 +1,8 @@
 ﻿using Fabolus.Core;
+using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common.Extensions;
+using g3;
 using SharpDX;
-using DMesh3 = g3.DMesh3;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 
 namespace Fabolus.Wpf.Common.Bolus;
@@ -41,7 +42,7 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Geometry = Transform.ApplyTransforms(Mesh).ToGeometry();
     }
 
-    public DMesh3 TransformedMesh => Transform.ApplyTransforms(Mesh);
+    //public DMesh3 TransformedMesh => Transform.ApplyTransforms(Mesh);
 
     public bool IsLoaded =>
         Mesh.IsEmpty() &&

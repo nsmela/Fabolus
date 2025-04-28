@@ -86,7 +86,7 @@ public class BolusStore {
             return;
         }
 
-        _boli[BolusType.Raw] = new(new MeshModel(mesh));
+        _boli[BolusType.Raw] = new(mesh);
         _transform = new();
 
         await BolusUpdated();

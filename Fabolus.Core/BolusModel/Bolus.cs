@@ -26,10 +26,16 @@ public class Bolus {
         SetOffsets();
     }
 
+    public Bolus(MeshModel mesh) {
+        Mesh = mesh;
+        SetOffsets();
+    }
+
     public Bolus(DMesh3 mesh) {
         Mesh = new MeshModel(OrientationCentre(mesh));
         SetOffsets();
     }
+
 
     #endregion
 
