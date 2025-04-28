@@ -10,7 +10,7 @@ public abstract class BaseViewModel : ObservableObject, IDisposable {
 
     public abstract SceneManager GetSceneManager { get; }
 
-    public void Dispose() {
+    public virtual void Dispose() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
     }
 

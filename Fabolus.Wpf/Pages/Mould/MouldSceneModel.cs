@@ -74,7 +74,7 @@ public class MouldSceneModel : SceneManager {
         }
 
         //mould
-        if (_mould is not null && _mould.Geometry.Indices.Count() > 0 && _showMould) {
+        if (_mould is not null && _mould.Geometry is not null && _mould.Geometry.Indices.Count() > 0 && _showMould) {
             models.Add(new DisplayModel3D {
                 Geometry = _mould.Geometry,
                 Transform = MeshHelper.TransformEmpty,

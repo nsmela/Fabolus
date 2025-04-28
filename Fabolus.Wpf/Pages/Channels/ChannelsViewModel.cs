@@ -58,6 +58,10 @@ public partial class ChannelsViewModel : BaseViewModel {
         CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
     }
 
+    public override void Dispose() {
+        //WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(null));
+    }
+
     private async Task ActiveChannelChanged(IAirChannel channel) {
 
         _isBusy = true;
