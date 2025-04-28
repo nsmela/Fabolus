@@ -27,7 +27,7 @@ public class Bolus {
     }
 
     public Bolus(MeshModel mesh) {
-        Mesh = mesh;
+        Mesh = new MeshModel(OrientationCentre(mesh.Mesh));
         SetOffsets();
     }
 

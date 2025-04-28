@@ -22,6 +22,11 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Transform = new();
     }
 
+    public BolusModel(MeshModel mesh) : base(mesh) {
+        Geometry = mesh.ToGeometry();
+        Transform = new();
+    }
+
     public BolusModel(DMesh3 mesh) : base(mesh) {
         Geometry = mesh.ToGeometry();
         Transform = new();

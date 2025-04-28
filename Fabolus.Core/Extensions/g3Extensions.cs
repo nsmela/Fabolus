@@ -42,4 +42,6 @@ public static class g3Extensions {
         List<ThreeVertIds> tris = mesh.Triangles().Select(t => new ThreeVertIds(t.a, t.b, t.c)).ToList();
         return Mesh.FromTriangles(verts, tris);
     }
+
+    public static double[] ToArray(this g3.Vector3f vector) => new double[] { vector.x, vector.y, vector.z };
 }

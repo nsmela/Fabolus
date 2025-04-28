@@ -1,15 +1,12 @@
 ﻿using Fabolus.Core.Extensions;
 using g3;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using static MR.DotNet;
+using MeshNormals = g3.MeshNormals;
 
 namespace Fabolus.Core.Meshes;
+
 public class MeshModel {
-    private DMesh3 Mesh { get; set; } = new DMesh3();
+    public DMesh3 Mesh { get; set; } = new DMesh3();
 
     // Public Static Functions
 
@@ -65,6 +62,22 @@ public class MeshModel {
         }
     }
 
+    public IEnumerable<double[]> VectorList() => Mesh.Vertices().Select(v => new double[] { v.x, v.y, v.z });
+
+    public IEnumerable<int> TrianglesList() {
+        foreach (var tri in Mesh.Triangles()) {
+            yield return tri.a;
+            yield return tri.b;
+            yield return tri.c;
+        }
+    }
+
+    public IEnumerable<double[]> NormalsList() {
+        MeshNormals.QuickCompute(Mesh);
+
+        return Enumerable.Range(0, Mesh.VertexCount).Select(i => Mesh.GetVertexNormal(i).ToArray());
+    }
+
     // Constructors
 
     public MeshModel() { }
@@ -72,6 +85,7 @@ public class MeshModel {
     public MeshModel(DMesh3 mesh) {
         Mesh = mesh;
     }
+
     public MeshModel(Mesh mesh) {
         Mesh = mesh.ToDMesh();
     }
