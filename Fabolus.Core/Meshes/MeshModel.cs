@@ -58,8 +58,8 @@ public class MeshModel {
         foreach (var triangle in triangleIndexes) {
             Mesh.AppendTriangle(triangle.Item1, triangle.Item2, triangle.Item3);
         }
-
     }
+
     // Conversion methods
 
     public static DMesh3 ToDMesh(this Mesh mesh) {
