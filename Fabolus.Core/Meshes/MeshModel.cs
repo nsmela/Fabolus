@@ -11,6 +11,26 @@ namespace Fabolus.Core.Meshes;
 public class MeshModel {
     private DMesh3 Mesh { get; set; } = new DMesh3();
 
+    // Public Static Functions
+
+    public static MeshModel Copy(MeshModel mesh) {
+        var result = new DMesh3();
+        result.Copy(mesh.Mesh);
+        return new MeshModel(result);
+    }
+
+    public static async Task<MeshModel> FromFile(string filepath) {
+        var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true);
+        return new MeshModel(mesh);
+    }
+
+
+    // Public Functions
+
+    public void ApplyTransform(double x, double y, double z, double w) =>
+        MeshTransforms.Rotate(Mesh, Vector3d.Zero, new Quaterniond(x, y, z, w));
+
+    
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
 
     public IEnumerable<(double, double, double)> NormalVectors() {

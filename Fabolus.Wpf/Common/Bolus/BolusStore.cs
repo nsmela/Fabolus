@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using CommunityToolkit.Mvvm.Messaging.Messages;
+using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common.Bolus;
 using g3;
 using SharpDX;
@@ -85,7 +86,7 @@ public class BolusStore {
             return;
         }
 
-        _boli[BolusType.Raw] = new(mesh);
+        _boli[BolusType.Raw] = new(new MeshModel(mesh));
         _transform = new();
 
         await BolusUpdated();
