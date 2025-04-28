@@ -22,14 +22,12 @@ public class MeshModel {
 
     public IEnumerable<(int, int, int)> TriangleIndices() => Mesh.TriangleIndices().Select(t => (t.a, t.b, t.c));
 
-    public IList<int> TriangleIndexes() {
-        var triangles = new List<int>();
+    public IEnumerable<int> TriangleIndexes() {
         foreach (var tri in mesh.Triangles()) {
-            triangles.Add(tri.a);
-            triangles.Add(tri.b);
-            triangles.Add(tri.c);
+            yield return tri.a;
+            yield return tri.b;
+            yield return tri.c;
         }
-        return triangles;
     }
 
     public double Volume {
@@ -52,6 +50,16 @@ public class MeshModel {
         Mesh = mesh.ToDMesh();
     }
 
+    public MeshModel(IEnumerable<(double, double, double)> vectors, IEnumerable<(int, int, int)> triangleIndexes) {
+        Mesh = new DMesh3();
+        foreach (var vector in vectors) {
+            Mesh.AppendVertex(new Vector3d(vector.Item1, vector.Item2, vector.Item3));
+        }
+        foreach (var triangle in triangleIndexes) {
+            Mesh.AppendTriangle(triangle.Item1, triangle.Item2, triangle.Item3);
+        }
+
+    }
     // Conversion methods
 
     public static DMesh3 ToDMesh(this Mesh mesh) {

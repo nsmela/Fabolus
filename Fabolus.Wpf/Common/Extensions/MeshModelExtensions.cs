@@ -17,20 +17,18 @@ public static class MeshModelExtensions {
 
         geometry.Append(
             mesh.TriangleVectors().Select(v => new Point3D(v.Item1, v.Item2, v.Item3)).ToArray(), //3D vert positions
-            mesh.TriangleIndices(), //index of each triangle's vertex
+            mesh.TriangleIndexes().ToList(), //index of each triangle's vertex
             mesh.NormalVectors().Select(v => new Vector3 ((float)v.Item1, (float)v.Item2, (float)v.Item3)).ToArray(), //normals
             null); // texture coordinates
 
         return geometry.ToMeshGeometry3D();
     }
 
-    private static List<int> TrianglesList((int, int, int) triangles) {
-        var triangles = new List<int>();
-        foreach (var tri in triangles) {
-            triangles.Add(tri);
-            triangles.Add(tri.b);
-            triangles.Add(tri.c);
-        }
-        return triangles;
+    public static MeshModel ToMeshModel(this MeshGeometry3D mesh) {
+        if (mesh is null || mesh.TriangleIndices.Count == 0) { return new MeshModel(); }
+        var vectors = mesh.Positions.Select(v => (v.X, v.Y, v.Z));
+        var triangleIndexes = mesh.TriangleIndices.Select(t => (t.Item1, t.Item2, t.Item3));
+        return new MeshModel(vectors, triangleIndexes);
     }
+
 }
