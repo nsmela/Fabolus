@@ -15,6 +15,7 @@ public static class LaplacianSmoothing {
         var smoother = new LaplacianMeshSmoother(bolus.Mesh);
 
         smoother.Initialize();
+        //smoother.SetConstraint()
 
         smoother.SolveAndUpdateMesh();
 

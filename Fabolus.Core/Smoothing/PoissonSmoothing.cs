@@ -1,9 +1,9 @@
-﻿using g3;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Windows;
-using Bolus = Fabolus.Core.BolusModel.Bolus;
+using Fabolus.Core.Meshes;
+using g3;
 
 namespace Fabolus.Core.Smoothing;
 
@@ -18,13 +18,13 @@ public class PoissonSmoothing {
         MessageBox.Show(message, title);
     }
 
-    public void Initialize(Bolus bolus) {
-        var mesh = bolus.Mesh;
-
-        if (mesh.IsEmpty()) { 
-            ErrorMessage("Error initializing smoothing", $"Poisson Smoothing needs a valid DMesh3 object to initialize");
+    public void Initialize(MeshModel model) {
+        if (model.IsEmpty()) {
+            ErrorMessage("Error initializing smoothing", $"Poisson Smoothing needs a valid mesh to initialize");
             return;
         }
+
+        var mesh = model.Mesh;
 
         //create output file
         //prevents multiple calls to the same thing
@@ -48,7 +48,7 @@ public class PoissonSmoothing {
         }
     }
 
-    public Bolus? Smooth(PoissonSettings settings) {
+    public MeshModel? Smooth(PoissonSettings settings) {
         //run poisson reconstructor
         var isSuccessful = ExecutePoisson(TEMP_FOLDER + @"temp.ply", TEMP_FOLDER + @"temp_smooth", settings.Depth, settings.Scale, settings.SamplesPerNode);
 
@@ -57,13 +57,9 @@ public class PoissonSmoothing {
         //load new mesh from ply in folder
         var result = ReadPLYFileToDMesh(TEMP_FOLDER + @"temp_smooth.ply");
 
-        //reduce the mesh size 
-        // MeshRefinement.Remesh(result, EdgeLength); //for some reason, this is creating more triangles than positions
-        //cull the excess 
-
         return result is null 
             ? null
-            : new Bolus(result);
+            : new MeshModel(result);
     }
 
     private static bool ExecutePoisson(string inputFile, string outputFile, int depth, float scale, int samples) {

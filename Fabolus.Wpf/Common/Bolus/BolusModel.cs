@@ -15,6 +15,7 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
     public Vector3 TranslateOffset { get; set; } = Vector3.Zero;
 
     #region Constructors
+
     public BolusModel() {
         Mesh = new();
         Geometry = new();
@@ -41,20 +42,9 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Geometry = Transform.ApplyTransforms(Mesh).ToGeometry();
     }
 
-    //public DMesh3 TransformedMesh => Transform.ApplyTransforms(Mesh);
+    public bool IsValid() => !IsNotValid();
 
-    public bool IsLoaded =>
-        Mesh.IsEmpty() &&
-        Geometry is not null &&
-        Geometry.Positions.Count > 0;
-
-    public bool IsValid() {
-        if (Geometry is null || Geometry.TriangleIndices.Count() == 0) { return false; }
-
-        return true;
-    }
-
-    public bool IsNotValid() => !IsValid();
+    public bool IsNotValid() => Mesh.IsEmpty() || Geometry.IsEmpty();
 
 
     #endregion

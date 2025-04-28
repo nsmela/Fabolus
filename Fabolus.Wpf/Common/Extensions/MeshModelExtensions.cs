@@ -12,9 +12,9 @@ public static class MeshModelExtensions {
         var geometry = new MeshBuilder(true, false, false);
 
         geometry.Append(
-            mesh.VectorList().Select(values => values.ToVector3()).ToList(), //3d vert positions
-            mesh.TrianglesList().ToList(), //index of each triangle's vertex
-            mesh.NormalsList().Select(values => values.ToVector3()).ToList(), //normals
+            mesh.Vectors().Select(values => values.ToVector3()).ToList(), //3d vert positions
+            mesh.Triangles().ToList(), //index of each triangle's vertex
+            mesh.Normals().Select(values => values.ToVector3()).ToList(), //normals
             null); // texture coordinates
 
         return geometry.ToMeshGeometry3D();       

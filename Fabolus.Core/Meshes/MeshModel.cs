@@ -21,7 +21,6 @@ public class MeshModel {
         return new MeshModel(mesh);
     }
 
-
     // Public Functions
 
     public void ApplyTransform(double x, double y, double z, double w) =>
@@ -50,8 +49,6 @@ public class MeshModel {
             yield return tri.c;
         }
     }
- 
-    public IEnumerable<(double, double, double)> TriangleVectors() => Mesh.Vertices().Select(v => (v.x, v.y, v.z));
 
     public double Volume {
         get {
@@ -62,9 +59,9 @@ public class MeshModel {
         }
     }
 
-    public IEnumerable<double[]> VectorList() => Mesh.Vertices().Select(v => new double[] { v.x, v.y, v.z });
+    public IEnumerable<double[]> Vectors() => Mesh.Vertices().Select(v => new double[] { v.x, v.y, v.z });
 
-    public IEnumerable<int> TrianglesList() {
+    public IEnumerable<int> Triangles() {
         foreach (var tri in Mesh.Triangles()) {
             yield return tri.a;
             yield return tri.b;
@@ -72,7 +69,7 @@ public class MeshModel {
         }
     }
 
-    public IEnumerable<double[]> NormalsList() {
+    public IEnumerable<double[]> Normals() {
         MeshNormals.QuickCompute(Mesh);
 
         return Enumerable.Range(0, Mesh.VertexCount).Select(i => Mesh.GetVertexNormal(i).ToArray());
