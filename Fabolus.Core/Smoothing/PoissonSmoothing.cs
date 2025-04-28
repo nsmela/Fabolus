@@ -21,7 +21,7 @@ public class PoissonSmoothing {
     public void Initialize(Bolus bolus) {
         var mesh = bolus.Mesh;
 
-        if (mesh is null || mesh.TriangleCount == 0) { 
+        if (mesh.IsEmpty()) { 
             ErrorMessage("Error initializing smoothing", $"Poisson Smoothing needs a valid DMesh3 object to initialize");
             return;
         }

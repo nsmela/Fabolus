@@ -26,10 +26,6 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Transform = new();
     }
 
-    public BolusModel(MeshGeometry3D geometry) {
-        SetGeometry(geometry);
-    }
-
     public BolusModel(Fabolus.Core.BolusModel.Bolus bolus) : base(bolus.Mesh) {
         Geometry = bolus.Mesh.ToGeometry();
         CopyOffsets(bolus);
@@ -48,8 +44,7 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
     public DMesh3 TransformedMesh => Transform.ApplyTransforms(Mesh);
 
     public bool IsLoaded =>
-        Mesh is not null &&
-        Mesh.VertexCount > 0 &&
+        Mesh.IsEmpty() &&
         Geometry is not null &&
         Geometry.Positions.Count > 0;
 
@@ -61,17 +56,6 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
 
     public bool IsNotValid() => !IsValid();
 
-    public void SetMesh(DMesh3 mesh) {
-        Mesh = mesh;
-        Geometry = mesh.ToGeometry();
-        Transform = new();
-    }
-
-    public void SetGeometry(MeshGeometry3D geometry) {
-        Geometry = geometry;
-        Mesh = geometry.ToDMesh();
-        Transform = new();
-    }
 
     #endregion
 }

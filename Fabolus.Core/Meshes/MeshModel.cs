@@ -1,4 +1,5 @@
-﻿using g3;
+﻿using Fabolus.Core.Extensions;
+using g3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,23 +13,28 @@ public class MeshModel {
 
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
 
-    public IEnumerable<(double, double, double)> TriangleVectors() => Mesh.Vertices().Select(v => (v.x, v.y, v.z));
     public IEnumerable<(double, double, double)> NormalVectors() {
-        for (int i = 0; i < mesh.VertexCount; i++) {
-            var vector = mesh.GetVertexNormal(i);
-            yield return (vector.a, vector.b, vector.c);
+        for (int i = 0; i < Mesh.VertexCount; i++) {
+            var vector = Mesh.GetVertexNormal(i);
+            yield return (vector.x, vector.y, vector.z);
         }
     }
 
-    public IEnumerable<(int, int, int)> TriangleIndices() => Mesh.TriangleIndices().Select(t => (t.a, t.b, t.c));
+    public double[] Offsets => new double[] {
+        Mesh.CachedBounds.Center.x, 
+        Mesh.CachedBounds.Center.y, 
+        Mesh.CachedBounds.Center.z 
+    };
 
     public IEnumerable<int> TriangleIndexes() {
-        foreach (var tri in mesh.Triangles()) {
+        foreach (var tri in Mesh.Triangles()) {
             yield return tri.a;
             yield return tri.b;
             yield return tri.c;
         }
     }
+ 
+    public IEnumerable<(double, double, double)> TriangleVectors() => Mesh.Vertices().Select(v => (v.x, v.y, v.z));
 
     public double Volume {
         get {
@@ -59,27 +65,6 @@ public class MeshModel {
             Mesh.AppendTriangle(triangle.Item1, triangle.Item2, triangle.Item3);
         }
     }
-
-    // Conversion methods
-
-    public static DMesh3 ToDMesh(this Mesh mesh) {
-        DMesh3 result = new();
-
-        foreach (var p in mesh.Points) {
-            result.AppendVertex(new Vector3d(p.X, p.Y, p.Z));
-        }
-        foreach (var t in mesh.Triangulation) {
-            result.AppendTriangle(t.v0.Id, t.v1.Id, t.v2.Id);
-        }
-
-        return result
-    }
-
-    public static Mesh ToMesh(this DMesh3 mesh) {
-        List<MR.DotNet.Vector3f> verts = mesh.Vertices().Select(v => new MR.DotNet.Vector3f((float)v.x, (float)v.y, (float)v.z)).ToList();
-        List<ThreeVertIds> tris = mesh.Triangles().Select(t => new ThreeVertIds(t.a, t.b, t.c)).ToList();
-        return Mesh.FromTriangles(verts, tris);
-    }
     
     // Operators
 
@@ -87,5 +72,5 @@ public class MeshModel {
     public static explicit operator MeshModel(DMesh3 mesh) => new(mesh);
 
     public static implicit operator Mesh(MeshModel model) => model.Mesh.ToMesh();
-    public static explicit operator MeshModel(Mesh model) => new(mesh);
+    public static explicit operator MeshModel(Mesh mesh) => new(mesh);
 }

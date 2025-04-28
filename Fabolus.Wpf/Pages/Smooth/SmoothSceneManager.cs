@@ -47,7 +47,7 @@ public class SmoothSceneManager : SceneManager {
             var textcoords = new Vector2Collection();
             var count = bolus.Geometry.Positions.Count();
             for (int i = 0; i < count; i++) {
-                textcoords.Add(new SharpDX.Vector2(0, coordinates[i]));
+                //textcoords.Add(new SharpDX.Vector2(0, coordinates[i]));
             }
             bolus.Geometry.TextureCoordinates = textcoords;
 

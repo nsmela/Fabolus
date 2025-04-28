@@ -36,8 +36,8 @@ public partial class ExportViewModel : BaseViewModel {
 
         var filepath = saveFile.FileName;
 
-        var mesh = bolus.Geometry.ToDMesh();
-        StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+        //var mesh = bolus.Geometry.ToDMesh();
+        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
     }
 
     [RelayCommand]
@@ -54,8 +54,8 @@ public partial class ExportViewModel : BaseViewModel {
 
         var filepath = saveFile.FileName;
 
-        var mesh = mould.Geometry.ToDMesh();
-        StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+        //var mesh = mould.Geometry.ToDMesh();
+        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
     }
     #endregion
 }

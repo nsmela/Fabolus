@@ -21,9 +21,9 @@ public static class SmoothingTools {
         spatial.Build();
 
         var values = new List<float>();
-        foreach(var point in newBolus.Mesh.Vertices()) { //TODO: convert to parallel, but account for safesetting and race conditions
-            var distance = DistanceToMesh(point, mesh, spatial);
-            values.Add(DistanceToRatio(lower, upper, spread, spatial.IsInside(point), distance));
+        foreach(var point in newBolus.Mesh.TriangleVectors()) { //TODO: convert to parallel, but account for safesetting and race conditions
+            //var distance = DistanceToMesh(point, mesh, spatial);
+            //values.Add(DistanceToRatio(lower, upper, spread, spatial.IsInside(point), distance));
         }
         return values.ToArray();
     }
