@@ -1,13 +1,4 @@
 ﻿using g3;
-using HelixToolkit.Wpf.SharpDX;
-using System;
-using System.Collections.Generic;
-using System.DirectoryServices;
-using System.Linq;
-using System.Net.WebSockets;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Core.AirChannel;
 
