@@ -63,7 +63,7 @@ internal partial class PoissonViewModel : BaseSmoothingToolViewModel {
     public override BolusModel SmoothBolus(BolusModel bolus) {
         var settings = GetSettings();
 
-        PoissonSmoothing.Initialize(bolus);
+        PoissonSmoothing.Initialize(bolus.Mesh);
         var result = PoissonSmoothing.Smooth(settings);
 
         return new BolusModel(result);

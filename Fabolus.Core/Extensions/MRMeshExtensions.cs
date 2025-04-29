@@ -5,6 +5,9 @@ namespace Fabolus.Core.Extensions;
 
 public static class MRMeshExtensions {
 
+    //ref: https://github.com/MeshInspector/MeshLib/tree/master/source/MRDotNet
+
+
     public static DMesh3 ToDMesh(this Mesh mesh) {
         DMesh3 result = new();
 
