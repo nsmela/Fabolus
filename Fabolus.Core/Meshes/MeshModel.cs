@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.Extensions;
 using g3;
+using System.Windows.Media.Media3D;
 using static MR.DotNet;
 using MeshNormals = g3.MeshNormals;
 
@@ -88,14 +89,17 @@ public class MeshModel {
         Mesh = mesh.ToDMesh();
     }
 
-    public MeshModel(IEnumerable<(double, double, double)> vectors, IEnumerable<(int, int, int)> triangleIndexes) {
+    public MeshModel(IEnumerable<Vector3D> vectors, IList<int> triangleIndexes) {
         Mesh = new DMesh3();
+
         foreach (var vector in vectors) {
-            Mesh.AppendVertex(new Vector3d(vector.Item1, vector.Item2, vector.Item3));
+            Mesh.AppendVertex(new Vector3d(vector.X, vector.Y, vector.Z));
         }
-        foreach (var triangle in triangleIndexes) {
-            Mesh.AppendTriangle(triangle.Item1, triangle.Item2, triangle.Item3);
+
+        for(int i = 0; i < triangleIndexes.Count(); i += 3) {
+            Mesh.AppendTriangle(triangleIndexes[i], triangleIndexes[i + 1], triangleIndexes[i + 2]);
         }
+
     }
     
     // Operators
@@ -105,4 +109,6 @@ public class MeshModel {
 
     public static implicit operator Mesh(MeshModel model) => model.Mesh.ToMesh();
     public static explicit operator MeshModel(Mesh mesh) => new(mesh);
+
+
 }

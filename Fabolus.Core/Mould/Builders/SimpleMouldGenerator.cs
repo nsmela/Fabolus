@@ -1,4 +1,5 @@
 ﻿using Fabolus.Core.Extensions;
+using Fabolus.Core.Meshes;
 using Fabolus.Core.Mould.Utils;
 using g3;
 using gs;
@@ -16,15 +17,15 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
 
     public static SimpleMouldGenerator New() => new();
     public SimpleMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
-    public SimpleMouldGenerator WithBolus(DMesh3 bolus) => this with { BolusReference = bolus };
+    public SimpleMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus };
     public SimpleMouldGenerator WithOffsets(double offset) => this with { OffsetTop = offset, OffsetBottom = offset, OffsetXY = offset };
     public SimpleMouldGenerator WithCalculationResolution(int resolution) => this with { CalculationResolution = resolution };
     public SimpleMouldGenerator WithContourResolution(int resolution) => this with { ContourResolution = resolution };
-    public SimpleMouldGenerator WithToolMeshes(DMesh3[] toolMeshes) => this with { ToolMeshes = toolMeshes };
+    public SimpleMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select( tm => tm.Mesh).ToArray() };
     public SimpleMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public SimpleMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
 
-    public override DMesh3 Build() {
+    public override Result<MeshModel> Build() {
         if (BolusReference is null) { throw new NullReferenceException("Build: Bolus mesh is null"); }
 
         MaxHeight = BolusReference.CachedBounds.Max.z + OffsetTop;
@@ -36,14 +37,14 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         //create the mould
         var result = BooleanOperators.Subtraction(CalculateContour(offsetMesh), BolusReference);
 
-        if (ToolMeshes is null || ToolMeshes.Count() == 0) {
-            return result;
-        }
+        if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
+        if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(result.Mesh)); }
 
         MeshEditor toolsEditor = new(new DMesh3());
         toolsEditor.Join(ToolMeshes);
 
-        return BooleanOperators.Subtraction(result, toolsEditor.Mesh);
+        var reply = BooleanOperators.Subtraction(result.Mesh, toolsEditor.Mesh);
+        return new Result<MeshModel> { Mesh = new MeshModel(reply.Mesh), IsSuccess = reply.IsSuccess, Errors = reply.Errors};
     }
 
     private List<Vector3d> GetContour(DMesh3 mesh, int padding = 3) {

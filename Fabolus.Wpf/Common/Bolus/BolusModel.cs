@@ -42,12 +42,11 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Geometry = Transform.ApplyTransforms(Mesh).ToGeometry();
     }
 
-    public bool IsValid() => !IsNotValid();
-
-    public bool IsNotValid() => Mesh.IsEmpty() || Geometry.IsEmpty();
+    public MeshModel TransformedMesh() =>
+        Transform.ApplyTransforms(Mesh);
 
     public static bool IsNullOrEmpty(BolusModel? bolus) =>
-        bolus is null || bolus.IsNotValid();
+        bolus is null || bolus.Mesh.IsEmpty() || bolus.Geometry.IsEmpty();
 
     #endregion
 }
