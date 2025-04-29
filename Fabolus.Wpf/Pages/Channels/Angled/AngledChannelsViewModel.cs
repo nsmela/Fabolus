@@ -27,7 +27,7 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
             Depth = ChannelDepth,
             Diameter = ChannelDiameter,
             BottomDiameter = ChannelConeDiameter,
-            TipLength = ChannelConeLength
+            TipLength = ChannelConeLength,
         };
 
         channel.Build();

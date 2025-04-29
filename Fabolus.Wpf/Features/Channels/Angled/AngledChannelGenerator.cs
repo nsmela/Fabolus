@@ -47,7 +47,7 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
         var mesh = new MeshBuilder();
         var count = curve.Count();
         var last = curve.Last();
-        curve.Add(new Vector3 { X = last.X, Y = last.Y, Z = last.Z + 50 });
+        curve.Add(new Vector3 { X = last.X, Y = last.Y, Z = MaxHeight });
 
         var radii = new List<double> { BottomRadius, BottomRadius };
         for (int i = 2; i < curve.Count(); i++) {
