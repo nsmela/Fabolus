@@ -9,18 +9,16 @@ namespace Fabolus.Core.Mould.Builders;
 /// Generates a mould based on the inflated silhouette of the mesh and then extruded along the z axis to encase the entire supplied mesh.
 /// </summary>
 public sealed record SimpleMouldGenerator : MouldGenerator {
-    private DMesh3 BolusReference { get; set; } //mesh to invert while entirely within
-    private double MaxHeight { get; set; } = 10.0;
-    private double MinHeight { get; set; } = 0.0;
-    private int CalculationResolution { get; set; } = 32; //how accurate the implicit meshs are (higher is better, but slower)
-    private DMesh3[] ToolMeshes { get; set; } = []; // mesh to boolean subtract from the mold
+    public double MaxHeight { get; private set; } = 10.0;
+    public double MinHeight { get; private set; } = 0.0;
+
 
     public static SimpleMouldGenerator New() => new();
     public SimpleMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
     public SimpleMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus };
     public SimpleMouldGenerator WithOffsets(double offset) => this with { OffsetTop = offset, OffsetBottom = offset, OffsetXY = offset };
     public SimpleMouldGenerator WithCalculationResolution(int resolution) => this with { CalculationResolution = resolution };
-    public SimpleMouldGenerator WithContourResolution(int resolution) => this with { ContourResolution = resolution };
+    public SimpleMouldGenerator WithContourResolution(double resolution) => this with { ContourResolution = resolution };
     public SimpleMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select( tm => tm.Mesh).ToArray() };
     public SimpleMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public SimpleMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };

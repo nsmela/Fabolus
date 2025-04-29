@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.Messaging.Messages;
+using Fabolus.Core.Mould.Builders;
 using Fabolus.Wpf.Features.Channels;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,8 @@ namespace Fabolus.Wpf.Features.Mould;
 
 //updates
 public sealed record MouldUpdatedMessage(MouldModel Mould);
+public sealed record MouldGeneratorUpdatedMessage(MouldGenerator Generator);
 
 //requests
 public class MouldRequestMessage() : RequestMessage<MouldModel> { }
+public class MouldGeneratorRequest() : RequestMessage<MouldGenerator> { }

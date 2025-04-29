@@ -15,6 +15,7 @@
              xmlns:angled="clr-namespace:Fabolus.Wpf.Pages.Channels.Angled"
              xmlns:path="clr-namespace:Fabolus.Wpf.Pages.Channels.Path"
              xmlns:mould="clr-namespace:Fabolus.Wpf.Pages.Mould"
+             xmlns:mouldviews="clr-namespace:Fabolus.Wpf.Pages.Mould.Views"
              xmlns:export="clr-namespace:Fabolus.Wpf.Pages.Export"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
@@ -82,6 +83,10 @@
                 <mould:MouldView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type mouldviews:SimpleMouldViewModel}">
+                <mouldviews:SimpleMouldView/>
+            </DataTemplate>
+            
             <DataTemplate DataType="{x:Type export:ExportViewModel}">
                 <export:ExportView />
             </DataTemplate>

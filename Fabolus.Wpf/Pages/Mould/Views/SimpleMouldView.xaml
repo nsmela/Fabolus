@@ -9,19 +9,71 @@
     <StackPanel HorizontalAlignment="Stretch" 
                 VerticalAlignment="Top" 
                 Margin="4,0,4,0">
-        <Label Content="mold type" HorizontalAlignment="Center" 
+        <Label Content="simple mould generator" HorizontalAlignment="Center" 
                         VerticalAlignment="Center"
                         FontSize="12" 
                         FontWeight="Bold"
                         FontFamily="\Fonts\#Poppins"/>
 
-        <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="4">
-            <ComboBox SelectedIndex="{Binding ActiveToolIndex}"
-                      ItemsSource="{Binding MoldNames}"
-                      IsSynchronizedWithCurrentItem="True"
-                      Width="164">
-            </ComboBox>
-        </StackPanel>
+        <Label Content="top offset" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding TopOffset, Mode=TwoWay}"
+                            Minimum="2.0" Maximum="10.0" 
+                            TickFrequency="1.0" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="2"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+
+        <Label Content="width offset" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding WidthOffset, Mode=TwoWay}"
+                            Minimum="2.0" Maximum="10.0" 
+                            TickFrequency="1.0" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="2"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+
+        <Label Content="bottom offset" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding BottomOffset, Mode=TwoWay}"
+                            Minimum="2.0" Maximum="10.0" 
+                            TickFrequency="1.0" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="2"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
+
+        <Label Content="contour resolution" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding Resolution, Mode=TwoWay}"
+                            Minimum="0.5" Maximum="5.0" 
+                            TickFrequency="0.5" 
+                            TickPlacement="TopLeft" 
+                            AutoToolTipPlacement="TopLeft"
+                            AutoToolTipPrecision="2"
+                            IsSnapToTickEnabled="True" 
+                            Height="30"/>
 
         <Button Content="generate" 
                 Height="30" Margin="4"

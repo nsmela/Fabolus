@@ -23,13 +23,7 @@
             </ComboBox>
         </StackPanel>
 
-        <Button Content="generate" 
-                Height="30" Margin="4"
-                HorizontalAlignment="Stretch"
-                FontSize="14" 
-                FontWeight="Bold"
-                FontFamily="\Fonts\#Poppins"
-                Command="{Binding GenerateMouldCommand}" />
+        <ContentControl Content="{Binding CurrentMouldViewModel}" />
 
     </StackPanel>
 </UserControl>
