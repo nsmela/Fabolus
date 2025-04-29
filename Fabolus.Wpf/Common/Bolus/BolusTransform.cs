@@ -9,7 +9,10 @@ public class BolusTransform {
     public MeshModel ApplyTransforms(MeshModel mesh) {
         var result = MeshModel.Copy(mesh);
 
-        _rotations.ForEach(r => result.ApplyTransform(r.X, r.Y, r.Z, r.W));
+        foreach(var r in _rotations) {
+            result.ApplyRotation(r.X, r.Y, r.Z, r.W);
+        }
+
         return result;
     }
 

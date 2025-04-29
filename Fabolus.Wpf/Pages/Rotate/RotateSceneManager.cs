@@ -65,7 +65,7 @@ public sealed class RotateSceneManager : SceneManager {
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {
-        if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions.Count == 0) {
+        if (BolusModel.IsNullOrEmpty(bolus)) {
             WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;
         }
@@ -75,7 +75,7 @@ public sealed class RotateSceneManager : SceneManager {
 
         var refAxis = MeshHelper.TransformFromAxis(_tempAxis, -_tempAngle).Transform(_overhangAxis).ToVector3();
 
-        bolus.Geometry.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(bolus.Geometry, refAxis);
+        bolus!.Geometry.TextureCoordinates = OverhangsHelper.GetTextureCoordinates(bolus.Geometry, refAxis);
 
         var models = new List<DisplayModel3D>();
         models.Add(new DisplayModel3D {

@@ -46,6 +46,8 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
 
     public bool IsNotValid() => Mesh.IsEmpty() || Geometry.IsEmpty();
 
+    public static bool IsNullOrEmpty(BolusModel? bolus) =>
+        bolus is null || bolus.IsNotValid();
 
     #endregion
 }

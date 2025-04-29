@@ -7,13 +7,14 @@ namespace Fabolus.Core.Meshes;
 
 public class MeshModel {
     public DMesh3 Mesh { get; set; } = new DMesh3();
+    private List<Quaterniond> Rotations { get; set; } = [];
 
     // Public Static Functions
 
-    public static MeshModel Copy(MeshModel mesh) {
-        var result = new DMesh3();
-        result.Copy(mesh.Mesh);
-        return new MeshModel(result);
+    public static MeshModel Copy(MeshModel model) {
+        var mesh = new DMesh3();
+        mesh.Copy(model.Mesh);
+        return new MeshModel(mesh);
     }
 
     public static async Task<MeshModel> FromFile(string filepath) {
@@ -23,8 +24,8 @@ public class MeshModel {
 
     // Public Functions
 
-    public void ApplyTransform(double x, double y, double z, double w) =>
-        MeshTransforms.Rotate(Mesh, Vector3d.Zero, new Quaterniond(x, y, z, w));
+    public void ApplyRotation(double x, double y, double z, double w) =>
+        MeshTransforms.Rotate(Mesh, Vector3d.Zero, new Quaterniond(new Vector3d(x, y, z), w));
 
     
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
