@@ -1,7 +1,7 @@
 ﻿using Fabolus.Core;
+using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common.Extensions;
 using SharpDX;
-using DMesh3 = g3.DMesh3;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 
 namespace Fabolus.Wpf.Common.Bolus;
@@ -15,19 +15,16 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
     public Vector3 TranslateOffset { get; set; } = Vector3.Zero;
 
     #region Constructors
+
     public BolusModel() {
         Mesh = new();
         Geometry = new();
         Transform = new();
     }
 
-    public BolusModel(DMesh3 mesh) : base(mesh) {
+    public BolusModel(MeshModel mesh) : base(mesh) {
         Geometry = mesh.ToGeometry();
         Transform = new();
-    }
-
-    public BolusModel(MeshGeometry3D geometry) {
-        SetGeometry(geometry);
     }
 
     public BolusModel(Fabolus.Core.BolusModel.Bolus bolus) : base(bolus.Mesh) {
@@ -45,33 +42,11 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Geometry = Transform.ApplyTransforms(Mesh).ToGeometry();
     }
 
-    public DMesh3 TransformedMesh => Transform.ApplyTransforms(Mesh);
+    public MeshModel TransformedMesh() =>
+        Transform.ApplyTransforms(Mesh);
 
-    public bool IsLoaded =>
-        Mesh is not null &&
-        Mesh.VertexCount > 0 &&
-        Geometry is not null &&
-        Geometry.Positions.Count > 0;
-
-    public bool IsValid() {
-        if (Geometry is null || Geometry.TriangleIndices.Count() == 0) { return false; }
-
-        return true;
-    }
-
-    public bool IsNotValid() => !IsValid();
-
-    public void SetMesh(DMesh3 mesh) {
-        Mesh = mesh;
-        Geometry = mesh.ToGeometry();
-        Transform = new();
-    }
-
-    public void SetGeometry(MeshGeometry3D geometry) {
-        Geometry = geometry;
-        Mesh = geometry.ToDMesh();
-        Transform = new();
-    }
+    public static bool IsNullOrEmpty(BolusModel? bolus) =>
+        bolus is null || bolus.Mesh.IsEmpty() || bolus.Geometry.IsEmpty();
 
     #endregion
 }

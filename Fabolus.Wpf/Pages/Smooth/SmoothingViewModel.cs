@@ -49,7 +49,7 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     [RelayCommand]
     public async Task Smooth() {
-        if (_bolus is null || _bolus.Mesh.TriangleCount == 0) {
+        if (_bolus is null || _bolus.Mesh.IsEmpty()) {
             ErrorMessage("Smoothing Error", "Unable to smooth an empty model");
             return; 
         }

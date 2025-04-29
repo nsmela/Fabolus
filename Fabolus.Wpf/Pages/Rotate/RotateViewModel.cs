@@ -8,6 +8,7 @@ using SharpDX;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Rotate;
+
 public partial class RotateViewModel : BaseViewModel {
     public override string TitleText => "Rotation";
 
@@ -35,7 +36,6 @@ public partial class RotateViewModel : BaseViewModel {
 
     private void SendTempRotation(Vector3 axis, float angle) {
         if (_isLocked) { return; }
-
         WeakReferenceMessenger.Default.Send(new ApplyTempRotationMessage(axis, angle));
     }
 

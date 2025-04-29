@@ -1,12 +1,8 @@
 ﻿using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Pages.Smooth;
+
 public static class SkinHelper {
 
     private static Color4 LowerColor => new Color4(1, 0, 0, 1);

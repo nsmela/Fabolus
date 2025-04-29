@@ -7,22 +7,29 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace Fabolus.Wpf.Features.Mould;
 public sealed record MouldModel {
     public MeshGeometry3D Geometry { get; set; }
+    public string[] Errors { get; private set; } = [];
 
     public MouldModel() { }
 
     public MouldModel(SimpleMouldGenerator generator) {
-        Geometry = generator.Build().ToGeometry();
+        var result  = generator.Build();
+
+        if (result.IsFailure) {
+            Errors = result.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, Errors), "Mould Generation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        Geometry = result.Mesh.ToGeometry();
     }
 
-    public bool IsValid() {
-        if (Geometry is null || Geometry.TriangleIndices.Count() == 0) { return false; }
-
-        return true;
-    }
-
-    public bool IsNotValid() => !IsValid();
+    public static bool IsNullOrEmpty(MouldModel? mould) =>
+        mould is null || 
+        mould.Geometry is null || 
+        mould.Geometry.TriangleIndices.Count() == 0;
 }

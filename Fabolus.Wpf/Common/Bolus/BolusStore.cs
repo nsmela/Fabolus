@@ -1,7 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using CommunityToolkit.Mvvm.Messaging.Messages;
+using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common.Bolus;
-using g3;
 using SharpDX;
 using System.IO;
 
@@ -77,7 +77,7 @@ public class BolusStore {
             return;
         }
 
-        var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true); //TODO: shouldn't be referencing DMesh3
+        var mesh = await MeshModel.FromFile(filepath);
 
         //if mesh isn't good
         if (mesh is null) {

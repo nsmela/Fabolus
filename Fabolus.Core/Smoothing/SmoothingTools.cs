@@ -1,4 +1,5 @@
 ﻿using Fabolus.Core.BolusModel;
+using Fabolus.Core.Extensions;
 using g3;
 using System;
 using System.Collections.Generic;
@@ -21,7 +22,8 @@ public static class SmoothingTools {
         spatial.Build();
 
         var values = new List<float>();
-        foreach(var point in newBolus.Mesh.Vertices()) { //TODO: convert to parallel, but account for safesetting and race conditions
+        foreach(var v in newBolus.Mesh.Vectors()) { //TODO: convert to parallel, but account for safesetting and race conditions
+            var point = v.ToVector3d();
             var distance = DistanceToMesh(point, mesh, spatial);
             values.Add(DistanceToRatio(lower, upper, spread, spatial.IsInside(point), distance));
         }

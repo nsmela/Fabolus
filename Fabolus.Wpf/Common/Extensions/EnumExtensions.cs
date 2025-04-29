@@ -1,13 +1,8 @@
-﻿using Fabolus.Core.AirChannel;
-using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Common.Extensions;
+
 public static class EnumExtensions {
     /// <summary>
     /// Returns the Description attribute of the Enum or the Enum's name

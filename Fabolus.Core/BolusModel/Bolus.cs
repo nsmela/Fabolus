@@ -1,4 +1,5 @@
-﻿using g3;
+﻿using Fabolus.Core.Meshes;
+using g3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,32 +11,31 @@ public class Bolus {
 
     #region Public Properties and Fields
 
-    public DMesh3 Mesh { get; set; }
+    public MeshModel Mesh { get; set; }
     public double XOffset { get; protected set; }
     public double YOffset { get; protected set; }
     public double ZOffset { get; protected set; }
 
-    public double Volume {
-        get {
-            if (Mesh is null || Mesh.VertexCount == 0) { return 0.0; }
-
-            var volumeAndArea = MeshMeasurements.VolumeArea(Mesh, Mesh.TriangleIndices(), Mesh.GetVertex);
-            return volumeAndArea.x / 1000;
-        }
-    }
+    public double Volume => Mesh.Volume;
 
     #endregion
 
     #region Constructors
     public Bolus() {
-        Mesh = new DMesh3();
+        Mesh = new MeshModel();
+        SetOffsets();
+    }
+
+    public Bolus(MeshModel mesh) {
+        Mesh = new MeshModel(OrientationCentre(mesh.Mesh));
         SetOffsets();
     }
 
     public Bolus(DMesh3 mesh) {
-        Mesh = OrientationCentre(mesh);
+        Mesh = new MeshModel(OrientationCentre(mesh));
         SetOffsets();
     }
+
 
     #endregion
 
@@ -52,16 +52,17 @@ public class Bolus {
     #region Private Methods
 
     protected void SetOffsets() {
-        if (Mesh is null || Mesh.VertexCount == 0) {
+        if (Mesh.IsEmpty()) {
             XOffset = 0.0; 
             YOffset = 0.0; 
             ZOffset = 0.0;
             return;
         }
 
-        XOffset = Mesh.CachedBounds.Center.x;
-        YOffset = Mesh.CachedBounds.Center.y;
-        ZOffset = Mesh.CachedBounds.Center.z;
+        var offsets = Mesh.Offsets;
+        XOffset = offsets[0];
+        YOffset = offsets[1];
+        ZOffset = offsets[2];
 
     }
 

@@ -57,7 +57,7 @@ public class MouldSceneModel : SceneManager {
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {
-        if (_bolus is null || _bolus.Geometry is null || _bolus.Geometry.Positions is null || _bolus.Geometry.Positions.Count == 0) {
+        if (BolusModel.IsNullOrEmpty(_bolus)) {
             WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;
         }
@@ -74,7 +74,7 @@ public class MouldSceneModel : SceneManager {
         }
 
         //mould
-        if (_mould is not null && _mould.Geometry is not null && _mould.Geometry.Indices.Count() > 0 && _showMould) {
+        if (_showMould && !MouldModel.IsNullOrEmpty(_mould)) {
             models.Add(new DisplayModel3D {
                 Geometry = _mould.Geometry,
                 Transform = MeshHelper.TransformEmpty,

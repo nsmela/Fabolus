@@ -1,42 +1,28 @@
-﻿using Fabolus.Core;
-using Fabolus.Wpf.Common.Extensions;
-using g3;
+﻿using Fabolus.Core.Meshes;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Media.Media3D;
-using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
-using Vector3D = System.Windows.Media.Media3D.Vector3D;
+using Quaternion = SharpDX.Quaternion;
 
 namespace Fabolus.Wpf.Common.Bolus;
 public class BolusTransform {
-    private List<Quaterniond> _rotations { get; set; } = [];
+    private List<Quaternion> _rotations { get; set; } = [];
 
-    #region Public Methods
+    public MeshModel ApplyTransforms(MeshModel mesh) {
+        var result = MeshModel.Copy(mesh);
 
-    public DMesh3 ApplyTransforms(DMesh3 mesh) {
-        var result = new DMesh3();
-        result.Copy(mesh);
+        foreach(var r in _rotations) {
+            result.ApplyRotation(r.X, r.Y, r.Z, r.W);
+        }
 
-        _rotations.ForEach(transform => { MeshTransforms.Rotate(result, Vector3d.Zero, transform); });
         return result;
     }
 
-    public void AddRotation(Vector3 axis, double angle) {
-        var vector = new Vector3d(axis.X, axis.Y, axis.Z);
-        _rotations.Add(new Quaterniond(vector, angle));
+    public void AddRotation(Vector3 axis, float angle) {
+        var vector = new Vector3(axis.X, axis.Y, axis.Z);
+        _rotations.Add(new Quaternion(vector, angle));
     }
 
     public void ClearTransforms() {
         _rotations.Clear();
     }
 
-    #endregion
-
-    #region Private
-
-    #endregion
 }

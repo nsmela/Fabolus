@@ -1,13 +1,5 @@
 ﻿using g3;
-using HelixToolkit.Wpf.SharpDX;
-using System;
-using System.Collections.Generic;
-using System.DirectoryServices;
-using System.Linq;
-using System.Net.WebSockets;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
+using System.Windows.Media.Media3D;
 
 namespace Fabolus.Core.AirChannel;
 
@@ -23,7 +15,9 @@ public static class AngledChannelCurve {
     /// <param name="normal">The normal of the point on the mesh</param>
     /// <param name="radius">The channel's diameter</param>
     /// <returns>List of Vector3d representing the path for the channel</returns>
-    public static List<Vector3d> Curve(Vector3d origin, Vector3d normal, double tipLength, double radius) {
+    public static List<Vector3D> Curve(Vector3D curveOrigin, Vector3D curveNormal, double tipLength, double radius) {
+        var origin = new Vector3d(curveOrigin.X, curveOrigin.Y, curveOrigin.Z);
+        var normal = new Vector3d(curveNormal.X, curveNormal.Y, curveNormal.Z).Normalized;
 
         var dir = Direction(normal);
 
@@ -42,8 +36,10 @@ public static class AngledChannelCurve {
                 y = 0,
                 z = p.y
             }).ToList();
-        curve = curve.Select(v => MeshTransforms.Rotate(v, Vector3d.Zero, rot)).ToList(); //rotations
-        return curve.Select(v => v + origin).ToList(); //translate
+        curve = curve
+            .Select(v => MeshTransforms.Rotate(v, Vector3d.Zero, rot) + origin)
+            .ToList(); //rotations
+        return curve.Select(v => new Vector3D { X = v.x, Y = v.y, Z = v.z} ).ToList();
     }
 
     private static Vector2d Direction(Vector3d normal) {

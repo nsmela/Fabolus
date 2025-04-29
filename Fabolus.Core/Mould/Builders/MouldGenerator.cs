@@ -1,4 +1,5 @@
 ﻿using Fabolus.Core.BolusModel;
+using Fabolus.Core.Meshes;
 using g3;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,6 @@ public abstract record MouldGenerator {
     protected double ContourResolution { get; set; } = 2.0; //xy contour detection grid size (lower is better, but slower)
     protected DMesh3[] ToolMeshes { get; set; } = []; // mesh to boolean subtract from the mold
 
-    public abstract DMesh3 Build();
+    public abstract Result<MeshModel> Build();
 
 }
