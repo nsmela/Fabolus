@@ -1,22 +1,10 @@
-﻿using Fabolus.Core;
-using Fabolus.Core.Meshes;
-using Fabolus.Wpf.Common.Extensions;
+﻿using Fabolus.Core.Meshes;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Media.Media3D;
-using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
-using Vector3D = System.Windows.Media.Media3D.Vector3D;
 using Quaternion = SharpDX.Quaternion;
 
 namespace Fabolus.Wpf.Common.Bolus;
 public class BolusTransform {
     private List<Quaternion> _rotations { get; set; } = [];
-
-    #region Public Methods
 
     public MeshModel ApplyTransforms(MeshModel mesh) {
         var result = MeshModel.Copy(mesh);
@@ -33,7 +21,5 @@ public class BolusTransform {
     public void ClearTransforms() {
         _rotations.Clear();
     }
-
-    #endregion
 
 }

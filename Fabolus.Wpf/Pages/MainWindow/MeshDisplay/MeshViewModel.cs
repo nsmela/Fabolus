@@ -23,7 +23,7 @@ public partial class MeshViewModel : ObservableObject {
     [ObservableProperty] private Color _ambientLightColor = Colors.GhostWhite;
 
     //mesh settings
-    [ObservableProperty] private FillMode _fillMode = SharpDX.Direct3D11.FillMode.Solid;
+    //[ObservableProperty] private FillMode _fillMode = SharpDX.Direct3D11.FillMode.Wireframe;
     [ObservableProperty] private bool _shadows = false;
 
     //models

@@ -1,12 +1,9 @@
 ﻿using Fabolus.Wpf.Common.Extensions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Common.Helpers;
+
 public static class EnumHelper {
+
     /// <summary>
     /// Returns a list of all enums of the Enum type
     /// </summary>
