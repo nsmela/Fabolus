@@ -1,6 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.Messaging.Messages;
 using Fabolus.Wpf.Features.Channels;
-using g3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
