@@ -5,10 +5,13 @@ using g3;
 using gs;
 
 namespace Fabolus.Core.Mould.Builders;
+
 /// <summary>
 /// Generates a mould based on the inflated silhouette of the mesh and then extruded along the z axis to encase the entire supplied mesh.
 /// </summary>
 public sealed record SimpleMouldGenerator : MouldGenerator {
+    //ref: https://github.com/NewWheelTech/geometry4Sharp/blob/ea3c96d0e437989eb49923ccc72088a6947c69a9/mesh_ops/MeshPlaneCut.cs#L230
+
     public double MaxHeight { get; private set; } = 10.0;
     public double MinHeight { get; private set; } = 0.0;
 
@@ -228,6 +231,8 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         editor.StitchLoop(bottomLoopIndices, upperLoopIndices);
 
         //cap the ends
+        //ref https://github.com/NewWheelTech/geometry4Sharp/blob/ea3c96d0e437989eb49923ccc72088a6947c69a9/mesh_ops/MeshAutoRepair.cs#L59
+
         AutoHoleFill hole = new(editor.Mesh, EdgeLoop.FromVertices(editor.Mesh, upperLoopIndices));
         hole.Apply();
         Array.Reverse(bottomLoopIndices); //to reverse the normals of the triangles created
