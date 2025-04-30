@@ -29,6 +29,8 @@ public static class g3Extensions {
             editor.AppendMesh(mesh);
         }
 
+        gs.MeshAutoRepair repair = new(editor.Mesh);
+
         return editor;
     }
 

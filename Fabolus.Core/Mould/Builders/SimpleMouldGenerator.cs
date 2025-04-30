@@ -47,10 +47,16 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
         if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(result.Mesh)); }
 
-        MeshEditor toolsEditor = new(new DMesh3());
-        toolsEditor.Join(ToolMeshes);
+        MeshEditor editor = new(new DMesh3());
+        foreach (var mesh in ToolMeshes) {
+            editor.AppendMesh(mesh);
+        }
 
-        var reply = BooleanOperators.Subtraction(result.Mesh, toolsEditor.Mesh);
+        MeshAutoRepair repair = new(editor.Mesh);
+        repair.Apply();
+        DMesh3 tools = repair.Mesh;
+
+        var reply = BooleanOperators.Subtraction(result.Mesh, tools);
         return new Result<MeshModel> { Mesh = new MeshModel(reply.Mesh), IsSuccess = reply.IsSuccess, Errors = reply.Errors};
     }
 
