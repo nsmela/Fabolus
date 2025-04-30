@@ -24,30 +24,28 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="TriangleNet.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="geometry3Sharp" Version="1.0.324" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.27.0" />
     <PackageReference Include="MeshLib" Version="3.0.5.215" />
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="ClassLibrary">
-      <HintPath>Libraries\TriangleNet.dll</HintPath>
-    </Reference>
-    <Reference Include="ClassLibrary">
-      <HintPath>Libraries\TriangleNet.dll</HintPath>
-    </Reference>
-    <Reference Include="ClassLibrary">
-      <HintPath>Libraries\TriangleNet.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\TriangleNet\TriangleNet.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="Libraries\TriangleNet.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Resource>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

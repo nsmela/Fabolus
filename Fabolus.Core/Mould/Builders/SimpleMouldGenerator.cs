@@ -1,8 +1,12 @@
-﻿using Fabolus.Core.Extensions;
+﻿using Fabolus.Core.BolusModel;
+using Fabolus.Core.Extensions;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Mould.Utils;
 using g3;
-using gs;
+using System.Windows.Media.Media3D;
+using TriangleNet.Geometry;
+using TriangleNet.Meshing;
+using static MR.DotNet;
 
 namespace Fabolus.Core.Mould.Builders;
 
@@ -36,8 +40,10 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
 
         //create the mould
-        var result = BooleanOperators.Subtraction(CalculateContour(offsetMesh), BolusReference);
+        var mould = CalculateContour(offsetMesh);
+        var result = BooleanOperators.Subtraction(mould, BolusReference);
 
+        return Result<MeshModel>.Pass(new MeshModel(mould));
         if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
         if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(result.Mesh)); }
 
@@ -210,37 +216,66 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         var contour = GetContour(mesh);
 
         //create polygon
+        var verts = contour.Select(v => new Vertex(v.x, v.y)).ToArray();
+        var polygon = new Polygon();
+        polygon.Add(new Contour(verts));
+
         DMesh3 result = new();
 
-        int n = contour.Count();
-        Vector3d[] bottomLoop = contour.Select(v => new Vector3d(v.x, v.y, MinHeight)).ToArray();
-        var bottomLoopIndices = new int[n];
-        for (int i = 0; i < n; i++) {
-            bottomLoopIndices[i] = result.AppendVertex(bottomLoop[i]);
+        List<Vector3d> bottomLoop = new();
+        List<int> bottomLoopIndices = new();
+
+        Vector3d lower = Vector3d.AxisZ * MinHeight;
+        Vector3d upper = Vector3d.AxisZ * MaxHeight;
+
+        foreach (var t in new GenericMesher().Triangulate(polygon).Triangles) {
+            //add verts
+            var p0 = t.GetVertex(0);
+            var l0 = result.AppendVertex(ToVector3d(p0, MinHeight));
+            var b0 = result.AppendVertex(ToVector3d(p0, MaxHeight));
+
+            var p1 = t.GetVertex(1);
+            var l1 = result.AppendVertex(ToVector3d(p1, MinHeight));
+            var b1 = result.AppendVertex(ToVector3d(p1, MaxHeight));
+
+            var p2 = t.GetVertex(2);
+            var l2 = result.AppendVertex(ToVector3d(p2, MinHeight));
+            var b2 = result.AppendVertex(ToVector3d(p2, MaxHeight));
+
+            //link those verts to triangles
+            result.AppendTriangle(l0, l1, l2);
+            result.AppendTriangle(b2, b1, b0);
+
         }
 
-        //extend edge loop
-        var z_offset = 20.0;
-        Vector3d[] upperLoop = bottomLoop.Select(v => new Vector3d(v.x, v.y, MaxHeight)).ToArray();
-        var upperLoopIndices = new int[n];
-        for (int i = 0; i < n; i++) {
-            upperLoopIndices[i] = result.AppendVertex(upperLoop[i]);
+        //sides
+        DMesh3 sides = new();
+
+        List<int> lowerLoop = new();
+        List<int> upperLoop = new();
+        foreach(var v in verts) {
+            //add vertex and record the index id
+            lowerLoop.Add(sides.AppendVertex(ToVector3d(v, MinHeight)));
+            upperLoop.Add(sides.AppendVertex(ToVector3d(v, MaxHeight)));
+        }
+
+        int n = contour.Count - 1;
+        for (int i = 0; i < n; ++i) {
+            var p0 = lowerLoop[i];
+            var p1 = lowerLoop[i + 1];
+            var p2 = upperLoop[i];
+            var p3 = upperLoop[i + 1];
+
+            sides.AppendTriangle(p0, p1, p2);
+            sides.AppendTriangle(p1, p3, p2);
         }
 
         MeshEditor editor = new(result);
-        editor.StitchLoop(bottomLoopIndices, upperLoopIndices);
-
-        //cap the ends
-        //ref https://github.com/NewWheelTech/geometry4Sharp/blob/ea3c96d0e437989eb49923ccc72088a6947c69a9/mesh_ops/MeshAutoRepair.cs#L59
-        // ref https://github.com/gradientspace/geometry3Sharp/blob/master/mesh_ops/PlanarHoleFiller.cs
-
-        AutoHoleFill hole = new(editor.Mesh, EdgeLoop.FromVertices(editor.Mesh, upperLoopIndices));
-        hole.Apply();
-        Array.Reverse(bottomLoopIndices); //to reverse the normals of the triangles created
-        hole.FillLoop = EdgeLoop.FromVertices(editor.Mesh, bottomLoopIndices);
-        hole.Apply();
+        editor.AppendMesh(sides);
 
         return editor.Mesh;
+
     }
 
+    private static Vector3d ToVector3d(Vertex v, double z) => new Vector3d(v.X, v.Y, z);
 }
