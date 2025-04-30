@@ -232,6 +232,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
 
         //cap the ends
         //ref https://github.com/NewWheelTech/geometry4Sharp/blob/ea3c96d0e437989eb49923ccc72088a6947c69a9/mesh_ops/MeshAutoRepair.cs#L59
+        // ref https://github.com/gradientspace/geometry3Sharp/blob/master/mesh_ops/PlanarHoleFiller.cs
 
         AutoHoleFill hole = new(editor.Mesh, EdgeLoop.FromVertices(editor.Mesh, upperLoopIndices));
         hole.Apply();
