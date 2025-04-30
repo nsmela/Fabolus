@@ -25,7 +25,6 @@
 
   <ItemGroup>
     <PackageReference Include="geometry3Sharp" Version="1.0.324" />
-    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.27.0" />
     <PackageReference Include="MeshLib" Version="3.0.5.215" />
   </ItemGroup>
 

@@ -23,6 +23,11 @@ public class MeshModel {
         return new MeshModel(mesh);
     }
 
+    public static async Task ToFile(string filepath, MeshModel model) {
+        var mesh = model.Mesh;
+        StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+    }
+
     // Public Functions
 
     public void ApplyRotation(double x, double y, double z, double w) =>
@@ -110,5 +115,6 @@ public class MeshModel {
     public static implicit operator Mesh(MeshModel model) => model.Mesh.ToMesh();
     public static explicit operator MeshModel(Mesh mesh) => new(mesh);
 
+    public static bool IsNullOrEmpty(MeshModel model) => model is null || model.Mesh is null || model.Mesh.VertexCount == 0;
 
 }

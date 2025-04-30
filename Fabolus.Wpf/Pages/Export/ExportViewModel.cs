@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Scene;
@@ -48,8 +49,7 @@ public partial class ExportViewModel : BaseViewModel {
 
         var filepath = saveFile.FileName;
 
-        //var mesh = mould.Geometry.ToDMesh();
-        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+        await MeshModel.ToFile(filepath, mould);
     }
 
     #endregion

@@ -3,6 +3,7 @@ using Fabolus.Core.Extensions;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Mould.Utils;
 using g3;
+using gs;
 using System.Windows.Media.Media3D;
 using TriangleNet.Geometry;
 using TriangleNet.Meshing;
@@ -43,7 +44,6 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         var mould = CalculateContour(offsetMesh);
         var result = BooleanOperators.Subtraction(mould, BolusReference);
 
-        return Result<MeshModel>.Pass(new MeshModel(mould));
         if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
         if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(result.Mesh)); }
 
@@ -273,7 +273,10 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         MeshEditor editor = new(result);
         editor.AppendMesh(sides);
 
-        return editor.Mesh;
+        MeshAutoRepair repair = new(editor.Mesh);
+        repair.Apply();
+
+        return repair.Mesh;
 
     }
 

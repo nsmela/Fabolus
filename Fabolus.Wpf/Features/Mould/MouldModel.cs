@@ -1,4 +1,6 @@
-﻿using Fabolus.Core.Mould.Builders;
+﻿using Fabolus.Core.Extensions;
+using Fabolus.Core.Meshes;
+using Fabolus.Core.Mould.Builders;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using HelixToolkit.Wpf.SharpDX;
@@ -10,7 +12,7 @@ using System.Threading.Tasks;
 using System.Windows;
 
 namespace Fabolus.Wpf.Features.Mould;
-public sealed record MouldModel {
+public sealed class MouldModel : MeshModel {
     public MeshGeometry3D Geometry { get; set; }
     public string[] Errors { get; private set; } = [];
 
@@ -25,11 +27,7 @@ public sealed record MouldModel {
             return;
         }
 
+        Mesh = result.Mesh;
         Geometry = result.Mesh.ToGeometry();
     }
-
-    public static bool IsNullOrEmpty(MouldModel? mould) =>
-        mould is null || 
-        mould.Geometry is null || 
-        mould.Geometry.TriangleIndices.Count() == 0;
 }
