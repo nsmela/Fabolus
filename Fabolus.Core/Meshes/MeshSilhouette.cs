@@ -7,24 +7,33 @@ using Clipper2Lib;
 using g3;
 
 namespace Fabolus.Core.Meshes;
+
 public static class MeshSilhouette {
-    public static Vector3d[] MeshToSilhouette(MeshModel model) {
+    //ref: https://www.angusj.com/clipper2/Docs/Overview.htm
+
+    public static Vector2d[] MeshToSilhouette(MeshModel model) {
         Paths64 paths = new();
 
-        foreach(var tri in model.Mesh.Triangles()) {
+        foreach(var t in model.Mesh.Triangles()) {
             Path64 trianglePath = new Path64 {
-                model.Mesh.GetVertex(tri.a).ToPoint64(),
-                model.Mesh.GetVertex(tri.b).ToPoint64(),
-                model.Mesh.GetVertex(tri.c).ToPoint64(),
+                model.Mesh.GetVertex(t.a).ToPoint64(),
+                model.Mesh.GetVertex(t.b).ToPoint64(),
+                model.Mesh.GetVertex(t.c).ToPoint64(),
             };
 
             paths.Add(trianglePath);
         }
 
         Paths64 result = Clipper.Union(paths, FillRule.NonZero);
-        List<Vector3d> contour = [];
+        List<Vector2d> contour = [];
+
+        foreach(var p in result) {
+            //contour.Add(new Vector2d(p.))
+        }
+
         return contour.ToArray();
     }
 
     private static Point64 ToPoint64(this Vector3d vector) => new Point64(vector.x, vector.y);
+
 }
