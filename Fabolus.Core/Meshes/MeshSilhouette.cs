@@ -27,8 +27,8 @@ public static class MeshSilhouette {
         Paths64 result = Clipper.Union(paths, FillRule.NonZero);
         List<Vector2d> contour = [];
 
-        foreach(var p in result) {
-            //contour.Add(new Vector2d(p.))
+        foreach(var p in result[0]) {
+            contour.Add(new Vector2d(p.X, p.Y));
         }
 
         return contour.ToArray();
