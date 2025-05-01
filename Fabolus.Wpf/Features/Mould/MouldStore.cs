@@ -29,6 +29,7 @@ public class MouldStore {
 
     private void UpdateGenerator(MouldGenerator generator) {
         _generator = generator;
+        _mould = new MouldModel(generator);
 
         WeakReferenceMessenger.Default.Send(new MouldUpdatedMessage(_mould));
     }

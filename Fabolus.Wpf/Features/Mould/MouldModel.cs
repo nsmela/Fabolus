@@ -13,13 +13,15 @@ using System.Windows;
 
 namespace Fabolus.Wpf.Features.Mould;
 public sealed class MouldModel : MeshModel {
-    public MeshGeometry3D Geometry { get; set; }
+    public bool IsPreview { get; private set; }
+    public MeshGeometry3D? Geometry { get; private set; }
     public string[] Errors { get; private set; } = [];
 
     public MouldModel() { }
 
-    public MouldModel(SimpleMouldGenerator generator) {
-        var result  = generator.Build();
+    public MouldModel(MouldGenerator generator, bool isPreview = true) {
+        IsPreview = isPreview;
+        Result<MeshModel> result = IsPreview ? generator.Preview() : generator.Build();
 
         if (result.IsFailure) {
             Errors = result.Errors.Select(e => e.ErrorMessage).ToArray();

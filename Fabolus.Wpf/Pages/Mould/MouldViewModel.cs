@@ -17,7 +17,7 @@ namespace Fabolus.Wpf.Pages.Mould;
 public partial class MouldViewModel : BaseViewModel {
     public override string TitleText => "mold";
 
-    public override SceneManager GetSceneManager => new MouldSceneModel();
+    public override SceneManager GetSceneManager => new MouldSceneManager();
 
     [ObservableProperty] private BaseMouldView? _currentMouldViewModel;
 
@@ -25,9 +25,7 @@ public partial class MouldViewModel : BaseViewModel {
 
     public MouldViewModel() {
         Bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-
-      CurrentMouldViewModel = new SimpleMouldViewModel();
-
+        CurrentMouldViewModel = new SimpleMouldViewModel();
     }
 
 }

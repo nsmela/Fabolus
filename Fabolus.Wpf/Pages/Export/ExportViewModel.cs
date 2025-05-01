@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.Input;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common;
@@ -13,7 +14,18 @@ namespace Fabolus.Wpf.Pages.Export;
 public partial class ExportViewModel : BaseViewModel {
     public override string TitleText => "Export";
 
-    public override SceneManager GetSceneManager => new SceneManager();
+    public override SceneManager GetSceneManager => new ExportSceneManager();
+
+    [ObservableProperty] private bool _showBolus;
+    [ObservableProperty] private bool _showMould;
+
+    public ExportViewModel() {
+        var bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response;
+        ShowBolus = !BolusModel.IsNullOrEmpty(bolus);
+
+        var mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
+        ShowMould = !MouldModel.IsNullOrEmpty(mould);
+    }
 
     //commands
     #region Commands
@@ -31,8 +43,7 @@ public partial class ExportViewModel : BaseViewModel {
 
         var filepath = saveFile.FileName;
 
-        //var mesh = bolus.Geometry.ToDMesh();
-        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+        await MeshModel.ToFile(filepath, bolus.Mesh);
     }
 
     [RelayCommand]

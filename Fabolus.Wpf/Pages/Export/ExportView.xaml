@@ -9,18 +9,22 @@
     <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch">
 
         <Button Content="export Bolus" 
+                Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
                 HorizontalAlignment="Stretch"
                 FontSize="14" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
+                IsEnabled="{Binding ShowBolus}"
                 Command="{Binding ExportBolusCommand}" />
         <Button Content="export mould" 
+                Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
                 HorizontalAlignment="Stretch"
                 FontSize="14" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
+                IsEnabled="{Binding MouldBolus}"
                 Command="{Binding ExportMouldCommand}" />
     </StackPanel>
 </UserControl>

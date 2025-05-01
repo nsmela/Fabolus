@@ -60,6 +60,19 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         return new Result<MeshModel> { Mesh = new MeshModel(reply.Mesh), IsSuccess = reply.IsSuccess, Errors = reply.Errors};
     }
 
+    public override Result<MeshModel> Preview() {
+        if (BolusReference is null) { throw new NullReferenceException("Build: Bolus mesh is null"); }
+
+        MaxHeight = BolusReference.CachedBounds.Max.z + OffsetTop;
+        MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
+
+        //generate the inflated mesh
+        var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
+
+        //create the mould
+        return Result<MeshModel>.Pass(new MeshModel(CalculateContour(offsetMesh)));
+    }
+
     private List<Vector3d> GetContour(DMesh3 mesh, int padding = 3) {
         if (mesh is null) { return null; }
 

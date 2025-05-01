@@ -73,7 +73,6 @@ public partial class SimpleMouldViewModel : BaseMouldView {
                 .New()
                 .WithBolus(_bolus.TransformedMesh())
                 .WithToolMeshes(_channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray());
-            WeakReferenceMessenger.Default.Send(new MouldGeneratorUpdatedMessage(generator));
         }
 
         _isBusy = true;
@@ -83,6 +82,7 @@ public partial class SimpleMouldViewModel : BaseMouldView {
         WidthOffset = generator.OffsetXY;
         Resolution = generator.ContourResolution;
 
+        WeakReferenceMessenger.Default.Send(new MouldGeneratorUpdatedMessage(generator));
         _isBusy = false;
     }
 
@@ -94,7 +94,7 @@ public partial class SimpleMouldViewModel : BaseMouldView {
         var generator = Generator
             .WithBolus(_bolus.TransformedMesh())
             .WithToolMeshes(_channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray());
-        var mould = new MouldModel(generator);
+        var mould = new MouldModel(generator, false);
         WeakReferenceMessenger.Default.Send(new MouldUpdatedMessage(mould));
     }
 }

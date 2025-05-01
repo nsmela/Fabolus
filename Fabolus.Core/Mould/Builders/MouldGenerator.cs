@@ -16,5 +16,6 @@ public abstract record MouldGenerator {
     protected DMesh3[] ToolMeshes { get; set; } = []; // mesh to boolean subtract from the mold
 
     public abstract Result<MeshModel> Build();
+    public abstract Result<MeshModel> Preview();
 
 }

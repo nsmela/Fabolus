@@ -16,7 +16,7 @@ using Fabolus.Wpf.Features.Channels;
 
 namespace Fabolus.Wpf.Pages.Mould;
 
-public class MouldSceneModel : SceneManager {
+public class MouldSceneManager : SceneManager {
     private BolusModel _bolus;
     private AirChannelsCollection _channels = [];
     private MouldModel? _mould;
@@ -27,7 +27,7 @@ public class MouldSceneModel : SceneManager {
     private bool _showMould = true;
     private bool _showChannels = true;
 
-    public MouldSceneModel() {
+    public MouldSceneManager() {
         SetMessaging();
     }
 
@@ -50,8 +50,8 @@ public class MouldSceneModel : SceneManager {
 
     private async Task MouldUpdated(MouldModel mould) {
         _mould = mould;
-        _showBolus = false;
-        _showChannels = false;
+        _showBolus = mould.IsPreview;
+        _showChannels = mould.IsPreview;
 
         UpdateDisplay(_bolus);
     }
