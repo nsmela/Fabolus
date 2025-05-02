@@ -16,6 +16,8 @@ public static class MeshSilhouette {
         PathsD paths = new();
 
         foreach(var t in mesh.Triangles()) {
+            //check if triangle normal is within an angle (means it's facing the right direction)
+
             PathD trianglePath = new PathD {
                 mesh.GetVertex(t.a).ToPointD(),
                 mesh.GetVertex(t.b).ToPointD(),
@@ -24,21 +26,6 @@ public static class MeshSilhouette {
 
             paths.Add(trianglePath);
         }
-
-        var testPaths = new PathsD();
-        var subject = new PathD {
-            new PointD{x = -50.0, y = -50.0},
-            new PointD{x = -50.0, y =  50.0},
-            new PointD{x =  50.0, y =  50.0},
-            new PointD{x =  50.0, y = -50.0},
-        };
-
-        var clip = new PathD {
-            new PointD{x = -100.0, y = -30.0},
-            new PointD{x = -100.0, y =  30.0},
-            new PointD{x =  100.0, y =  30.0},
-            new PointD{x =  100.0, y = -30.0},
-        };
 
         var result = Clipper.Union(new PathsD { paths[0] }, new PathsD { paths[1] }, FillRule.NonZero, 1);
         foreach(var path in paths) {
