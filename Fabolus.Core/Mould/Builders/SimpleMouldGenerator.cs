@@ -70,7 +70,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
 
         //create the mould
-        return Result<MeshModel>.Pass(new MeshModel(CalculateContour(offsetMesh)));
+        return Result<MeshModel>.Pass(new MeshModel(CalculateSilhouette(offsetMesh)));
     }
 
     private List<Vector3d> GetContour(DMesh3 mesh, int padding = 3) {
@@ -297,6 +297,73 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
 
         return repair.Mesh;
 
+    }
+
+    private DMesh3 CalculateSilhouette(DMesh3 mesh) {
+        var contour = MeshSilhouette.MeshToSilhouette(mesh);
+
+        //create polygon
+        var verts = contour.Select(v => new Vertex(v.x, v.y)).ToArray();
+        var polygon = new Polygon();
+        polygon.Add(new Contour(verts));
+
+        DMesh3 result = new();
+
+        List<Vector3d> bottomLoop = new();
+        List<int> bottomLoopIndices = new();
+
+        Vector3d lower = Vector3d.AxisZ * MinHeight;
+        Vector3d upper = Vector3d.AxisZ * MaxHeight;
+
+        foreach (var t in new GenericMesher().Triangulate(polygon).Triangles) {
+            //add verts
+            var p0 = t.GetVertex(0);
+            var l0 = result.AppendVertex(ToVector3d(p0, MinHeight));
+            var b0 = result.AppendVertex(ToVector3d(p0, MaxHeight));
+
+            var p1 = t.GetVertex(1);
+            var l1 = result.AppendVertex(ToVector3d(p1, MinHeight));
+            var b1 = result.AppendVertex(ToVector3d(p1, MaxHeight));
+
+            var p2 = t.GetVertex(2);
+            var l2 = result.AppendVertex(ToVector3d(p2, MinHeight));
+            var b2 = result.AppendVertex(ToVector3d(p2, MaxHeight));
+
+            //link those verts to triangles
+            result.AppendTriangle(l0, l1, l2);
+            result.AppendTriangle(b2, b1, b0);
+
+        }
+
+        //sides
+        DMesh3 sides = new();
+
+        List<int> lowerLoop = new();
+        List<int> upperLoop = new();
+        foreach (var v in verts) {
+            //add vertex and record the index id
+            lowerLoop.Add(sides.AppendVertex(ToVector3d(v, MinHeight)));
+            upperLoop.Add(sides.AppendVertex(ToVector3d(v, MaxHeight)));
+        }
+
+        int n = contour.Length - 1;
+        for (int i = 0; i < n; ++i) {
+            var p0 = lowerLoop[i];
+            var p1 = lowerLoop[i + 1];
+            var p2 = upperLoop[i];
+            var p3 = upperLoop[i + 1];
+
+            sides.AppendTriangle(p0, p1, p2);
+            sides.AppendTriangle(p1, p3, p2);
+        }
+
+        MeshEditor editor = new(result);
+        editor.AppendMesh(sides);
+
+        MeshAutoRepair repair = new(editor.Mesh);
+        repair.Apply();
+
+        return repair.Mesh;
     }
 
     private static Vector3d ToVector3d(Vertex v, double z) => new Vector3d(v.X, v.Y, z);
