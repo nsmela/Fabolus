@@ -17,17 +17,19 @@ namespace Fabolus.Core.Mould.Builders;
 public sealed record SimpleMouldGenerator : MouldGenerator {
     //ref: https://github.com/NewWheelTech/geometry4Sharp/blob/ea3c96d0e437989eb49923ccc72088a6947c69a9/mesh_ops/MeshPlaneCut.cs#L230
 
+    private Vector2d[] Contour { get; set; } = [];
+
     public double MaxHeight { get; private set; } = 10.0;
     public double MinHeight { get; private set; } = 0.0;
 
 
     public static SimpleMouldGenerator New() => new();
     public SimpleMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
-    public SimpleMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus };
+    public SimpleMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus, Contour = [] };
     public SimpleMouldGenerator WithOffsets(double offset) => this with { OffsetTop = offset, OffsetBottom = offset, OffsetXY = offset };
     public SimpleMouldGenerator WithCalculationResolution(int resolution) => this with { CalculationResolution = resolution };
     public SimpleMouldGenerator WithContourResolution(double resolution) => this with { ContourResolution = resolution };
-    public SimpleMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select( tm => tm.Mesh).ToArray() };
+    public SimpleMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select( tm => tm.Mesh).ToArray(), Contour = [] };
     public SimpleMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public SimpleMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
 
@@ -67,10 +69,23 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
 
         //generate the inflated mesh
-        var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
+        //var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
+        SetContour();
 
         //create the mould
-        return Result<MeshModel>.Pass(new MeshModel(CalculateSilhouette(offsetMesh)));
+        return Result<MeshModel>.Pass(new MeshModel(CalculateSilhouette()));
+    }
+
+    private void SetContour() {
+        if (BolusReference is null || BolusReference.TriangleCount == 0) {
+            Contour = [];
+            return; 
+        }
+
+        if (Contour.Length > 0) { return; }
+
+        var contour = MeshSilhouette.MeshToSilhouette(BolusReference);
+        Contour = contour.Select(v => new Vector2d(v.x, v.y)).ToArray();
     }
 
     private List<Vector3d> GetContour(DMesh3 mesh, int padding = 3) {
@@ -299,8 +314,9 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
 
     }
 
-    private DMesh3 CalculateSilhouette(DMesh3 mesh) {
-        var contour = MeshSilhouette.MeshToSilhouette(mesh);
+    private DMesh3 CalculateSilhouette() {
+        //inflate the Contour
+        var contour = MeshSilhouette.InflateSilhouette(Contour, OffsetXY);
 
         //create polygon
         var verts = contour.Select(v => new Vertex(v.x, v.y)).ToArray();
@@ -334,7 +350,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
             result.AppendTriangle(b2, b1, b0);
 
         }
-
+        return result;
         //sides
         DMesh3 sides = new();
 
