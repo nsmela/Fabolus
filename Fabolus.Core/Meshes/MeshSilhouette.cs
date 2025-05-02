@@ -6,13 +6,17 @@ using System.Text;
 using System.Threading.Tasks;
 using Clipper2Lib;
 using g3;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.Operation.Buffer;
+using NetTopologySuite.Operation.Union;
 
 namespace Fabolus.Core.Meshes;
 
 public static class MeshSilhouette {
-    //ref: https://www.angusj.com/clipper2/Docs/Overview.htm
     const double MAX_RADS = Math.PI / 2; //90 degrees
 
+    // using Clipper2 
+    //ref: https://www.angusj.com/clipper2/Docs/Overview.htm
     public static Vector2d[] MeshToSilhouette(DMesh3 mesh) {
         PathsD paths = new();
 
@@ -75,4 +79,58 @@ public static class MeshSilhouette {
         return dotProduct >= minDotProduct;
 
     }
+
+    // using NetTopologySuite
+    //ref: https://github.com/NetTopologySuite/NetTopologySuite/wiki/GettingStarted
+    public static Vector2d[] SilhouetteFromMesh(DMesh3 mesh) {
+        GeometryFactory factory = GeometryFactory.Default;
+        List<Geometry> triangles = [];
+
+        foreach (var i in mesh.TriangleIndices()) {
+            //check if triangle normal is within an angle (means it's facing the right direction)
+            if (IsTriangleNormalInAngle(mesh, i)) {
+                continue;
+            }
+
+            Index3i t = mesh.GetTriangle(i);
+
+            Coordinate[] trianglePath = new Coordinate[] {
+                mesh.GetVertex(t.a).ToCoordinate(),
+                mesh.GetVertex(t.b).ToCoordinate(),
+                mesh.GetVertex(t.c).ToCoordinate(),
+                mesh.GetVertex(t.a).ToCoordinate(), //closing the loop
+            };
+
+            Polygon polygon = factory.CreatePolygon(trianglePath);
+
+            triangles.Add(polygon);
+        }
+
+        var result = UnaryUnionOp.Union(triangles);
+
+        return result
+            .Boundary
+            .Coordinates
+            .Select(c => new Vector2d(c.X, c.Y))
+            .ToArray();
+
+    }
+
+    public static Vector2d[] InflateContour(Vector2d[] outline, double offset) {
+        var factory = GeometryFactory.Default;
+        var coords = outline.Select(v => new Coordinate(v.x, v.y)).ToList();
+        coords.Add(coords[0]); //close the loop
+
+        LinearRing ring = factory.CreateLinearRing(coords.ToArray());
+        Geometry result = ring.Buffer(offset);
+
+        return result
+            .Boundary
+            .Coordinates
+            .Select(c => new Vector2d(c.X, c.Y))
+            .ToArray();
+    }
+
+    private static Coordinate ToCoordinate(this Vector3d vector) => new Coordinate(vector.x, vector.y);
+
 }
