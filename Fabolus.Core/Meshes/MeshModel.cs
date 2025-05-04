@@ -36,6 +36,8 @@ public class MeshModel {
     
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
 
+    public double Height => Mesh.CachedBounds.Height + 10.0;
+
     public IEnumerable<(double, double, double)> NormalVectors() {
         for (int i = 0; i < Mesh.VertexCount; i++) {
             var vector = Mesh.GetVertexNormal(i);

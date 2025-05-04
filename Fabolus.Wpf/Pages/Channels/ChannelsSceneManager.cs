@@ -25,7 +25,7 @@ public class ChannelsSceneManager : SceneManager {
     private Material _selectedSkin = DiffuseMaterials.Turquoise;
 
     private Guid? BolusId => _bolus?.Geometry?.GUID;
-    private float MaxHeight => _bolus?.Geometry?.Bound.Height ?? 50.0f;
+    private float MaxHeight => (float)_bolus.Mesh.Height;
 
     private IAirChannel? GetChannelByGeometryId(Guid id) {
         if (!_channels.Any(c => c.Value.Geometry.GUID == id)) {
