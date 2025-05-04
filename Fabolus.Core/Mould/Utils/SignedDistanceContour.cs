@@ -31,4 +31,15 @@ public class SignedDistanceContour {
         return [];
     }
 
+    /// <summary>
+    /// Uses the 2D SDF to generate a 2D face of the mesh's silhouette
+    /// </summary>
+    /// <param name="offset"></param>
+    /// <param name="height"></param>
+    /// <returns></returns>
+    public DMesh3 GetFace(double offset, double height) {
+
+        return new DMesh3();
+    }
+
 }
