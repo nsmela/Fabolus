@@ -1,7 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Scene;
