@@ -43,7 +43,6 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         //create the mould
         var mould = CalculateContour(offsetMesh);
         //var result = BooleanOperators.Subtraction(mould, BolusReference);
-        bool good = mould.CheckValidity();
         var result = BooleanOperators.Cut(mould, BolusReference);
 
         if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }

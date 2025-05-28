@@ -1,19 +1,13 @@
 ﻿using g3;
-using static MR.DotNet;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using gs;
 
 namespace Fabolus.Core.Mould.Builders;
+
 public static class MouldUtils {
     public static DMesh3 OffsetMeshD(DMesh3 mesh, double offset, int resolution = 64) {
         BoundedImplicitFunction3d meshImplicit = meshToImplicitF(mesh, resolution, offset);
         return generatMeshF(new ImplicitOffset3d() { A = meshImplicit, Offset = offset }, resolution);
     }
-
-    public static DMesh3 OffsetMesh(DMesh3 mesh, double offset, int resolution = 64) =>  OffsetMeshD(mesh, offset, resolution);
 
 
     // meshToImplicitF() generates a narrow-band distance-field and
@@ -37,8 +31,13 @@ public static class MouldUtils {
         c.CubeSize = c.Bounds.MaxDim / numcells;
         c.Bounds.Expand(3 * c.CubeSize);                            // leave a buffer of cells
         c.Generate();
-        g3.MeshNormals.QuickCompute(c.Mesh);                           // generate normals
-        return c.Mesh;   // write mesh
+        MeshNormals.QuickCompute(c.Mesh);                           // generate normals
+
+        // cleanup
+        MeshAutoRepair repair = new(c.Mesh);
+        repair.Apply();   
+
+        return repair.Mesh;   
     }
 
 }

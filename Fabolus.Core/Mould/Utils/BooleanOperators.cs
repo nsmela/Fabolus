@@ -24,18 +24,25 @@ public static class BooleanOperators {
         }
 
     }
-
+    
     public static Result<DMesh3> Cut(DMesh3 body, DMesh3 tool) {
         Manifold bodyManifold = body.ToManifold();
+        if ( bodyManifold.IsEmpty) {
+            return Result<DMesh3>.Fail([new MeshError("Body mesh failed to make manifold: " + bodyManifold.Status.ToString())]);
+        }
+        MeshGLData data = new();
+
         Manifold toolManifold = tool.ToManifold();
-
-        DMesh3 mesh = Manifold.Difference(bodyManifold, toolManifold).ToDMesh();
-
-        if (mesh.IsEmpty()) {
-            return Result<DMesh3>.Fail([new MeshError("Cut operation resulted in an empty mesh.")]);
+        if (toolManifold.IsEmpty) {
+            return Result<DMesh3>.Fail([new MeshError("Tool mesh failed to make manifold: " + toolManifold.Status.ToString())]);
         }
 
-        return Result<DMesh3>.Pass(mesh);
+        Manifold manifold = Manifold.Difference(bodyManifold, toolManifold);
+        if (manifold.IsEmpty) {
+            return Result<DMesh3>.Fail([new MeshError("Failed to cut: " + manifold.Status.ToString())]);
+        }
+
+        return Result<DMesh3>.Pass(manifold.ToDMesh());
     }
 }
 

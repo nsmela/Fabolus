@@ -4,6 +4,7 @@ using ManifoldNET;
 namespace Fabolus.Core.Extensions;
 
 public static class ManifoldExtensions {
+    // ref: https://github.com/elalish/manifold/blob/2984626cb21ab33ce644281071c96e90dd6f70ea/bindings/c/manifoldc.cpp#L412
 
     public static Manifold ToManifold(this DMesh3 mesh) {
         List<float> verts = new();
