@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.BolusModel;
 using Fabolus.Core.Extensions;
+using Fabolus.Core.Meshes;
 using g3;
 using System;
 using System.Collections.Generic;
@@ -32,5 +33,71 @@ public static class LaplacianSmoothing {
         smoother.SolveAndUpdateMesh();
 
         return new Bolus(smoother.Mesh);
+    }
+
+    public static MeshModel SmoothSurfaces(Bolus bolus, double angle = Math.PI / 36) {
+        Queue<int> tri_queue = new();
+
+        var mesh = (DMesh3)bolus.Mesh;
+
+        DMesh3 result = new();
+        List<int> remaining_indexes = mesh.TriangleIndices().ToList();
+        //getting the first one
+        foreach (var i in mesh.TriangleIndices()) {
+            var normal = mesh.GetTriNormal(i);
+
+            var n = mesh.GetTriNeighbourTris(i);
+            Vector3d neightbour_normals = new Vector3d();
+            if (n.a >= 0) { neightbour_normals.Add(mesh.GetTriNormal(n.a)); }
+            if (n.b >= 0) { neightbour_normals.Add(mesh.GetTriNormal(n.b)); }
+            if (n.c >= 0) { neightbour_normals.Add(mesh.GetTriNormal(n.c)); }
+            neightbour_normals.Normalize();
+
+            //move to next if invalid
+            if (normal.AngleR(neightbour_normals) > angle) { continue; }
+
+            tri_queue.Enqueue(i);
+            remaining_indexes.Remove(i);
+            break;
+        }
+
+        while (tri_queue.Count > 0) {
+            var i = tri_queue.Dequeue();
+
+            var normal = mesh.GetTriNormal(i);
+
+            var n = mesh.GetTriNeighbourTris(i);
+            Vector3d neightbour_normals = new Vector3d();
+            if (n.a >= 0) { neightbour_normals.Add(mesh.GetTriNormal(n.a)); }
+            if (n.b >= 0) { neightbour_normals.Add(mesh.GetTriNormal(n.b)); }
+            if (n.c >= 0) { neightbour_normals.Add(mesh.GetTriNormal(n.c)); }
+            neightbour_normals.Normalize();
+
+            //move to next if invalid
+            if (normal.AngleR(neightbour_normals) > angle) { continue; }
+
+            // add the triangle
+            Index3i tri = mesh.GetTriangle(i);
+            int a = result.AppendVertex(mesh.GetVertex(tri.a));
+            int b = result.AppendVertex(mesh.GetVertex(tri.b));
+            int c = result.AppendVertex(mesh.GetVertex(tri.c));
+            result.AppendTriangle(a, b, c);
+
+            //queue up the adjacent triangles
+            if (n.a >= 0 && remaining_indexes.Contains(n.a)) {
+                tri_queue.Enqueue(n.a);
+                remaining_indexes.Remove(n.a);
+            }
+            if (n.b >= 0 && remaining_indexes.Contains(n.b)) {
+                tri_queue.Enqueue(n.b);
+                remaining_indexes.Remove(n.b);
+            }
+            if (n.c >= 0 && remaining_indexes.Contains(n.c)) {
+                tri_queue.Enqueue(n.c);
+                remaining_indexes.Remove(n.c);
+            }
+        }
+
+        return new MeshModel(result);
     }
 }

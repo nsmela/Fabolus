@@ -1,6 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.Meshes;
 using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common.Bolus;
+using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.MainWindow;
@@ -18,6 +20,9 @@ namespace Fabolus.Wpf.Pages.Smooth;
 public class SmoothSceneManager : SceneManager {
     public const float DEFAULT_SURFACE_DISTANCE = 2.0f;
 
+    private BolusModel _bolus;
+    private MeshModel[] _greenModels = [];
+    private MeshModel[] _redModels = [];
     private Material _surfaceDistanceSkin;
     private float _surfaceDistance = DEFAULT_SURFACE_DISTANCE;
 
@@ -25,10 +30,23 @@ public class SmoothSceneManager : SceneManager {
         _surfaceDistanceSkin = SkinHelper.SurfaceDifferenceSkin(_surfaceDistance);
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(m.Bolus));
-
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateBolus(m.Bolus));
+        WeakReferenceMessenger.Default.Register<SmoothingModelsUpdatedMessage>(this, (r,m) => UpdateSmoothingModels(m.GreenModels, m.RedModels));
+        
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         UpdateDisplay(bolus);
+    }
+
+    private void UpdateBolus(BolusModel bolus) {
+        _bolus = bolus;
+        UpdateDisplay(bolus);
+    }
+
+    private void UpdateSmoothingModels(MeshModel[] greens, MeshModel[] reds) {
+        _greenModels = greens;
+        _redModels = reds;
+
+        UpdateDisplay(_bolus);
     }
 
     protected override void UpdateDisplay(BolusModel? bolus) {
@@ -58,11 +76,33 @@ public class SmoothSceneManager : SceneManager {
         }
 
         var models = new List<DisplayModel3D>();
-        models.Add(new DisplayModel3D {
-            Geometry = bolus.Geometry,
-            Transform = MeshHelper.TransformEmpty,
-            Skin = material
-        });
+        if (_greenModels.Count() > 0) {
+            foreach(var model in _greenModels) {
+                models.Add(new DisplayModel3D {
+                    Geometry = model.ToGeometry(),
+                    Transform = MeshHelper.TransformEmpty,
+                    Skin = PhongMaterials.Emerald,
+                });
+            }
+        }
+
+        if (_redModels.Count() > 0) {
+            foreach (var model in _redModels) {
+                models.Add(new DisplayModel3D {
+                    Geometry = model.ToGeometry(),
+                    Transform = MeshHelper.TransformEmpty,
+                    Skin = PhongMaterials.Ruby,
+                });
+            }
+        }
+
+        if (models.Count() == 0) {
+            models.Add(new DisplayModel3D {
+                Geometry = bolus.Geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = material
+            });
+        }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
