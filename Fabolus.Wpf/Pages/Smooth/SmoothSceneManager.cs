@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.BolusModel;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common.Bolus;
@@ -24,6 +25,7 @@ public class SmoothSceneManager : SceneManager {
     private MeshModel[] _greenModels = [];
     private MeshModel[] _redModels = [];
     private Material _surfaceDistanceSkin;
+    private Material _smoothSkin = PhongMaterials.Blue;
     private float _surfaceDistance = DEFAULT_SURFACE_DISTANCE;
 
     public SmoothSceneManager() {
@@ -33,8 +35,6 @@ public class SmoothSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateBolus(m.Bolus));
         WeakReferenceMessenger.Default.Register<SmoothingModelsUpdatedMessage>(this, (r,m) => UpdateSmoothingModels(m.GreenModels, m.RedModels));
         
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-        UpdateDisplay(bolus);
     }
 
     private void UpdateBolus(BolusModel bolus) {
@@ -55,56 +55,45 @@ public class SmoothSceneManager : SceneManager {
             return;
         }
 
-        Material material; 
-
-        if (bolus.BolusType is BolusType.Smooth) {
-            var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
-            var rawBolus = boli.Where(x => x.BolusType == BolusType.Raw).First();
-            var coordinates = SmoothingTools.GenerateTextureCoordinates(bolus, rawBolus);
-            
-            var textcoords = new Vector2Collection();
-            var count = bolus.Geometry.Positions.Count();
-            for (int i = 0; i < count; i++) {
-                textcoords.Add(new SharpDX.Vector2(0, coordinates[i]));
-            }
-            bolus.Geometry.TextureCoordinates = textcoords;
-
-            material = _surfaceDistanceSkin;
-
-        } else {
-            material = PhongMaterials.Gray;
+        // get all of the current bolus
+        var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        if (boli is null || boli.Length == 0) {
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
+            return;
         }
 
+        //set each model for display
         var models = new List<DisplayModel3D>();
-        if (_greenModels.Count() > 0) {
-            foreach(var model in _greenModels) {
-                models.Add(new DisplayModel3D {
-                    Geometry = model.ToGeometry(),
-                    Transform = MeshHelper.TransformEmpty,
-                    Skin = PhongMaterials.Emerald,
-                });
-            }
-        }
-
-        if (_redModels.Count() > 0) {
-            foreach (var model in _redModels) {
-                models.Add(new DisplayModel3D {
-                    Geometry = model.ToGeometry(),
-                    Transform = MeshHelper.TransformEmpty,
-                    Skin = PhongMaterials.Ruby,
-                });
-            }
-        }
-
-        if (models.Count() == 0) {
-            models.Add(new DisplayModel3D {
-                Geometry = bolus.Geometry,
+        foreach (BolusModel b in boli) {
+            var model = new DisplayModel3D {
+                Geometry = b.Geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = material
-            });
+            };
+            switch (b.BolusType) {
+
+                case BolusType.Raw:
+                    model = model with {
+                        Skin = _skin,
+                        IsTransparent = true,
+                        ShowWireframe = boli.Length == 0,
+                    };
+                    break;
+
+                case BolusType.Smooth:
+                    model = model with { 
+                        Skin = _smoothSkin,
+                        ShowWireframe = true,
+                    };
+                    break;
+                default:
+                    break;
+            }
+
+            models.Add(model);
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+
     }
 
 }

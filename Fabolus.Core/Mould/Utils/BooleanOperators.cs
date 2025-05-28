@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Extensions;
+using ManifoldNET;
 
 namespace Fabolus.Core.Mould.Utils;
 public static class BooleanOperators {
@@ -22,6 +23,19 @@ public static class BooleanOperators {
             return Result<DMesh3>.Fail([ new MeshError(e.Message) ]);
         }
 
+    }
+
+    public static Result<DMesh3> Cut(DMesh3 body, DMesh3 tool) {
+        Manifold bodyManifold = body.ToManifold();
+        Manifold toolManifold = tool.ToManifold();
+
+        DMesh3 mesh = Manifold.Difference(bodyManifold, toolManifold).ToDMesh();
+
+        if (mesh.IsEmpty()) {
+            return Result<DMesh3>.Fail([new MeshError("Cut operation resulted in an empty mesh.")]);
+        }
+
+        return Result<DMesh3>.Pass(mesh);
     }
 }
 

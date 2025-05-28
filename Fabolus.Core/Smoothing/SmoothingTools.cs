@@ -42,4 +42,6 @@ public static class SmoothingTools {
         return value / spread; //convert to a ratio
     }
 
+    //find smooth surfaces
+
 }

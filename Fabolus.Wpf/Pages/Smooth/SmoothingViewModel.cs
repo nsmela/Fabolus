@@ -53,8 +53,6 @@ public partial class SmoothingViewModel : BaseViewModel {
             return; 
         }
 
-        ClearSmoothed();//removes the old smoothed mesh
-
         var smoothedBolus = await Task.Run(() => SetSmoothingViewModel.SmoothBolus(_bolus));
 
         WeakReferenceMessenger.Default.Send(new AddBolusMessage(smoothedBolus, BolusType.Smooth));

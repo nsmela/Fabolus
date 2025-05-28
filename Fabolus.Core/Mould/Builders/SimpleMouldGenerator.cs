@@ -42,7 +42,9 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
 
         //create the mould
         var mould = CalculateContour(offsetMesh);
-        var result = BooleanOperators.Subtraction(mould, BolusReference);
+        //var result = BooleanOperators.Subtraction(mould, BolusReference);
+        bool good = mould.CheckValidity();
+        var result = BooleanOperators.Cut(mould, BolusReference);
 
         if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
         if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(result.Data)); }
@@ -56,6 +58,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         repair.Apply();
         DMesh3 tools = repair.Mesh;
 
+        //var reply = BooleanOperators.Subtraction(result.Data, tools);
         var reply = BooleanOperators.Subtraction(result.Data, tools);
         return new Result<MeshModel> { Data = new MeshModel(reply.Data), IsSuccess = reply.IsSuccess, Errors = reply.Errors};
     }

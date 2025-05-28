@@ -2,11 +2,6 @@
 using Fabolus.Wpf.Common.Bolus;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Wpf.Common.Scene;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
@@ -89,7 +84,8 @@ public class MouldSceneManager : SceneManager {
                 models.Add(new DisplayModel3D {
                     Geometry = channel.Geometry,
                     Transform = MeshHelper.TransformEmpty,
-                    Skin = _channelsSkin
+                    Skin = _channelsSkin,
+                    IsTransparent = true
                 });
             }
         }
