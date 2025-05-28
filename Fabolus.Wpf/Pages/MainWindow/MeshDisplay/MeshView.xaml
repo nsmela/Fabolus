@@ -43,6 +43,7 @@
                 Transform="{Binding MainTransform}" />
 
             <hx:LineGeometryModel3D x:Name="grid" 
+                IsHitTestVisible="False"
                 Geometry="{Binding Grid.Geometry}"
                 Transform="{Binding Grid.Transform}"
                 Smoothness="{Binding Grid.Smoothness}"

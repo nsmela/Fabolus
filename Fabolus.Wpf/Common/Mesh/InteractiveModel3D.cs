@@ -9,7 +9,6 @@ namespace Fabolus.Wpf.Common.Mesh;
 
 public sealed class InteractiveModel3D : GroupModel3D, IHitable, ISelectable {
     public bool IsSelected { get; set; }
-
 }
 
 

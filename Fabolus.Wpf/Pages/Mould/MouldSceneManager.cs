@@ -79,7 +79,7 @@ public class MouldSceneManager : SceneManager {
                 Geometry = _mould.Geometry,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = _mouldSkin,
-                Cull = true
+                IsTransparent = true
             });
         }
 

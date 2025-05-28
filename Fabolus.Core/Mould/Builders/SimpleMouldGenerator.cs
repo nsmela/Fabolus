@@ -45,7 +45,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         var result = BooleanOperators.Subtraction(mould, BolusReference);
 
         if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
-        if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(result.Mesh)); }
+        if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(result.Data)); }
 
         MeshEditor editor = new(new DMesh3());
         foreach (var mesh in ToolMeshes) {
@@ -56,8 +56,8 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         repair.Apply();
         DMesh3 tools = repair.Mesh;
 
-        var reply = BooleanOperators.Subtraction(result.Mesh, tools);
-        return new Result<MeshModel> { Mesh = new MeshModel(reply.Mesh), IsSuccess = reply.IsSuccess, Errors = reply.Errors};
+        var reply = BooleanOperators.Subtraction(result.Data, tools);
+        return new Result<MeshModel> { Data = new MeshModel(reply.Data), IsSuccess = reply.IsSuccess, Errors = reply.Errors};
     }
 
     public override Result<MeshModel> Preview() {
@@ -233,6 +233,12 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
     private DMesh3 CalculateContour(DMesh3 mesh) {
         //get the edges around the mesh
         var contour = GetContour(mesh);
+
+
+        var cloud = mesh.Vertices().Select(v => new Vector2d(v.x, v.y)).ToArray();
+        var concaveContour = CloudContour.Generate(cloud, 0.1);
+        var vertices = concaveContour.Data.Select(v => new Vertex(v.x, v.y)).ToArray();
+
 
         //create polygon
         var verts = contour.Select(v => new Vertex(v.x, v.y)).ToArray();

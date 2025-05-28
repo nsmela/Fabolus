@@ -37,6 +37,7 @@ public partial class MeshViewModel : ObservableObject {
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
+    public ObservableElement3DCollection CurrentTransparentModel { get; init; } = new ObservableElement3DCollection();
     [ObservableProperty] private Transform3D _mainTransform = MeshHelper.TransformEmpty;
 
     public MeshViewModel() {
@@ -47,18 +48,21 @@ public partial class MeshViewModel : ObservableObject {
 
     private void UpdateDisplay(IList<DisplayModel3D> models) {
         CurrentModel.Clear();
+        CurrentTransparentModel.Clear();
         if (models.Count() < 1) { return; }
 
         context.Post((o) => {
             foreach (var model in models) {
                 model.Geometry.UpdateOctree();
                 model.Geometry.UpdateBounds();
-                CurrentModel.Add(new MeshGeometryModel3D {
-                    Geometry = model.Geometry,
-                    Material = model.Skin,
-                    Transform = model.Transform,
-                    CullMode = model.Cull ? CullMode.Front : CullMode.Back,
-                });
+                var geometry = new MeshGeometryModel3D {
+                        Geometry = model.Geometry,
+                        Material = model.Skin,
+                        Transform = model.Transform,
+                        CullMode = model.IsTransparent ? CullMode.None : CullMode.Back,
+                        IsTransparent = model.IsTransparent,
+                };
+                CurrentModel.Add(geometry);
             }
         }, null);
 
