@@ -48,12 +48,6 @@ public static class SmoothingTools {
         DMesh3 mesh = model.Mesh;
 
         List<int> stack = mesh.TriangleIndices().ToList();
-        Queue<int> queue = new();
-        queue.Enqueue(stack[0]); //start with the first triangle
-
-        List<int> good = new() { stack[0] };
-        stack.RemoveAt(0); //remove the first triangle from the stack
-
         List<MeshModel> results = new();
         while (stack.Count() > 0) {
             results.Add(GetSmoothTriangles(mesh, ref stack, rads_threshold));
@@ -67,8 +61,6 @@ public static class SmoothingTools {
         queue.Enqueue(stack[0]); //start with the first triangle
 
         List<int> good = new() { stack[0] };
-        stack.RemoveAt(0); //remove the first triangle from the stack
-        queue.Enqueue(stack[0]); //start with the first triangle
         stack.RemoveAt(0); //remove the first triangle from the stack
 
         while (queue.Count > 0) {
@@ -102,5 +94,14 @@ public static class SmoothingTools {
             return new MeshModel(result);
         }
         return new MeshModel(); //return empty mesh if no good triangles found
+    }
+
+    public static MeshModel Contour(MeshModel model, double z_height) {
+        MeshPlaneCut cutter = new(
+            model.Mesh, 
+            new Vector3d(0, 0, z_height), 
+            new Vector3d(0, 0, 1)
+        );
+
     }
 }

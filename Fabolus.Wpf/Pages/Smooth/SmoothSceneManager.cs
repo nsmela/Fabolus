@@ -82,6 +82,7 @@ public class SmoothSceneManager : SceneManager {
                 case BolusType.Smooth:
                     model = model with { 
                         Skin = DiffuseMaterials.Emerald,
+                        IsTransparent = true,
                     };
                     break;
                 default:
@@ -92,8 +93,8 @@ public class SmoothSceneManager : SceneManager {
         }
 
         //smooth surface testing
-        var mesh = boli.Length > 1 ? boli[1] : boli[0];
-        var surfaceMeshes = SmoothingTools.GetSmoothSurfaces(mesh.Mesh, Math.PI/8.0f);
+        var mesh = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response.TransformedMesh();
+        var surfaceMeshes = SmoothingTools.GetSmoothSurfaces(mesh, Math.PI/8.0f);
         Array.Sort(surfaceMeshes, (a, b) => b.Mesh.TriangleCount.CompareTo(a.Mesh.TriangleCount));
 
         for (int i = 0; i <  surfaceMeshes.Length; i++) {
@@ -104,7 +105,7 @@ public class SmoothSceneManager : SceneManager {
                 Skin = i > 1 ? DiffuseMaterials.Red : DiffuseMaterials.Blue,
             };
 
-            models.Add(display);
+            //models.Add(display);
         };
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
