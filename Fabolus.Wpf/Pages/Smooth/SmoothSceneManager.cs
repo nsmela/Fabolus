@@ -73,7 +73,7 @@ public class SmoothSceneManager : SceneManager {
 
                 case BolusType.Raw:
                     model = model with {
-                        Skin = _skin,
+                        Skin = PhongMaterials.Glass,
                         IsTransparent = true,
                         ShowWireframe = boli.Length == 0,
                     };

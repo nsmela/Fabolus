@@ -21,7 +21,6 @@
             MouseDown3D="view1_MouseDown3D"
             MouseMove="view1_MouseMove"
             MouseUp="view1_MouseUp"
-            ShowCameraInfo="true"
             UseDefaultGestures="False">
             <hx:Viewport3DX.InputBindings>
                 <KeyBinding Key="B" Command="hx:ViewportCommands.BackView" />
