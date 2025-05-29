@@ -26,6 +26,7 @@ public static class BooleanOperators {
     }
     
     public static Result<DMesh3> Cut(DMesh3 body, DMesh3 tool) {
+        // ref: https://github.com/elalish/manifold/blob/2984626cb21ab33ce644281071c96e90dd6f70ea/src/properties.cpp#L115
         Manifold bodyManifold = body.ToManifold();
         if ( bodyManifold.IsEmpty) {
             return Result<DMesh3>.Fail([new MeshError("Body mesh failed to make manifold: " + bodyManifold.Status.ToString())]);
