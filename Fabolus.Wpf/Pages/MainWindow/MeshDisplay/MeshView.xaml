@@ -21,6 +21,7 @@
             MouseDown3D="view1_MouseDown3D"
             MouseMove="view1_MouseMove"
             MouseUp="view1_MouseUp"
+            ShowCameraInfo="true"
             UseDefaultGestures="False">
             <hx:Viewport3DX.InputBindings>
                 <KeyBinding Key="B" Command="hx:ViewportCommands.BackView" />
@@ -36,7 +37,6 @@
             </hx:Viewport3DX.InputBindings>
             <hx:AmbientLight3D Color="{Binding AmbientLightColor}" />
             <hx:DirectionalLight3D Direction="{Binding Camera.LookDirection}" Color="{Binding DirectionalLightColor}" />
-
             <mesh:InteractiveModel3D
                 x:Name="CurrentModel" 
                 ItemsSource="{Binding CurrentModel}"

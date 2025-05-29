@@ -74,7 +74,7 @@
         <ContentControl Content="{Binding CurrentMeshView}" Grid.Column="1" Grid.Row="1" />
 
         <!-- Info Pane-->
-        <GroupBox Header="Mesh Info" BorderBrush="Black" Background="White" BorderThickness="2"   
+        <GroupBox Header="Mesh Info" BorderBrush="Black" Background="White" BorderThickness="2" Visibility="Hidden"
                  Grid.Row="1" Grid.Column="1"
                  Margin="0,8,10,0" 
                  HorizontalAlignment="Right" 

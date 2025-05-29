@@ -44,6 +44,7 @@ public partial class MeshViewModel : ObservableObject {
         Grid.Geometry = GenerateGrid();
         WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, (r, m) => UpdateDisplay(m.models));
         WeakReferenceMessenger.Default.Register<MeshSetInputBindingsMessage>(this, (r, m) => UpdateInputBindings(m.LeftMouseButton, m.MiddleMouseButton, m.RightMouseButton));
+        ResetCamera();
     }
 
     private void UpdateDisplay(IList<DisplayModel3D> models) {
@@ -66,7 +67,6 @@ public partial class MeshViewModel : ObservableObject {
                 CurrentModel.Add(geometry);
             }
         }, null);
-
     }
 
     private void UpdateInputBindings(RoutedCommand left, RoutedCommand middle, RoutedCommand right) {
@@ -96,5 +96,11 @@ public partial class MeshViewModel : ObservableObject {
         return grid.ToLineGeometry3D();
     }
 
+    protected void ResetCamera() {
+        Camera.LookDirection = new Vector3D(-183.576f, 186.809f, -180.0f);
+        Camera.UpDirection = new Vector3D(-0.397f, 0.404f, 0.824f);
+        Camera.Position = new Point3D(183.556f, -185.847f, 179.5f);
+        Camera.LookAt(new Point3D(0, 0, 0), 2.0f);
+    }
 }
 
