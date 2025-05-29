@@ -91,6 +91,22 @@ public class SmoothSceneManager : SceneManager {
             models.Add(model);
         }
 
+        //smooth surface testing
+        var mesh = boli.Length > 1 ? boli[1] : boli[0];
+        var surfaceMeshes = SmoothingTools.GetSmoothSurfaces(mesh.Mesh, Math.PI/8.0f);
+        Array.Sort(surfaceMeshes, (a, b) => b.Mesh.TriangleCount.CompareTo(a.Mesh.TriangleCount));
+
+        for (int i = 0; i <  surfaceMeshes.Length; i++) {
+
+            var display = new DisplayModel3D {
+                Geometry = surfaceMeshes[i].ToGeometry(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = i > 1 ? DiffuseMaterials.Red : DiffuseMaterials.Blue,
+            };
+
+            models.Add(display);
+        };
+
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
 
     }
