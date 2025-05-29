@@ -34,7 +34,7 @@ public class SmoothSceneManager : SceneManager {
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateBolus(m.Bolus));
         WeakReferenceMessenger.Default.Register<SmoothingModelsUpdatedMessage>(this, (r,m) => UpdateSmoothingModels(m.GreenModels, m.RedModels));
-        
+
     }
 
     private void UpdateBolus(BolusModel bolus) {
@@ -73,16 +73,15 @@ public class SmoothSceneManager : SceneManager {
 
                 case BolusType.Raw:
                     model = model with {
-                        Skin = PhongMaterials.Glass,
+                        Skin = PhongMaterials.MediumGray,
                         IsTransparent = true,
-                        ShowWireframe = boli.Length == 0,
+                        ShowWireframe = true,
                     };
                     break;
 
                 case BolusType.Smooth:
                     model = model with { 
-                        Skin = _smoothSkin,
-                        ShowWireframe = true,
+                        Skin = DiffuseMaterials.Emerald,
                     };
                     break;
                 default:

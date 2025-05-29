@@ -63,6 +63,7 @@ public partial class MeshViewModel : ObservableObject {
                         CullMode = model.IsTransparent ? CullMode.None : CullMode.Back,
                         IsTransparent = model.IsTransparent,
                         RenderWireframe = model.ShowWireframe,
+                        FillMode = model.ShowWireframe ? FillMode.Wireframe : FillMode.Solid
                 };
                 CurrentModel.Add(geometry);
             }

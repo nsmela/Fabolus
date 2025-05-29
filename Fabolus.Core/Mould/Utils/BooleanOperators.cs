@@ -9,6 +9,7 @@ using Fabolus.Core.Meshes;
 using Fabolus.Core.Extensions;
 
 namespace Fabolus.Core.Mould.Utils;
+
 public static class BooleanOperators {
 
     public static Result<DMesh3> Subtraction(DMesh3 body, DMesh3 tool) {
