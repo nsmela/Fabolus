@@ -108,8 +108,19 @@ public class SmoothSceneManager : SceneManager {
             //models.Add(display);
         };
 
+        // contour
+        var contour = SmoothingTools.Contour(mesh, 0.0);
+        var contourModel = new DisplayModel3D {
+            Geometry = contour.ToGeometry(),
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Blue,
+        };
+
+        models.Add(contourModel);
+
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
 
     }
+
 
 }

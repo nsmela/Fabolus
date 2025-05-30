@@ -7,8 +7,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TriangleNet.Geometry;
+using TriangleNet.Meshing;
 
 namespace Fabolus.Core.Smoothing;
+
 public static class SmoothingTools {
     //References:
     //https://www.gradientspace.com/tutorials/2018/9/14/point-set-fast-winding
@@ -103,5 +106,36 @@ public static class SmoothingTools {
             new Vector3d(0, 0, 1)
         );
 
+        bool successful = cutter.Cut();
+
+        if (!successful) { return new MeshModel(); }
+        if (cutter.CutLoops.Count() == 0) { return new MeshModel(); }
+
+        DMesh3 result = new();
+        foreach (EdgeLoop loop in cutter.CutLoops) {
+            //create polygon
+            var verts = loop.Mesh.Vertices().Select(v => new Vertex(v.x, v.y)).ToArray();
+            var polygon = new Polygon();
+            polygon.Add(new Contour(verts));
+
+            foreach (var t in new GenericMesher().Triangulate(polygon).Triangles) {
+                //add verts
+                var p0 = t.GetVertex(0);
+                var l0 = result.AppendVertex(ToVector3d(p0, z_height));
+
+
+                var p1 = t.GetVertex(1);
+                var l1 = result.AppendVertex(ToVector3d(p1, z_height));
+
+                var p2 = t.GetVertex(2);
+                var l2 = result.AppendVertex(ToVector3d(p2, z_height));
+
+                //link those verts to triangles
+                result.AppendTriangle(l0, l1, l2);
+            }
+        }
+        return new MeshModel(result);
     }
+
+    private static Vector3d ToVector3d(Vertex v, double z) => new Vector3d(v.X, v.Y, z);
 }
