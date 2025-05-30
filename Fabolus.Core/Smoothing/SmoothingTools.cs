@@ -113,16 +113,24 @@ public static class SmoothingTools {
 
         DMesh3 result = new();
         foreach (EdgeLoop loop in cutter.CutLoops) {
-            //create polygon
-            var verts = loop.Mesh.Vertices().Select(v => new Vertex(v.x, v.y)).ToArray();
-            var polygon = new Polygon();
-            polygon.Add(new Contour(verts));
+            if (loop.Vertices.Length < 3) { continue; }// Cannot triangulate loops with less than 3 vertices
 
-            foreach (var t in new GenericMesher().Triangulate(polygon).Triangles) {
+            var verts = loop.Vertices.Select(i => loop.Mesh.GetVertex(i));
+            var polygon = new Polygon2d(verts.Select(v => new Vector2d(v.x, v.y)));
+
+            // Triangulation generally works best with Counter-Clockwise (CCW) polygons.
+            // MeshPlaneCut usually provides CCW loops, but it's good practice to ensure it.
+            if (polygon.IsClockwise) { polygon.Reverse(); }
+
+            //create polygon
+            var poly = new Polygon();
+            var contour = new Contour(polygon.Vertices.Select(v => new Vertex(v.x, v.y)));
+            poly.Add(contour);
+
+            foreach (var t in new GenericMesher().Triangulate(poly).Triangles) {
                 //add verts
                 var p0 = t.GetVertex(0);
                 var l0 = result.AppendVertex(ToVector3d(p0, z_height));
-
 
                 var p1 = t.GetVertex(1);
                 var l1 = result.AppendVertex(ToVector3d(p1, z_height));
@@ -135,6 +143,42 @@ public static class SmoothingTools {
             }
         }
         return new MeshModel(result);
+    }
+
+    public static MeshModel ContourMesh(MeshModel model, double z_height) {
+        MeshPlaneCut cutter = new(
+            model.Mesh,
+            new Vector3d(0, 0, z_height),
+            new Vector3d(0, 0, 1)
+        );
+
+        bool successful = cutter.Cut();
+
+        if (!successful) { return new MeshModel(); }
+        if (cutter.CutLoops.Count() == 0) { return new MeshModel(); }
+
+        MeshEditor editor = new(new DMesh3());
+
+        foreach (EdgeLoop loop in cutter.CutLoops) {
+            if (loop.Vertices.Length < 3) { continue; }// Cannot triangulate loops with less than 3 vertices
+
+            var verts = loop.Vertices.Select(i => loop.Mesh.GetVertex(i));
+            var polygon = new Polygon2d(verts.Select(v => new Vector2d(v.x, v.y)));
+
+            // Triangulation generally works best with Counter-Clockwise (CCW) polygons.
+            // MeshPlaneCut usually provides CCW loops, but it's good practice to ensure it.
+            if (polygon.IsClockwise) { polygon.Reverse(); }
+
+            TriangulatedPolygonGenerator generator = new();
+            generator.Polygon = new GeneralPolygon2d(polygon); // Set the polygon to triangulate
+
+            // 2. Perform Triangulation
+            generator.Generate();
+
+            editor.AppendMesh(editor.Mesh);
+        }
+
+        return new MeshModel(editor.Mesh);
     }
 
     private static Vector3d ToVector3d(Vertex v, double z) => new Vector3d(v.X, v.Y, z);
