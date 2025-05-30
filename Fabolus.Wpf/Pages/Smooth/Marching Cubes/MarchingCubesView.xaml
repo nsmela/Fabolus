@@ -12,14 +12,16 @@
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins"/>
+            FontFamily="\Fonts\#Poppins" />
         <Slider Value="{Binding EdgeLength, Mode=TwoWay}"
             Minimum="0.2" 
             Maximum="2" 
             TickFrequency="0.2" 
             TickPlacement="TopLeft" 
             IsSnapToTickEnabled="True" 
-            Height="30"/>
+            Height="30"            
+            AutoToolTipPlacement="TopLeft"
+            AutoToolTipPrecision="1"/>
 
         <Label Content="smoothing speed"                        
             HorizontalAlignment="Center" 
@@ -33,7 +35,9 @@
             TickPlacement="TopLeft" 
             TickFrequency="0.1" 
             IsSnapToTickEnabled="True" 
-            Height="30"/>
+            Height="30"
+            AutoToolTipPlacement="TopLeft"
+            AutoToolTipPrecision="1"/>
 
         <Label Content="iterations" 
             HorizontalAlignment="Center" 
@@ -47,7 +51,9 @@
             TickPlacement="TopLeft" 
             TickFrequency="1" 
             IsSnapToTickEnabled="True" 
-            Height="30"/>
+            Height="30"            
+            AutoToolTipPlacement="TopLeft"
+            AutoToolTipPrecision="1"/>
 
         <Label Content="marching cubes"                         
             HorizontalAlignment="Center" 
@@ -61,7 +67,9 @@
             TickPlacement="TopLeft" 
             TickFrequency="16" 
             IsSnapToTickEnabled="True" 
-            Height="30"/>
+            Height="30"
+            AutoToolTipPlacement="TopLeft"
+            AutoToolTipPrecision="1"/>
         
     </StackPanel>
 </UserControl>
