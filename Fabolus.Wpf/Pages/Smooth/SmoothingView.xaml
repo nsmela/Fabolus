@@ -11,51 +11,56 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="ShowSmoothSettings" />
     </UserControl.Resources>
+    
+    <StackPanel Orientation="Horizontal" Margin="2">
+        <StackPanel Orientation="Vertical" Margin="4" Width="160">
 
-    <StackPanel Orientation="Vertical" Margin="4">
+            <ComboBox
+                SelectedIndex="{Binding SmoothingViewIndex}"
+                Margin="4"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins">
+                <ComboBoxItem IsSelected="True">Poisson Reconstruction</ComboBoxItem>
+                <ComboBoxItem>Marching Cubes</ComboBoxItem>
+                <ComboBoxItem>Laplacian</ComboBoxItem>
+            </ComboBox>
 
-        <ComboBox
-            SelectedIndex="{Binding SmoothingViewIndex}"
-            Margin="4"
-            FontSize="14" 
-            FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins">
-            <ComboBoxItem IsSelected="True">Poisson Reconstruction</ComboBoxItem>
-            <ComboBoxItem>Marching Cubes</ComboBoxItem>
-            <ComboBoxItem>Laplacian</ComboBoxItem>
-        </ComboBox>
+            <ContentControl Content="{Binding SetSmoothingViewModel}"/>
 
-        <ContentControl Content="{Binding SetSmoothingViewModel}"/>
+            <Label Content="contour z height" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
 
-        <Label Content="contour z height" 
-            HorizontalAlignment="Center" 
-            VerticalAlignment="Center"
-            FontSize="12" 
-            FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding ContourHeight, Mode=TwoWay}"
-            Minimum="{Binding MinimumHeight, Mode=TwoWay}"
-            Maximum="{Binding MaximumHeight, Mode=TwoWay}"
-            TickFrequency="1.0" 
-            TickPlacement="TopLeft" 
-            IsSnapToTickEnabled="True" 
-            Height="30"/>
         
-        <Button Content="apply" 
-                Height="30" Margin="4"
-                HorizontalAlignment="Stretch"
-                FontSize="14" 
-                FontWeight="Bold"
-                FontFamily="\Fonts\#Poppins"
-                Command="{Binding SmoothCommand}" />
+            <Button Content="apply" 
+                    Height="30" Margin="4"
+                    HorizontalAlignment="Stretch"
+                    FontSize="14" 
+                    FontWeight="Bold"
+                    FontFamily="\Fonts\#Poppins"
+                    Command="{Binding SmoothCommand}" />
 
-        <Button Content="clear" 
-                Height="30" Margin="4"
-                HorizontalAlignment="Stretch"
-                FontSize="14" 
-                FontWeight="Bold"
-                FontFamily="\Fonts\#Poppins"
-                Command="{Binding ClearSmoothedCommand}" />
+            <Button Content="clear" 
+                    Height="30" Margin="4"
+                    HorizontalAlignment="Stretch"
+                    FontSize="14" 
+                    FontWeight="Bold"
+                    FontFamily="\Fonts\#Poppins"
+                    Command="{Binding ClearSmoothedCommand}" />
 
+        </StackPanel>
+
+        <Slider Value="{Binding ContourHeight, Mode=TwoWay}"
+                Minimum="{Binding MinimumHeight, Mode=TwoWay}"
+                Maximum="{Binding MaximumHeight, Mode=TwoWay}"
+                TickFrequency="1.0" 
+                TickPlacement="TopLeft" 
+                IsSnapToTickEnabled="True" 
+                Width="30"
+                Orientation="Vertical" />
     </StackPanel>
 </UserControl>

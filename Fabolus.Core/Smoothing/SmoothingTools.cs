@@ -1,7 +1,10 @@
 ﻿using Fabolus.Core.BolusModel;
 using Fabolus.Core.Extensions;
 using Fabolus.Core.Meshes;
+using Fabolus.Core.Mould.Builders;
+using Fabolus.Core.Mould.Utils;
 using g3;
+using gs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -179,6 +182,27 @@ public static class SmoothingTools {
         }
 
         return new MeshModel(editor.Mesh);
+    }
+
+    public static Result<MeshModel[]> GetSmoothingDisplayModels(MeshModel rawModel, MeshModel smoothModel) {
+        var union = BooleanOperators.Intersect(rawModel.Mesh, smoothModel.Mesh);
+        if (union.IsFailure) { return Result<MeshModel[]>.Fail(union.Errors); }
+
+        var offset = MouldUtils.OffsetMeshD(union.Data, 0.2);
+        MeshAutoRepair repair = new(offset);
+        repair.Apply();
+
+        var excess = BooleanOperators.Subtraction(rawModel.Mesh, offset);
+        if (excess.IsFailure) { return Result<MeshModel[]>.Fail(excess.Errors); }
+
+        var missing = BooleanOperators.Subtraction(smoothModel.Mesh, offset);
+        if (missing.IsFailure) { return Result<MeshModel[]>.Fail(missing.Errors); }
+
+        return Result<MeshModel[]>.Pass([
+            new MeshModel(union.Data), 
+            new MeshModel(excess.Data), 
+            new MeshModel(missing.Data)
+        ]);
     }
 
     private static Vector3d ToVector3d(Vertex v, double z) => new Vector3d(v.X, v.Y, z);

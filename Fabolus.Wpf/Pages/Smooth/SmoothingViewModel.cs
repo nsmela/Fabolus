@@ -57,8 +57,8 @@ public partial class SmoothingViewModel : BaseViewModel {
     public SmoothingViewModel() {
         _bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
 
-        MinimumHeight = _bolus.Geometry.Bound.Minimum.Z;
-        MaximumHeight = _bolus.Geometry.Bound.Maximum.Z;
+        MinimumHeight = (int)_bolus.Geometry.Bound.Minimum.Z;
+        MaximumHeight = (int)_bolus.Geometry.Bound.Maximum.Z;
 
         _is_busy = true;
         ContourHeight = 0.0f;

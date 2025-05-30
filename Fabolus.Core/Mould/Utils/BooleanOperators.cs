@@ -24,6 +24,18 @@ public static class BooleanOperators {
         }
 
     }
-    
+
+    public static Result<DMesh3> Intersect(DMesh3 body, DMesh3 tool) {
+        Mesh bodyMesh = body.ToMesh();
+        Mesh toolMesh = tool.ToMesh();
+
+        try {
+            var result = Boolean(bodyMesh, toolMesh, BooleanOperation.Intersection);
+            return Result<DMesh3>.Pass(result.mesh.ToDMesh());
+        } catch (Exception e) {
+            return Result<DMesh3>.Fail([new MeshError(e.Message)]);
+        }
+
+    }
 }
 

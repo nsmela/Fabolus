@@ -8,13 +8,17 @@ using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.MainWindow;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
+using HelixToolkit.Wpf;
 using HelixToolkit.Wpf.SharpDX;
+using SharpDX;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using static Fabolus.Wpf.Bolus.BolusStore;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Fabolus.Wpf.Pages.Smooth;
 
@@ -29,30 +33,66 @@ public class SmoothSceneManager : SceneManager {
     private float _surfaceDistance = DEFAULT_SURFACE_DISTANCE;
     private float _contour_height = 0.0f;
 
+    private Dictionary<float, MeshGeometry3D> _rawContours = [];
+    private Dictionary<float, MeshGeometry3D> _smoothContours = [];
+
     public SmoothSceneManager() {
         _surfaceDistanceSkin = SkinHelper.SurfaceDifferenceSkin(_surfaceDistance);
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateBolus(m.Bolus));
-        WeakReferenceMessenger.Default.Register<SmoothingModelsUpdatedMessage>(this, (r,m) => UpdateSmoothingModels(m.GreenModels, m.RedModels));
         WeakReferenceMessenger.Default.Register<SmoothingContourMessage>(this, (r, m) => UpdateContouringHeight(m.z_height));
     }
 
     private void UpdateBolus(BolusModel bolus) {
         _bolus = bolus;
+
+        var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        if (boli is not null && boli.Length > 1 && bolus.BolusType == BolusType.Smooth) {
+
+            var raw = boli[0].TransformedMesh().ToGeometry();
+            var smoothed = boli[1].TransformedMesh().ToGeometry();
+            var min = smoothed.Bound.Minimum.Z;
+            var max = smoothed.Bound.Maximum.Z;
+
+            _rawContours.Clear();
+            _smoothContours.Clear();
+
+            float layer = (int)min;
+            while (layer + min < max) {
+                // contour line around smoothed
+                Vector3 plane = new(0, 0, layer);
+                Vector3 normal = Vector3.UnitZ;
+                List<Vector3> contour = MeshGeometryHelper.GetContourSegments(smoothed, plane, normal).ToList() ?? new();
+
+                List<int> edges = new();
+                for (int i = 0; i < contour.Count; i++) {
+                    edges.Add(i);
+                }
+                edges.Add(0); // close the loop
+
+                MeshBuilder builder = new();
+                builder.AddPipes(contour, edges, 0.4f);
+                foreach (var point in contour) {
+                    builder.AddSphere(point, 0.2f);
+                }
+
+                _smoothContours.Add(layer, builder.ToMeshGeometry3D());
+
+                // contour mesh for raw
+                _rawContours.Add(layer, SmoothingTools.Contour(raw.ToMeshModel(), layer).ToGeometry());
+
+                layer++;
+            }
+
+        }
+
         UpdateDisplay(bolus);
-    }
-
-    private void UpdateSmoothingModels(MeshModel[] greens, MeshModel[] reds) {
-        _greenModels = greens;
-        _redModels = reds;
-
-        UpdateDisplay(_bolus);
     }
 
     private void UpdateContouringHeight(float value) {
         _contour_height = value;
-        UpdateBolus(_bolus);
+        UpdateDisplay(_bolus);
     }
 
 
@@ -64,72 +104,44 @@ public class SmoothSceneManager : SceneManager {
             return;
         }
 
-        //set each model for display
         var models = new List<DisplayModel3D>();
-        foreach (BolusModel b in boli) {
+        if (boli.Length == 1) { //just the raw file
             var model = new DisplayModel3D {
-                Geometry = b.Geometry,
+                Geometry = boli[0].Geometry,
                 Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.SkyBlue,
             };
-            switch (b.BolusType) {
-
-                case BolusType.Raw:
-                    model = model with {
-                        Skin = DiffuseMaterials.SkyBlue,
-                        IsTransparent = true,
-                        ShowWireframe = true,
-                    };
-                    break;
-
-                case BolusType.Smooth:
-                    model = model with { 
-                        Skin = DiffuseMaterials.Emerald,
-                        IsTransparent = true,
-                    };
-                    break;
-                default:
-                    break;
-            }
 
             models.Add(model);
         }
 
-        //smooth surface testing
-        var mesh = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response.TransformedMesh();
-        var surfaceMeshes = SmoothingTools.GetSmoothSurfaces(mesh, Math.PI/8.0f);
-        Array.Sort(surfaceMeshes, (a, b) => b.Mesh.TriangleCount.CompareTo(a.Mesh.TriangleCount));
-
-        for (int i = 0; i <  surfaceMeshes.Length; i++) {
-
-            var display = new DisplayModel3D {
-                Geometry = surfaceMeshes[i].ToGeometry(),
+        if (boli.Length == 2) { //was smoothed
+            var model = new DisplayModel3D {
+                Geometry = boli[1].Geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = i > 1 ? DiffuseMaterials.Red : DiffuseMaterials.Blue,
+                Skin = DiffuseMaterials.Emerald,
+                IsTransparent = true,
             };
 
-            //models.Add(display);
-        };
+            models.Add(model);
 
-        // contour
-        var contour = SmoothingTools.Contour(mesh, _contour_height);
-        var contourModel = new DisplayModel3D {
-            Geometry = contour.ToGeometry(),
-            Transform = MeshHelper.TransformEmpty,
-            Skin = DiffuseMaterials.Blue,
-        };
 
-        models.Add(contourModel);
+        }
 
-        // smooth contour
-        if (boli.Length > 1) {
-            var smoothContour = SmoothingTools.Contour(boli[1].Mesh, -0.1);
-            var smoothModel = new DisplayModel3D {
-                Geometry = contour.ToGeometry(),
+        if (boli.Length == 2) {
+            models.Add(new DisplayModel3D {
+                Geometry = _smoothContours[_contour_height],
                 Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Red,
-            };
+                Skin = DiffuseMaterials.Yellow,
+            });
 
-            //models.Add(smoothModel);
+            //contour mesh            
+            var raw_contour_mesh = SmoothingTools.Contour(boli[0].TransformedMesh(), _contour_height);
+            models.Add(new DisplayModel3D {
+                Geometry = _rawContours[_contour_height],
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Blue,
+            });
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
