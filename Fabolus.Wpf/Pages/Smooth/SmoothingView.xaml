@@ -27,6 +27,20 @@
 
         <ContentControl Content="{Binding SetSmoothingViewModel}"/>
 
+        <Label Content="contour z height" 
+            HorizontalAlignment="Center" 
+            VerticalAlignment="Center"
+            FontSize="12" 
+            FontWeight="Bold"
+            FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding ContourHeight, Mode=TwoWay}"
+            Minimum="{Binding MinimumHeight, Mode=TwoWay}"
+            Maximum="{Binding MaximumHeight, Mode=TwoWay}"
+            TickFrequency="1.0" 
+            TickPlacement="TopLeft" 
+            IsSnapToTickEnabled="True" 
+            Height="30"/>
+        
         <Button Content="apply" 
                 Height="30" Margin="4"
                 HorizontalAlignment="Stretch"

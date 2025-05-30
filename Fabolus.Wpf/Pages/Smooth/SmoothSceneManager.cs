@@ -27,6 +27,7 @@ public class SmoothSceneManager : SceneManager {
     private Material _surfaceDistanceSkin;
     private Material _smoothSkin = PhongMaterials.Blue;
     private float _surfaceDistance = DEFAULT_SURFACE_DISTANCE;
+    private float _contour_height = 0.0f;
 
     public SmoothSceneManager() {
         _surfaceDistanceSkin = SkinHelper.SurfaceDifferenceSkin(_surfaceDistance);
@@ -34,7 +35,7 @@ public class SmoothSceneManager : SceneManager {
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateBolus(m.Bolus));
         WeakReferenceMessenger.Default.Register<SmoothingModelsUpdatedMessage>(this, (r,m) => UpdateSmoothingModels(m.GreenModels, m.RedModels));
-
+        WeakReferenceMessenger.Default.Register<SmoothingContourMessage>(this, (r, m) => UpdateContouringHeight(m.z_height));
     }
 
     private void UpdateBolus(BolusModel bolus) {
@@ -49,12 +50,13 @@ public class SmoothSceneManager : SceneManager {
         UpdateDisplay(_bolus);
     }
 
-    protected override void UpdateDisplay(BolusModel? bolus) {
-        if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions.Count == 0) {
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
-            return;
-        }
+    private void UpdateContouringHeight(float value) {
+        _contour_height = value;
+        UpdateBolus(_bolus);
+    }
 
+
+    protected override void UpdateDisplay(BolusModel? bolus) {
         // get all of the current bolus
         var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
         if (boli is null || boli.Length == 0) {
@@ -73,7 +75,7 @@ public class SmoothSceneManager : SceneManager {
 
                 case BolusType.Raw:
                     model = model with {
-                        Skin = PhongMaterials.MediumGray,
+                        Skin = DiffuseMaterials.SkyBlue,
                         IsTransparent = true,
                         ShowWireframe = true,
                     };
@@ -109,7 +111,7 @@ public class SmoothSceneManager : SceneManager {
         };
 
         // contour
-        var contour = SmoothingTools.Contour(mesh, 0.0);
+        var contour = SmoothingTools.Contour(mesh, _contour_height);
         var contourModel = new DisplayModel3D {
             Geometry = contour.ToGeometry(),
             Transform = MeshHelper.TransformEmpty,
@@ -117,6 +119,18 @@ public class SmoothSceneManager : SceneManager {
         };
 
         models.Add(contourModel);
+
+        // smooth contour
+        if (boli.Length > 1) {
+            var smoothContour = SmoothingTools.Contour(boli[1].Mesh, -0.1);
+            var smoothModel = new DisplayModel3D {
+                Geometry = contour.ToGeometry(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Red,
+            };
+
+            //models.Add(smoothModel);
+        }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
 

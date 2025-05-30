@@ -31,17 +31,38 @@ public partial class SmoothingViewModel : BaseViewModel {
     [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new PoissonViewModel();
     [ObservableProperty] private int _smoothingViewIndex = 0;
 
+    [ObservableProperty] private float _minimumHeight;
+    [ObservableProperty] private float _maximumHeight;
+    [ObservableProperty] private float _contourHeight;
+
     partial void OnSmoothingViewIndexChanged(int value) {
         SetSmoothingViewModel = GetView(value);
         ClearSmoothed();
     }
 
+    partial void OnContourHeightChanged(float value) {
+        if (_is_busy) { return; }
+        _is_busy = true;
+
+        WeakReferenceMessenger.Default.Send(new SmoothingContourMessage(value));
+
+        _is_busy = false;
+    }
+
     private BolusModel? _bolus;
+    private bool _is_busy = false;
 
     #endregion
 
     public SmoothingViewModel() {
         _bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+
+        MinimumHeight = _bolus.Geometry.Bound.Minimum.Z;
+        MaximumHeight = _bolus.Geometry.Bound.Maximum.Z;
+
+        _is_busy = true;
+        ContourHeight = 0.0f;
+        _is_busy = false;
     }
 
     #region Commands

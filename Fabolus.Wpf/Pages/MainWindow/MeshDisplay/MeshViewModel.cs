@@ -64,7 +64,7 @@ public partial class MeshViewModel : ObservableObject {
                         IsTransparent = model.IsTransparent,
                         RenderWireframe = model.ShowWireframe,
                         FillMode = model.ShowWireframe ? FillMode.Wireframe : FillMode.Solid,
-                        WireframeColor = Colors.Black,
+                        //WireframeColor = Colors.Black,
                 };
                 CurrentModel.Add(geometry);
             }
