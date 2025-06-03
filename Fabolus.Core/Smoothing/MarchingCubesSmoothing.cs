@@ -15,12 +15,12 @@ public class MarchingCubesSmoothing {
 
         //Use the Remesher class to do a basic remeshing
         DMesh3 mesh = new DMesh3(bolus.Mesh);
-        Remesher r = new Remesher(mesh);
-        r.PreventNormalFlips = true;
-        r.SetTargetEdgeLength(edgeLength);
-        r.SmoothSpeedT = smoothSpeed;
-        r.SetProjectionTarget(MeshProjectionTarget.Auto(mesh));
-        for (int k = 0; k < iterations; k++) { r.BasicRemeshPass(); }
+        //Remesher r = new Remesher(mesh);
+       // r.PreventNormalFlips = true;
+        //r.SetTargetEdgeLength(edgeLength);
+       // r.SmoothSpeedT = smoothSpeed;
+       // r.SetProjectionTarget(MeshProjectionTarget.Auto(mesh));
+        //for (int k = 0; k < iterations; k++) { r.BasicRemeshPass(); }
 
         //marching cubes
         var num_cells = cells;
