@@ -16,6 +16,7 @@ namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 
 public partial class MeshViewModel : ObservableObject {
 
+    
     [ObservableProperty] private Camera _camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera();
     [ObservableProperty] private IEffectsManager _effectsManager = new DefaultEffectsManager();
 
@@ -23,7 +24,6 @@ public partial class MeshViewModel : ObservableObject {
     [ObservableProperty] private Color _ambientLightColor = Colors.GhostWhite;
 
     //mesh settings
-    //[ObservableProperty] private FillMode _fillMode = SharpDX.Direct3D11.FillMode.Wireframe;
     [ObservableProperty] private bool _shadows = false;
 
     //models
@@ -37,7 +37,6 @@ public partial class MeshViewModel : ObservableObject {
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
-    public ObservableElement3DCollection CurrentTransparentModel { get; init; } = new ObservableElement3DCollection();
     [ObservableProperty] private Transform3D _mainTransform = MeshHelper.TransformEmpty;
 
     public MeshViewModel() {
@@ -49,7 +48,6 @@ public partial class MeshViewModel : ObservableObject {
 
     private void UpdateDisplay(IList<DisplayModel3D> models) {
         CurrentModel.Clear();
-        CurrentTransparentModel.Clear();
         if (models.Count() < 1) { return; }
 
         context.Post((o) => {
@@ -64,7 +62,6 @@ public partial class MeshViewModel : ObservableObject {
                         IsTransparent = model.IsTransparent,
                         RenderWireframe = model.ShowWireframe,
                         FillMode = model.ShowWireframe ? FillMode.Wireframe : FillMode.Solid,
-                        //WireframeColor = Colors.Black,
                 };
                 CurrentModel.Add(geometry);
             }

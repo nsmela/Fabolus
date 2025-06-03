@@ -36,6 +36,7 @@
             </hx:Viewport3DX.InputBindings>
             <hx:AmbientLight3D Color="{Binding AmbientLightColor}" />
             <hx:DirectionalLight3D Direction="{Binding Camera.LookDirection}" Color="{Binding DirectionalLightColor}" />
+            
             <mesh:InteractiveModel3D
                 x:Name="CurrentModel" 
                 ItemsSource="{Binding CurrentModel}"
