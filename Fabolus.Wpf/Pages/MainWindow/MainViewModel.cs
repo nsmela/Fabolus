@@ -94,17 +94,11 @@ public partial class MainViewModel : ObservableObject {
     [RelayCommand] public async Task CaptureScreenshot() {
         var viewport = WeakReferenceMessenger.Default.Send(new ViewportRequestMessage()).Response;
         var bitmap = ViewportExtensions.RenderBitmap(viewport);
-        var info = WeakReferenceMessenger.Default.Send(new MeshInfoRequestMessage()).Response;
-        var rect = new Rect(
-            viewport.ActualWidth - info.ActualWidth - info.Margin.Right,
-            info.Margin.Top,
-            info.ActualWidth,
-            info.ActualHeight
-        );
 
+        var info = WeakReferenceMessenger.Default.Send(new MeshInfoRequestMessage()).Response;
         RenderTargetBitmap renderInfo = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
         renderInfo.Render(info);
-        var isloaded = info.IsLoaded;
+
         DrawingVisual visual = new();
         using (DrawingContext context = visual.RenderOpen()) {
             context.DrawImage(bitmap, new Rect(0, 0, viewport.ActualWidth, viewport.ActualHeight));
