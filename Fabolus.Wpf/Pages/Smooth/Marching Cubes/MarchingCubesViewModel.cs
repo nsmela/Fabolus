@@ -14,7 +14,7 @@ public partial class MarchingCubesViewModel : BaseSmoothingToolViewModel {
     [ObservableProperty] private int _cells;
 
     private static Dictionary<string, MarchingCubesSettings> _defaultSmoothSettings = new Dictionary<string, MarchingCubesSettings> {
-        { "standard", new MarchingCubesSettings { DeflateDistance = 0.3f, InflateDistance = 0.4f, Iterations=1, Cells=64 } },
+        { "standard", new MarchingCubesSettings { DeflateDistance = 0.2f, InflateDistance = 0.3f, Iterations=2, Cells=96 } },
         { "smooth", new MarchingCubesSettings { DeflateDistance = 0.4f, InflateDistance = 0.5f, Iterations=2, Cells=128 } },
     };
 

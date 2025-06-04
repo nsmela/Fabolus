@@ -91,6 +91,9 @@ public partial class MainViewModel : ObservableObject {
     [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MouldViewModel());
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());
 
+    [RelayCommand] public async Task ToggleWireframe() =>
+        WeakReferenceMessenger.Default.Send(new WireframeToggleMessage());
+
     [RelayCommand] public async Task CaptureScreenshot() {
         var viewport = WeakReferenceMessenger.Default.Send(new ViewportRequestMessage()).Response;
         var bitmap = ViewportExtensions.RenderBitmap(viewport);

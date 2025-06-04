@@ -25,9 +25,11 @@ public partial class MeshViewModel : ObservableObject {
 
     //mesh settings
     [ObservableProperty] private bool _shadows = false;
+    [ObservableProperty] private bool _renderWireframe = false;
 
     //models
     [ObservableProperty] private LineGeometryModel3D _grid = new LineGeometryModel3D();
+    private IList<DisplayModel3D> _models = [];
 
     //mouse commands
     [ObservableProperty] private ICommand _leftMouseCommand = ViewportCommands.Pan;
@@ -43,25 +45,33 @@ public partial class MeshViewModel : ObservableObject {
         Grid.Geometry = GenerateGrid();
         WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, (r, m) => UpdateDisplay(m.models));
         WeakReferenceMessenger.Default.Register<MeshSetInputBindingsMessage>(this, (r, m) => UpdateInputBindings(m.LeftMouseButton, m.MiddleMouseButton, m.RightMouseButton));
+        WeakReferenceMessenger.Default.Register<WireframeToggleMessage>(this, (r, m) => Togglewireframe());
         ResetCamera();
+    }
+
+    private void Togglewireframe() {
+        RenderWireframe = !RenderWireframe;
+        UpdateDisplay(_models);
     }
 
     private void UpdateDisplay(IList<DisplayModel3D> models) {
         CurrentModel.Clear();
-        if (models.Count() < 1) { return; }
+        _models = models;
+        if (_models.Count() < 1) { return; }
 
         context.Post((o) => {
-            foreach (var model in models) {
+            foreach (var model in _models) {
                 model.Geometry.UpdateOctree();
                 model.Geometry.UpdateBounds();
                 var geometry = new MeshGeometryModel3D {
-                        Geometry = model.Geometry,
-                        Material = model.Skin,
-                        Transform = model.Transform,
-                        CullMode = model.IsTransparent ? CullMode.None : CullMode.Back,
-                        IsTransparent = model.IsTransparent,
-                        RenderWireframe = model.ShowWireframe,
-                        FillMode = model.ShowWireframe ? FillMode.Wireframe : FillMode.Solid,
+                    Geometry = model.Geometry,
+                    Material = model.Skin,
+                    Transform = model.Transform,
+                    CullMode = model.IsTransparent ? CullMode.None : CullMode.Back,
+                    IsTransparent = model.IsTransparent,
+                    RenderWireframe = RenderWireframe,
+                    WireframeColor = Colors.Black,
+                    FillMode = model.ShowWireframe ? FillMode.Wireframe : FillMode.Solid,
                 };
                 CurrentModel.Add(geometry);
             }

@@ -15,12 +15,18 @@ public class MarchingCubesSmoothing {
         var iterations = settings.Iterations;
         var cells = settings.Cells;
 
-        //shrink mesh to lose details and inflate to get a smoother surface
+        //shrink mesh to lose sharp details and inflate back to original size
         DMesh3 mesh = bolus.Mesh;
-        for (int i = 0; i < iterations; i++) {
-            mesh = MeshTools.OffsetMesh(mesh, -deflateDistance);
-            mesh = MeshTools.OffsetMesh(mesh, inflateDistance);
+
+        if (deflateDistance > 0) {
+            for (int i = 0; i < iterations; i++) {
+                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance);
+                mesh = MeshTools.OffsetMesh(mesh, deflateDistance);
+            }
         }
+
+        // inflate
+        mesh = MeshTools.OffsetMesh(mesh, inflateDistance);
 
         //Use the Remesher class to do a basic remeshing
         //Remesher r = new Remesher(mesh);
@@ -48,10 +54,10 @@ public class MarchingCubesSmoothing {
 
         if (smoothMesh is null) { throw new ArgumentNullException(nameof(smoothMesh)); }
 
-        DMeshAABBTree3 spatial = new(bolus.Mesh.Mesh, true);
-        MeshICP icp = new(smoothMesh, spatial);
-        icp.Solve();
-        icp.UpdateVertices(smoothMesh);
+        //DMeshAABBTree3 spatial = new(bolus.Mesh.Mesh, true);
+        //MeshICP icp = new(smoothMesh, spatial);
+        //icp.Solve();
+        //icp.UpdateVertices(smoothMesh);
 
         var newBolus = new Bolus(smoothMesh);
         newBolus.CopyOffsets(bolus);
