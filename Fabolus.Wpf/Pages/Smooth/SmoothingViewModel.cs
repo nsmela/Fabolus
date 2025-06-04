@@ -21,24 +21,11 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     #region Properties and Events
 
-    private BaseSmoothingToolViewModel GetView(int index) => index switch {
-        0 => new PoissonViewModel(),
-        1 => new MarchingCubesViewModel(),
-        2 => new LaplacianViewModel(),
-        _ => throw new IndexOutOfRangeException("Index out of range")
-    };
-
-    [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new PoissonViewModel();
-    [ObservableProperty] private int _smoothingViewIndex = 0;
+    [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new MarchingCubesViewModel();
 
     [ObservableProperty] private float _minimumHeight;
     [ObservableProperty] private float _maximumHeight;
     [ObservableProperty] private float _contourHeight;
-
-    partial void OnSmoothingViewIndexChanged(int value) {
-        SetSmoothingViewModel = GetView(value);
-        ClearSmoothed();
-    }
 
     partial void OnContourHeightChanged(float value) {
         if (_is_busy) { return; }

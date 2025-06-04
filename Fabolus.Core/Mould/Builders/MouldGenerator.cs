@@ -8,7 +8,7 @@ namespace Fabolus.Core.Mould.Builders;
 /// </summary>
 public abstract record MouldGenerator {
     protected DMesh3 BolusReference { get; set; } //mesh to invert while entirely within
-    public double OffsetXY { get; protected set; } = 3.0;
+    public double OffsetXY { get; protected set; } = 4.0;
     public double OffsetTop { get; protected set; } = 3.0;
     public double OffsetBottom { get; protected set; } = 3.0;
     public int CalculationResolution { get; protected set; } = 32; //how accurate the implicit meshs are (higher is better, but slower)

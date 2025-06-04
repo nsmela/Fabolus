@@ -7,29 +7,29 @@
              mc:Ignorable="d" 
              d:DesignWidth="200">
     <StackPanel Orientation="Vertical">
-        <Label Content="edge size" 
+        <Label Content="deflate distance" 
             HorizontalAlignment="Center" 
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
             FontFamily="\Fonts\#Poppins" />
-        <Slider Value="{Binding EdgeLength, Mode=TwoWay}"
-            Minimum="0.2" 
-            Maximum="2" 
-            TickFrequency="0.2" 
+        <Slider Value="{Binding DeflateDistance, Mode=TwoWay}"
+            Minimum="0.0" 
+            Maximum="1" 
+            TickFrequency="0.1" 
             TickPlacement="TopLeft" 
             IsSnapToTickEnabled="True" 
             Height="30"            
             AutoToolTipPlacement="TopLeft"
             AutoToolTipPrecision="1"/>
 
-        <Label Content="smoothing speed"                        
+        <Label Content="inflate distance"                        
             HorizontalAlignment="Center" 
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding SmoothSpeed, Mode=TwoWay}"
+        <Slider Value="{Binding InflateDistance, Mode=TwoWay}"
             Minimum="0.1" 
             Maximum="1" 
             TickPlacement="TopLeft" 
