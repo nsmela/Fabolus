@@ -50,7 +50,7 @@ public static class SmoothingTools {
     }
 
     //find smooth surfaces
-    public static MeshModel[] GetSmoothSurfaces(MeshModel model, double rads_threshold = Math.PI / 5.0f) {
+    public static MeshModel[] GetSmoothSurfaces(MeshModel model, double rads_threshold = Math.PI / 27.0f) {
         DMesh3 mesh = model.Mesh;
 
         List<int> stack = mesh.TriangleIndices().ToList();

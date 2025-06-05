@@ -60,8 +60,8 @@ public partial class SmoothingViewModel : BaseViewModel {
             ErrorMessage("Smoothing Error", "Unable to smooth an empty model");
             return; 
         }
-
-        var smoothedBolus = await Task.Run(() => SetSmoothingViewModel.SmoothBolus(_bolus));
+        BolusModel[] bolus = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        var smoothedBolus = await Task.Run(() => SetSmoothingViewModel.SmoothBolus(bolus[0]));
 
         WeakReferenceMessenger.Default.Send(new AddBolusMessage(smoothedBolus, BolusType.Smooth));
     }
