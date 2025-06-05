@@ -22,8 +22,8 @@ public class MarchingCubesSmoothing {
 
         if (deflateDistance > 0) {
             for (int i = 0; i < iterations; i++) {
-                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance);
-                mesh = MeshTools.OffsetMesh(mesh, deflateDistance);
+                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance, cells);
+                mesh = MeshTools.OffsetMesh(mesh, deflateDistance, cells);
             }
         }
 
@@ -51,19 +51,19 @@ public class MarchingCubesSmoothing {
         if (smoothMesh.IsEmpty()) { throw new ArgumentNullException(nameof(smoothMesh)); }
 
         // reposition the smoothed mesh to the original mesh
-        DMeshAABBTree3 spatial = new(bolus.Mesh.Mesh, true);
-        spatial.Build();
-        MeshICP icp = new(smoothMesh, spatial);
-        icp.Solve(true);
-        icp.UpdateVertices(smoothMesh);
-
+        //DMeshAABBTree3 spatial = new(bolus.Mesh.Mesh, true);
+        //spatial.Build();
+        //MeshICP icp = new(smoothMesh, spatial);
+        //icp.Solve(true);
+        //icp.UpdateVertices(smoothMesh);
+        
         // reduce mesh size
         //Reducer reducer = new(smoothMesh);
         //DMeshAABBTree3 tree = new(new DMesh3(smoothMesh), true);
         //MeshProjectionTarget target = new(tree.Mesh, tree);
         //reducer.SetProjectionTarget(target);
         //reducer.ReduceToTriangleCount(20000);
-        
+
         //MeshAutoRepair repair = new(smoothMesh);
         //var pass = repair.Apply();
 

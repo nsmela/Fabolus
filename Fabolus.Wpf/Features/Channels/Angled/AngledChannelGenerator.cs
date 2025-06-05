@@ -49,12 +49,12 @@ public sealed record AngledChannelGenerator : ChannelGenerator {
         var last = curve.Last();
         curve.Add(new Vector3 { X = last.X, Y = last.Y, Z = MaxHeight });
 
-        var radii = new List<double> { BottomRadius, BottomRadius };
+        var diameters = new List<double> { BottomDiameter, BottomDiameter };
         for (int i = 2; i < curve.Count(); i++) {
-            radii.Add(Radius);
+            diameters.Add(Diameter);
         }
 
-        mesh.AddTube(curve, null, radii.ToArray(), 16, false, true, true);
+        mesh.AddTube(curve, null, diameters.ToArray(), 16, false, true, true);
 
         return mesh.ToMeshGeometry3D();
     }
