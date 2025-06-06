@@ -1,11 +1,9 @@
 ﻿using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Features.Channels.Angled;
-using Fabolus.Wpf.Features.Channels.Path;
 using Fabolus.Wpf.Features.Channels.Straight;
 using Fabolus.Wpf.Pages.Channels;
 using Fabolus.Wpf.Pages.Channels.Angled;
-using Fabolus.Wpf.Pages.Channels.Path;
 using Fabolus.Wpf.Pages.Channels.Straight;
 using System;
 using System.Collections.Generic;
@@ -20,20 +18,17 @@ public static class ChannelExtensions {
         type switch {
             ChannelTypes.Straight => new StraightAirChannel(),
             ChannelTypes.AngledHead => new AngledAirChannel(),
-            ChannelTypes.Path => new PathAirChannel(),
             _ => throw new NotImplementedException($"{type.GetDescriptionString()} is not listed as a ChannelType")};
 
     public static BaseChannelsViewModel ToViewModel(this ChannelTypes type) =>
         type switch {
             ChannelTypes.Straight => new StraightChannelsViewModel(),
             ChannelTypes.AngledHead => new AngledChannelsViewModel(),
-            ChannelTypes.Path => new PathChannelsViewModel(),
             _ => throw new NotImplementedException($"{type.GetDescriptionString()} is not listed as a ChannelType")};
 
     public static IAirChannel ApplySettings(this IAirChannel channel, AirChannelSettings settings) => channel.ChannelType switch {
         ChannelTypes.Straight => (channel as StraightAirChannel).ApplySettings(settings),
         ChannelTypes.AngledHead => (channel as AngledAirChannel).ApplySettings(settings),
-        ChannelTypes.Path => (channel as PathAirChannel).ApplySettings(settings),
         _ => throw new NotImplementedException($"{channel.ChannelType.GetDescriptionString()} is not listed as a ChannelType")
     };
 };

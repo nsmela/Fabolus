@@ -1,6 +1,7 @@
 ﻿using Fabolus.Core.BolusModel;
 using Fabolus.Core.Extensions;
 using Fabolus.Core.Meshes;
+using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Core.Mould.Utils;
 using g3;
 using gs;
@@ -38,7 +39,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
 
         //generate the inflated mesh
-        var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
+        var offsetMesh = MeshTools.OffsetMesh(BolusReference, OffsetXY, CalculationResolution);
 
         //create the mould
         var mould = CalculateContour(offsetMesh);
@@ -67,7 +68,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
 
         //generate the inflated mesh
-        var offsetMesh = MouldUtils.OffsetMeshD(BolusReference, OffsetXY);
+        var offsetMesh = MeshTools.OffsetMesh(BolusReference, OffsetXY);
 
         //create the mould
         return Result<MeshModel>.Pass(new MeshModel(CalculateContour(offsetMesh)));
