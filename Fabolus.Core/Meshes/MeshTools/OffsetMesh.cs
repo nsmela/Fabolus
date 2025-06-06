@@ -15,7 +15,7 @@ public static partial class MeshTools {
     private static Func<DMesh3, double, double, BoundedImplicitFunction3d> meshToImplicitF = (meshIn, cell_size, max_offset) => {
         //double meshCellsize = meshIn.CachedBounds.MaxDim / numcells;
         MeshSignedDistanceGrid levelSet = new MeshSignedDistanceGrid(meshIn, cell_size);
-        levelSet.ExactBandWidth = (int)(max_offset / cell_size) + 1;
+        levelSet.ExactBandWidth = (int)(max_offset / cell_size) + 25;
         levelSet.Compute();
         return new DenseGridTrilinearImplicit(levelSet.Grid, levelSet.GridOrigin, levelSet.CellSize);
     };

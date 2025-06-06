@@ -22,8 +22,8 @@ public class MarchingCubesSmoothing {
 
         if (deflateDistance > 0) {
             for (int i = 0; i < iterations; i++) {
-                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance, cell_size);
-                mesh = MeshTools.OffsetMesh(mesh, deflateDistance, cell_size);
+                mesh = MeshTools.OffsetMesh(mesh, deflateDistance * 10, cell_size);
+                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance * 10, cell_size);
             }
         }
 
@@ -41,7 +41,7 @@ public class MarchingCubesSmoothing {
             c.Implicit = iso;
             c.Bounds = mesh.CachedBounds;
             c.CubeSize = cell_size;
-            c.Bounds.Expand(3 * c.CubeSize);
+            c.Bounds.Expand(20 * c.CubeSize);
             c.Generate();
             smoothMesh = c.Mesh;
             MeshNormals.QuickCompute(smoothMesh); // generate normals

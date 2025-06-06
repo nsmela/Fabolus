@@ -156,16 +156,16 @@ public class SmoothSceneManager : SceneManager {
             });
 
             //show smooth surfaces
-            models.Add(new DisplayModel3D {
-                Geometry = _smoothedSurfaces[0].ToGeometry(),
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Gray,
-            });
-            models.Add(new DisplayModel3D {
-                Geometry = _smoothedSurfaces[1].ToGeometry(),
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Gray,
-            });
+            //models.Add(new DisplayModel3D {
+            //    Geometry = _smoothedSurfaces[0].ToGeometry(),
+            //    Transform = MeshHelper.TransformEmpty,
+            //    Skin = DiffuseMaterials.Gray,
+            //});
+            //models.Add(new DisplayModel3D {
+            //    Geometry = _smoothedSurfaces[1].ToGeometry(),
+            //    Transform = MeshHelper.TransformEmpty,
+            //    Skin = DiffuseMaterials.Gray,
+            //});
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
