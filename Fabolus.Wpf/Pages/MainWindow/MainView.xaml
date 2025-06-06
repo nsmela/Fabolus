@@ -7,6 +7,7 @@
         xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro" 
         xmlns:common="clr-namespace:Fabolus.Wpf.Common.Mesh" 
         xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
+        xmlns:mesh="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshDisplay"
         mc:Ignorable="d"
         Title="FABOLUS" Height="550" Width="800" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -71,7 +72,7 @@
         </StackPanel>
         
         <!--  MeshView -->
-        <ContentControl Content="{Binding CurrentMeshView}" Grid.Column="1" Grid.Row="1" />
+        <mesh:MeshView Grid.Column="1" Grid.Row="1" />
 
         <!-- Tool buttons -->
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical">

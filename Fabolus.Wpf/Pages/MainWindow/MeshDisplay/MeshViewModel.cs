@@ -38,28 +38,31 @@ public partial class MeshViewModel : ObservableObject {
 
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
+
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
     [ObservableProperty] private Transform3D _mainTransform = MeshHelper.TransformEmpty;
 
     public MeshViewModel() {
         Grid.Geometry = GenerateGrid();
-        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, (r, m) => UpdateDisplay(m.models));
+        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, async (r, m) => await UpdateModels(m.models));
         WeakReferenceMessenger.Default.Register<MeshSetInputBindingsMessage>(this, (r, m) => UpdateInputBindings(m.LeftMouseButton, m.MiddleMouseButton, m.RightMouseButton));
-        WeakReferenceMessenger.Default.Register<WireframeToggleMessage>(this, (r, m) => Togglewireframe());
+        WeakReferenceMessenger.Default.Register<WireframeToggleMessage>(this, async (r, m) => await ToggleWireframe());
         ResetCamera();
+
+
+        UpdateDisplay();
     }
 
-    private void Togglewireframe() {
+    private async Task ToggleWireframe() {
         RenderWireframe = !RenderWireframe;
-        UpdateDisplay(_models);
+        await UpdateDisplay();
     }
 
-    private void UpdateDisplay(IList<DisplayModel3D> models) {
-        CurrentModel.Clear();
-        _models = models;
-        if (_models.Count() < 1) { return; }
+    private async Task UpdateDisplay() {
 
         context.Post((o) => {
+            CurrentModel.Clear();
+
             foreach (var model in _models) {
                 model.Geometry.UpdateOctree();
                 model.Geometry.UpdateBounds();
@@ -76,12 +79,18 @@ public partial class MeshViewModel : ObservableObject {
                 CurrentModel.Add(geometry);
             }
         }, null);
+
     }
 
     private void UpdateInputBindings(RoutedCommand left, RoutedCommand middle, RoutedCommand right) {
         LeftMouseCommand = left;
         MiddleMouseCommand = middle;
         RightMouseCommand = right;
+    }
+
+    private async Task UpdateModels(IList<DisplayModel3D> models) {
+        _models = models;
+        await UpdateDisplay();
     }
 
     protected LineGeometry3D GenerateGrid(float minX = -100, float maxX = 100, float minY = -100, float maxY = 100, float spacing = 10) {

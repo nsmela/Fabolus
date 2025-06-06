@@ -28,7 +28,7 @@ public class MarchingCubesSmoothing {
         }
 
         // inflate
-        mesh = MeshTools.OffsetMesh(mesh, inflateDistance);
+        mesh = MeshTools.OffsetMesh(mesh, inflateDistance, cells);
 
         // marching cubes
         DMesh3 smoothMesh = new();

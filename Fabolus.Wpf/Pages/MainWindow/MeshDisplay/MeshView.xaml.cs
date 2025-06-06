@@ -15,6 +15,7 @@ namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay
     {
         public MeshView()
         {
+            DataContext = new MeshViewModel();
             InitializeComponent();
             WeakReferenceMessenger.Default.Register<MeshView, ViewportRequestMessage>(this, (r, m) => m.Reply(r.view1));
         }

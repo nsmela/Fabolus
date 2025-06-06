@@ -30,9 +30,7 @@ public partial class MainViewModel : ObservableObject {
 
     [ObservableProperty] private BaseViewModel? _currentViewModel;
     [ObservableProperty] private string _currentViewTitle = "No View Selected";
-    [ObservableProperty] private MeshViewModel _currentMeshView = new();
-    [ObservableProperty] private SceneManager _currentSceneModel;
-    [ObservableProperty] private MeshInfoViewModel _currentMeshInfo = new();
+    [ObservableProperty] private MeshInfoViewModel _currentMeshInfo;
 
     //mesh info
     [ObservableProperty] private bool _infoVisible = false;
@@ -66,12 +64,11 @@ public partial class MainViewModel : ObservableObject {
 
         //based on the view
         _sceneModel = viewModel.GetSceneManager;
-        DebugText = CurrentMeshView.Camera.Position.ToString();
-
     }
 
-    public MainViewModel()
-    {
+    public MainViewModel() {
+        CurrentMeshInfo = new();
+        _sceneModel = new();
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
 
         NavigateTo(new ImportViewModel());

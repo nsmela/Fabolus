@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 namespace Fabolus.Wpf.Features.Channels.Straight;
 public sealed record StraightChannelGenerator : ChannelGenerator {
     private float BottomDiameter { get; set; } = 1.0f;
-    private float BottomRadius => BottomDiameter / 2;
     private float TipLength { get; set; } = 10.0f;
 
     public static StraightChannelGenerator New() => new();
@@ -25,7 +24,7 @@ public sealed record StraightChannelGenerator : ChannelGenerator {
             Origin - Vector3.UnitZ * Depth,
             Origin,
             Origin + Vector3.UnitZ * TipLength,
-            Origin + Vector3.UnitZ * (TipLength + MaxHeight)
+            new Vector3(Origin.X, Origin.Y, MaxHeight)
         };
 
         var diameters = new double[] {
