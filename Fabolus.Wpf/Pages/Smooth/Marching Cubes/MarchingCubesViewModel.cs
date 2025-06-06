@@ -11,18 +11,18 @@ public partial class MarchingCubesViewModel : BaseSmoothingToolViewModel {
     [ObservableProperty] private float _deflateDistance;
     [ObservableProperty] private float _inflateDistance;
     [ObservableProperty] private int _iterations;
-    [ObservableProperty] private int _cells;
+    [ObservableProperty] private double _cellSize;
 
     private static Dictionary<string, MarchingCubesSettings> _defaultSmoothSettings = new Dictionary<string, MarchingCubesSettings> {
-        { "standard", new MarchingCubesSettings { DeflateDistance = 0.1f, InflateDistance = 0.2f, Iterations=2, Cells=32 } },
-        { "smooth", new MarchingCubesSettings { DeflateDistance = 0.4f, InflateDistance = 0.5f, Iterations=2, Cells=128 } },
+        { "standard", new MarchingCubesSettings { DeflateDistance = 0.1f, InflateDistance = 0.2f, Iterations=2, CellSize = 2.5f } },
+        { "smooth", new MarchingCubesSettings { DeflateDistance = 0.4f, InflateDistance = 0.5f, Iterations=2, CellSize = 1.5f } },
     };
 
     private MarchingCubesSettings Settings => new MarchingCubesSettings {
         DeflateDistance = this._deflateDistance,
         InflateDistance = this._inflateDistance,
         Iterations = this._iterations,
-        Cells = this._cells,
+        CellSize = this._cellSize,
     };
 
     private void SetSettings(string label) {
@@ -30,7 +30,7 @@ public partial class MarchingCubesViewModel : BaseSmoothingToolViewModel {
 
         DeflateDistance = settings.DeflateDistance;
         InflateDistance = settings.InflateDistance;
-        Cells = settings.Cells;
+        CellSize = settings.CellSize;
         Iterations = settings.Iterations;
     }
 

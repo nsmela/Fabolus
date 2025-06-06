@@ -21,12 +21,10 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
     public double MaxHeight { get; private set; } = 10.0;
     public double MinHeight { get; private set; } = 0.0;
 
-
     public static SimpleMouldGenerator New() => new();
     public SimpleMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
     public SimpleMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus };
     public SimpleMouldGenerator WithOffsets(double offset) => this with { OffsetTop = offset, OffsetBottom = offset, OffsetXY = offset };
-    public SimpleMouldGenerator WithCalculationResolution(int resolution) => this with { CalculationResolution = resolution };
     public SimpleMouldGenerator WithContourResolution(double resolution) => this with { ContourResolution = resolution };
     public SimpleMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select( tm => tm.Mesh).ToArray() };
     public SimpleMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
@@ -55,7 +53,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         editor.AppendMesh(BolusReference);
 
         //generate the inflated mesh
-        var offsetMesh = MeshTools.OffsetMesh(editor.Mesh, OffsetXY, CalculationResolution);
+        var offsetMesh = MeshTools.OffsetMesh(editor.Mesh, OffsetXY, ContourResolution);
 
         //create the mould
         var mould = CalculateContour(offsetMesh);
@@ -90,7 +88,7 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         editor.AppendMesh(BolusReference);
 
         //generate the inflated mesh
-        var offsetMesh = MeshTools.OffsetMesh(editor.Mesh, OffsetXY, CalculationResolution);
+        var offsetMesh = MeshTools.OffsetMesh(editor.Mesh, OffsetXY, ContourResolution);
 
         //create the mould
         return Result<MeshModel>.Pass(new MeshModel(CalculateContour(offsetMesh)));
@@ -257,11 +255,9 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         //get the edges around the mesh
         var contour = GetContour(mesh);
 
-
         var cloud = mesh.Vertices().Select(v => new Vector2d(v.x, v.y)).ToArray();
         var concaveContour = CloudContour.Generate(cloud, 0.1);
         var vertices = concaveContour.Data.Select(v => new Vertex(v.x, v.y)).ToArray();
-
 
         //create polygon
         var verts = contour.Select(v => new Vertex(v.x, v.y)).ToArray();

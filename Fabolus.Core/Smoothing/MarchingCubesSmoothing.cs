@@ -7,7 +7,7 @@ using System.Windows;
 
 namespace Fabolus.Core.Smoothing;
 
-public record struct MarchingCubesSettings(float DeflateDistance, float InflateDistance, int Iterations, int Cells);
+public record struct MarchingCubesSettings(float DeflateDistance, float InflateDistance, int Iterations, double CellSize);
 
 public class MarchingCubesSmoothing {
 
@@ -15,25 +15,24 @@ public class MarchingCubesSmoothing {
         var deflateDistance = settings.DeflateDistance;
         var inflateDistance = settings.InflateDistance;
         var iterations = settings.Iterations;
-        var cells = settings.Cells;
+        var cell_size = settings.CellSize;
 
         //shrink mesh to lose sharp details and inflate back to original size
         DMesh3 mesh = new(bolus.Mesh);
 
         if (deflateDistance > 0) {
             for (int i = 0; i < iterations; i++) {
-                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance, cells);
-                mesh = MeshTools.OffsetMesh(mesh, deflateDistance, cells);
+                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance, cell_size);
+                mesh = MeshTools.OffsetMesh(mesh, deflateDistance, cell_size);
             }
         }
 
         // inflate
-        mesh = MeshTools.OffsetMesh(mesh, inflateDistance, cells);
+        mesh = MeshTools.OffsetMesh(mesh, inflateDistance, cell_size);
 
         // marching cubes
         DMesh3 smoothMesh = new();
-        if (cells > 0) {
-            double cell_size = mesh.CachedBounds.MaxDim / cells;
+        if (cell_size > 0) {
             MeshSignedDistanceGrid sdf = new MeshSignedDistanceGrid(mesh, cell_size);
             sdf.Compute();
 
@@ -41,7 +40,7 @@ public class MarchingCubesSmoothing {
             MarchingCubes c = new MarchingCubes();
             c.Implicit = iso;
             c.Bounds = mesh.CachedBounds;
-            c.CubeSize = c.Bounds.MaxDim / cells;
+            c.CubeSize = cell_size;
             c.Bounds.Expand(3 * c.CubeSize);
             c.Generate();
             smoothMesh = c.Mesh;
