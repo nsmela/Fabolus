@@ -38,8 +38,24 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         MaxHeight = BolusReference.CachedBounds.Max.z + OffsetTop;
         MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
 
+        //convert the mesh tools
+        DMesh3 tools = new();
+        MeshEditor editor = new(new DMesh3());
+        if (ToolMeshes.Count() > 0) {
+            foreach (var mesh in ToolMeshes) {
+                editor.AppendMesh(mesh);
+            }
+
+            MeshAutoRepair repair = new(editor.Mesh);
+            repair.Apply();
+            tools = new(repair.Mesh);
+        }
+
+        //add bolus to get shape to mould
+        editor.AppendMesh(BolusReference);
+
         //generate the inflated mesh
-        var offsetMesh = MeshTools.OffsetMesh(BolusReference, OffsetXY, CalculationResolution);
+        var offsetMesh = MeshTools.OffsetMesh(editor.Mesh, OffsetXY, CalculationResolution);
 
         //create the mould
         var mould = CalculateContour(offsetMesh);
@@ -48,14 +64,6 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
         if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(result.Data)); }
 
-        MeshEditor editor = new(new DMesh3());
-        foreach (var mesh in ToolMeshes) {
-            editor.AppendMesh(mesh);
-        }
-
-        MeshAutoRepair repair = new(editor.Mesh);
-        repair.Apply();
-        DMesh3 tools = repair.Mesh;
 
         var reply = BooleanOperators.Subtraction(result.Data, tools);
         return new Result<MeshModel> { Data = new MeshModel(reply.Data), IsSuccess = reply.IsSuccess, Errors = reply.Errors};
@@ -67,8 +75,22 @@ public sealed record SimpleMouldGenerator : MouldGenerator {
         MaxHeight = BolusReference.CachedBounds.Max.z + OffsetTop;
         MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
 
+        //convert the mesh tools
+        MeshEditor editor = new(new DMesh3());
+        if (ToolMeshes.Length > 0) {
+            foreach (var mesh in ToolMeshes) {
+                editor.AppendMesh(mesh);
+            }
+
+            MeshAutoRepair repair = new(editor.Mesh);
+            repair.Apply();
+        }
+
+        //add bolus to get shape to mould
+        editor.AppendMesh(BolusReference);
+
         //generate the inflated mesh
-        var offsetMesh = MeshTools.OffsetMesh(BolusReference, OffsetXY);
+        var offsetMesh = MeshTools.OffsetMesh(editor.Mesh, OffsetXY, CalculationResolution);
 
         //create the mould
         return Result<MeshModel>.Pass(new MeshModel(CalculateContour(offsetMesh)));
