@@ -29,7 +29,6 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
 
     public BolusModel(Fabolus.Core.BolusModel.Bolus bolus) : base(bolus.Mesh) {
         Geometry = bolus.Mesh.ToGeometry();
-        CopyOffsets(bolus);
         Transform = new();
     }
 

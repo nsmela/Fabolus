@@ -66,10 +66,7 @@ public class MarchingCubesSmoothing {
         //MeshAutoRepair repair = new(smoothMesh);
         //var pass = repair.Apply();
 
-        var newBolus = new Bolus(smoothMesh);
-        newBolus.CopyOffsets(bolus);
-
-        return newBolus;
+        return new Bolus(smoothMesh);
     }
 
 }
