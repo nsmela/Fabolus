@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.MeshTools;
+using Fabolus.Core.Mould.Utils;
 using g3;
 using gs;
 using System;
@@ -24,7 +25,34 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public TriangulatedMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
 
     public override Result<MeshModel> Build() {
-        throw new NotImplementedException();
+        var preview = Preview();
+
+        if (preview.IsFailure) {
+            return Result<MeshModel>.Fail(preview.Errors);
+        }
+
+        //create the mould
+        var mould = BooleanOperators.Subtraction(preview.Data, BolusReference);
+        if (mould.IsFailure) { return Result<MeshModel>.Fail(mould.Errors); }
+
+        //convert the mesh tools
+        DMesh3 tools = new();
+        MeshEditor editor = new(new DMesh3());
+        if (ToolMeshes.Count() > 0) {
+            foreach (var mesh in ToolMeshes) {
+                editor.AppendMesh(mesh);
+            }
+
+            MeshAutoRepair repair = new(editor.Mesh);
+            repair.Apply();
+            tools = new(repair.Mesh);
+        }
+
+        if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(mould.Data)); }
+
+
+        var reply = BooleanOperators.Subtraction(mould.Data, tools);
+        return new Result<MeshModel> { Data = new MeshModel(reply.Data), IsSuccess = reply.IsSuccess, Errors = reply.Errors };
     }
 
     public override Result<MeshModel> Preview() {
