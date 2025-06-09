@@ -36,34 +36,13 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         var contour = MeshTools.OutlineContour(BolusReference, OffsetXY);
         var mesh = MeshTools.TriangulateContour(contour, MinHeight);
 
-        // TODO extrude mesh
-        //sides
-        DMesh3 sides = new();
-
-        List<int> lowerLoop = new();
-        List<int> upperLoop = new();
-        foreach (var v in mesh.Vertices()) {
-            //add vertex and record the index id
-            lowerLoop.Add(sides.AppendVertex(new Vector3d(v.x, v.y, MinHeight)));
-            upperLoop.Add(sides.AppendVertex(new Vector3d(v.x, v.y, MaxHeight)));
-        }
-
-        int n = contour.Count - 1;
-        for (int i = 0; i < n; ++i) {
-            var p0 = lowerLoop[i];
-            var p1 = lowerLoop[i + 1];
-            var p2 = upperLoop[i];
-            var p3 = upperLoop[i + 1];
-
-            sides.AppendTriangle(p0, p1, p2);
-            sides.AppendTriangle(p1, p3, p2);
-        }
-
-        MeshEditor editor = new(sides);
-        //editor.AppendMesh(sides);
-
-        MeshAutoRepair repair = new(editor.Mesh);
+        // extrude mesh
+        var m = MeshTools.ExtrudeMesh(mesh, MaxHeight - MinHeight);
+        MeshAutoRepair repair = new(m);
         repair.Apply();
+
+        // move mould to min height
+        MeshTransforms.Translate(repair.Mesh, new Vector3d(0, 0, MinHeight));
 
         // return the mesh
         return Result<MeshModel>.Pass(new MeshModel(repair.Mesh));
