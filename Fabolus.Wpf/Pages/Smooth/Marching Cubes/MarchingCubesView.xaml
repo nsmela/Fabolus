@@ -15,8 +15,8 @@
             FontFamily="\Fonts\#Poppins" />
         <Slider Value="{Binding DeflateDistance, Mode=TwoWay}"
             Minimum="0.0" 
-            Maximum="1" 
-            TickFrequency="0.1" 
+            Maximum="10" 
+            TickFrequency="1.0" 
             TickPlacement="TopLeft" 
             IsSnapToTickEnabled="True" 
             Height="30"            
@@ -30,7 +30,7 @@
             FontWeight="Bold"
             FontFamily="\Fonts\#Poppins"/>
         <Slider Value="{Binding InflateDistance, Mode=TwoWay}"
-            Minimum="0.1" 
+            Minimum="0.0" 
             Maximum="1" 
             TickPlacement="TopLeft" 
             TickFrequency="0.1" 
@@ -62,8 +62,8 @@
             FontWeight="Bold"
             FontFamily="\Fonts\#Poppins"/>
         <Slider Value="{Binding CellSize, Mode=TwoWay}" 
-            Minimum="1.0" 
-            Maximum="4.0" 
+            Minimum="0.5" 
+            Maximum="3.0" 
             TickPlacement="TopLeft" 
             TickFrequency="0.5" 
             IsSnapToTickEnabled="True" 

@@ -6,16 +6,13 @@ namespace Fabolus.Wpf.Pages.Smooth.Marching_Cubes;
 
 public partial class MarchingCubesViewModel : BaseSmoothingToolViewModel {
 
-    #region Properties and Fields
-
     [ObservableProperty] private float _deflateDistance;
     [ObservableProperty] private float _inflateDistance;
     [ObservableProperty] private int _iterations;
     [ObservableProperty] private double _cellSize;
 
     private static Dictionary<string, MarchingCubesSettings> _defaultSmoothSettings = new Dictionary<string, MarchingCubesSettings> {
-        { "standard", new MarchingCubesSettings { DeflateDistance = 0.1f, InflateDistance = 0.2f, Iterations=2, CellSize = 2.5f } },
-        { "smooth", new MarchingCubesSettings { DeflateDistance = 0.4f, InflateDistance = 0.5f, Iterations=2, CellSize = 1.5f } },
+        { "standard", new MarchingCubesSettings { DeflateDistance = 5.0f, InflateDistance = 0.1f, Iterations=1, CellSize = 1.0f } },
     };
 
     private MarchingCubesSettings Settings => new MarchingCubesSettings {
@@ -33,8 +30,6 @@ public partial class MarchingCubesViewModel : BaseSmoothingToolViewModel {
         CellSize = settings.CellSize;
         Iterations = settings.Iterations;
     }
-
-    #endregion
 
     public MarchingCubesViewModel() {
         SetSettings("standard");

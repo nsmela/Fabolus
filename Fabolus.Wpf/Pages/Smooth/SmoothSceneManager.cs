@@ -76,6 +76,7 @@ public class SmoothSceneManager : SceneManager {
             Vector3 normal = Vector3.UnitZ;
             List<Vector3> contour = MeshGeometryHelper.GetContourSegments(smoothed, plane, normal).ToList() ?? new();
 
+
             List<int> edges = new();
             for (int i = 0; i < contour.Count; i++) {
                 edges.Add(i);
@@ -145,15 +146,15 @@ public class SmoothSceneManager : SceneManager {
                     Transform = MeshHelper.TransformEmpty,
                     Skin = DiffuseMaterials.Yellow,
                 });
-            }
 
-            // flat contour mesh for raw mesh            
-            var raw_contour_mesh = SmoothingTools.Contour(boli[0].TransformedMesh(), _contour_height);
-            models.Add(new DisplayModel3D {
-                Geometry = _rawContours[_contour_height],
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Blue,
-            });
+                // flat contour mesh for raw mesh            
+                var raw_contour_mesh = SmoothingTools.Contour(boli[0].TransformedMesh(), _contour_height);
+                models.Add(new DisplayModel3D {
+                    Geometry = _rawContours[_contour_height],
+                    Transform = MeshHelper.TransformEmpty,
+                    Skin = DiffuseMaterials.Blue,
+                });
+            }
 
             //show smooth surfaces
             //models.Add(new DisplayModel3D {

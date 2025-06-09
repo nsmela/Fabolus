@@ -22,8 +22,8 @@ public class MarchingCubesSmoothing {
 
         if (deflateDistance > 0) {
             for (int i = 0; i < iterations; i++) {
-                mesh = MeshTools.OffsetMesh(mesh, deflateDistance * 10, cell_size);
-                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance * 10, cell_size);
+                mesh = MeshTools.OffsetMesh(mesh, deflateDistance, cell_size);
+                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance, cell_size);
             }
         }
 
@@ -33,39 +33,41 @@ public class MarchingCubesSmoothing {
         // marching cubes
         DMesh3 smoothMesh = new();
         if (cell_size > 0) {
-            MeshSignedDistanceGrid sdf = new MeshSignedDistanceGrid(mesh, cell_size);
+            MeshSignedDistanceGrid sdf = new(mesh, cell_size);
             sdf.Compute();
 
-            var iso = new DenseGridTrilinearImplicit(sdf.Grid, sdf.GridOrigin, sdf.CellSize);
-            MarchingCubes c = new MarchingCubes();
-            c.Implicit = iso;
-            c.Bounds = mesh.CachedBounds;
-            c.CubeSize = cell_size;
-            c.Bounds.Expand(20 * c.CubeSize);
-            c.Generate();
-            smoothMesh = c.Mesh;
+            DenseGridTrilinearImplicit iso = new(sdf.Grid, sdf.GridOrigin, sdf.CellSize);
+
+            MarchingCubes cubes = new() {
+                Implicit = iso,
+                Bounds = mesh.CachedBounds,
+                CubeSize = cell_size
+            };
+
+            cubes.Bounds.Expand(20 * cubes.CubeSize);
+            cubes.Generate();
+            smoothMesh = cubes.Mesh;
             MeshNormals.QuickCompute(smoothMesh); // generate normals
         }
 
         if (smoothMesh.IsEmpty()) { throw new ArgumentNullException(nameof(smoothMesh)); }
-
-        // reposition the smoothed mesh to the original mesh
-        //DMeshAABBTree3 spatial = new(bolus.Mesh.Mesh, true);
-        //spatial.Build();
-        //MeshICP icp = new(smoothMesh, spatial);
-        //icp.Solve(true);
-        //icp.UpdateVertices(smoothMesh);
         
         // reduce mesh size
-        //Reducer reducer = new(smoothMesh);
-        //DMeshAABBTree3 tree = new(new DMesh3(smoothMesh), true);
-        //MeshProjectionTarget target = new(tree.Mesh, tree);
-        //reducer.SetProjectionTarget(target);
-        //reducer.ReduceToTriangleCount(20000);
+        DMeshAABBTree3 tree = new(new DMesh3(smoothMesh), true);
+        MeshProjectionTarget target = new() {
+            Mesh = tree.Mesh,
+            Spatial = tree,
+        };
+
+        Reducer reducer = new(smoothMesh);
+        reducer.SetProjectionTarget(target);
+        int tri_count = bolus.Mesh.Mesh.TriangleCount * 2;
+        //reducer.ReduceToTriangleCount(tri_count);
 
         //MeshAutoRepair repair = new(smoothMesh);
         //var pass = repair.Apply();
 
+        smoothMesh.CompactInPlace(); //reorganize the triangles and verts
         var newBolus = new Bolus(smoothMesh);
         newBolus.CopyOffsets(bolus);
 
