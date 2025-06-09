@@ -62,16 +62,10 @@ public class MarchingCubesSmoothing {
         Reducer reducer = new(smoothMesh);
         reducer.SetProjectionTarget(target);
         int tri_count = bolus.Mesh.Mesh.TriangleCount * 2;
-        //reducer.ReduceToTriangleCount(tri_count);
-
-        //MeshAutoRepair repair = new(smoothMesh);
-        //var pass = repair.Apply();
-
+        reducer.ReduceToTriangleCount(tri_count);
         smoothMesh.CompactInPlace(); //reorganize the triangles and verts
-        var newBolus = new Bolus(smoothMesh);
-        newBolus.CopyOffsets(bolus);
 
-        return newBolus;
+        return new Bolus(smoothMesh);
     }
 
 }
