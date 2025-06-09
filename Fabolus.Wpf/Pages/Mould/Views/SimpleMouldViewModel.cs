@@ -42,7 +42,7 @@ public partial class SimpleMouldViewModel : BaseMouldView {
         _isBusy = false;
     }
 
-    private SimpleMouldGenerator Generator => SimpleMouldGenerator.New()
+    private MouldGenerator Generator => TriangulatedMouldGenerator.New()
         .WithBolus(_bolus.TransformedMesh())
         .WithToolMeshes(_channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray())
         .WithBottomOffset(BottomOffset)
@@ -54,9 +54,9 @@ public partial class SimpleMouldViewModel : BaseMouldView {
         _bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response as BolusModel;
         _channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response as AirChannelsCollection;
 
-        var generator = WeakReferenceMessenger.Default.Send<MouldGeneratorRequest>().Response as SimpleMouldGenerator;
+        var generator = WeakReferenceMessenger.Default.Send<MouldGeneratorRequest>().Response as TriangulatedMouldGenerator;
         if (generator is null) {
-            generator = SimpleMouldGenerator.New(); 
+            generator = TriangulatedMouldGenerator.New(); 
         }
 
         generator = generator
@@ -67,9 +67,9 @@ public partial class SimpleMouldViewModel : BaseMouldView {
 
     }
 
-    protected void UpdateSettings(SimpleMouldGenerator? generator) {
+    protected void UpdateSettings(MouldGenerator? generator) {
         if (generator is null) {
-            generator = SimpleMouldGenerator
+            generator = TriangulatedMouldGenerator
                 .New()
                 .WithBolus(_bolus.TransformedMesh())
                 .WithToolMeshes(_channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray());
@@ -91,10 +91,7 @@ public partial class SimpleMouldViewModel : BaseMouldView {
         _bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response as BolusModel;
         _channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response as AirChannelsCollection;
 
-        var generator = Generator
-            .WithBolus(_bolus.TransformedMesh())
-            .WithToolMeshes(_channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray());
-        var mould = new MouldModel(generator, false);
+        var mould = new MouldModel(this.Generator, false);
         WeakReferenceMessenger.Default.Send(new MouldUpdatedMessage(mould));
     }
 }

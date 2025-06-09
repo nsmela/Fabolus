@@ -8,6 +8,8 @@ using HelixToolkit.Wpf.SharpDX;
 using Fabolus.Wpf.Features.Mould;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
+using Fabolus.Core.Meshes.MeshTools;
+using Fabolus.Wpf.Common.Extensions;
 
 namespace Fabolus.Wpf.Pages.Mould;
 
