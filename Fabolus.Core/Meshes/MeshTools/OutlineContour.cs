@@ -103,6 +103,7 @@ public static partial class MeshTools {
         };
 
         DMesh3 mesh = generator.Generate().MakeDMesh();
+        MeshTransforms.Translate(mesh, new Vector3d(0, 0, z_height));
 
         return new MeshModel(mesh);
     }

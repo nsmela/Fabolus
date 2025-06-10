@@ -24,6 +24,7 @@ public partial class SimpleMouldViewModel : BaseMouldView {
     [ObservableProperty] private double _topOffset;
     [ObservableProperty] private double _widthOffset;
     [ObservableProperty] private bool _isTight = false;
+    [ObservableProperty] private bool _hasTrough = false;
 
     private bool _isBusy = false;
 
@@ -44,6 +45,11 @@ public partial class SimpleMouldViewModel : BaseMouldView {
 
     partial void OnIsTightChanged(bool value) {
         _generator = _generator.WithTightContour(value);
+        ApplySettingsToGenerator();
+    }
+
+    partial void OnHasTroughChanged(bool value) {
+        _generator = _generator.WithTrough(value);
         ApplySettingsToGenerator();
     }
 
@@ -73,6 +79,7 @@ public partial class SimpleMouldViewModel : BaseMouldView {
         TopOffset = _generator.OffsetTop;
         WidthOffset = _generator.OffsetXY;
         IsTight = _generator.IsTight;
+        HasTrough = _generator.HasTrough;
 
         WeakReferenceMessenger.Default.Send(new MouldGeneratorUpdatedMessage(_generator));
         _isBusy = false;

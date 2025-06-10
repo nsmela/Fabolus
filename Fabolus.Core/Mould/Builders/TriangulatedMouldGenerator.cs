@@ -13,6 +13,7 @@ namespace Fabolus.Core.Mould.Builders;
 
 public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public bool IsTight { get; private set; } = false;
+    public bool HasTrough { get; private set; } = false; // whether to create a trough for excess silicone
     public double MaxHeight { get; private set; } = 10.0;
     public double MinHeight { get; private set; } = 0.0;
     public List<double[]> Contour { get; private set; } = [];
@@ -22,6 +23,7 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public TriangulatedMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus };
     public TriangulatedMouldGenerator WithContour(List<double[]> contour) => this with { Contour = contour };
     public TriangulatedMouldGenerator WithTightContour(bool isTight = true) => this with { IsTight = isTight, Contour = [] }; //resets the contour to empty to ensure recalculation
+    public TriangulatedMouldGenerator WithTrough(bool hasTrough = true) => this with { HasTrough = hasTrough}; 
     public TriangulatedMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select(tm => tm.Mesh).ToArray() };
     public TriangulatedMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public TriangulatedMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
@@ -52,9 +54,13 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
 
         if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(mould.Data)); }
 
+        var result = BooleanOperators.Subtraction(mould.Data, tools);
 
-        var reply = BooleanOperators.Subtraction(mould.Data, tools);
-        return new Result<MeshModel> { Data = new MeshModel(reply.Data), IsSuccess = reply.IsSuccess, Errors = reply.Errors };
+        if (HasTrough) {
+            result = BooleanOperators.Subtraction(result.Data, TroughtMesh());
+        }
+
+        return new Result<MeshModel> { Data = new MeshModel(result.Data), IsSuccess = result.IsSuccess, Errors = result.Errors };
     }
 
     public override Result<MeshModel> Preview() {
@@ -86,11 +92,28 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         MeshAutoRepair repair = new(extruded);
         repair.Apply();
 
-        // move mould to min height
-        MeshTransforms.Translate(repair.Mesh, new Vector3d(0, 0, MinHeight));
-
         // return the mesh
         return Result<MeshModel>.Pass(new MeshModel(repair.Mesh));
+    }
+
+    /// <summary>
+    /// Subtracts a space around the air channels at the top for room to store excess silicone while filling
+    /// </summary>
+    private DMesh3 TroughtMesh() {
+        var height = OffsetTop - 1.0f;
+        var offset = OffsetXY - 2.5f;
+
+        // generate the contoured mesh for the trough
+        var contour = MeshTools.ContourOffset(Contour, offset);
+        var mesh = MeshTools.TriangulateContour(contour, MaxHeight - height + 0.1f);
+
+        // extrude mesh
+        var extruded = MeshTools.ExtrudeMesh(mesh, height);
+        MeshAutoRepair repair = new(extruded);
+        repair.Apply();
+
+        // move mould to min height
+        return repair.Mesh;
     }
 }
 
