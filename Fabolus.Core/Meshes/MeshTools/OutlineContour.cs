@@ -51,6 +51,36 @@ public static partial class MeshTools {
         return polygon.Vertices.Select(p => new double[] { p.X, p.Y }).ToList();
     }
 
+    public static List<double[]> TightContour(DMesh3 model) {
+        if (model is null || model.TriangleCount == 0) { return []; }
+
+        PathsD paths = new();
+
+        DMesh3 mesh = new(model);
+        foreach (var i in mesh.TriangleIndices()) {
+            //check if triangle normal is within an angle (means it's facing the right direction)
+            bool reversed = false;
+            if (IsTriangleNormalInAngle(mesh, i)) {
+                reversed = true; // triangle is facing the other direction
+            }
+
+            Index3i t = mesh.GetTriangle(i);
+
+            PathD trianglePath = mesh.GetPathById(t, reversed);
+
+            paths.Add(trianglePath);
+        }
+
+        PathsD? result = Clipper.Union(paths, FillRule.NonZero);
+        if (result is null) { return []; }
+
+        // return the largest path as double[]
+        result = new PathsD(result.Where(path => Clipper.Area(path) > 1.0f).ToList());
+        var polyline = result.OrderByDescending(arr => arr.Count()).FirstOrDefault();
+
+        return polyline.Select(p => new double[] { p.x, p.y }).ToList();
+    }
+
     public static List<double[]> ContourOffset(List<double[]> contour, double offset = 5.0f) {
         // Convert the polygon to a contour of [x,y] doubles
         ClipperOffset offsetter = new();

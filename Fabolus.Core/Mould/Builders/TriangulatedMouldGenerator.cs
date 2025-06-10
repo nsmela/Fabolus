@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Mould.Builders;
 
 public sealed record TriangulatedMouldGenerator : MouldGenerator {
+    public bool IsTight { get; private set; } = false;
     public double MaxHeight { get; private set; } = 10.0;
     public double MinHeight { get; private set; } = 0.0;
     public List<double[]> Contour { get; private set; } = [];
@@ -20,6 +21,7 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public TriangulatedMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
     public TriangulatedMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus };
     public TriangulatedMouldGenerator WithContour(List<double[]> contour) => this with { Contour = contour };
+    public TriangulatedMouldGenerator WithTightContour(bool isTight = true) => this with { IsTight = isTight, Contour = [] }; //resets the contour to empty to ensure recalculation
     public TriangulatedMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select(tm => tm.Mesh).ToArray() };
     public TriangulatedMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public TriangulatedMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
@@ -71,7 +73,9 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
             }
             editor.AppendMesh(BolusReference);
 
-            Contour = MeshTools.OutlineContour(editor.Mesh, OffsetXY);
+            if (IsTight) { Contour = MeshTools.TightContour(editor.Mesh); }
+            else { Contour = MeshTools.OutlineContour(editor.Mesh); }
+            
         }
 
         var contour = MeshTools.ContourOffset(Contour, OffsetXY);

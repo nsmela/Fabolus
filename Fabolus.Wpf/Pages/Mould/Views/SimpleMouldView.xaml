@@ -60,6 +60,16 @@
                             IsSnapToTickEnabled="True" 
                             Height="30"/>
 
+        <Label Content="use tight contour" 
+                            HorizontalAlignment="Center" 
+                            VerticalAlignment="Center"
+                            FontSize="12" 
+                            FontWeight="Bold"
+                            FontFamily="\Fonts\#Poppins"/>
+        <CheckBox IsChecked="{Binding IsTight, Mode=TwoWay}"
+                            HorizontalAlignment="Center"
+                            Height="30"/>
+        
         <Button Content="generate" 
                 Height="30" Margin="4"
                 HorizontalAlignment="Stretch"
