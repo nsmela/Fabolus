@@ -12,7 +12,12 @@ namespace Fabolus.Core.Meshes.MeshTools;
 public static partial class MeshTools {
     const double MAX_RADS = Math.PI / 2; //90 degrees
 
-    public static List<double[]> OutlineContour(DMesh3 model, double offset = 5.0f) {
+    /// <summary>
+    /// Converts mesh into a 2D polygon by joining all triangles and outputs the outline contour.
+    /// </summary>
+    /// <param name="model">DMesh3 with triangles</param>
+    /// <returns>List of [x, y] doubles</returns>
+    public static List<double[]> OutlineContour(DMesh3 model) {
         if (model is null || model.TriangleCount == 0) { return []; }
 
         PathsD paths = new();
@@ -22,8 +27,6 @@ public static partial class MeshTools {
             //check if triangle normal is within an angle (means it's facing the right direction)
             bool reversed = false;
             if (IsTriangleNormalInAngle(mesh, i)) {
-                //mesh.RemoveTriangle(i); // remove the triangle to prevent futher evaluation
-                //continue;
                 reversed = true; // triangle is facing the other direction
             }
 
@@ -45,21 +48,19 @@ public static partial class MeshTools {
         List<Point2D> points = polyline.Select(p => new Point2D(p.x, p.y)).ToList();
         Polygon2D polygon = Polygon2D.GetConvexHullFromPoints(points);
 
+        return polygon.Vertices.Select(p => new double[] { p.X, p.Y }).ToList();
+    }
+
+    public static List<double[]> ContourOffset(List<double[]> contour, double offset = 5.0f) {
         // Convert the polygon to a contour of [x,y] doubles
         ClipperOffset offsetter = new();
-        offsetter.AddPath(new(polygon.Vertices.Select(v => new Point64(v.X, v.Y))), JoinType.Round, EndType.Polygon);
+        offsetter.AddPath(new(contour.Select(c => new Point64(c[0], c[1]))), JoinType.Round, EndType.Polygon);
         Paths64 solution = new();
         offsetter.Execute(offset, solution);
         Path64? first = solution.OrderByDescending(arr => arr.Count()).FirstOrDefault();
+        
         if (first is null) { return []; }
-
-        List<double[]> reply = [];
-        foreach( var p in first) {
-            reply.Add([p.X, p.Y]);
-        }
-
-        return reply;
-
+        return first.Select(p => new double[] { p.X, p.Y }).ToList();
     }
 
     public static DMesh3 TriangulateContour(List<double[]> contour, double z_height = 0.0f) {

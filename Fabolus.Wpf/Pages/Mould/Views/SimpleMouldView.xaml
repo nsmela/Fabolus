@@ -60,21 +60,6 @@
                             IsSnapToTickEnabled="True" 
                             Height="30"/>
 
-        <Label Content="contour resolution" 
-                            HorizontalAlignment="Center" 
-                            VerticalAlignment="Center"
-                            FontSize="12" 
-                            FontWeight="Bold"
-                            FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding Resolution, Mode=TwoWay}"
-                            Minimum="0.5" Maximum="5.0" 
-                            TickFrequency="0.5" 
-                            TickPlacement="TopLeft" 
-                            AutoToolTipPlacement="TopLeft"
-                            AutoToolTipPrecision="2"
-                            IsSnapToTickEnabled="True" 
-                            Height="30"/>
-
         <Button Content="generate" 
                 Height="30" Margin="4"
                 HorizontalAlignment="Stretch"

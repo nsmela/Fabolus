@@ -14,12 +14,12 @@ namespace Fabolus.Core.Mould.Builders;
 public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public double MaxHeight { get; private set; } = 10.0;
     public double MinHeight { get; private set; } = 0.0;
+    public List<double[]> Contour { get; private set; } = [];
 
     public static TriangulatedMouldGenerator New() => new();
     public TriangulatedMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
     public TriangulatedMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus };
-    public TriangulatedMouldGenerator WithOffsets(double offset) => this with { OffsetTop = offset, OffsetBottom = offset, OffsetXY = offset };
-    public TriangulatedMouldGenerator WithContourResolution(double resolution) => this with { ContourResolution = resolution };
+    public TriangulatedMouldGenerator WithContour(List<double[]> contour) => this with { Contour = contour };
     public TriangulatedMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select(tm => tm.Mesh).ToArray() };
     public TriangulatedMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public TriangulatedMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
@@ -61,12 +61,25 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         MaxHeight = BolusReference.CachedBounds.Max.z + OffsetTop;
         MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
 
-        var contour = MeshTools.OutlineContour(BolusReference, OffsetXY);
+        // if done before, we can skip this step to save time
+        if (Contour.Count() == 0) {
+            MeshEditor editor = new(new DMesh3());
+            if (ToolMeshes.Count() > 0) {
+                foreach (var m in ToolMeshes) {
+                    editor.AppendMesh(m);
+                }
+            }
+            editor.AppendMesh(BolusReference);
+
+            Contour = MeshTools.OutlineContour(editor.Mesh, OffsetXY);
+        }
+
+        var contour = MeshTools.ContourOffset(Contour, OffsetXY);
         var mesh = MeshTools.TriangulateContour(contour, MinHeight);
 
         // extrude mesh
-        var m = MeshTools.ExtrudeMesh(mesh, MaxHeight - MinHeight);
-        MeshAutoRepair repair = new(m);
+        var extruded = MeshTools.ExtrudeMesh(mesh, MaxHeight - MinHeight);
+        MeshAutoRepair repair = new(extruded);
         repair.Apply();
 
         // move mould to min height

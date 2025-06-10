@@ -18,80 +18,62 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 namespace Fabolus.Wpf.Pages.Mould.Views;
 
 public partial class SimpleMouldViewModel : BaseMouldView {
-    private BolusModel _bolus;
-    private AirChannelsCollection _channels;
+    private TriangulatedMouldGenerator _generator;
 
     [ObservableProperty] private double _bottomOffset;
     [ObservableProperty] private double _topOffset;
     [ObservableProperty] private double _widthOffset;
-    [ObservableProperty] private double _resolution;
 
     private bool _isBusy = false;
 
-    partial void OnBottomOffsetChanged(double value) => ApplySettingsToGenerator();
-    partial void OnTopOffsetChanged(double value) => ApplySettingsToGenerator();
-    partial void OnWidthOffsetChanged(double value) => ApplySettingsToGenerator();
-    partial void OnResolutionChanged(double value) => ApplySettingsToGenerator();
+    partial void OnBottomOffsetChanged(double value) {
+        _generator = _generator.WithBottomOffset(value);
+        ApplySettingsToGenerator();
+    }
+
+    partial void OnTopOffsetChanged(double value) {
+        _generator = _generator.WithTopOffset(value);
+        ApplySettingsToGenerator();
+    }
+
+    partial void OnWidthOffsetChanged(double value) {
+        _generator = _generator.WithXYOffsets(value);
+        ApplySettingsToGenerator();
+    }
 
     private void ApplySettingsToGenerator() {
         if (_isBusy) { return; }
         _isBusy = true;
 
-        WeakReferenceMessenger.Default.Send(new MouldGeneratorUpdatedMessage(Generator));
+        WeakReferenceMessenger.Default.Send(new MouldGeneratorUpdatedMessage(_generator));
 
         _isBusy = false;
     }
 
-    private MouldGenerator Generator => TriangulatedMouldGenerator.New()
-        .WithBolus(_bolus.TransformedMesh())
-        .WithToolMeshes(_channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray())
-        .WithBottomOffset(BottomOffset)
-        .WithTopOffset(TopOffset)
-        .WithXYOffsets(WidthOffset)
-        .WithContourResolution(Resolution);
-
     public SimpleMouldViewModel() {
-        _bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response as BolusModel;
-        _channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response as AirChannelsCollection;
+        _generator = WeakReferenceMessenger.Default.Send<MouldGeneratorRequest>().Response as TriangulatedMouldGenerator;
+        if (_generator is null) { _generator = TriangulatedMouldGenerator.New(); }
 
-        var generator = WeakReferenceMessenger.Default.Send<MouldGeneratorRequest>().Response as TriangulatedMouldGenerator;
-        if (generator is null) {
-            generator = TriangulatedMouldGenerator.New(); 
-        }
-
-        generator = generator
-            .WithBolus(_bolus.TransformedMesh())
-            .WithToolMeshes(_channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray());
-
-        UpdateSettings(generator);
-
-    }
-
-    protected void UpdateSettings(MouldGenerator? generator) {
-        if (generator is null) {
-            generator = TriangulatedMouldGenerator
-                .New()
-                .WithBolus(_bolus.TransformedMesh())
-                .WithToolMeshes(_channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray());
-        }
+        var bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response;
+        var channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response;
+        _generator = _generator
+            .WithBolus(bolus.TransformedMesh())
+            .WithToolMeshes(channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray())
+            .WithContour([]); //clears existing contour
 
         _isBusy = true;
 
-        BottomOffset = generator.OffsetBottom;
-        TopOffset = generator.OffsetTop;
-        WidthOffset = generator.OffsetXY;
-        Resolution = generator.ContourResolution;
+        BottomOffset = _generator.OffsetBottom;
+        TopOffset = _generator.OffsetTop;
+        WidthOffset = _generator.OffsetXY;
 
-        WeakReferenceMessenger.Default.Send(new MouldGeneratorUpdatedMessage(generator));
+        WeakReferenceMessenger.Default.Send(new MouldGeneratorUpdatedMessage(_generator));
         _isBusy = false;
     }
 
     [RelayCommand]
     private async Task GenerateMould() {
-        _bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response as BolusModel;
-        _channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response as AirChannelsCollection;
-
-        var mould = new MouldModel(this.Generator, false);
+        var mould = new MouldModel(_generator, false);
         WeakReferenceMessenger.Default.Send(new MouldUpdatedMessage(mould));
     }
 }
