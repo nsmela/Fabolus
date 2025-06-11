@@ -1,4 +1,5 @@
-﻿using Fabolus.Core.Meshes;
+﻿using Fabolus.Core.Extensions;
+using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Core.Mould.Utils;
 using g3;
@@ -16,13 +17,13 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public bool HasTrough { get; private set; } = false; // whether to create a trough for excess silicone
     public double MaxHeight { get; private set; } = 10.0;
     public double MinHeight { get; private set; } = 0.0;
-    public List<double[]> Contour { get; private set; } = [];
+    public Polygon2d Contour { get; private set; } = new();
 
     public static TriangulatedMouldGenerator New() => new();
     public TriangulatedMouldGenerator WithBottomOffset(double offset) => this with { OffsetBottom = offset };
     public TriangulatedMouldGenerator WithBolus(MeshModel bolus) => this with { BolusReference = bolus };
-    public TriangulatedMouldGenerator WithContour(List<double[]> contour) => this with { Contour = contour };
-    public TriangulatedMouldGenerator WithTightContour(bool isTight = true) => this with { IsTight = isTight, Contour = [] }; //resets the contour to empty to ensure recalculation
+    public TriangulatedMouldGenerator WithContour(Polygon2d contour) => this with { Contour = contour };
+    public TriangulatedMouldGenerator WithTightContour(bool isTight = true) => this with { IsTight = isTight, Contour = new() }; //resets the contour to empty to ensure recalculation
     public TriangulatedMouldGenerator WithTrough(bool hasTrough = true) => this with { HasTrough = hasTrough}; 
     public TriangulatedMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select(tm => tm.Mesh).ToArray() };
     public TriangulatedMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
@@ -55,11 +56,6 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(mould.Data)); }
 
         var result = BooleanOperators.Subtraction(mould.Data, tools);
-
-        if (HasTrough) {
-            result = BooleanOperators.Subtraction(result.Data, TroughtMesh());
-        }
-
         return new Result<MeshModel> { Data = new MeshModel(result.Data), IsSuccess = result.IsSuccess, Errors = result.Errors };
     }
 
@@ -70,7 +66,7 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
 
         // if done before, we can skip this step to save time
-        if (Contour.Count() == 0) {
+        if (Contour.IsEmpty()) {
             MeshEditor editor = new(new DMesh3());
             if (ToolMeshes.Count() > 0) {
                 foreach (var m in ToolMeshes) {
@@ -79,18 +75,30 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
             }
             editor.AppendMesh(BolusReference);
 
-            if (IsTight) { Contour = MeshTools.TightContour(editor.Mesh); }
-            else { Contour = MeshTools.OutlineContour(editor.Mesh); }
-            
+            if (IsTight) { Contour = MeshTools.ConcaveContour(editor.Mesh); }
+            else { Contour = MeshTools.ConvexContour(editor.Mesh); }
         }
 
-        var contour = MeshTools.ContourOffset(Contour, OffsetXY);
-        var mesh = MeshTools.TriangulateContour(contour, MinHeight);
+        if (Contour.IsEmpty()) {  return Result<MeshModel>.Fail(new MeshError("Contouring failed.")); }
+
+        // apply offset
+        Polygon2d contour = new(Contour);
+        contour.PolyOffset(OffsetXY);
+        if (contour.IsEmpty()) { return Result<MeshModel>.Fail(new MeshError("Contour offset failed.")); }
 
         // extrude mesh
-        var extruded = MeshTools.ExtrudeMesh(mesh, MaxHeight - MinHeight);
+        var extruded = MeshTools.ExtrudePolygon(contour, MinHeight, MaxHeight);
+        if (extruded.IsEmpty()) { return Result<MeshModel>.Fail(new MeshError("Polygon extrusion failed.")); }
+
         MeshAutoRepair repair = new(extruded);
         repair.Apply();
+
+        if (HasTrough) {
+            var result = BooleanOperators.Subtraction(extruded, TroughtMesh());
+            if (result.IsFailure) { return Result<MeshModel>.Fail(new MeshError("Failed to add trough")); }
+
+            return Result<MeshModel>.Pass(new MeshModel(result.Data));
+        }
 
         // return the mesh
         return Result<MeshModel>.Pass(new MeshModel(repair.Mesh));
@@ -104,12 +112,10 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         var offset = OffsetXY - 2.5f;
 
         // generate the contoured mesh for the trough
-        var contour = MeshTools.ContourOffset(Contour, offset);
-        var mesh = MeshTools.TriangulateContour(contour, MaxHeight - height + 0.1f);
-
-        // extrude mesh
-        var extruded = MeshTools.ExtrudeMesh(mesh, height);
-        MeshAutoRepair repair = new(extruded);
+        Polygon2d contour = new(Contour);
+        contour.PolyOffset(offset);
+        var mesh = MeshTools.ExtrudePolygon(Contour, MaxHeight - height, MaxHeight + 0.1f);
+        MeshAutoRepair repair = new(mesh);
         repair.Apply();
 
         // move mould to min height

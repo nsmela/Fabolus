@@ -9,7 +9,7 @@ namespace Fabolus.Core.Mould.Builders;
 public abstract record MouldGenerator {
     protected DMesh3 BolusReference { get; set; } //mesh to invert while entirely within
     public int CalculationResolution { get; protected set; } = 32; //how accurate the implicit meshs are (higher is better, but slower)
-    public double ContourResolution { get; protected set; } = 2.0; //xy contour detection grid size (lower is better, but slower)
+    public double ContourResolution { get; protected set; } = 1.0; //xy contour detection grid size (lower is better, but slower)
     public double OffsetXY { get; protected set; } = 4.0;
     public double OffsetTop { get; protected set; } = 3.0;
     public double OffsetBottom { get; protected set; } = 3.0;

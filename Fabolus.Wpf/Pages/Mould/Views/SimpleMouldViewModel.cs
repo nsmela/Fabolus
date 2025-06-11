@@ -23,8 +23,8 @@ public partial class SimpleMouldViewModel : BaseMouldView {
     [ObservableProperty] private double _bottomOffset;
     [ObservableProperty] private double _topOffset;
     [ObservableProperty] private double _widthOffset;
-    [ObservableProperty] private bool _isTight = false;
-    [ObservableProperty] private bool _hasTrough = false;
+    [ObservableProperty] private bool _isTight;
+    [ObservableProperty] private bool _hasTrough;
 
     private bool _isBusy = false;
 
@@ -71,7 +71,7 @@ public partial class SimpleMouldViewModel : BaseMouldView {
         _generator = _generator
             .WithBolus(bolus.TransformedMesh())
             .WithToolMeshes(channels.Values.Select(c => c.Geometry.ToMeshModel()).ToArray())
-            .WithContour([]); //clears existing contour
+            .WithContour(new()); //clears existing contour
 
         _isBusy = true;
 

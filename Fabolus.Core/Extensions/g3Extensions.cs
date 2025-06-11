@@ -44,5 +44,6 @@ public static class g3Extensions {
     public static Vector3d ToVector3d(this double[] array) => new Vector3d(array[0], array[1], array[2]);
 
     public static bool IsEmpty(this DMesh3 mesh) => mesh.VertexCount == 0 || mesh.TriangleCount == 0;
+    public static bool IsEmpty(this Polygon2d polygon) => polygon.Vertices.Count == 0;
 
 }

@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+//using static MR.DotNet;
+using TriangleNet.Geometry;
 
 namespace Fabolus.Core.Meshes.MeshTools;
 
@@ -77,8 +79,24 @@ public static partial class MeshTools {
         // return the largest path as double[]
         result = new PathsD(result.Where(path => Clipper.Area(path) > 1.0f).ToList());
         var polyline = result.OrderByDescending(arr => arr.Count()).FirstOrDefault();
+        var first = new Path64(polyline.Select(p => new Point64(p.x, p.y)));
 
-        return polyline.Select(p => new double[] { p.x, p.y }).ToList();
+        // inflate and deflate
+        double offset = 10.0f;
+        ClipperOffset inflate = new();
+        inflate.AddPath(first, JoinType.Square, EndType.Polygon);
+        Paths64 solution = new();
+        inflate.Execute(offset, solution);
+
+        ClipperOffset deflate = new();
+        deflate.AddPath(
+            solution.OrderByDescending(arr => arr.Count()).FirstOrDefault(), 
+            JoinType.Square, 
+            EndType.Polygon
+        );
+        deflate.Execute(-offset, solution);
+        Path64? final = solution.OrderByDescending(arr => arr.Count()).FirstOrDefault();
+        return final.Select(p => new double[] { p.X, p.Y }).ToList();
     }
 
     public static List<double[]> ContourOffset(List<double[]> contour, double offset = 5.0f) {
