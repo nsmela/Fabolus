@@ -144,7 +144,7 @@ public class SmoothSceneManager : SceneManager {
                 });
 
                 // flat contour mesh for raw mesh            
-                var raw_contour_mesh = SmoothingTools.Contour(boli[0].TransformedMesh(), _contour_height);
+                var raw_contour_mesh = MeshTools.Contour(boli[0].TransformedMesh(), _contour_height);
                 models.Add(new DisplayModel3D {
                     Geometry = _rawContours[_contour_height],
                     Transform = MeshHelper.TransformEmpty,
