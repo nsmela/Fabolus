@@ -6,22 +6,10 @@
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Mould"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="200">
+
     <StackPanel HorizontalAlignment="Stretch" 
                 VerticalAlignment="Top" 
                 Margin="4,0,4,0">
-        <Label Content="mold type" HorizontalAlignment="Center" 
-                        VerticalAlignment="Center"
-                        FontSize="12" 
-                        FontWeight="Bold"
-                        FontFamily="\Fonts\#Poppins"/>
-
-        <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="4">
-            <ComboBox SelectedIndex="{Binding ActiveToolIndex}"
-                      ItemsSource="{Binding MoldNames}"
-                      IsSynchronizedWithCurrentItem="True"
-                      Width="164">
-            </ComboBox>
-        </StackPanel>
 
         <ContentControl Content="{Binding CurrentMouldViewModel}" />
 
