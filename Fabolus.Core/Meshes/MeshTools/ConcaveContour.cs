@@ -56,6 +56,11 @@ public static partial class MeshTools {
         return Resample(polygon);
     }
 
+    /// <summary>
+    /// Smooth out the edge of a polygon
+    /// </summary>
+    /// <param name="polygon"></param>
+    /// <returns></returns>
     private static Polygon2d Resample(Polygon2d polygon) {
         DCurve3 hullCurve = new(polygon, 0, 1);
         CurveResampler resampler = new();

@@ -24,9 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Clipper2" Version="1.5.4" />
     <PackageReference Include="geometry3Sharp" Version="1.0.324" />
-    <PackageReference Include="MathNet.Spatial" Version="0.6.0" />
     <PackageReference Include="MeshLib" Version="3.0.5.215" />
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
   </ItemGroup>

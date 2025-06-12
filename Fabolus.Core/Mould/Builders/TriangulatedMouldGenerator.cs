@@ -94,8 +94,11 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         repair.Apply();
 
         if (HasTrough) {
-            result = BooleanOperators.Subtraction(extruded, TroughtMesh());
-            if (result.IsFailure) { return Result<MeshModel>.Fail([result.Errors, new MeshError("Failed to add trough")]); }
+            Result<DMesh3> trough = TroughtMesh();
+            if (result.IsFailure) { return Result<MeshModel>.Fail([.. result.Errors, new MeshError("Failed to create trough")]); }
+
+            result = BooleanOperators.Subtraction(extruded, trough.Data);
+            if (result.IsFailure) { return Result<MeshModel>.Fail([.. result.Errors, new MeshError("Failed to subtract trough")]); }
 
             return Result<MeshModel>.Pass(new MeshModel(result.Data));
         }
@@ -107,19 +110,23 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
     /// <summary>
     /// Subtracts a space around the air channels at the top for room to store excess silicone while filling
     /// </summary>
-    private DMesh3 TroughtMesh() {
+    private Result<DMesh3> TroughtMesh() {
         var height = OffsetTop - 1.0f;
         var offset = OffsetXY - 2.5f;
 
         // generate the contoured mesh for the trough
         Polygon2d contour = new(Contour);
         contour.PolyOffset(offset);
-        var mesh = MeshTools.ExtrudePolygon(Contour, MaxHeight - height, MaxHeight + 0.1f);
+        var result = PolygonTools.ExtrudePolygon(Contour, MaxHeight - height, MaxHeight + 0.1f);
+        if (result.IsFailure) { return Result<DMesh3>.Fail([.. result.Errors, new MeshError("Failed to extrude polygon")]); }
+
+        DMesh3 mesh = result.Data;
+
         MeshAutoRepair repair = new(mesh);
         repair.Apply();
 
         // move mould to min height
-        return repair.Mesh;
+        return Result<DMesh3>.Pass(mesh);
     }
 }
 

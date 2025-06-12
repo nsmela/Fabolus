@@ -36,9 +36,9 @@ public static partial class PolygonTools {
         if (hullPolygon.VertexCount == 0) { return Result<Polygon2d>.Fail(CONVEX_HULL_FAILED); }
 
         hullPolygon = Resample(hullPolygon);
-        if (hullPolygon.VertexCount == 0) { return Result<Polygon2d>.Fail(CONVEX_HULL_FAILED); }
+        if (hullPolygon.VertexCount == 0) { return Result<Polygon2d>.Fail(RESAMPLE_FAILED); }
 
-        return Result<Polygon2d>.Pass(hullPolygon);
+        return hullPolygon;
     }
 
     public static Result<Polygon2d> ConcaveContour(DMesh3 model) {
