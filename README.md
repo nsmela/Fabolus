@@ -1,6 +1,7 @@
 # Fabolus
-Fabolus used to modify 3D boli for radiation therapy. This application can import a STL file, smooth it (using poisson reconstruction or marching cubes), 
-add airchannels, and create an encompasing mold around the bolus and subtracting the air channels. The result can be 3D printed and used as a mold for curing silicon.
+Fabolus is a.NET desktop app for Windows designed to assist radiation therapy prepare bolus meshes for 3D printing. It's specialty is to smooth the bolus surface without sacrificing volume and to design a sacrifical mould for curing silicone into the prescribed bolus shape.
+
+This application can import a STL file, smooth it, add airchannels, and create an encompasing mould around the bolus and subtracting the air channels.
 
 Screenshots:
 
