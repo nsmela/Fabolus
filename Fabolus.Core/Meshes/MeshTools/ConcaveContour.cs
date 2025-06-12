@@ -1,13 +1,6 @@
 ﻿using g3;
 using NetTopologySuite.Algorithm.Hull;
 using NetTopologySuite.Geometries;
-using NetTopologySuite.Operation.Buffer;
-using NetTopologySuite.Simplify;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Core.Meshes.MeshTools;
 
@@ -17,8 +10,8 @@ public static partial class MeshTools {
     const float CONVEX_MAX_EDGE_RATIO = 0.2f;
     const float CONVEX_MIN_EDGE_LENGTH = 1.0f;
     const float CURVE_SMOOTH_RATE = 0.1f;
-    const int CURVE_SMOOTH_ITERS = 5;
-    const int CURVE_RESAMPLE_ITERS = 5;
+    const int CURVE_SMOOTH_ITERS = 4;
+    const int CURVE_RESAMPLE_ITERS = 4;
     const double EPSILON = 0.01;
 
     public static Polygon2d ConvexContour(DMesh3 model) {
