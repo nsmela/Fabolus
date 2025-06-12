@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Mould.Builders;
 
 public sealed record TriangulatedMouldGenerator : MouldGenerator {
-    public bool IsTight { get; private set; } = false;
+    public bool IsTight { get; private set; } = true;
     public bool HasTrough { get; private set; } = false; // whether to create a trough for excess silicone
     public double MaxHeight { get; private set; } = 10.0;
     public double MinHeight { get; private set; } = 0.0;

@@ -93,13 +93,9 @@ public class SmoothSceneManager : SceneManager {
 
             // contour mesh for raw
             _rawContours.Add(layer, MeshTools.Contour(raw.ToMeshModel(), layer).ToGeometry());
-
             layer++;
         }
 
-        var smoothedSurfaces = SmoothingTools.GetSmoothSurfaces(boli[1].Mesh, Math.PI / 18.0f);
-        Array.Sort(smoothedSurfaces, (a, b) => b.Mesh.TriangleCount.CompareTo(a.Mesh.TriangleCount));
-        _smoothedSurfaces = smoothedSurfaces.ToArray();
     }
 
     private void UpdateContouringHeight(float value) {
@@ -156,17 +152,6 @@ public class SmoothSceneManager : SceneManager {
                 });
             }
 
-            //show smooth surfaces
-            //models.Add(new DisplayModel3D {
-            //    Geometry = _smoothedSurfaces[0].ToGeometry(),
-            //    Transform = MeshHelper.TransformEmpty,
-            //    Skin = DiffuseMaterials.Gray,
-            //});
-            //models.Add(new DisplayModel3D {
-            //    Geometry = _smoothedSurfaces[1].ToGeometry(),
-            //    Transform = MeshHelper.TransformEmpty,
-            //    Skin = DiffuseMaterials.Gray,
-            //});
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
