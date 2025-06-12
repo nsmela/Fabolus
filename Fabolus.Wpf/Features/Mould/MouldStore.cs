@@ -18,7 +18,7 @@ public class MouldStore {
     public MouldStore() {
         //listening
         WeakReferenceMessenger.Default.Register<MouldUpdatedMessage>(this, (r, m) => _mould = m.Mould);
-        WeakReferenceMessenger.Default.Register<MouldGeneratorUpdatedMessage>(this, (r,m) => UpdateGenerator(m.Generator));
+        WeakReferenceMessenger.Default.Register<MouldGeneratorUpdatedMessage>(this, async (r,m) => await UpdateGenerator(m.Generator));
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => _mould = new());
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, (r, m) => _mould = new());
 
@@ -27,7 +27,7 @@ public class MouldStore {
         WeakReferenceMessenger.Default.Register<MouldGeneratorRequest>(this, (r, m) => m.Reply(_generator));
     }
 
-    private void UpdateGenerator(MouldGenerator generator) {
+    private async Task UpdateGenerator(MouldGenerator generator) {
         _generator = generator;
         _mould = new MouldModel(generator);
 

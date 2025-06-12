@@ -14,6 +14,15 @@ using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Mould;
 using Fabolus.Wpf.Pages.Mould;
 using Fabolus.Wpf.Pages.Export;
+using HelixToolkit.Wpf.SharpDX;
+using System.Diagnostics;
+using System.Windows;
+using Fabolus.Wpf.Pages.MainWindow.MeshInfo;
+using System.Drawing;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using HelixToolkit.Wpf.SharpDX.Utilities;
+using System.Windows.Controls;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
@@ -21,8 +30,7 @@ public partial class MainViewModel : ObservableObject {
 
     [ObservableProperty] private BaseViewModel? _currentViewModel;
     [ObservableProperty] private string _currentViewTitle = "No View Selected";
-    [ObservableProperty] private MeshViewModel _currentMeshView = new MeshViewModel();
-    [ObservableProperty] private SceneManager _currentSceneModel;
+    [ObservableProperty] private MeshInfoViewModel _currentMeshInfo;
 
     //mesh info
     [ObservableProperty] private bool _infoVisible = false;
@@ -56,12 +64,11 @@ public partial class MainViewModel : ObservableObject {
 
         //based on the view
         _sceneModel = viewModel.GetSceneManager;
-        DebugText = CurrentMeshView.Camera.Position.ToString();
-
     }
 
-    public MainViewModel()
-    {
+    public MainViewModel() {
+        CurrentMeshInfo = new();
+        _sceneModel = new();
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
 
         NavigateTo(new ImportViewModel());
@@ -80,6 +87,34 @@ public partial class MainViewModel : ObservableObject {
     [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new ChannelsViewModel());
     [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MouldViewModel());
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());
+
+    [RelayCommand] public async Task ToggleWireframe() =>
+        WeakReferenceMessenger.Default.Send(new WireframeToggleMessage());
+
+    [RelayCommand] public async Task CaptureScreenshot() {
+        var viewport = WeakReferenceMessenger.Default.Send(new ViewportRequestMessage()).Response;
+        var bitmap = ViewportExtensions.RenderBitmap(viewport);
+
+        var info = WeakReferenceMessenger.Default.Send(new MeshInfoRequestMessage()).Response;
+        RenderTargetBitmap renderInfo = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        renderInfo.Render(info);
+
+        DrawingVisual visual = new();
+        using (DrawingContext context = visual.RenderOpen()) {
+            context.DrawImage(bitmap, new Rect(0, 0, viewport.ActualWidth, viewport.ActualHeight));
+            context.DrawImage(renderInfo, new Rect(0, 0, viewport.ActualWidth, viewport.ActualHeight));
+        }
+
+        RenderTargetBitmap result = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        result.Render(visual);
+
+        try {
+            Clipboard.Clear();
+            Clipboard.SetImage(result);
+        } catch (Exception e) {
+            Debug.WriteLine($"Error copying screenshot to clipboard: {e.Message}");
+        }
+    }
 
     #endregion
 }

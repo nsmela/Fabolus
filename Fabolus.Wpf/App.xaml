@@ -13,7 +13,6 @@
              xmlns:channels="clr-namespace:Fabolus.Wpf.Pages.Channels"
              xmlns:straight="clr-namespace:Fabolus.Wpf.Pages.Channels.Straight"
              xmlns:angled="clr-namespace:Fabolus.Wpf.Pages.Channels.Angled"
-             xmlns:path="clr-namespace:Fabolus.Wpf.Pages.Channels.Path"
              xmlns:mould="clr-namespace:Fabolus.Wpf.Pages.Mould"
              xmlns:mouldviews="clr-namespace:Fabolus.Wpf.Pages.Mould.Views"
              xmlns:export="clr-namespace:Fabolus.Wpf.Pages.Export"
@@ -73,10 +72,6 @@
 
             <DataTemplate DataType="{x:Type angled:AngledChannelsViewModel}">
                 <angled:AngledChannelsView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type path:PathChannelsViewModel}">
-                <path:PathChannelsView />
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type mould:MouldViewModel}">

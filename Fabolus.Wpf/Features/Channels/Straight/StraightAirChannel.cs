@@ -16,10 +16,10 @@ public sealed record StraightAirChannel : IAirChannel {
     public MeshGeometry3D Geometry { get; set; }
     public Guid GUID { get; init; }
     public float Height { get; set; } = 10.0f;
-    public float LowerDiameter { get; set; } = 4.0f;
+    public float LowerDiameter { get; set; } = 5.0f;
     public Vector3 Origin { get; set; }
-    public float TipLength { get; set; } = 4.0f;
-    public float UpperDiameter { get; set; } = 5.0f;
+    public float TipLength { get; set; } = 3.0f;
+    public float UpperDiameter { get; set; } = 6.0f;
 
     public IAirChannel ApplySettings(AirChannelSettings settings) {
         var setting = settings[this.ChannelType] as StraightAirChannel;

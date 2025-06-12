@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CommunityToolkit.Mvvm.Messaging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,6 +21,7 @@ namespace Fabolus.Wpf.Pages.MainWindow.MeshInfo;
 public partial class MeshInfoView : UserControl {
     public MeshInfoView() {
         DataContext = new MeshInfoViewModel();
+        WeakReferenceMessenger.Default.Register<MeshInfoView, MeshInfoRequestMessage>(this, (r, m) => m.Reply(r.view));
         InitializeComponent();
     }
 }

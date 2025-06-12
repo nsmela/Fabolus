@@ -1,7 +1,6 @@
 ﻿using Fabolus.Core.AirChannel;
 using Fabolus.Wpf.Common.Helpers;
 using Fabolus.Wpf.Features.Channels;
-using Fabolus.Wpf.Features.Channels.Path;
 
 namespace Fabolus.Wpf.Features;
 
@@ -41,7 +40,4 @@ public class AirChannelSettings : Dictionary<ChannelTypes, IAirChannel> {
         return settings;
     }
 
-    public void RemoveActiveChannel() {
-        this[ChannelTypes.Path] = (PathAirChannel)this[ChannelTypes.Path] with { PathPoints = [] };
-    }
 }

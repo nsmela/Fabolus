@@ -16,6 +16,7 @@ namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 
 public partial class MeshViewModel : ObservableObject {
 
+    
     [ObservableProperty] private Camera _camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera();
     [ObservableProperty] private IEffectsManager _effectsManager = new DefaultEffectsManager();
 
@@ -23,11 +24,12 @@ public partial class MeshViewModel : ObservableObject {
     [ObservableProperty] private Color _ambientLightColor = Colors.GhostWhite;
 
     //mesh settings
-    //[ObservableProperty] private FillMode _fillMode = SharpDX.Direct3D11.FillMode.Wireframe;
     [ObservableProperty] private bool _shadows = false;
+    [ObservableProperty] private bool _renderWireframe = false;
 
     //models
     [ObservableProperty] private LineGeometryModel3D _grid = new LineGeometryModel3D();
+    private IList<DisplayModel3D> _models = [];
 
     //mouse commands
     [ObservableProperty] private ICommand _leftMouseCommand = ViewportCommands.Pan;
@@ -36,29 +38,45 @@ public partial class MeshViewModel : ObservableObject {
 
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
+
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
     [ObservableProperty] private Transform3D _mainTransform = MeshHelper.TransformEmpty;
 
     public MeshViewModel() {
         Grid.Geometry = GenerateGrid();
-        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, (r, m) => UpdateDisplay(m.models));
+        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, async (r, m) => await UpdateModels(m.models));
         WeakReferenceMessenger.Default.Register<MeshSetInputBindingsMessage>(this, (r, m) => UpdateInputBindings(m.LeftMouseButton, m.MiddleMouseButton, m.RightMouseButton));
+        WeakReferenceMessenger.Default.Register<WireframeToggleMessage>(this, async (r, m) => await ToggleWireframe());
+        ResetCamera();
+
+
+        UpdateDisplay();
     }
 
-    private void UpdateDisplay(IList<DisplayModel3D> models) {
-        CurrentModel.Clear();
-        if (models.Count() < 1) { return; }
+    private async Task ToggleWireframe() {
+        RenderWireframe = !RenderWireframe;
+        await UpdateDisplay();
+    }
+
+    private async Task UpdateDisplay() {
 
         context.Post((o) => {
-            foreach (var model in models) {
+            CurrentModel.Clear();
+
+            foreach (var model in _models) {
                 model.Geometry.UpdateOctree();
                 model.Geometry.UpdateBounds();
-                CurrentModel.Add(new MeshGeometryModel3D {
+                var geometry = new MeshGeometryModel3D {
                     Geometry = model.Geometry,
                     Material = model.Skin,
                     Transform = model.Transform,
-                    CullMode = model.Cull ? CullMode.Front : CullMode.Back,
-                });
+                    CullMode = model.IsTransparent ? CullMode.None : CullMode.Back,
+                    IsTransparent = model.IsTransparent,
+                    RenderWireframe = RenderWireframe,
+                    WireframeColor = Colors.Black,
+                    FillMode = model.ShowWireframe ? FillMode.Wireframe : FillMode.Solid,
+                };
+                CurrentModel.Add(geometry);
             }
         }, null);
 
@@ -68,6 +86,11 @@ public partial class MeshViewModel : ObservableObject {
         LeftMouseCommand = left;
         MiddleMouseCommand = middle;
         RightMouseCommand = right;
+    }
+
+    private async Task UpdateModels(IList<DisplayModel3D> models) {
+        _models = models;
+        await UpdateDisplay();
     }
 
     protected LineGeometry3D GenerateGrid(float minX = -100, float maxX = 100, float minY = -100, float maxY = 100, float spacing = 10) {
@@ -91,5 +114,11 @@ public partial class MeshViewModel : ObservableObject {
         return grid.ToLineGeometry3D();
     }
 
+    protected void ResetCamera() {
+        Camera.LookDirection = new Vector3D(-183.576f, 186.809f, -180.0f);
+        Camera.UpDirection = new Vector3D(-0.397f, 0.404f, 0.824f);
+        Camera.Position = new Point3D(183.556f, -185.847f, 179.5f);
+        Camera.LookAt(new Point3D(0, 0, 0), 2.0f);
+    }
 }
 

@@ -15,7 +15,7 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 namespace Fabolus.Wpf.Pages.Mould;
 
 public partial class MouldViewModel : BaseViewModel {
-    public override string TitleText => "mold";
+    public override string TitleText => "mould";
 
     public override SceneManager GetSceneManager => new MouldSceneManager();
 

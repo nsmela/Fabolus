@@ -7,33 +7,37 @@
              mc:Ignorable="d" 
              d:DesignWidth="200">
     <StackPanel Orientation="Vertical">
-        <Label Content="edge size" 
+        <Label Content="deflate distance" 
             HorizontalAlignment="Center" 
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding EdgeLength, Mode=TwoWay}"
-            Minimum="0.2" 
-            Maximum="2" 
-            TickFrequency="0.2" 
+            FontFamily="\Fonts\#Poppins" />
+        <Slider Value="{Binding DeflateDistance, Mode=TwoWay}"
+            Minimum="0.0" 
+            Maximum="10" 
+            TickFrequency="1.0" 
             TickPlacement="TopLeft" 
             IsSnapToTickEnabled="True" 
-            Height="30"/>
+            Height="30"            
+            AutoToolTipPlacement="TopLeft"
+            AutoToolTipPrecision="1"/>
 
-        <Label Content="smoothing speed"                        
+        <Label Content="inflate distance"                        
             HorizontalAlignment="Center" 
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding SmoothSpeed, Mode=TwoWay}"
-            Minimum="0.1" 
+        <Slider Value="{Binding InflateDistance, Mode=TwoWay}"
+            Minimum="0.0" 
             Maximum="1" 
             TickPlacement="TopLeft" 
             TickFrequency="0.1" 
             IsSnapToTickEnabled="True" 
-            Height="30"/>
+            Height="30"
+            AutoToolTipPlacement="TopLeft"
+            AutoToolTipPrecision="1"/>
 
         <Label Content="iterations" 
             HorizontalAlignment="Center" 
@@ -47,7 +51,9 @@
             TickPlacement="TopLeft" 
             TickFrequency="1" 
             IsSnapToTickEnabled="True" 
-            Height="30"/>
+            Height="30"            
+            AutoToolTipPlacement="TopLeft"
+            AutoToolTipPrecision="1"/>
 
         <Label Content="marching cubes"                         
             HorizontalAlignment="Center" 
@@ -55,13 +61,15 @@
             FontSize="12" 
             FontWeight="Bold"
             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding Cells, Mode=TwoWay}" 
-            Minimum="0" 
-            Maximum="256" 
+        <Slider Value="{Binding CellSize, Mode=TwoWay}" 
+            Minimum="0.5" 
+            Maximum="3.0" 
             TickPlacement="TopLeft" 
-            TickFrequency="16" 
+            TickFrequency="0.5" 
             IsSnapToTickEnabled="True" 
-            Height="30"/>
+            Height="30"
+            AutoToolTipPlacement="TopLeft"
+            AutoToolTipPrecision="1"/>
         
     </StackPanel>
 </UserControl>

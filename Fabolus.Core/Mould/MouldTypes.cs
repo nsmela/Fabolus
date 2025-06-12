@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Fabolus.Core.Mould;
 public enum MouldTypes {
-    [Description("Simple")] Simple,
-    [Description("Contoured")] Contoured,
-    [Description("Wide-Based Contour")] ContouredWideBase,
+    [Description("Tight-Boxed")] BOX_TIGHT,
+    [Description("Boxed")] BOX_WIDE,
+    [Description("Contoured")] CONTOURED,
 }

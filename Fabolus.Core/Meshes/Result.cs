@@ -26,20 +26,25 @@ public record struct Result {
     public static Result Fail(List<MeshError> errors) => new Result() { IsSuccess = false, Errors = errors };
 }
 
-public record struct Result<T> where T : class {
-    public T? Mesh { get; set; }
+public record struct Result<T> {
+    public T? Data { get; set; }
     public bool IsSuccess { get; set; }
     public bool IsFailure => !IsSuccess;
     public List<MeshError> Errors { get; set; }
     public Result(T mesh) {
-        Mesh = mesh;
+        Data = mesh;
         IsSuccess = true;
         Errors = new List<MeshError> { MeshError.NONE };
     }
 
     public static Result<T> Pass(T mesh) => new Result<T>(mesh);
     public static Result<T> Fail(List<MeshError> errors) => new Result<T>() { IsSuccess = false, Errors = errors };
+    public static Result<T> Fail(MeshError error) => new Result<T>() { IsSuccess = false, Errors = [error] };
+
+    public static implicit operator Result<T>(T data) => new Result<T> { Data = data };
+    public static implicit operator Result<T>(List<MeshError> errors) => new Result<T> { IsSuccess = false, Errors = errors };
 }
+
 public record struct MeshError {
     public static readonly MeshError NONE = new("");
 

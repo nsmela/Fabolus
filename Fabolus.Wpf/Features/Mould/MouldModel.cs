@@ -29,7 +29,7 @@ public sealed class MouldModel : MeshModel {
             return;
         }
 
-        Mesh = result.Mesh;
-        Geometry = result.Mesh.ToGeometry();
+        Mesh = result.Data;
+        Geometry = result.Data.ToGeometry();
     }
 }

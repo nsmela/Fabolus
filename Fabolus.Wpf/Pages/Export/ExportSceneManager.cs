@@ -38,20 +38,19 @@ public class ExportSceneManager : SceneManager {
         var models = new List<DisplayModel3D>();
 
         //bolus
-        if (!BolusModel.IsNullOrEmpty(_bolus)) {
+        if (_mould is null) { 
             models.Add(new DisplayModel3D {
                 Geometry = _bolus.Geometry,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = _skin
             });
-        }
-
+        } else { 
         //mould
-        if (!MouldModel.IsNullOrEmpty(_mould)) {
             models.Add(new DisplayModel3D {
                 Geometry = _mould.Geometry,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = _mouldSkin,
+                IsTransparent = true
             });
         }
 

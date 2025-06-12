@@ -15,7 +15,9 @@ namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay
     {
         public MeshView()
         {
+            DataContext = new MeshViewModel();
             InitializeComponent();
+            WeakReferenceMessenger.Default.Register<MeshView, ViewportRequestMessage>(this, (r, m) => m.Reply(r.view1));
         }
 
         /// <summary>
@@ -42,5 +44,6 @@ namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay
             var args = e as MouseDown3DEventArgs;
             WeakReferenceMessenger.Default.Send(new MeshMouseDownMessage(Hits(sender, args.Position), args.OriginalInputEventArgs));
         }
+
     }
 }

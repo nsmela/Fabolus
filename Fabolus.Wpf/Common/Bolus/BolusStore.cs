@@ -4,6 +4,7 @@ using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common.Bolus;
 using SharpDX;
 using System.IO;
+using System.Windows.Documents;
 
 namespace Fabolus.Wpf.Bolus;
 public class BolusStore {
@@ -23,6 +24,7 @@ public class BolusStore {
 
     //request messages
     public class BolusRequestMessage : RequestMessage<BolusModel> { }
+
     public class AllBolusRequestMessage : RequestMessage<BolusModel[]> { }
 
     #endregion
@@ -46,7 +48,7 @@ public class BolusStore {
 
         //registering messages
         WeakReferenceMessenger.Default.Register<AddBolusMessage>(this, async (r, m) => await AddBolus(m.Bolus, m.BolusType));
-        WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, async (r,m) => await BolusFromFile(m.Filepath));
+        WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, async (r, m) => await BolusFromFile(m.Filepath));
         WeakReferenceMessenger.Default.Register<ApplyRotationMessage>(this, async (r, m) => await AddTransform(m.Axis, m.Angle));
         WeakReferenceMessenger.Default.Register<ClearBolusMessage>(this, async (r, m) => await ClearBolus(m.BolusType));
         WeakReferenceMessenger.Default.Register<ClearRotationsMessage>(this, async (r, m) => await ClearTransforms());
@@ -60,7 +62,11 @@ public class BolusStore {
 
     private async Task AddBolus(BolusModel bolus, BolusType type) {
         bolus.BolusType = type;
-        _boli.Add(type, bolus);
+        if (_boli.ContainsKey(type)) {
+            _boli[type] = bolus; //update existing bolus
+        } else {
+            _boli.Add(type, bolus); //add new bolus
+        }
         await BolusUpdated();
     }
 
@@ -92,16 +98,12 @@ public class BolusStore {
     }
 
     private async Task BolusUpdated() {
-        var bolus = LatestBolus();
-        bolus.ApplyTransform(_transform);
-        WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(bolus));
+        foreach (var b in _boli.Values) {
+            b.ApplyTransform(_transform);
+        }
+        WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(LatestBolus()));
     }
 
-    private async Task BolusUpdated(BolusType type) {
-        if (!_boli.ContainsKey(type)) { throw new Exception($"Bolus Label {type} was not found!"); }
-
-        WeakReferenceMessenger.Default.Send(new BolusUpdatedMessage(_boli[type]));
-    }
 
     private async Task ClearBolus(BolusType type) {
         if (_boli.ContainsKey(type)) { _boli.Remove(type); }
@@ -114,6 +116,6 @@ public class BolusStore {
 
         await BolusUpdated();
     }
-
     #endregion
+
 }

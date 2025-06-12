@@ -1,7 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Scene;
@@ -22,27 +21,35 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     #region Properties and Events
 
-    private BaseSmoothingToolViewModel GetView(int index) => index switch {
-        0 => new PoissonViewModel(),
-        1 => new MarchingCubesViewModel(),
-        2 => new LaplacianViewModel(),
-        _ => throw new IndexOutOfRangeException("Index out of range")
-    };
+    [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new MarchingCubesViewModel();
 
-    [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new PoissonViewModel();
-    [ObservableProperty] private int _smoothingViewIndex = 0;
+    [ObservableProperty] private float _minimumHeight;
+    [ObservableProperty] private float _maximumHeight;
+    [ObservableProperty] private float _contourHeight;
 
-    partial void OnSmoothingViewIndexChanged(int value) {
-        SetSmoothingViewModel = GetView(value);
-        ClearSmoothed();
+    partial void OnContourHeightChanged(float value) {
+        if (_is_busy) { return; }
+        _is_busy = true;
+
+        WeakReferenceMessenger.Default.Send(new SmoothingContourMessage(value));
+
+        _is_busy = false;
     }
 
     private BolusModel? _bolus;
+    private bool _is_busy = false;
 
     #endregion
 
     public SmoothingViewModel() {
         _bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+
+        MinimumHeight = (int)_bolus.Geometry.Bound.Minimum.Z;
+        MaximumHeight = (int)_bolus.Geometry.Bound.Maximum.Z;
+
+        _is_busy = true;
+        ContourHeight = 0.0f;
+        _is_busy = false;
     }
 
     #region Commands
@@ -53,10 +60,8 @@ public partial class SmoothingViewModel : BaseViewModel {
             ErrorMessage("Smoothing Error", "Unable to smooth an empty model");
             return; 
         }
-
-        ClearSmoothed();//removes the old smoothed mesh
-
-        var smoothedBolus = await Task.Run(() => SetSmoothingViewModel.SmoothBolus(_bolus));
+        BolusModel[] bolus = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        var smoothedBolus = await Task.Run(() => SetSmoothingViewModel.SmoothBolus(bolus[0]));
 
         WeakReferenceMessenger.Default.Send(new AddBolusMessage(smoothedBolus, BolusType.Smooth));
     }

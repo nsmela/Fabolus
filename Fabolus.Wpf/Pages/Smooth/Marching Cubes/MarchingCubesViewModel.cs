@@ -6,36 +6,30 @@ namespace Fabolus.Wpf.Pages.Smooth.Marching_Cubes;
 
 public partial class MarchingCubesViewModel : BaseSmoothingToolViewModel {
 
-    #region Properties and Fields
-
-    [ObservableProperty] private float _edgeLength;
-    [ObservableProperty] private float _smoothSpeed;
-    [ObservableProperty] private int _cells;
+    [ObservableProperty] private float _deflateDistance;
+    [ObservableProperty] private float _inflateDistance;
     [ObservableProperty] private int _iterations;
+    [ObservableProperty] private double _cellSize;
 
     private static Dictionary<string, MarchingCubesSettings> _defaultSmoothSettings = new Dictionary<string, MarchingCubesSettings> {
-        { "rough", new MarchingCubesSettings { EdgeLength = 0.2f, SmoothSpeed=0.2f, Iterations=1, Cells=32 } },
-        { "standard", new MarchingCubesSettings { EdgeLength = 0.4f, SmoothSpeed=0.2f, Iterations=1, Cells=64 } },
-        { "smooth", new MarchingCubesSettings { EdgeLength = 0.6f, SmoothSpeed=0.4f, Iterations=2, Cells=128 } },
+        { "standard", new MarchingCubesSettings { DeflateDistance = 5.0f, InflateDistance = 0.1f, Iterations=1, CellSize = 1.0f } },
     };
 
     private MarchingCubesSettings Settings => new MarchingCubesSettings {
-        EdgeLength = this._edgeLength,
-        Cells = this._cells,
-        SmoothSpeed = this._smoothSpeed,
-        Iterations = this._iterations
+        DeflateDistance = this._deflateDistance,
+        InflateDistance = this._inflateDistance,
+        Iterations = this._iterations,
+        CellSize = this._cellSize,
     };
 
     private void SetSettings(string label) {
         var settings = _defaultSmoothSettings[label];
 
-        EdgeLength = settings.EdgeLength;
-        SmoothSpeed = settings.SmoothSpeed;
-        Cells = settings.Cells;
+        DeflateDistance = settings.DeflateDistance;
+        InflateDistance = settings.InflateDistance;
+        CellSize = settings.CellSize;
         Iterations = settings.Iterations;
     }
-
-    #endregion
 
     public MarchingCubesViewModel() {
         SetSettings("standard");

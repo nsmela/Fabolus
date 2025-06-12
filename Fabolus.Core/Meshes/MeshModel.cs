@@ -45,12 +45,6 @@ public class MeshModel {
         }
     }
 
-    public double[] Offsets => new double[] {
-        Mesh.CachedBounds.Center.x, 
-        Mesh.CachedBounds.Center.y, 
-        Mesh.CachedBounds.Center.z 
-    };
-
     public IEnumerable<int> TriangleIndexes() {
         foreach (var tri in Mesh.Triangles()) {
             yield return tri.a;
