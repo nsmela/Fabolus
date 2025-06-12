@@ -5,9 +5,6 @@ namespace Fabolus.Core.Extensions;
 
 public static class g3Extensions {
 
-    public static DMesh3 BooleanSubtract(this MeshEditor editor, DMesh3 tool)
-        => BooleanSubtraction(editor.Mesh, tool);
-
     public static DMesh3 BooleanSubtraction(DMesh3 body, DMesh3 tool) {
         Mesh bodyMesh = body.ToMesh();
         Mesh toolMesh = tool.ToMesh();

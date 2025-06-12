@@ -1,7 +1,7 @@
 ﻿using Fabolus.Core.Extensions;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.MeshTools;
-using Fabolus.Core.Mould.Utils;
+using Fabolus.Core.Meshes.PolygonTools;
 using g3;
 using gs;
 using System;
@@ -87,15 +87,15 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         if (contour.IsEmpty()) { return Result<MeshModel>.Fail(new MeshError("Contour offset failed.")); }
 
         // extrude mesh
-        var extruded = MeshTools.ExtrudePolygon(contour, MinHeight, MaxHeight);
-        if (extruded.IsEmpty()) { return Result<MeshModel>.Fail(new MeshError("Polygon extrusion failed.")); }
-
+        Result<DMesh3> result = PolygonTools.ExtrudePolygon(contour, MinHeight, MaxHeight);
+        if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
+        DMesh3 extruded = result.Data;
         MeshAutoRepair repair = new(extruded);
         repair.Apply();
 
         if (HasTrough) {
-            var result = BooleanOperators.Subtraction(extruded, TroughtMesh());
-            if (result.IsFailure) { return Result<MeshModel>.Fail(new MeshError("Failed to add trough")); }
+            result = BooleanOperators.Subtraction(extruded, TroughtMesh());
+            if (result.IsFailure) { return Result<MeshModel>.Fail([result.Errors, new MeshError("Failed to add trough")]); }
 
             return Result<MeshModel>.Pass(new MeshModel(result.Data));
         }

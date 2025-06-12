@@ -1,26 +1,24 @@
-﻿using g3;
-using static MR.DotNet;
+﻿using Fabolus.Core.Extensions;
+using g3;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Fabolus.Core.Meshes;
-using Fabolus.Core.Extensions;
+using static MR.DotNet;
 
-namespace Fabolus.Core.Mould.Utils;
+namespace Fabolus.Core.Meshes;
 
-public static class BooleanOperators {
-
+internal static class BooleanOperators {
     public static Result<DMesh3> Subtraction(DMesh3 body, DMesh3 tool) {
         Mesh bodyMesh = body.ToMesh();
         Mesh toolMesh = tool.ToMesh();
 
-        try { 
+        try {
             var result = Boolean(bodyMesh, toolMesh, BooleanOperation.DifferenceAB);
             return Result<DMesh3>.Pass(result.mesh.ToDMesh());
-        } catch(Exception e) {
-            return Result<DMesh3>.Fail([ new MeshError(e.Message) ]);
+        } catch (Exception e) {
+            return Result<DMesh3>.Fail([new MeshError($"Boolean Subtraction failed: {e.Message}")]);
         }
 
     }
@@ -33,9 +31,8 @@ public static class BooleanOperators {
             var result = Boolean(bodyMesh, toolMesh, BooleanOperation.Intersection);
             return Result<DMesh3>.Pass(result.mesh.ToDMesh());
         } catch (Exception e) {
-            return Result<DMesh3>.Fail([new MeshError(e.Message)]);
+            return Result<DMesh3>.Fail([new MeshError($"Boolean Intersection failed: {e.Message}")]);
         }
 
     }
 }
-
