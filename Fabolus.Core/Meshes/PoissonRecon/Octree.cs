@@ -11,10 +11,19 @@ namespace Fabolus.Core.Meshes.PoissonRecon;
 public static partial class PoissonReconstruction {
     // ref: https://hhoppe.com/poissonrecon.pdf
 
+    private static Vector3d[] OFFSETS = [
+        Vector3d.AxisX, Vector3d.AxisY, Vector3d.AxisZ,
+        -Vector3d.AxisX, -Vector3d.AxisY, -Vector3d.AxisZ,
+    ];
+
     private class Octree {
         public OctreeNode Root { get; set; }
         public int MaxPointsPerLeaf { get; set; } = 16;
-        public int MaxDepth { get; set; } = 8;
+        public int MaxDepth { get; set; } = 6;
+
+        public double[]? DivergenceField { get; private set; } = null; // Divergence field for the octree
+        public Dictionary<int, Dictionary<int, double>>? SparseMatrix { get; private set; } = null; // Sparse matrix representation of the octree
+        public Dictionary<OctreeNode, int> NodeIndexes { get; private set; } = []; // Maps OctreeNode to its index in the sparse matrix
 
         public Octree(DMesh3 mesh) {
             if (mesh.IsEmpty()) { throw new ArgumentException("Mesh cannot be empty.", nameof(mesh)); }
@@ -33,12 +42,78 @@ public static partial class PoissonReconstruction {
                 Insert(point, normal);
             }
 
+            // set up divergence field for each of the nodes within
             Root.CalculateDivergencefield();
+
+            // index all leaf nodes
+            List<OctreeNode> nodes = GetAllLeafNodes();
+            NodeIndexes = [];
+            for (int i = 0; i < nodes.Count; i++) {
+                NodeIndexes[nodes[i]] = i;
+            }
+
+            // build sparse matrix and b vector
+            // variables started outside loop to reduce memory garbage collection
+            int n = nodes.Count;
+            SparseMatrix = [];
+            DivergenceField = new double[n];
+            Func<OctreeNode, double> scale = (node) => 1.0 / node.Bounds.Volume;
+
+            // this distance is used to reach the centre of a neighbouring OctreeNode by getting half the distance of the smallest possible cell
+            // take max dimension and divide that by the number of cells at the maximum depth and divide by two
+            double h = Root.Bounds.Width / Math.Pow(8.0, MaxDepth - 1) / 2.0;
+
+            // offsets function to get the offsets for each node based on its bounds center and width
+            // centre of node plus offset which is h plus current node's half width scaled with each offset direction
+            Func<OctreeNode, Vector3d[]> offsets = (node) => OFFSETS.Select(o => node.Bounds.Center + o * (h + node.Bounds.Width / 2.0)).ToArray();
+
+            Vector3d neighbourCentre = Vector3d.Zero;
+            OctreeNode? neighbour_node = null;
+            int node_index = -1;
+
+            for (int i = 0; i < n; i++) {
+
+                SparseMatrix[i] = [];
+                SparseMatrix[i][i] = -6 * scale(nodes[i]);
+                DivergenceField[i] = nodes[i].DivergenceWeighted; // volume-weighted divergence
+
+
+                // Check 6 neighboring voxels
+                h = nodes[i].Bounds.Width; // assuming cubic octree, so width is the same in all directions
+
+                foreach (Vector3d offset in offsets(nodes[i])) {
+                    //faster to calculate the neighbour node by checking if the point is within the bounds of the octree leaf
+                    neighbour_node = Contains(nodes[i].Bounds.Center + offset);
+
+                    if (neighbour_node is null) { continue; } // no neighbour
+
+                    node_index = NodeIndexes[neighbour_node];
+                    SparseMatrix[i][node_index] = scale(neighbour_node); // add neighbour contribution
+                }
+            }
+
         }
 
-        private void Insert(Vector3d point, Vector3d normal) {
-            InsertRecursively(Root, point, normal, 0);
+        public List<OctreeNode> GetAllLeafNodes() {
+            List<OctreeNode> nodes = [];
+            Traverse(Root);
+            return nodes;
+
+            void Traverse(OctreeNode node) {
+                if (node.IsLeaf) {
+                    nodes.Add(node);
+                    return;
+                }
+
+                foreach (var child in node.Children!) {
+                    Traverse(child);
+                }
+            }
+
         }
+
+        private void Insert(Vector3d point, Vector3d normal) => InsertRecursively(Root, point, normal, 0);
+        
 
         private void InsertRecursively(OctreeNode node, Vector3d point, Vector3d normal, int depth) {
             if (node.IsLeaf) {
@@ -64,6 +139,20 @@ public static partial class PoissonReconstruction {
                 }
             }
         }
+
+        public OctreeNode? Contains(Vector3d point) => ContainsRecursively(Root, point);
+
+        private OctreeNode? ContainsRecursively(OctreeNode node, Vector3d point) {
+            if (node.IsLeaf) { return node; }
+
+            foreach(OctreeNode child in node.Children!) {
+                if (child.Bounds.Contains(point)) {
+                    return ContainsRecursively(child, point);
+                }
+            }
+
+            return null;
+        }
     }
 
     internal class OctreeNode {
@@ -78,6 +167,7 @@ public static partial class PoissonReconstruction {
         // Field Values
         public Vector3d NormalSum { get; set; } = Vector3d.Zero;
         public double Divergence { get; set; } = 0.0f;
+        public double DivergenceWeighted { get; set; } = 1.0f; // Divergence with volume weighting
         public double ScalerValue { get; set; } = 0.0f;
 
         public void CalculateDivergencefield() {
@@ -86,24 +176,28 @@ public static partial class PoissonReconstruction {
                 // no normals to calculate
                 if (Normals.Count == 0) {
                     Divergence = 0.0;
+                    DivergenceWeighted = 0.0;
                     return;
                 }
 
                 // divergence = sum normal / leaf volume
                 Vector3d sum = Vector3d.Zero;
-                foreach(var n in Normals) { sum += n; }
+                foreach (var n in Normals) { sum += n; }
                 double volume = Bounds.Volume;
 
                 if (volume > 0.0f) {
-                    Divergence = sum.Dot(Bounds.Center.Normalized) / volume; 
+                    Divergence = sum.Dot(Bounds.Center.Normalized) / volume;
                 } else {
                     Divergence = 0.0f;
                 }
 
+                DivergenceWeighted = Divergence * volume; // volume-weighted divergence
+
                 return;
             }
 
-            foreach(var child in Children!) {
+            // has children
+            foreach (var child in Children!) {
                 child.CalculateDivergencefield();
             }
         }
