@@ -7,20 +7,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Fabolus.Core.Meshes.MeshTools;
-public static partial class MeshTools {
+namespace Fabolus.Core.Meshes.PoissonRecon;
+public static partial class PoissonReconstruction {
     // ref: https://hhoppe.com/poissonrecon.pdf
-
-
-    internal static Result<MeshModel> PoissonReconstruction(
-        DMesh3 mesh,
-        int depth = 5,
-        double scale = 1.0,
-        int samplesPerNode = 10
-    ) {
-
-        return Result<MeshModel>.Fail(new MeshError("No implemented"));
-    }
 
     private class Octree {
         public OctreeNode Root { get; set; }
