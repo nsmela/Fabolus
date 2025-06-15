@@ -4,6 +4,7 @@ using Fabolus.Core.Meshes.MeshTools;
 using g3;
 using gs;
 using System.Windows;
+using static MR.DotNet;
 
 namespace Fabolus.Core.Smoothing;
 
@@ -18,17 +19,17 @@ public class MarchingCubesSmoothing {
         var cell_size = settings.CellSize;
 
         //shrink mesh to lose sharp details and inflate back to original size
-        DMesh3 mesh = new(bolus.Mesh);
+        Mesh model = bolus.Mesh.Mesh.ToMesh();
 
         if (deflateDistance > 0) {
             for (int i = 0; i < iterations; i++) {
-                mesh = MeshTools.OffsetMesh(mesh, deflateDistance, cell_size);
-                mesh = MeshTools.OffsetMesh(mesh, -deflateDistance, cell_size);
+                model = MeshTools.OffsetMesh(model, deflateDistance);
+                model = MeshTools.OffsetMesh(model, -deflateDistance);
             }
         }
 
         // inflate
-        mesh = MeshTools.OffsetMesh(mesh, inflateDistance, cell_size);
+        DMesh3 mesh = MeshTools.OffsetMesh(model, inflateDistance).ToDMesh();
 
         // marching cubes
         DMesh3 smoothMesh = new();
@@ -47,7 +48,7 @@ public class MarchingCubesSmoothing {
             cubes.Bounds.Expand(20 * cubes.CubeSize);
             cubes.Generate();
             smoothMesh = cubes.Mesh;
-            MeshNormals.QuickCompute(smoothMesh); // generate normals
+            g3.MeshNormals.QuickCompute(smoothMesh); // generate normals
         }
 
         if (smoothMesh.IsEmpty()) { throw new ArgumentNullException(nameof(smoothMesh)); }

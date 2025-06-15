@@ -92,7 +92,7 @@ public class SmoothSceneManager : SceneManager {
             _smoothContours.Add(layer, builder.ToMeshGeometry3D());
 
             // contour mesh for raw
-            _rawContours.Add(layer, MeshTools.Contour(raw.ToMeshModel(), layer).ToGeometry());
+            //_rawContours.Add(layer, MeshTools.Contour(raw.ToMeshModel(), layer).ToGeometry());
             layer++;
         }
 
@@ -132,26 +132,6 @@ public class SmoothSceneManager : SceneManager {
                 Skin = DiffuseMaterials.Emerald,
                 IsTransparent = true,
             });
-
-            if (_smoothContours.Count == 0) { GenerateContours(); } // generate contours if not already done
-
-            // contour around smoothed mesh
-            if (_smoothContours.ContainsKey(_contour_height)) {
-                models.Add(new DisplayModel3D {
-                    Geometry = _smoothContours[_contour_height],
-                    Transform = MeshHelper.TransformEmpty,
-                    Skin = DiffuseMaterials.Yellow,
-                });
-
-                // flat contour mesh for raw mesh            
-                var raw_contour_mesh = SmoothingTools.Contour(boli[0].TransformedMesh(), _contour_height);
-                models.Add(new DisplayModel3D {
-                    Geometry = _rawContours[_contour_height],
-                    Transform = MeshHelper.TransformEmpty,
-                    Skin = DiffuseMaterials.Blue,
-                });
-            }
-
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
