@@ -13,15 +13,14 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 namespace Fabolus.Wpf.Pages.Smooth;
 
 public class SmoothSceneManager : SceneManager {
-    private BolusModel _bolus;
     private Material _surfaceDistanceSkin;
 
     public SmoothSceneManager() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateBolus(m.Bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(null));
 
         SetDistancesTexture();
-        UpdateBolus(null);
+        UpdateDisplay(null);
     }
 
     private void SetDistancesTexture() {
@@ -43,7 +42,6 @@ public class SmoothSceneManager : SceneManager {
             ColorStripeX = colors,
             ColorStripeY = colors
         };
-
 
     }
 
@@ -83,13 +81,6 @@ public class SmoothSceneManager : SceneManager {
 
         return coordinates;
     }
-
-    private void UpdateBolus(BolusModel bolus) {
-        _bolus = bolus;
-
-        UpdateDisplay(bolus);
-    }
-
 
     protected override void UpdateDisplay(BolusModel? bolus) {
         // get all of the current bolus
