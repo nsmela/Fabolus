@@ -1,37 +1,26 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.BolusModel;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.MeshTools;
-using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
-using Fabolus.Wpf.Pages.MainWindow;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
-using HelixToolkit.Wpf;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
 using static Fabolus.Wpf.Bolus.BolusStore;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Fabolus.Wpf.Pages.Smooth;
 
 public class SmoothSceneManager : SceneManager {
-    private BolusModel _bolus;
     private Material _surfaceDistanceSkin;
 
     public SmoothSceneManager() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateBolus(m.Bolus));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(null));
 
         SetDistancesTexture();
+        UpdateDisplay(null);
     }
 
     private void SetDistancesTexture() {
@@ -53,7 +42,6 @@ public class SmoothSceneManager : SceneManager {
             ColorStripeX = colors,
             ColorStripeY = colors
         };
-
 
     }
 
@@ -93,13 +81,6 @@ public class SmoothSceneManager : SceneManager {
 
         return coordinates;
     }
-
-    private void UpdateBolus(BolusModel bolus) {
-        _bolus = bolus;
-
-        UpdateDisplay(bolus);
-    }
-
 
     protected override void UpdateDisplay(BolusModel? bolus) {
         // get all of the current bolus
