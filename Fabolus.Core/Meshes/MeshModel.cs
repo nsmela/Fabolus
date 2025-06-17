@@ -8,7 +8,7 @@ namespace Fabolus.Core.Meshes;
 
 public class MeshModel {
     public DMesh3 Mesh { get; set; } = new DMesh3();
-    private List<Quaterniond> Rotations { get; set; } = [];
+    internal Mesh _mesh { get; set; }
 
     // Public Static Functions
 

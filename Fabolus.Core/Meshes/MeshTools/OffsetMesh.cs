@@ -55,4 +55,13 @@ public static partial class MeshTools {
 
         return result;
     }
+
+    public static Mesh OffsetDouble(Mesh mesh, float offsetDistance) {
+        MeshPart mp = new(mesh);
+        OffsetParameters parms = new() {
+            voxelSize = Offset.SuggestVoxelSize(mp, 1e6f),
+        };
+
+        return Offset.DoubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
+    }
 }

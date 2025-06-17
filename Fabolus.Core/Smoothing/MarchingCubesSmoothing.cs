@@ -23,10 +23,12 @@ public class MarchingCubesSmoothing {
 
         if (deflateDistance > 0) {
             for (int i = 0; i < iterations; i++) {
-                model = MeshTools.OffsetMesh(model, deflateDistance);
-                model = MeshTools.OffsetMesh(model, -deflateDistance);
+                model = MeshTools.OffsetDouble(model, deflateDistance);
             }
         }
+
+        model = MeshTools.OffsetMesh(model, inflateDistance);
+        return new Bolus(model.ToDMesh());
 
         // inflate
         DMesh3 mesh = MeshTools.OffsetMesh(model, inflateDistance).ToDMesh();
