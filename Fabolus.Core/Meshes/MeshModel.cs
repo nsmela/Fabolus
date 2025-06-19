@@ -19,13 +19,15 @@ public class MeshModel {
     }
 
     public static async Task<MeshModel> FromFile(string filepath) {
-        var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true);
+        //var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true);
+        var mesh = MeshLoad.FromAnySupportedFormat(filepath);
         return new MeshModel(mesh);
     }
 
     public static async Task ToFile(string filepath, MeshModel model) {
-        var mesh = model.Mesh;
-        StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+        //var mesh = model.Mesh;
+        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+        MeshSave.ToAnySupportedFormat(model, filepath);
     }
 
     // Public Functions
