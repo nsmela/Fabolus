@@ -65,7 +65,7 @@ public class SmoothSceneManager : SceneManager {
     }
 
     private static Vector2Collection GetTextureCoordinates(MeshModel model, MeshModel target) {
-        float[] distances = MeshTools.SignedDistances(model, target).Select(d => (float)d).ToArray();
+        float[] distances = MeshTools.SignedDistances(target, model).Select(d => (float)d).ToArray();
 
         float max = distances.Max();
         float min = distances.Min();

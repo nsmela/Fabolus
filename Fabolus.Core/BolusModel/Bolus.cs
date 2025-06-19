@@ -7,14 +7,12 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Fabolus.Core.BolusModel;
+
 public class Bolus {
 
     #region Public Properties and Fields
 
     public MeshModel Mesh { get; set; }
-    public double XOffset { get; protected set; }
-    public double YOffset { get; protected set; }
-    public double ZOffset { get; protected set; }
 
     public double Volume => Mesh.Volume;
 
@@ -45,4 +43,11 @@ public class Bolus {
         return mesh;
     }
 
+    private static MeshModel OrientationCentre(MeshModel model) {
+        double x = model._mesh.BoundingBox.Center().X * -1;
+        double y = model._mesh.BoundingBox.Center().Y * -1;
+        double z = model._mesh.BoundingBox.Center().Z * -1;
+        MeshTransforms.Translate(model, x, y, z);
+        return model;
+    }
 }
