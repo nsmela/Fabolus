@@ -1,108 +1,86 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.BolusModel;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.MeshTools;
-using Fabolus.Core.Smoothing;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
-using Fabolus.Wpf.Pages.MainWindow;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
-using HelixToolkit.Wpf;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
 using static Fabolus.Wpf.Bolus.BolusStore;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Fabolus.Wpf.Pages.Smooth;
 
 public class SmoothSceneManager : SceneManager {
-    public const float DEFAULT_SURFACE_DISTANCE = 2.0f;
-
-    private BolusModel _bolus;
-    private MeshModel[] _greenModels = [];
-    private MeshModel[] _redModels = [];
     private Material _surfaceDistanceSkin;
-    private Material _smoothSkin = PhongMaterials.Blue;
-    private float _surfaceDistance = DEFAULT_SURFACE_DISTANCE;
-    private float _contour_height = 0.0f;
-
-    private Dictionary<float, MeshGeometry3D> _rawContours = [];
-    private Dictionary<float, MeshGeometry3D> _smoothContours = [];
-    private MeshModel[] _smoothedSurfaces = [];
 
     public SmoothSceneManager() {
-        _surfaceDistanceSkin = SkinHelper.SurfaceDifferenceSkin(_surfaceDistance);
-
         WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateBolus(m.Bolus));
-        WeakReferenceMessenger.Default.Register<SmoothingContourMessage>(this, (r, m) => UpdateContouringHeight(m.z_height));
+        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(null));
+
+        SetDistancesTexture();
+        UpdateDisplay(null);
     }
 
-    private void UpdateBolus(BolusModel bolus) {
-        _bolus = bolus;
+    private void SetDistancesTexture() {
+        //gradient color
+        var faultColor = new Color4(1, 0, 0, 1); // red for faults
+        var warningColor = new Color4(1, 1, 0, 1); // yellow for warnings
+        var defaultColor = new Color4(0.5f, 0.5f, 0.5f, 1); // default color for within tolerance
+        var passColor = new Color4(0, 1, 0, 1); // good color for within tolerance
+        var excessColor = new Color4(0, 0, 1, 1); // blue for excess material
 
-        GenerateContours();
+        List<Color4> colors = [
+            ..GetGradients(faultColor, warningColor, 20), //bottom end, too far within
+            ..GetGradients(warningColor, defaultColor, 20), //warning color transition
+            ..GetGradients(defaultColor, passColor, 20), //fault color transition, upper angle setting
+            ..GetGradients(passColor, excessColor, 20), //fault color section, ends at 90 degrees
+        ];
 
-        UpdateDisplay(bolus);
+        _surfaceDistanceSkin = new ColorStripeMaterial {
+            ColorStripeX = colors,
+            ColorStripeY = colors
+        };
+
     }
 
-    private void GenerateContours() {
-        BolusModel[] boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
-        if (boli is null || boli.Length < 2) {
-            _smoothContours.Clear();
-            return; // not enough data to generate contours
+    private static List<Color4> GetGradients(Color4 start, Color4 end, int steps) {
+        float stepA = ((end.Alpha - start.Alpha) / (steps - 1));
+        float stepR = ((end.Red - start.Red) / (steps - 1));
+        float stepG = ((end.Green - start.Green) / (steps - 1));
+        float stepB = ((end.Blue - start.Blue) / (steps - 1));
+
+        List<Color4> colors = [];
+        for (int i = 0; i < steps; i++) {
+           colors.Add( new Color4(
+                (start.Red + (stepR * i)),
+                (start.Green + (stepG * i)),
+                (start.Blue + (stepB * i)),
+                (start.Alpha + (stepA * i))
+            ));
         }
 
-        var raw = boli[0].TransformedMesh().ToGeometry();
-        var smoothed = boli[1].TransformedMesh().ToGeometry();
-        var min = smoothed.Bound.Minimum.Z;
-        var max = smoothed.Bound.Maximum.Z;
+        return colors;
+    }
 
-        _rawContours.Clear();
-        _smoothContours.Clear();
+    private static Vector2Collection GetTextureCoordinates(MeshModel model, MeshModel target) {
+        float[] distances = MeshTools.SignedDistances(target, model).Select(d => (float)d).ToArray();
 
-        float layer = (int)min;
-        while (layer + min < max) {
-            // contour line around smoothed
-            Vector3 plane = new(0, 0, layer);
-            Vector3 normal = Vector3.UnitZ;
-            List<Vector3> contour = MeshGeometryHelper.GetContourSegments(smoothed, plane, normal).ToList() ?? new();
+        float max = distances.Max();
+        float min = distances.Min();
 
+        MeshGeometry3D geometry = model.ToGeometry();
+        Vector2Collection coordinates = new();
+        for (int i = 0; i < geometry.Positions.Count; i++) {
+            float value = (distances[i] - min) / (max - min); // normalize the distance value between 0 and 1
+            value = Math.Clamp(value, 0, 1);
+            coordinates.Add(new Vector2(value, value)); // Y coordinate for the color stripe
 
-            List<int> edges = new();
-            for (int i = 0; i < contour.Count; i++) {
-                edges.Add(i);
-            }
-            edges.Add(0); // close the loop
-
-            MeshBuilder builder = new();
-            builder.AddPipes(contour, edges, 0.4f);
-            foreach (var point in contour) {
-                builder.AddSphere(point, 0.2f);
-            }
-
-            _smoothContours.Add(layer, builder.ToMeshGeometry3D());
-
-            // contour mesh for raw
-            _rawContours.Add(layer, MeshTools.Contour(raw.ToMeshModel(), layer).ToGeometry());
-            layer++;
         }
 
+        return coordinates;
     }
-
-    private void UpdateContouringHeight(float value) {
-        _contour_height = value;
-        UpdateDisplay(_bolus);
-    }
-
 
     protected override void UpdateDisplay(BolusModel? bolus) {
         // get all of the current bolus
@@ -125,33 +103,15 @@ public class SmoothSceneManager : SceneManager {
 
         //show smoothed mesh
         if (boli.Length == 2) { 
+            var geometry = boli[1].Geometry;
+            geometry.TextureCoordinates = GetTextureCoordinates(boli[1].Mesh, boli[0].Mesh);
             // smoothed mesh
             models.Add(new DisplayModel3D {
-                Geometry = boli[1].Geometry,
+                Geometry = geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Emerald,
-                IsTransparent = true,
+                Skin = _surfaceDistanceSkin,
+                IsTransparent = false,
             });
-
-            if (_smoothContours.Count == 0) { GenerateContours(); } // generate contours if not already done
-
-            // contour around smoothed mesh
-            if (_smoothContours.ContainsKey(_contour_height)) {
-                models.Add(new DisplayModel3D {
-                    Geometry = _smoothContours[_contour_height],
-                    Transform = MeshHelper.TransformEmpty,
-                    Skin = DiffuseMaterials.Yellow,
-                });
-
-                // flat contour mesh for raw mesh            
-                var raw_contour_mesh = SmoothingTools.Contour(boli[0].TransformedMesh(), _contour_height);
-                models.Add(new DisplayModel3D {
-                    Geometry = _rawContours[_contour_height],
-                    Transform = MeshHelper.TransformEmpty,
-                    Skin = DiffuseMaterials.Blue,
-                });
-            }
-
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));

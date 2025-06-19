@@ -25,12 +25,8 @@
 
   <ItemGroup>
     <PackageReference Include="geometry3Sharp" Version="1.0.324" />
-    <PackageReference Include="MeshLib" Version="3.0.5.215" />
+    <PackageReference Include="MeshLib" Version="3.0.6.229" />
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\TriangleNet\TriangleNet.csproj" />
   </ItemGroup>
 
   <ItemGroup>

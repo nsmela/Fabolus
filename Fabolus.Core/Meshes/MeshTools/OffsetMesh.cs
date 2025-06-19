@@ -1,5 +1,7 @@
-﻿using g3;
+﻿using Fabolus.Core.Extensions;
+using g3;
 using gs;
+using static MR.DotNet;
 
 namespace Fabolus.Core.Meshes.MeshTools;
 
@@ -33,7 +35,7 @@ public static partial class MeshTools {
         c.Bounds.Expand(3 * c.CubeSize);    // leave a buffer of cells
         c.Generate();
 
-        MeshNormals.QuickCompute(c.Mesh);   // generate normals
+        g3.MeshNormals.QuickCompute(c.Mesh);   // generate normals
 
         // cleanup
         MeshAutoRepair repair = new(c.Mesh);
@@ -42,4 +44,24 @@ public static partial class MeshTools {
         return repair.Mesh;
     }
 
+
+    public static Mesh OffsetMesh(Mesh mesh, float offsetDistance) {
+        MeshPart mp = new(mesh);
+        OffsetParameters parms = new() {
+            voxelSize = Offset.SuggestVoxelSize(mp, 1e6f),
+        };
+
+        var result = Offset.OffsetMesh(mp, offsetDistance, parms);
+
+        return result;
+    }
+
+    public static Mesh OffsetDouble(Mesh mesh, float offsetDistance) {
+        MeshPart mp = new(mesh);
+        OffsetParameters parms = new() {
+            voxelSize = Offset.SuggestVoxelSize(mp, 1e6f),
+        };
+
+        return Offset.DoubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
+    }
 }

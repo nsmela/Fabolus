@@ -8,7 +8,7 @@ namespace Fabolus.Core.Meshes;
 
 public class MeshModel {
     public DMesh3 Mesh { get; set; } = new DMesh3();
-    private List<Quaterniond> Rotations { get; set; } = [];
+    internal Mesh _mesh { get; set; }
 
     // Public Static Functions
 
@@ -19,13 +19,15 @@ public class MeshModel {
     }
 
     public static async Task<MeshModel> FromFile(string filepath) {
-        var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true);
+        //var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true);
+        var mesh = MeshLoad.FromAnySupportedFormat(filepath);
         return new MeshModel(mesh);
     }
 
     public static async Task ToFile(string filepath, MeshModel model) {
-        var mesh = model.Mesh;
-        StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+        //var mesh = model.Mesh;
+        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
+        MeshSave.ToAnySupportedFormat(model, filepath);
     }
 
     // Public Functions
@@ -33,7 +35,10 @@ public class MeshModel {
     public void ApplyRotation(double x, double y, double z, double w) =>
         MeshTransforms.Rotate(Mesh, Vector3d.Zero, new Quaterniond(new Vector3d(x, y, z), w));
 
-    
+    public void ApplyTranslation(double x, double y, double z) =>
+        MeshTransforms.Translate(Mesh, new Vector3d(x, y, z));
+
+
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
 
     public double Height => Mesh.CachedBounds.Height + 10.0;
@@ -88,6 +93,7 @@ public class MeshModel {
 
     public MeshModel(Mesh mesh) {
         Mesh = mesh.ToDMesh();
+        _mesh = mesh; // Store the original Mesh for further operations if needed
     }
 
     public MeshModel(IEnumerable<Vector3D> vectors, IList<int> triangleIndexes) {

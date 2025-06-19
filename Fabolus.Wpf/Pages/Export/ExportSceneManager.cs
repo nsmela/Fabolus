@@ -38,7 +38,7 @@ public class ExportSceneManager : SceneManager {
         var models = new List<DisplayModel3D>();
 
         //bolus
-        if (_mould is null) { 
+        if (_mould.Geometry is null) { 
             models.Add(new DisplayModel3D {
                 Geometry = _bolus.Geometry,
                 Transform = MeshHelper.TransformEmpty,
