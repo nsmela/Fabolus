@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using CommunityToolkit.Mvvm.Messaging.Messages;
 using Fabolus.Core.Meshes;
+using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Wpf.Common.Bolus;
 using SharpDX;
 using System.IO;
@@ -92,6 +93,7 @@ public class BolusStore {
         }
 
         _boli[BolusType.Raw] = new(mesh);
+        _boli[BolusType.Raw].Mesh = MeshTools.OrientationCentre(_boli[BolusType.Raw].Mesh); //orient the mesh to the centre of the bounding box
         _transform = new();
 
         await BolusUpdated();

@@ -93,6 +93,7 @@ public class MeshModel {
 
     public MeshModel(Mesh mesh) {
         Mesh = mesh.ToDMesh();
+        _mesh = mesh; // Store the original Mesh for further operations if needed
     }
 
     public MeshModel(IEnumerable<Vector3D> vectors, IList<int> triangleIndexes) {
