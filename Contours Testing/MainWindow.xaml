@@ -9,11 +9,20 @@
         Title="MainWindow" Height="450" Width="800">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <hx:Viewport3DX x:Name="view1"
+        <Slider Grid.Column="0" 
+                Orientation="Vertical" 
+                Minimum="-100"
+                Maximum="100"
+                Ticks="0.1"
+                Value="{Binding ZHeight, Mode=TwoWay}"
+                Margin="10"
+                />
+
+        <hx:Viewport3DX x:Name="view1" Grid.Column="1"
                         ShowCameraInfo="True"
                         ShowViewCube="True"
                         ModelUpDirection="0, 0, 1"
@@ -46,9 +55,15 @@
                 Material="{Binding ModelMaterial}"
                 Plane1="{Binding Plane1}" />
 
-            <hx:AxisPlaneGridModel3D Visibility="Hidden"
-                PlaneColor="PaleVioletRed"
-                UpAxis="Z"/>
+            <hx:TransformManipulator3D x:Name="manipulator"
+                SizeScale="5.0"
+                EnableRotation="False"
+                EnableTranslation="True"
+                EnableScaling="False"
+                EnableTranslationX="False"
+                EnableTranslationY="False"
+                                        
+                                       />
             
         </hx:Viewport3DX>
     </Grid>

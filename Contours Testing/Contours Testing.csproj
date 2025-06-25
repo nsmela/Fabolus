@@ -10,8 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="geometry3Sharp" Version="1.0.324" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.27.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fabolus.Core\Fabolus.Core.csproj" />
   </ItemGroup>
 
 </Project>
