@@ -26,10 +26,14 @@ namespace Contours_Testing;
 public partial class MainViewModel  : ObservableObject
 {
     [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _model = new();
-    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _dragModel = new();
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _smoothModel = new();
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _contourMesh = new();
     [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _modelMaterial = PhongMaterials.Blue;
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _rawMaterial = DiffuseMaterials.Ruby;
     [ObservableProperty] private System.Windows.Media.Media3D.Transform3D _modelTransform;
-    [ObservableProperty] private float _zHeight = 0.0f;
+    [ObservableProperty] private int _zLayer = -1;
+    [ObservableProperty] private float _minZHeight = 0.0f;
+    [ObservableProperty] private float _maxZHeight = 0.0f;
     [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Camera? _mainCamera;
     [ObservableProperty] private IEffectsManager? _effectsManager;
     [ObservableProperty] private System.Windows.Media.Color _directionalLightColor = Colors.White;
@@ -37,12 +41,19 @@ public partial class MainViewModel  : ObservableObject
     [ObservableProperty] private LineGeometryModel3D _gridModel = new LineGeometryModel3D();
     [ObservableProperty] private string _title = "Contours Testing";
     [ObservableProperty] private Plane _plane1 = new(new Vector3(0, 0, -1), 8);
+    [ObservableProperty] private Plane _plane2 = new(new Vector3(0, 0, -1), 8.01f);
 
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
     private SynchronizationContext context = SynchronizationContext.Current;
 
-    partial void OnZHeightChanged(float value) {
-        Plane1 = new(new Vector3(0, 0, -1), value);
+    private MeshModel _raw_mesh;
+    private MeshModel _smooth_mesh;
+    private Dictionary<int, MeshModel> _contours = [];
+
+    partial void OnZLayerChanged(int value) {
+        //Plane1 = new(new Vector3(0, 0, -1), -value);
+        //Plane2 = new Plane(new Vector3(0, 0, -1), -value - 1f);
+        SetLayer(value);
     }
 
     protected HelixToolkit.Wpf.SharpDX.OrthographicCamera defaultOrthographicCamera = new() {
@@ -67,27 +78,52 @@ public partial class MainViewModel  : ObservableObject
         GridModel.Geometry = GenerateGrid();
         EffectsManager = new DefaultEffectsManager();
 
-        ModelTransform = new TranslateTransform3D(0, 0, ZHeight);
+        ModelTransform = new TranslateTransform3D(0, 0, 0);
+
+        // import smoothed model
+        const string smooth_model_path = """C:\Users\nsmela\source\repos\nsmela\Fabolus\files\ear_bolus_smoothed.stl""";
+        _smooth_mesh = MeshModel.FromFile(smooth_model_path).Result;
+        _smooth_mesh = MeshTools.OrientationCentre(_smooth_mesh);
+        SmoothModel = ToGeometry(_smooth_mesh);
 
         // import model
         const string raw_model_path = """C:\Users\nsmela\source\repos\nsmela\Fabolus\files\ear_bolus.stl""";
-        var mesh = MeshModel.FromFile(raw_model_path).Result;
-        mesh = MeshTools.OrientationCentre(mesh);
-        var model = ToGeometry(mesh);
-        Model = model;
+        _raw_mesh = MeshModel.FromFile(raw_model_path).Result;
+        _raw_mesh = MeshTools.OrientationCentre(_raw_mesh);
+        Model = ToGeometry(_raw_mesh);
 
-        context.Post((o) => {
-            CurrentModel.Clear();
+        SetContourMesh();
+    }
 
-            model.UpdateOctree();
-            model.UpdateBounds();
-            CurrentModel.Add(new MeshGeometryModel3D {
-                Geometry = model,
-                Material = _modelMaterial,
-                Transform = _modelTransform,
-            });
+    private void SetContourMesh() {
+        const float layer_thickness = 1.0f;
+        MinZHeight = (int)(SmoothModel.Bound.Minimum.Z);
+        MaxZHeight = (float)(SmoothModel.Bound.Maximum.Z);
 
-        }, null);
+        var count = (int)((MaxZHeight - MinZHeight) / layer_thickness);
+
+        _contours.Clear();
+        for(int i = 0; i < MaxZHeight; i ++) {
+            try {
+                var height = MinZHeight + (i * layer_thickness);
+                var contour = MeshTools.Contouring.ContourMesh(_smooth_mesh, height);
+                if (!contour.IsEmpty()) {
+                    _contours[i] = contour;
+                }
+            } catch (Exception ex) { } // ignore empty contours
+
+        }
+
+        ZLayer = (int)MinZHeight;
+        SetLayer(0);
+    }
+
+    private void SetLayer(int layer) {
+        if (_contours.TryGetValue(layer, out var mesh)) {
+            ContourMesh = ToGeometry(mesh);
+        } else {
+            ContourMesh = new MeshGeometry3D();
+        }
     }
 
     protected LineGeometry3D GenerateGrid(float minX = -100, float maxX = 100, float minY = -100, float maxY = 100, float spacing = 10) {

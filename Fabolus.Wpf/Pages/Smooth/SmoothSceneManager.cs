@@ -112,15 +112,6 @@ public class SmoothSceneManager : SceneManager {
             //    Skin = _surfaceDistanceSkin,
             //    IsTransparent = false,
             //});
-
-            // TODO: remove. Testing plane generation
-            var plane = MeshTools.PlaneIntersection(boli[1].TransformedMesh(), new double[] { 0, 0, 0 }, new double[] { 0, 0, 1 });
-            models.Add(new DisplayModel3D {
-                Geometry = plane.ToGeometry(),
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Orange,
-                IsTransparent = true,
-            });
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));

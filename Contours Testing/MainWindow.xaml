@@ -15,10 +15,10 @@
 
         <Slider Grid.Column="0" 
                 Orientation="Vertical" 
-                Minimum="-100"
-                Maximum="100"
-                Ticks="0.1"
-                Value="{Binding ZHeight, Mode=TwoWay}"
+                Minimum="{Binding MinZHeight}"
+                Maximum="{Binding MaxZHeight}"
+                Ticks="1"
+                Value="{Binding ZLayer, Mode=TwoWay}"
                 Margin="10"
                 />
 
@@ -44,27 +44,36 @@
             <hx:DirectionalLight3D Direction="0, -1, -1"
                                    Color="White" />
 
-            <hx:CrossSectionMeshGeometryModel3D x:Name="crossModel"
-                CrossSectionColor="Red"
+
+            <hx:MeshGeometryModel3D Geometry="{Binding ContourMesh}"
+                                    Material="{Binding ModelMaterial}"
                 CullMode="Back"
+                IsHitTestVisible="False"
+                Transform="{Binding ContourTransform}" />
+            
+            <hx:CrossSectionMeshGeometryModel3D x:Name="crossModel2"
+                                                Visibility="Hidden"
+                CrossSectionColor="Green"
+                CullMode="Back"
+                CuttingOperation="Intersect"
+                EnablePlane1="True"
+                FillMode="Solid"
+                Geometry="{Binding SmoothModel}"
+                IsHitTestVisible="False"
+                Material="{Binding ModelMaterial}"
+                Plane1="{Binding Plane1}" />
+
+            <hx:CrossSectionMeshGeometryModel3D x:Name="crossModel1"
+                                                Visibility="Hidden"
+                CullMode="Front"
                 CuttingOperation="Intersect"
                 EnablePlane1="True"
                 FillMode="Solid"
                 Geometry="{Binding Model}"
                 IsHitTestVisible="False"
-                Material="{Binding ModelMaterial}"
+                Material="{Binding RawMaterial}"
                 Plane1="{Binding Plane1}" />
 
-            <hx:TransformManipulator3D x:Name="manipulator"
-                SizeScale="5.0"
-                EnableRotation="False"
-                EnableTranslation="True"
-                EnableScaling="False"
-                EnableTranslationX="False"
-                EnableTranslationY="False"
-                                        
-                                       />
-            
         </hx:Viewport3DX>
     </Grid>
 </Window>
