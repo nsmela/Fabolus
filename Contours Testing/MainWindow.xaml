@@ -1,0 +1,55 @@
+﻿<Window x:Class="Contours_Testing.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
+        xmlns:local="clr-namespace:Contours_Testing" 
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <hx:Viewport3DX x:Name="view1"
+                        ShowCameraInfo="True"
+                        ShowViewCube="True"
+                        ModelUpDirection="0, 0, 1"
+                        Title="{Binding Title}"
+                        BackgroundColor="Gray"
+                        Camera="{Binding Camera}"
+                        CoordinateSystemLabelForeground="White"
+                        EffectsManager="{Binding EffectsManager}"
+                        EnableDesignModeRendering="True"
+                        EnableSwapChainRendering="False"
+                        FXAALevel="Medium"
+                        IsShadowMappingEnabled="True"
+                        ShowCoordinateSystem="False"
+                        ShowFrameRate="True"
+                        TextBrush="Black"
+                        UseDefaultGestures="True">
+
+            <hx:AmbientLight3D Color="#828282" />
+            <hx:DirectionalLight3D Direction="0, -1, -1"
+                                   Color="White" />
+
+            <hx:CrossSectionMeshGeometryModel3D x:Name="crossModel"
+                CrossSectionColor="Red"
+                CullMode="Back"
+                CuttingOperation="Intersect"
+                EnablePlane1="True"
+                FillMode="Solid"
+                Geometry="{Binding Model}"
+                IsHitTestVisible="False"
+                Material="{Binding ModelMaterial}"
+                Plane1="{Binding Plane1}" />
+
+            <hx:AxisPlaneGridModel3D Visibility="Hidden"
+                PlaneColor="PaleVioletRed"
+                UpAxis="Z"/>
+            
+        </hx:Viewport3DX>
+    </Grid>
+</Window>

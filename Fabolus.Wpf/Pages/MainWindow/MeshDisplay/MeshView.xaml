@@ -37,7 +37,17 @@
             <hx:AmbientLight3D Color="{Binding AmbientLightColor}" />
             <hx:DirectionalLight3D Direction="{Binding Camera.LookDirection}" Color="{Binding DirectionalLightColor}" />
             
-            <mesh:InteractiveModel3D
+            <hx:CrossSectionMeshGeometryModel3D x:Name="cross_section"
+                Visibility="Visible"
+                CrossSectionColor="BlueViolet"
+                CuttingOperation="Subtract"
+                Geometry="{Binding CuttingModel}"
+                IsHitTestVisible="False"
+                EnablePlane1="False"
+                Material="{Binding CuttingMaterial }"
+                Plane1="{Binding Plane1}" />
+            
+            <mesh:InteractiveModel3D Visibility="Hidden"
                 x:Name="CurrentModel" 
                 ItemsSource="{Binding CurrentModel}"
                 Transform="{Binding MainTransform}" />
@@ -50,6 +60,8 @@
                 Thickness="{Binding Grid.Thickness}"
                 Color="{Binding Grid.Color}"
                 Visibility="{Binding Grid.Visibility}"/>
+
+
         </hx:Viewport3DX>
     </Grid>
 </UserControl>

@@ -14,9 +14,9 @@
             FontWeight="Bold"
             FontFamily="\Fonts\#Poppins" />
         <Slider Value="{Binding DeflateDistance, Mode=TwoWay}"
-            Minimum="0.0" 
-            Maximum="10" 
-            TickFrequency="1.0" 
+            Minimum="0.2" 
+            Maximum="2.0" 
+            TickFrequency="0.2" 
             TickPlacement="TopLeft" 
             IsSnapToTickEnabled="True" 
             Height="30"            

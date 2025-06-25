@@ -106,11 +106,20 @@ public class SmoothSceneManager : SceneManager {
             var geometry = boli[1].Geometry;
             geometry.TextureCoordinates = GetTextureCoordinates(boli[1].Mesh, boli[0].Mesh);
             // smoothed mesh
+            //models.Add(new DisplayModel3D {
+            //    Geometry = geometry,
+            //    Transform = MeshHelper.TransformEmpty,
+            //    Skin = _surfaceDistanceSkin,
+            //    IsTransparent = false,
+            //});
+
+            // TODO: remove. Testing plane generation
+            var plane = MeshTools.PlaneIntersection(boli[1].TransformedMesh(), new double[] { 0, 0, 0 }, new double[] { 0, 0, 1 });
             models.Add(new DisplayModel3D {
-                Geometry = geometry,
+                Geometry = plane.ToGeometry(),
                 Transform = MeshHelper.TransformEmpty,
-                Skin = _surfaceDistanceSkin,
-                IsTransparent = false,
+                Skin = DiffuseMaterials.Orange,
+                IsTransparent = true,
             });
         }
 

@@ -45,10 +45,11 @@ public static partial class MeshTools {
     }
 
 
-    public static Mesh OffsetMesh(Mesh mesh, float offsetDistance) {
+    public static Mesh OffsetMesh(Mesh mesh, float offsetDistance, float cellSize = 0.0f) {
         MeshPart mp = new(mesh);
+
         OffsetParameters parms = new() {
-            voxelSize = Offset.SuggestVoxelSize(mp, 1e6f),
+            voxelSize = cellSize > 0 ? cellSize : Offset.SuggestVoxelSize(mp, 1e6f),
         };
 
         var result = Offset.OffsetMesh(mp, offsetDistance, parms);
@@ -62,6 +63,14 @@ public static partial class MeshTools {
             voxelSize = Offset.SuggestVoxelSize(mp, 1e6f),
         };
 
+        return Offset.DoubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
+    }
+
+    public static Mesh OffsetDouble(Mesh mesh, float offsetDistance, float voxelSize) {
+        MeshPart mp = new(mesh);
+        OffsetParameters parms = new() {
+            voxelSize = voxelSize,
+        };
         return Offset.DoubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
     }
 }
