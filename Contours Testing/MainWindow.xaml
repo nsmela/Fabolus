@@ -45,14 +45,27 @@
                                    Color="White" />
 
 
-            <hx:MeshGeometryModel3D Geometry="{Binding ContourMesh}"
-                                    Material="{Binding ModelMaterial}"
-                CullMode="Back"
+            <!-- Contour meshes -->
+            <hx:MeshGeometryModel3D Geometry="{Binding UnionMesh}"
+                                    Material="{Binding UnionMaterial}"
+                CullMode="None"
                 IsHitTestVisible="False"
                 Transform="{Binding ContourTransform}" />
-            
+
+            <hx:MeshGeometryModel3D Geometry="{Binding BodyMesh}"
+                                    Material="{Binding BodyMaterial}"
+                CullMode="None"
+                IsHitTestVisible="False"
+                Transform="{Binding ContourTransform}" />
+
+            <hx:MeshGeometryModel3D Geometry="{Binding ToolMesh}"
+                                    Material="{Binding ToolMaterial}"
+                CullMode="None"
+                IsHitTestVisible="False"
+                Transform="{Binding ContourTransform}" />
+
             <hx:CrossSectionMeshGeometryModel3D x:Name="crossModel2"
-                                                Visibility="Hidden"
+                Visibility="Visible"
                 CrossSectionColor="Green"
                 CullMode="Back"
                 CuttingOperation="Intersect"
@@ -64,7 +77,7 @@
                 Plane1="{Binding Plane1}" />
 
             <hx:CrossSectionMeshGeometryModel3D x:Name="crossModel1"
-                                                Visibility="Hidden"
+                Visibility="Visible"
                 CullMode="Front"
                 CuttingOperation="Intersect"
                 EnablePlane1="True"

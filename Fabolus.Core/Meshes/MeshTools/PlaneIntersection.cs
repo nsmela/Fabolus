@@ -1,6 +1,8 @@
 ﻿using Fabolus.Core.Extensions;
+using Fabolus.Core.Meshes.PolygonTools;
 using g3;
 using System.Windows.Shapes;
+using static Fabolus.Core.Meshes.PolygonTools.PolygonTools;
 using static MR.DotNet;
 using EdgeLoop = g3.EdgeLoop;
 
@@ -53,27 +55,10 @@ public static partial class MeshTools {
             return contours.ToArray();
         }
 
-        public static MeshModel ContourMesh(DMesh3 mesh, double height) {
+        public static ComparitivePolygon ContourMesh(DMesh3 mesh, DMesh3 tool, double height) {
             if (mesh.IsEmpty()) { throw new ArgumentException("No mesh provided to cut."); }
 
-            var cut_mesh = new DMesh3(mesh);
-            MeshEditor editor = new(new DMesh3());
-            foreach (var loop in CutMesh(cut_mesh, height)) {
-                if (loop.Vertices.Length < 3) { continue; } // Skip loops with less than 3 points
-
-                DCurve3 border_curve = loop.ToCurve(cut_mesh);
-                Polygon2d polygon = new(border_curve.Vertices.Select(v => new Vector2d(v.x, v.y)));
-                TriangulatedPolygonGenerator generator = new() {
-                    Polygon = new GeneralPolygon2d(polygon),
-                };
-
-                var result = generator.Generate().MakeDMesh();
-                editor.AppendMesh(result);
-            }
-            
-            MeshTransforms.Translate(editor.Mesh, new Vector3d(0, 0, height));
-
-            return new MeshModel(editor.Mesh);
+            return PolygonTools.PolygonTools.ComparativeMeshSlice(mesh, tool, height);
         }
 
         private static IEnumerable<EdgeLoop> CutMesh(DMesh3 mesh, double z_height) {

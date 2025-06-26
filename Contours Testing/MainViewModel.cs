@@ -18,6 +18,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
 using System.Xml.Serialization;
+using static Fabolus.Core.Meshes.PolygonTools.PolygonTools;
 using static g3.SetGroupBehavior;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 
@@ -27,7 +28,16 @@ public partial class MainViewModel  : ObservableObject
 {
     [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _model = new();
     [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _smoothModel = new();
-    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _contourMesh = new();
+
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _unionMesh = new();
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _bodyMesh = new();
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.MeshGeometry3D _toolMesh = new();
+
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _unionMaterial = PhongMaterials.Green;
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _bodyMaterial = PhongMaterials.Blue;
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _toolMaterial = PhongMaterials.Red;
+
+
     [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _modelMaterial = PhongMaterials.Blue;
     [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _rawMaterial = DiffuseMaterials.Ruby;
     [ObservableProperty] private System.Windows.Media.Media3D.Transform3D _modelTransform;
@@ -48,7 +58,7 @@ public partial class MainViewModel  : ObservableObject
 
     private MeshModel _raw_mesh;
     private MeshModel _smooth_mesh;
-    private Dictionary<int, MeshModel> _contours = [];
+    private Dictionary<int, ComparitivePolygon> _contours = [];
 
     partial void OnZLayerChanged(int value) {
         //Plane1 = new(new Vector3(0, 0, -1), -value);
@@ -96,33 +106,40 @@ public partial class MainViewModel  : ObservableObject
     }
 
     private void SetContourMesh() {
-        const float layer_thickness = 1.0f;
-        MinZHeight = (int)(SmoothModel.Bound.Minimum.Z);
-        MaxZHeight = (float)(SmoothModel.Bound.Maximum.Z);
+        MinZHeight = (int)(SmoothModel.Bound.Minimum.Z + 1 );
+        MaxZHeight = (int)(SmoothModel.Bound.Maximum.Z - 1);
 
-        var count = (int)((MaxZHeight - MinZHeight) / layer_thickness);
+        int count = (int)(MaxZHeight - MinZHeight);
 
         _contours.Clear();
+        double height = 0.0;
+        ComparitivePolygon? polygon;
         for(int i = 0; i < MaxZHeight; i ++) {
             try {
-                var height = MinZHeight + (i * layer_thickness);
-                var contour = MeshTools.Contouring.ContourMesh(_smooth_mesh, height);
-                if (!contour.IsEmpty()) {
-                    _contours[i] = contour;
-                }
+                height = MinZHeight + i ;
+                polygon = MeshTools.Contouring.ContourMesh(_smooth_mesh, _raw_mesh, height);
+                if (polygon is null) { continue; }
+
+                _contours[i] = polygon;
+                
             } catch (Exception ex) { } // ignore empty contours
 
         }
 
-        ZLayer = (int)MinZHeight;
-        SetLayer(0);
+        ZLayer = count / 2;
+        SetLayer(ZLayer);
     }
 
     private void SetLayer(int layer) {
-        if (_contours.TryGetValue(layer, out var mesh)) {
-            ContourMesh = ToGeometry(mesh);
+        if (_contours.TryGetValue(layer, out var polygon)) {
+            UnionMesh = ToGeometry(polygon.UnionMesh);
+            BodyMesh = ToGeometry(polygon.BodyMesh);
+            ToolMesh = ToGeometry(polygon.ToolMesh);
+
         } else {
-            ContourMesh = new MeshGeometry3D();
+            UnionMesh = new();
+            BodyMesh = new();
+            ToolMesh = new();
         }
     }
 
