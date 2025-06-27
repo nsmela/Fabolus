@@ -22,6 +22,15 @@ public partial class SmoothingViewModel : BaseViewModel {
     #region Properties and Events
 
     [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new MarchingCubesViewModel();
+    [ObservableProperty] private double _minHeight;
+    [ObservableProperty] private double _maxHeight;
+    [ObservableProperty] private double _currentHeight;
+    [ObservableProperty] private bool _showHeightSlider = false;
+
+    partial void OnCurrentHeightChanged(double value) {
+
+        //Send message to set contour at the current height
+    }
 
     private BolusModel? _bolus;
     private bool _is_busy = false;

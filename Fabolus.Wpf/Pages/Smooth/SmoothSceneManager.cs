@@ -105,13 +105,12 @@ public class SmoothSceneManager : SceneManager {
         if (boli.Length == 2) { 
             var geometry = boli[1].Geometry;
             geometry.TextureCoordinates = GetTextureCoordinates(boli[1].Mesh, boli[0].Mesh);
-            // smoothed mesh
-            //models.Add(new DisplayModel3D {
-            //    Geometry = geometry,
-            //    Transform = MeshHelper.TransformEmpty,
-            //    Skin = _surfaceDistanceSkin,
-            //    IsTransparent = false,
-            //});
+            models.Add(new DisplayModel3D {
+                Geometry = geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = _surfaceDistanceSkin,
+                IsTransparent = false,
+            });
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
