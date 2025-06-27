@@ -25,8 +25,8 @@ public class MarchingCubesSmoothing {
         if (deflateDistance > 0) {
             for (int i = 0; i < iterations; i++) {
                 //model = MeshTools.OffsetDouble(model, deflateDistance, cell_size);
-                model = MeshTools.OffsetMesh(model, -deflateDistance, cell_size);
                 model = MeshTools.OffsetMesh(model, deflateDistance, cell_size);
+                model = MeshTools.OffsetMesh(model, -deflateDistance, cell_size);
             }
         }
 

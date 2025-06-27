@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.MeshTools;
+using Fabolus.Core.Meshes.PolygonTools;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Mesh;
@@ -8,16 +9,21 @@ using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
+using static Fabolus.Core.Meshes.PolygonTools.PolygonTools;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Smooth;
 
 public class SmoothSceneManager : SceneManager {
     private Material _surfaceDistanceSkin;
+    private ComparitivePolygon? contour;
+    private ViewModes _view = ViewModes.None;
 
     public SmoothSceneManager() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(null));
+        WeakReferenceMessenger.Default.Register<SmoothingContourMessage>(this, (r, m) => UpdateContour(m.Height));
+        WeakReferenceMessenger.Default.Register<SmoothingViewModeMessage>(this, (r, m) => UpdateView(m.ViewMode));
 
         SetDistancesTexture();
         UpdateDisplay(null);
@@ -32,10 +38,10 @@ public class SmoothSceneManager : SceneManager {
         var excessColor = new Color4(0, 0, 1, 1); // blue for excess material
 
         List<Color4> colors = [
-            ..GetGradients(faultColor, warningColor, 20), //bottom end, too far within
-            ..GetGradients(warningColor, defaultColor, 20), //warning color transition
-            ..GetGradients(defaultColor, passColor, 20), //fault color transition, upper angle setting
-            ..GetGradients(passColor, excessColor, 20), //fault color section, ends at 90 degrees
+            ..GetGradients(faultColor, warningColor, 30), //bottom end, too far within
+            ..GetGradients(warningColor, defaultColor, 30), //warning color transition
+            ..GetGradients(defaultColor, passColor, 30), //fault color transition
+            ..GetGradients(passColor, excessColor, 30), //fault color section
         ];
 
         _surfaceDistanceSkin = new ColorStripeMaterial {
@@ -82,6 +88,18 @@ public class SmoothSceneManager : SceneManager {
         return coordinates;
     }
 
+    private void UpdateContour(double height) {
+        contour = null;
+        var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        if (boli is null || boli.Length < 2) { return; }
+
+        var result = PolygonTools.ComparativeMeshSlice(boli[0].TransformedMesh(), boli[1].TransformedMesh(), height);
+        if (result is null || result.UnionMesh.IsEmpty()) { return; }
+        contour = result;
+
+        UpdateDisplay(null);
+    }
+
     protected override void UpdateDisplay(BolusModel? bolus) {
         // get all of the current bolus
         var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
@@ -91,6 +109,7 @@ public class SmoothSceneManager : SceneManager {
         }
 
         var models = new List<DisplayModel3D>();
+
         if (boli.Length == 1) { // just the raw file
             var model = new DisplayModel3D {
                 Geometry = boli[0].Geometry,
@@ -99,10 +118,24 @@ public class SmoothSceneManager : SceneManager {
             };
 
             models.Add(model);
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+            return;
         }
 
-        //show smoothed mesh
-        if (boli.Length == 2) { 
+        if (_view == ViewModes.None) {
+            var geometry = boli[1].Geometry;
+            models.Add(new DisplayModel3D {
+                Geometry = geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = PhongMaterials.Green,
+                IsTransparent = false,
+            });
+
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+            return;
+        }
+
+        if (_view == ViewModes.DistanceHeatMap) {
             var geometry = boli[1].Geometry;
             geometry.TextureCoordinates = GetTextureCoordinates(boli[1].Mesh, boli[0].Mesh);
             models.Add(new DisplayModel3D {
@@ -111,10 +144,53 @@ public class SmoothSceneManager : SceneManager {
                 Skin = _surfaceDistanceSkin,
                 IsTransparent = false,
             });
+
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+            return;
         }
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+        if (_view == ViewModes.Contouring) {
 
+            // show transparent smoothed model
+            models.Add(new DisplayModel3D {
+                Geometry = boli[1].Geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = PhongMaterials.Emerald,
+                IsTransparent = true,
+            });
+
+
+            // show contours
+            if (contour is not null) {
+                models.Add(new DisplayModel3D {
+                    Geometry = contour.UnionMesh.ToGeometry(),
+                    Transform = MeshHelper.TransformEmpty,
+                    Skin = PhongMaterials.Green,
+                });
+
+                models.Add(new DisplayModel3D {
+                    Geometry = contour.BodyMesh.ToGeometry(),
+                    Transform = MeshHelper.TransformEmpty,
+                    Skin = PhongMaterials.Red,
+                });
+
+                models.Add(new DisplayModel3D {
+                    Geometry = contour.ToolMesh.ToGeometry(),
+                    Transform = MeshHelper.TransformEmpty,
+                    Skin = PhongMaterials.Blue,
+                });
+            }
+
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+    
+        }
+
+
+    }
+
+    private void UpdateView(ViewModes view) {
+        _view = view;
+        UpdateDisplay(null);
     }
 
 

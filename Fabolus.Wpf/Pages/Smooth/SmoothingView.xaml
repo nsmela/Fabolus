@@ -17,14 +17,17 @@
 
             <ContentControl Content="{Binding SetSmoothingViewModel}"/>
 
-            <Label Content="contour z height" 
+            <Label Content="view setting" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"/>
 
-        
+            <ComboBox 
+                ItemsSource="{Binding Views}"
+                SelectedItem="{Binding View}"/>
+
             <Button Content="apply" 
                     Height="30" Margin="4"
                     HorizontalAlignment="Stretch"
@@ -45,7 +48,7 @@
 
         <Slider Orientation="Vertical" 
                 Margin="4, 6, 8, 6"
-                Visibility="{Binding ShowHeightSlider, Converter={StaticResource BoolToVis}, FallbackValue=Hidden}"
+                Visibility="{Binding Path=ShowHeightSlider, Converter={StaticResource BoolToVis}, FallbackValue=Visible}"
                 Minimum="{Binding MinHeight}"
                 Maximum="{Binding MaxHeight}"
                 Value="{Binding CurrentHeight}"

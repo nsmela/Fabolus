@@ -31,13 +31,11 @@ public static partial class PolygonTools {
         var union_mesh = solution.ToMesh();
         MeshTransforms.Translate(union_mesh, Vector3d.AxisZ * height);
 
-        PathsD body_result = Clipper.Difference(body_paths, solution, FillRule.NonZero, precision);
         var body_mesh = body_paths.ToMesh();
-        MeshTransforms.Translate(body_mesh, Vector3d.AxisZ * (height - 0.01));
+        MeshTransforms.Translate(body_mesh, Vector3d.AxisZ * (height - 0.1));
 
-        PathsD tool_result = Clipper.Difference(tool_paths, solution, fillRule, precision);
         var tool_mesh = tool_paths.ToMesh();
-        MeshTransforms.Translate(tool_mesh, Vector3d.AxisZ * (height - 0.02));
+        MeshTransforms.Translate(tool_mesh, Vector3d.AxisZ * (height - 0.2));
 
         return new() {
             BodyMesh = new MeshModel(body_mesh),

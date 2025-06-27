@@ -27,18 +27,38 @@ public partial class SmoothingViewModel : BaseViewModel {
     [ObservableProperty] private double _currentHeight;
     [ObservableProperty] private bool _showHeightSlider = false;
 
-    partial void OnCurrentHeightChanged(double value) {
+    //View control box
+    [ObservableProperty] private IEnumerable<ViewModes> _views = Enum.GetValues(typeof(ViewModes)).Cast<ViewModes>();
+    [ObservableProperty] private ViewModes _view = ViewModes.None;
 
+    partial void OnCurrentHeightChanged(double value) {
         //Send message to set contour at the current height
+        WeakReferenceMessenger.Default.Send(new SmoothingContourMessage(value));
     }
 
-    private BolusModel? _bolus;
-    private bool _is_busy = false;
+    partial void OnViewChanged(ViewModes oldValue, ViewModes newValue) {
+        WeakReferenceMessenger.Default.Send(new SmoothingViewModeMessage(newValue));
+    }
+
+    private void UpdateSlider() {
+        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+        if (bolus is null || bolus.Mesh.IsEmpty() || bolus.BolusType != BolusType.Smooth) {
+            ShowHeightSlider = false;
+            return;
+        }
+
+        MinHeight = (int)bolus.Mesh.Mesh.CachedBounds.Min.z + 1;
+        MaxHeight = (int)bolus.Mesh.Mesh.CachedBounds.Max.z - 1;
+        CurrentHeight = (MinHeight + MaxHeight) / 2; //set to middle of the range
+
+        ShowHeightSlider = true;
+
+    }
 
     #endregion
 
     public SmoothingViewModel() {
-        _bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        UpdateSlider();
 
     }
 
@@ -46,17 +66,22 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     [RelayCommand]
     public async Task Smooth() {
-        if (_bolus is null || _bolus.Mesh.IsEmpty()) {
+        BolusModel[] boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        if (boli is null || boli.Length == 0 || boli[0].Mesh.IsEmpty()) {
             ErrorMessage("Smoothing Error", "Unable to smooth an empty model");
             return; 
         }
-        BolusModel[] bolus = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
-        var smoothedBolus = await Task.Run(() => SetSmoothingViewModel.SmoothBolus(bolus[0]));
+        var smoothedBolus = await Task.Run(() => SetSmoothingViewModel.SmoothBolus(boli[0]));
 
         WeakReferenceMessenger.Default.Send(new AddBolusMessage(smoothedBolus, BolusType.Smooth));
+        UpdateSlider();
     }
 
-    [RelayCommand] private void ClearSmoothed() => WeakReferenceMessenger.Default.Send(new ClearBolusMessage(BolusType.Smooth));
+    [RelayCommand]
+    private void ClearSmoothed() {
+        WeakReferenceMessenger.Default.Send(new ClearBolusMessage(BolusType.Smooth));
+        UpdateSlider();
+    }
 
     #endregion
 
