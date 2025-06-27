@@ -16,7 +16,7 @@ public class Bolus {
     public MeshModel Mesh { get; set; }
 
     public double Volume => Mesh.Volume;
-
+    public string VolumeToText => Volume.ToString("N2") + " cm³"; // Format volume to 2 decimal places
     #endregion
 
     #region Constructors

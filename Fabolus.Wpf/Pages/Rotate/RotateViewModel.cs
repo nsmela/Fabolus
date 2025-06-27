@@ -3,9 +3,11 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Pages.MainWindow;
 using SharpDX;
 
 using static Fabolus.Wpf.Bolus.BolusStore;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 
@@ -31,7 +33,10 @@ public partial class RotateViewModel : BaseViewModel {
         YAxisAngle = 0.0f;
         ZAxisAngle = 0.0f;
         _isLocked = false;
+    }
 
+    public RotateViewModel() {
+        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(string.Empty));
     }
 
     private void SendTempRotation(Vector3 axis, float angle) {

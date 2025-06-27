@@ -4,10 +4,12 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Pages.MainWindow;
 using Fabolus.Wpf.Pages.Smooth.Laplacian;
 using Fabolus.Wpf.Pages.Smooth.Marching_Cubes;
 using Fabolus.Wpf.Pages.Smooth.Poisson;
 using System;
+using System.IO;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using static MR.DotNet.FixMeshDegeneraciesParams;
 
@@ -70,11 +72,27 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     }
 
+    private void UpdateMeshText() {
+        BolusModel[] boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        if (boli is null || boli.Length == 0) {
+            WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage("No bolus loaded."));
+            return;
+        }
+        var filepath = boli[0].Filepath.Split(Path.DirectorySeparatorChar).LastOrDefault() ?? "Unknown Filepath";
+        var text = $"Filepath:\r\n   {filepath}\r\nVolume[Original]:\r\n   {boli[0].VolumeToText}";
+
+        if (boli.Length > 1 && boli[1].BolusType == BolusType.Smooth) {
+            text += $"\r\nVolume[Smoothed]:\r\n   {boli[1].VolumeToText}";
+        }
+
+        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(text));
+    }
+
     #endregion
 
     public SmoothingViewModel() {
         UpdateSlider();
-
+        UpdateMeshText();
     }
 
     #region Commands
@@ -90,12 +108,14 @@ public partial class SmoothingViewModel : BaseViewModel {
 
         WeakReferenceMessenger.Default.Send(new AddBolusMessage(smoothedBolus, BolusType.Smooth));
         UpdateSlider();
+        UpdateMeshText();
     }
 
     [RelayCommand]
     private void ClearSmoothed() {
         WeakReferenceMessenger.Default.Send(new ClearBolusMessage(BolusType.Smooth));
         UpdateSlider();
+        UpdateMeshText();
     }
 
     #endregion
