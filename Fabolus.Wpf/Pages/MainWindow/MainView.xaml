@@ -51,7 +51,7 @@
             <Button Content="channels" IsEnabled="{Binding MeshLoaded}"
                     Command="{Binding SwitchToAirChannelViewCommand}"
                     Width="72" Margin="1"/>
-            <Button Content="mold" IsEnabled="{Binding MeshLoaded}"
+            <Button Content="mould" IsEnabled="{Binding MeshLoaded}"
                     Command="{Binding SwitchToMoldViewCommand}"
                     Width="72" Margin="1"/>
             <Button Content="export" IsEnabled="{Binding MeshLoaded}"
