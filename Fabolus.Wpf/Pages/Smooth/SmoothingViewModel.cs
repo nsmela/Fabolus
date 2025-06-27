@@ -7,7 +7,9 @@ using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.Smooth.Laplacian;
 using Fabolus.Wpf.Pages.Smooth.Marching_Cubes;
 using Fabolus.Wpf.Pages.Smooth.Poisson;
+using System;
 using static Fabolus.Wpf.Bolus.BolusStore;
+using static MR.DotNet.FixMeshDegeneraciesParams;
 
 namespace Fabolus.Wpf.Pages.Smooth;
 
@@ -39,6 +41,19 @@ public partial class SmoothingViewModel : BaseViewModel {
     partial void OnViewChanged(ViewModes oldValue, ViewModes newValue) {
         WeakReferenceMessenger.Default.Send(new SmoothingViewModeMessage(newValue));
     }
+
+    // smoothing type
+    [ObservableProperty] private int _smoothingTypeIndex = 0;
+    partial void OnSmoothingTypeIndexChanged(int value) {
+        SetSmoothingViewModel = GetView(value);
+    }
+
+    private BaseSmoothingToolViewModel GetView(int index) => index switch {
+        0 => new PoissonViewModel(),
+        1 => new MarchingCubesViewModel(),
+        2 => new LaplacianViewModel(),
+        _ => throw new IndexOutOfRangeException("Index out of range")
+    };
 
     private void UpdateSlider() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
