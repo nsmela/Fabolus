@@ -16,6 +16,7 @@
              xmlns:mould="clr-namespace:Fabolus.Wpf.Pages.Mould"
              xmlns:mouldviews="clr-namespace:Fabolus.Wpf.Pages.Mould.Views"
              xmlns:export="clr-namespace:Fabolus.Wpf.Pages.Export"
+             xmlns:split="clr-namespace:Fabolus.Wpf.Pages.Split"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -86,6 +87,10 @@
                 <export:ExportView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type split:SplitViewModel}">
+                <split:SplitView />
+            </DataTemplate>
+            
         </ResourceDictionary>
     </Application.Resources>
 </Application>

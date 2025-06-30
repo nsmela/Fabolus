@@ -54,6 +54,9 @@
             <Button Content="mold" IsEnabled="{Binding MeshLoaded}"
                     Command="{Binding SwitchToMoldViewCommand}"
                     Width="72" Margin="1"/>
+            <Button Content="split" IsEnabled="{Binding MeshLoaded}"
+                    Command="{Binding SwitchToSplitViewCommand}"
+                    Width="72" Margin="1"/>
             <Button Content="export" IsEnabled="{Binding MeshLoaded}"
                     Command="{Binding SwitchToExportViewCommand}"
                     Width="72" Margin="1"/>

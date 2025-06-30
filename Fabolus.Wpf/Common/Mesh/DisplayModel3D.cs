@@ -5,4 +5,5 @@ public record struct DisplayModel3D(
     HelixToolkit.Wpf.SharpDX.Material Skin, 
     System.Windows.Media.Media3D.Transform3D Transform,
     bool IsTransparent = false,
-    bool ShowWireframe = false);
+    bool ShowWireframe = false
+    );

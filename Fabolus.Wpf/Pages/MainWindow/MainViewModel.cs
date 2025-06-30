@@ -23,6 +23,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using HelixToolkit.Wpf.SharpDX.Utilities;
 using System.Windows.Controls;
+using Fabolus.Wpf.Pages.Split;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
@@ -86,6 +87,7 @@ public partial class MainViewModel : ObservableObject {
     [RelayCommand] public async Task SwitchToSmoothingView() => NavigateTo(new SmoothingViewModel());
     [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new ChannelsViewModel());
     [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MouldViewModel());
+    [RelayCommand] public async Task SwitchToSplitView() => NavigateTo(new SplitViewModel());
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());
 
     [RelayCommand] public async Task ToggleWireframe() =>
