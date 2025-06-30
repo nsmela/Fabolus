@@ -31,6 +31,7 @@
                 <ComboBoxItem IsSelected="True">Poisson</ComboBoxItem>
                 <ComboBoxItem>Marching Cubes</ComboBoxItem>
                 <ComboBoxItem>Laplacian</ComboBoxItem>
+                <ComboBoxItem>Weighted Offets</ComboBoxItem>
             </ComboBox>
             
             <ContentControl Content="{Binding SetSmoothingViewModel}"/>

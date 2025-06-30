@@ -1,4 +1,5 @@
-﻿using g3;
+﻿using Fabolus.Core.Smoothing;
+using g3;
 
 namespace Fabolus.Core.Meshes.MeshTools;
 
@@ -206,7 +207,7 @@ public class MeshOffsetSignedDistanceGrid {
         Vector3d xp = Vector3d.Zero, xq = Vector3d.Zero, xr = Vector3d.Zero;
         Vector3d c = cell_center(idx);
         Mesh.GetTriVertices(tid, ref xp, ref xq, ref xr);
-        return (float)point_triangle_distance(ref c, ref xp, ref xq, ref xr);
+        return (float)point_triangle_distance(ref c, ref xp, ref xq, ref xr, WeightedOffsets[tid]);
     }
 
 
@@ -238,9 +239,6 @@ public class MeshOffsetSignedDistanceGrid {
                 break;
             Mesh.GetTriVertices(tid, ref xp, ref xq, ref xr);
 
-            //get weighted_offset value
-            offset = WeightedOffsets[tid];
-
             // real ijk coordinates of xp/xq/xr
             double fip = (xp[0] - ox) / ddx, fjp = (xp[1] - oy) / ddx, fkp = (xp[2] - oz) / ddx;
             double fiq = (xq[0] - ox) / ddx, fjq = (xq[1] - oy) / ddx, fkq = (xq[2] - oz) / ddx;
@@ -260,7 +258,7 @@ public class MeshOffsetSignedDistanceGrid {
                 for (int j = j0; j <= j1; ++j) {
                     for (int i = i0; i <= i1; ++i) {
                         Vector3d gx = new Vector3d((float)i * dx + origin[0], (float)j * dx + origin[1], (float)k * dx + origin[2]);
-                        float d = (float)point_triangle_distance(ref gx, ref xp, ref xq, ref xr) * offset;
+                        float d = (float)point_triangle_distance(ref gx, ref xp, ref xq, ref xr, WeightedOffsets[tid]);
                         if (d < distances[i, j, k]) {
                             distances[i, j, k] = d;
                             closest_tri[i, j, k] = tid;
@@ -377,7 +375,7 @@ public class MeshOffsetSignedDistanceGrid {
 
                     for (int i = i0; i <= i1; ++i) {
                         Vector3d gx = new Vector3d((float)i * dx + origin[0], (float)j * dx + origin[1], (float)k * dx + origin[2]);
-                        float d = (float)point_triangle_distance(ref gx, ref xp, ref xq, ref xr);
+                        float d = (float)point_triangle_distance(ref gx, ref xp, ref xq, ref xr, WeightedOffsets[tid]);
                         if (d < distances[i, j, k]) {
                             int lock_idx = base_idx | ((i < wi) ? 0 : 4);
                             bool taken = false;
@@ -806,7 +804,7 @@ public class MeshOffsetSignedDistanceGrid {
         if (closest_tri[i1, j1, k1] >= 0) {
             Vector3d xp = Vector3f.Zero, xq = Vector3f.Zero, xr = Vector3f.Zero;
             Mesh.GetTriVertices(closest_tri[i1, j1, k1], ref xp, ref xq, ref xr);
-            float d = (float)point_triangle_distance(ref gx, ref xp, ref xq, ref xr);
+            float d = (float)point_triangle_distance(ref gx, ref xp, ref xq, ref xr, WeightedOffsets[closest_tri[i1, j1, k1]]);
             if (d < phi[i0, j0, k0]) {
                 phi[i0, j0, k0] = d;
                 closest_tri[i0, j0, k0] = closest_tri[i1, j1, k1];
@@ -970,33 +968,33 @@ public class MeshOffsetSignedDistanceGrid {
 
 
     // find distance x0 is from triangle x1-x2-x3
-    static public float point_triangle_distance(ref Vector3f x0, ref Vector3f x1, ref Vector3f x2, ref Vector3f x3) {
-        // first find barycentric coordinates of closest point on infinite plane
-        Vector3f x13 = (x1 - x3);
-        Vector3f x23 = (x2 - x3);
-        Vector3f x03 = (x0 - x3);
-        float m13 = x13.LengthSquared, m23 = x23.LengthSquared, d = x13.Dot(x23);
-        float invdet = 1.0f / Math.Max(m13 * m23 - d * d, 1e-30f);
-        float a = x13.Dot(x03), b = x23.Dot(x03);
-        // the barycentric coordinates themselves
-        float w23 = invdet * (m23 * a - d * b);
-        float w31 = invdet * (m13 * b - d * a);
-        float w12 = 1 - w23 - w31;
-        if (w23 >= 0 && w31 >= 0 && w12 >= 0) { // if we're inside the triangle
-            return x0.Distance(w23 * x1 + w31 * x2 + w12 * x3);
-        } else { // we have to clamp to one of the edges
-            if (w23 > 0) // this rules out edge 2-3 for us
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x1, ref x3));
-            else if (w31 > 0) // this rules out edge 1-3
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x2, ref x3));
-            else // w12 must be >0, ruling out edge 1-2
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x3), point_segment_distance(ref x0, ref x2, ref x3));
-        }
-    }
+    //static public float point_triangle_distance(ref Vector3f x0, ref Vector3f x1, ref Vector3f x2, ref Vector3f x3) {
+    //    // first find barycentric coordinates of closest point on infinite plane
+    //    Vector3f x13 = (x1 - x3);
+    //    Vector3f x23 = (x2 - x3);
+    //    Vector3f x03 = (x0 - x3);
+    //    float m13 = x13.LengthSquared, m23 = x23.LengthSquared, d = x13.Dot(x23);
+    //    float invdet = 1.0f / Math.Max(m13 * m23 - d * d, 1e-30f);
+    //    float a = x13.Dot(x03), b = x23.Dot(x03);
+    //    // the barycentric coordinates themselves
+    //    float w23 = invdet * (m23 * a - d * b);
+    //    float w31 = invdet * (m13 * b - d * a);
+    //    float w12 = 1 - w23 - w31;
+    //    if (w23 >= 0 && w31 >= 0 && w12 >= 0) { // if we're inside the triangle
+    //        return x0.Distance(w23 * x1 + w31 * x2 + w12 * x3);
+    //    } else { // we have to clamp to one of the edges
+    //        if (w23 > 0) // this rules out edge 2-3 for us
+    //            return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x1, ref x3));
+    //        else if (w31 > 0) // this rules out edge 1-3
+    //            return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x2, ref x3));
+    //        else // w12 must be >0, ruling out edge 1-2
+    //            return Math.Min(point_segment_distance(ref x0, ref x1, ref x3), point_segment_distance(ref x0, ref x2, ref x3));
+    //    }
+    //}
 
 
     // find distance x0 is from triangle x1-x2-x3
-    static public double point_triangle_distance(ref Vector3d x0, ref Vector3d x1, ref Vector3d x2, ref Vector3d x3) {
+    static public double point_triangle_distance(ref Vector3d x0, ref Vector3d x1, ref Vector3d x2, ref Vector3d x3, double offset) {
         // first find barycentric coordinates of closest point on infinite plane
         Vector3d x13 = (x1 - x3);
         Vector3d x23 = (x2 - x3);
@@ -1009,14 +1007,14 @@ public class MeshOffsetSignedDistanceGrid {
         double w31 = invdet * (m13 * b - d * a);
         double w12 = 1 - w23 - w31;
         if (w23 >= 0 && w31 >= 0 && w12 >= 0) { // if we're inside the triangle
-            return x0.Distance(w23 * x1 + w31 * x2 + w12 * x3);
+            return x0.Distance(w23 * x1 + w31 * x2 + w12 * x3) + offset;
         } else { // we have to clamp to one of the edges
             if (w23 > 0) // this rules out edge 2-3 for us
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x1, ref x3));
+                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x1, ref x3)) + offset;
             else if (w31 > 0) // this rules out edge 1-3
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x2, ref x3));
+                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x2, ref x3)) + offset;
             else // w12 must be >0, ruling out edge 1-2
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x3), point_segment_distance(ref x0, ref x2, ref x3));
+                return Math.Min(point_segment_distance(ref x0, ref x1, ref x3), point_segment_distance(ref x0, ref x2, ref x3)) + offset;
         }
     }
 
