@@ -5,6 +5,10 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
              mc:Ignorable="d" >
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+    
     <GroupBox  x:Name="view"
             Header="Mesh Info" 
             BorderBrush="Black" 
@@ -13,12 +17,10 @@
             Margin="0,8,10,0" 
             HorizontalAlignment="Right" 
             VerticalAlignment="Top" 
+            Visibility="{Binding Path=IsVisible, Converter={StaticResource BoolToVis}, FallbackValue=Visible}"
             >
         <StackPanel Orientation="Vertical" Width="140" MinWidth="140" MaxWidth="200" >
-            <Label Content="File Name" Margin="0,-8,0,0"/>
-            <Label Content="{Binding FileName}" Margin="10,-8,0,0"/>
-            <Label Content="Volume(s)" Margin="0,-8,0,0"/>
-            <Label Content="{Binding VolumeText}" Margin="10,-8,0,0"/>
+            <Label Content="{Binding MeshInfoText}" Margin="10,-8,0,0"/>
         </StackPanel>
     </GroupBox>
 </UserControl>

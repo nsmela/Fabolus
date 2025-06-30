@@ -10,8 +10,8 @@ namespace Fabolus.Core.Smoothing;
 public record struct PoissonSettings(int Depth, float Scale, int SamplesPerNode, float EdgeLength);
 
 public class PoissonSmoothing {
-    private static string BASE_DIRECTORY = AppDomain.CurrentDomain.BaseDirectory + @"\Files\";
-    private static string TEMP_FOLDER = BASE_DIRECTORY + @"\temp\";
+    private static string BASE_DIRECTORY = AppDomain.CurrentDomain.BaseDirectory + @"Files\";
+    private static string TEMP_FOLDER = BASE_DIRECTORY + @"temp\";
     private static string RECONSTRUCTOR_FILE_PATH = BASE_DIRECTORY + @"PoissonRecon.exe";
 
     private static void ErrorMessage(string title, string message) {

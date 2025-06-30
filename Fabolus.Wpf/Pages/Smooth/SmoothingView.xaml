@@ -9,37 +9,70 @@
              d:DesignHeight="450" d:DesignWidth="200">
 
     <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="ShowSmoothSettings" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
-    
-    <StackPanel Orientation="Vertical" Margin="4" Width="160">
 
-        <ContentControl Content="{Binding SetSmoothingViewModel}"/>
+    <StackPanel Orientation="Horizontal">
+        <StackPanel Orientation="Vertical" Margin="4" Width="160">
 
-        <Label Content="contour z height" 
-            HorizontalAlignment="Center" 
-            VerticalAlignment="Center"
-            FontSize="12" 
+            <Label Content="smoothing type" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+            
+            <ComboBox
+            SelectedIndex="{Binding SmoothingTypeIndex}"
+            Margin="4"
+            FontSize="14"
             FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins"/>
+            FontFamily="\Fonts\#Poppins">
+                <ComboBoxItem IsSelected="True">Poisson</ComboBoxItem>
+                <ComboBoxItem>Marching Cubes</ComboBoxItem>
+                <ComboBoxItem>Laplacian</ComboBoxItem>
+                <ComboBoxItem>Weighted Offets</ComboBoxItem>
+            </ComboBox>
+            
+            <ContentControl Content="{Binding SetSmoothingViewModel}"/>
 
+            <Label Content="view setting" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+            <ComboBox 
+                ItemsSource="{Binding Views}"
+                SelectedItem="{Binding View}"/>
+
+            <Button Content="apply" 
+                    Height="30" Margin="4"
+                    HorizontalAlignment="Stretch"
+                    FontSize="14" 
+                    FontWeight="Bold"
+                    FontFamily="\Fonts\#Poppins"
+                    Command="{Binding SmoothCommand}" />
+
+            <Button Content="clear" 
+                    Height="30" Margin="4"
+                    HorizontalAlignment="Stretch"
+                    FontSize="14" 
+                    FontWeight="Bold"
+                    FontFamily="\Fonts\#Poppins"
+                    Command="{Binding ClearSmoothedCommand}" />
+
+        </StackPanel>
+
+        <Slider Orientation="Vertical" 
+                Margin="4, 6, 8, 6"
+                Visibility="{Binding Path=ShowHeightSlider, Converter={StaticResource BoolToVis}, FallbackValue=Visible}"
+                Minimum="{Binding MinHeight}"
+                Maximum="{Binding MaxHeight}"
+                Value="{Binding CurrentHeight}"
+                TickFrequency="1.0"
+                />
         
-        <Button Content="apply" 
-                Height="30" Margin="4"
-                HorizontalAlignment="Stretch"
-                FontSize="14" 
-                FontWeight="Bold"
-                FontFamily="\Fonts\#Poppins"
-                Command="{Binding SmoothCommand}" />
-
-        <Button Content="clear" 
-                Height="30" Margin="4"
-                HorizontalAlignment="Stretch"
-                FontSize="14" 
-                FontWeight="Bold"
-                FontFamily="\Fonts\#Poppins"
-                Command="{Binding ClearSmoothedCommand}" />
-
     </StackPanel>
-
 </UserControl>

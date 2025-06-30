@@ -13,6 +13,7 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
     public MeshGeometry3D Geometry { get; set; }
     public BolusTransform Transform { get; set; } = new();
     public Vector3 TranslateOffset { get; set; } = Vector3.Zero;
+    public string? Filepath { get; init; } = null;
 
     #region Constructors
 

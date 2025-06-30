@@ -7,6 +7,7 @@ using Fabolus.Wpf.Common.Helpers;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
+using Fabolus.Wpf.Pages.MainWindow;
 using System.Windows.Controls;
 
 namespace Fabolus.Wpf.Pages.Channels;
@@ -56,6 +57,8 @@ public partial class ChannelsViewModel : BaseViewModel {
 
         CurrentType = _settings.SelectedType; //set active index and generates view model
         CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
+
+        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(string.Empty));
     }
 
     public override void Dispose() {

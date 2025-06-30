@@ -9,6 +9,7 @@
              xmlns:poisson="clr-namespace:Fabolus.Wpf.Pages.Smooth.Poisson"
              xmlns:marching="clr-namespace:Fabolus.Wpf.Pages.Smooth.Marching_Cubes"
              xmlns:laplacian="clr-namespace:Fabolus.Wpf.Pages.Smooth.Laplacian"
+             xmlns:weighted="clr-namespace:Fabolus.Wpf.Pages.Smooth.WeightedOffsets"
              xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
              xmlns:channels="clr-namespace:Fabolus.Wpf.Pages.Channels"
              xmlns:straight="clr-namespace:Fabolus.Wpf.Pages.Channels.Straight"
@@ -59,6 +60,10 @@
                 <laplacian:LaplacianView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type weighted:WeightedOffsetsViewModel}">
+                <weighted:WeightedOffsetsView />
+            </DataTemplate>
+            
             <DataTemplate DataType="{x:Type meshinfo:MeshInfoViewModel}">
                 <meshinfo:MeshInfoView />
             </DataTemplate>

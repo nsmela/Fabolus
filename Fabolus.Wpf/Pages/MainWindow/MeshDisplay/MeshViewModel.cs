@@ -36,6 +36,11 @@ public partial class MeshViewModel : ObservableObject {
     [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
 
+    // cross section
+    [ObservableProperty] private Plane _plane1 = new Plane(new Vector3(0, 0, 1), 0.0f);
+    [ObservableProperty] private MeshGeometryModel3D _cuttingModel;
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _cuttingMaterial = PhongMaterials.White;
+
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
 
@@ -61,6 +66,14 @@ public partial class MeshViewModel : ObservableObject {
     private async Task UpdateDisplay() {
 
         context.Post((o) => {
+            if (_models.Count != 0) {
+                _models[0].Geometry.UpdateOctree();
+                _models[0].Geometry.UpdateBounds();
+                CuttingModel = new MeshGeometryModel3D {
+                    Geometry = _models[0].Geometry,
+                };
+            }
+
             CurrentModel.Clear();
 
             foreach (var model in _models) {
@@ -78,8 +91,9 @@ public partial class MeshViewModel : ObservableObject {
                 };
                 CurrentModel.Add(geometry);
             }
-        }, null);
 
+
+        }, null);
     }
 
     private void UpdateInputBindings(RoutedCommand left, RoutedCommand middle, RoutedCommand right) {
