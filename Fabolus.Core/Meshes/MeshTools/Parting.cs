@@ -19,4 +19,24 @@ public static partial class MeshTools {
 
         return new(editor.Mesh);
     }
+
+    public static double[][] PartingLine(MeshModel partingRegion, double[] start, double[] end) {
+        DMesh3 mesh = new DMesh3(partingRegion.Mesh);
+        
+        int startId = MeshQueries.FindNearestVertex_LinearSearch(mesh, new Vector3d(start[0], start[1], start[2]));
+        int endId = MeshQueries.FindNearestVertex_LinearSearch(mesh, new Vector3d(end[0], end[1], end[2]));
+
+        DijkstraGraphDistance graph = DijkstraGraphDistance.MeshVertices(mesh);
+        graph.TrackOrder = true;
+        graph.AddSeed(startId, 0);
+        graph.AddSeed(endId, 0);
+        graph.Compute();
+
+        var points = graph.GetOrder().Select(i => mesh.GetVertex(i).ToDoubles());
+
+        return points.ToArray();
+    }
+
+    private static double[] ToDoubles(this Vector3d vector) => new double[] { vector.x, vector.y, vector.z };
+    
 }
