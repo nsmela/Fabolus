@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.BolusModel;
+using Fabolus.Core.Meshes.MeshTools;
+using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
@@ -20,9 +22,17 @@ public class SplitSceneManager : SceneManager {
 
     private Guid? BolusId;
 
+    private Guid? PartingRegionId;
+    private MeshGeometry3D _partingRegion;
+    private Material _partingMaterial = DiffuseMaterials.Green;
+
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         BolusId = bolus?.Geometry?.GUID;
+
+        var parting_region = MeshTools.PartingRegion(bolus.Mesh);
+        _partingRegion = parting_region.ToGeometry();
+        PartingRegionId = _partingRegion.GUID;
     }
 
     protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
@@ -67,11 +77,11 @@ public class SplitSceneManager : SceneManager {
 
         var models = new List<DisplayModel3D>();
 
-        models.Add(new DisplayModel3D {
-            Geometry = bolus.Geometry,
-            Transform = MeshHelper.TransformEmpty,
-            Skin = _skin
-        });
+        //models.Add(new DisplayModel3D {
+        //    Geometry = bolus.Geometry,
+        //    Transform = MeshHelper.TransformEmpty,
+        //    Skin = _skin
+        //});
 
         //foreach (var channel in _channels.Values) {
         //    models.Add(new DisplayModel3D {
@@ -82,6 +92,15 @@ public class SplitSceneManager : SceneManager {
         //         : _channelSkin
         //    });
         //}
+
+        // display region where the parting line can travel
+        if (_partingRegion is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _partingRegion,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = _partingMaterial,
+            });
+        }
 
         if (_previewMesh is not null) {
             models.Add(new DisplayModel3D {
