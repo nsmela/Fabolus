@@ -26,7 +26,7 @@ public class WeightedOffsetSmoothing {
 
         // populate the weighted array
         int[] indexes = surfaces[0].TriangleIndices().Concat(surfaces[1].TriangleIndices()).ToArray();
-        float[] weights = new float[bolus.Mesh.Mesh.TriangleCount];// Enumerable.Repeat<float>(0.0f, bolus.Mesh.Mesh.TriangleCount).ToArray();
+        float[] weights = Enumerable.Repeat<float>(1.0f, bolus.Mesh.Mesh.TriangleCount).ToArray();
         int index = -1;
         for (int i = 0; i < indexes.Length; i ++) {
             index = indexes[i];

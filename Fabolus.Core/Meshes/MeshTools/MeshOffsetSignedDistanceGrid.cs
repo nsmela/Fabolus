@@ -1007,14 +1007,14 @@ public class MeshOffsetSignedDistanceGrid {
         double w31 = invdet * (m13 * b - d * a);
         double w12 = 1 - w23 - w31;
         if (w23 >= 0 && w31 >= 0 && w12 >= 0) { // if we're inside the triangle
-            return x0.Distance(w23 * x1 + w31 * x2 + w12 * x3) + offset;
+            return x0.Distance(w23 * x1 + w31 * x2 + w12 * x3) * offset;
         } else { // we have to clamp to one of the edges
             if (w23 > 0) // this rules out edge 2-3 for us
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x1, ref x3)) + offset;
+                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x1, ref x3)) * offset;
             else if (w31 > 0) // this rules out edge 1-3
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x2, ref x3)) + offset;
+                return Math.Min(point_segment_distance(ref x0, ref x1, ref x2), point_segment_distance(ref x0, ref x2, ref x3)) * offset;
             else // w12 must be >0, ruling out edge 1-2
-                return Math.Min(point_segment_distance(ref x0, ref x1, ref x3), point_segment_distance(ref x0, ref x2, ref x3)) + offset;
+                return Math.Min(point_segment_distance(ref x0, ref x1, ref x3), point_segment_distance(ref x0, ref x2, ref x3)) * offset;
         }
     }
 
