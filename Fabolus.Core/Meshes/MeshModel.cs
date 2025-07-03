@@ -60,6 +60,13 @@ public class MeshModel {
 
     public int[] GetTriangleNeighbours(int tId) => Mesh.GetTriNeighbourTris(tId).array;
 
+    public double[] GetVector(int vId) =>
+        new double[] {
+            Mesh.GetVertex(vId).x,
+            Mesh.GetVertex(vId).y,
+            Mesh.GetVertex(vId).z
+        };
+
     public IEnumerable<(double, double, double)> NormalVectors() {
         for (int i = 0; i < Mesh.VertexCount; i++) {
             var vector = Mesh.GetVertexNormal(i);

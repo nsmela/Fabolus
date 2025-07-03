@@ -40,6 +40,9 @@ public class SplitSceneManager : SceneManager {
     private const double DRAFT_ANGLE_THRESHOLD_DEGREES = 10.0;
     private double[] _draftPullDirection = new double[3] { 0, 1, 0 }; // pulling in the positive Y direction
 
+    // silhouette curve
+    private Vector3Collection _silhouetteCurve = [];
+
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         BolusId = bolus?.Geometry?.GUID;
@@ -155,7 +158,16 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-
+        // sihlouette curve
+        if (_silhouetteCurve.Count > 0) {
+            MeshBuilder builder = new();
+            builder.AddTube(_silhouetteCurve, 0.5, 8, false);
+            models.Add(new DisplayModel3D {
+                Geometry = builder.ToMeshGeometry3D(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Yellow,
+            });
+        }
 
         if (_previewMesh is not null) {
             models.Add(new DisplayModel3D {
@@ -182,6 +194,9 @@ public class SplitSceneManager : SceneManager {
         _partingMeshModel = MeshTools.PartingRegion(model, _smoothnessDegree);
         _partingRegion = _partingMeshModel.ToGeometry();
         PartingRegionId = _partingRegion.GUID;
+
+        //silhouette curve
+        _silhouetteCurve = GetSilhouette(model, _draftPullDirection);
 
         // draft angle meshes
 
@@ -271,4 +286,16 @@ public class SplitSceneManager : SceneManager {
 
         return DraftClassification.NEGATIVE;
     }
+
+    private Vector3Collection GetSilhouette(MeshModel model, double[] pullDirection) {
+        int[] verts = SihlouetteCurve(model, pullDirection);
+        Vector3Collection curve = new Vector3Collection();
+        foreach (int v in verts) {
+            curve.Add(new Vector3(model.GetVector(v).Select(x => (float)x).ToArray()));
+        }
+
+        return curve;
+    }
+
+
 }
