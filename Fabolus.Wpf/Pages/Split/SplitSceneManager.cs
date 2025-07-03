@@ -41,7 +41,7 @@ public class SplitSceneManager : SceneManager {
     private double[] _draftPullDirection = new double[3] { 0, 1, 0 }; // pulling in the positive Y direction
 
     // silhouette curve
-    private Vector3Collection _silhouetteCurve = [];
+    private Vector3Collection _parting_curve = [];
 
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
@@ -159,9 +159,9 @@ public class SplitSceneManager : SceneManager {
         }
 
         // sihlouette curve
-        if (_silhouetteCurve.Count > 0) {
+        if (_parting_curve.Count > 0) {
             MeshBuilder builder = new();
-            builder.AddTube(_silhouetteCurve, 0.5, 8, false);
+            builder.AddTube(_parting_curve, 0.3, 16, true);
             models.Add(new DisplayModel3D {
                 Geometry = builder.ToMeshGeometry3D(),
                 Transform = MeshHelper.TransformEmpty,
@@ -195,9 +195,34 @@ public class SplitSceneManager : SceneManager {
         _partingRegion = _partingMeshModel.ToGeometry();
         PartingRegionId = _partingRegion.GUID;
 
-        //silhouette curve
-        _silhouetteCurve = GetSilhouette(model, _draftPullDirection);
+        // draft angle meshes
+        SetDraftMeshes(model);
 
+
+    }
+
+    private static DraftClassification ReClassifyNeutral(MeshModel model, int tId, Dictionary<int, DraftClassification> results) {
+        var neighbours = model.GetTriangleNeighbours(tId);
+
+        List<int> ids = [];
+        if (neighbours[0] >= 0 && results[neighbours[0]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[0]); }
+        if (neighbours[1] >= 0 && results[neighbours[1]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[1]); }
+        if (neighbours[2] >= 0 && results[neighbours[2]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[2]); }
+
+        if (ids.Count == 0) { return DraftClassification.NEUTRAL; } // no neighbours to classify
+        if (ids.Count == 1) { return results[ids[0]]; } // only one neighbour, use its classification
+
+        if (results[ids[0]] == results[ids[1]]) { return results[ids[0]]; }
+        if (ids.Count == 2) { return DraftClassification.NEGATIVE; } // two neighbours, but they are not the same
+
+        if (results[ids[0]] == results[ids[2]] || results[ids[1]] == results[ids[2]]) { // three neighbours, two are the same
+            return results[neighbours[2]];
+        }
+
+        return DraftClassification.NEGATIVE;
+    }
+
+    private void SetDraftMeshes(MeshModel model) {
         // draft angle meshes
 
         MeshBuilder positive_mesh = new();
@@ -229,7 +254,7 @@ public class SplitSceneManager : SceneManager {
             }
 
             if ((results[tId] == DraftClassification.NEUTRAL)) { remaining.Enqueue(tId); }
-                
+
         }
 
         // second pass to eliminate neutrals
@@ -240,12 +265,10 @@ public class SplitSceneManager : SceneManager {
         }
 
         // third and final pass
-        while (results.Values.Any(x => x == DraftClassification.NEUTRAL)) {
-            foreach (var (key, value) in results) {
-                if (value != DraftClassification.NEUTRAL) { continue; }
+        foreach (var (key, value) in results) {
+            if (value != DraftClassification.NEUTRAL) { continue; }
 
-                results[key] = ReClassifyNeutral(model, key, results); // reclassify neutral triangles based on neighbours
-            }
+            results[key] = ReClassifyNeutral(model, key, results); // reclassify neutral triangles based on neighbours
         }
 
         // add triangles to meshes
@@ -263,39 +286,14 @@ public class SplitSceneManager : SceneManager {
         _draftAngleMeshPositive = positive_mesh.ToMeshGeometry3D();
         _draftAngleMeshNegative = negative_mesh.ToMeshGeometry3D();
         _draftAngleMeshNeutral = neutral_mesh.ToMeshGeometry3D();
+
+        // parting line
+        // find edges for parting line
+        var border = results.Where(x => x.Value == DraftClassification.NEGATIVE).Select(x => x.Key).ToArray();
+        var path = model.GetBorderVerts(border).Select(p => new Vector3((float)p[0], (float)p[1], (float)p[2]));
+        _parting_curve = new Vector3Collection(path.ToArray());
     }
 
-    private static DraftClassification ReClassifyNeutral(MeshModel model, int tId, Dictionary<int, DraftClassification> results) {
-        var neighbours = model.GetTriangleNeighbours(tId);
-
-        List<int> ids = [];
-        if (neighbours[0] >= 0 && results[neighbours[0]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[0]); }
-        if (neighbours[1] >= 0 && results[neighbours[1]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[1]); }
-        if (neighbours[2] >= 0 && results[neighbours[2]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[2]); }
-
-        if (ids.Count == 0) { return DraftClassification.NEUTRAL; } // no neighbours to classify
-        if (ids.Count == 1) { return results[ids[0]]; } // only one neighbour, use its classification
-
-        if (results[ids[0]] == results[ids[1]]) { return results[ids[0]]; }
-        if (ids.Count == 2) { return DraftClassification.NEGATIVE; } // two neighbours, but they are not the same
-
-        if (results[ids[0]] == results[ids[2]] ||
-                results[ids[1]] == results[ids[2]]) { // three neighbours, two are the same
-            return results[neighbours[2]];
-        }
-
-        return DraftClassification.NEGATIVE;
-    }
-
-    private Vector3Collection GetSilhouette(MeshModel model, double[] pullDirection) {
-        int[] verts = SihlouetteCurve(model, pullDirection);
-        Vector3Collection curve = new Vector3Collection();
-        foreach (int v in verts) {
-            curve.Add(new Vector3(model.GetVector(v).Select(x => (float)x).ToArray()));
-        }
-
-        return curve;
-    }
 
 
 }

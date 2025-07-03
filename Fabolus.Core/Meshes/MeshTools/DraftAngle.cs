@@ -14,8 +14,6 @@ public static partial class MeshTools {
         NEUTRAL, // angle is zero, i.e. draft angle is perpendicular to the parting line
     }
 
-    public record struct DraftResult(int TriangleId, double AngleRads, DraftClassification Classification);
-
     public static Dictionary<int, DraftClassification> DraftAngleAnalysis(MeshModel model, double[] pullDirection, double neutralThresholdDeg = 5.0) {
         DMesh3 mesh = new (model.Mesh);
         Vector3d direction = new Vector3d(pullDirection[0], pullDirection[1], pullDirection[2]).Normalized;

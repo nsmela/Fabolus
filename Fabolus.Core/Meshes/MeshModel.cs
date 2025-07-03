@@ -67,6 +67,17 @@ public class MeshModel {
             Mesh.GetVertex(vId).z
         };
 
+    public IEnumerable<double[]> GetBorderVerts(int[] region_ids) {
+        //select the region
+        var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);
+        var loops = region.Loops;
+
+        foreach(var id in loops[0].Vertices) {
+            var vertex = Mesh.GetVertex(id);
+            yield return new double[] { vertex.x, vertex.y, vertex.z };
+        }
+    }
+
     public IEnumerable<(double, double, double)> NormalVectors() {
         for (int i = 0; i < Mesh.VertexCount; i++) {
             var vector = Mesh.GetVertexNormal(i);
