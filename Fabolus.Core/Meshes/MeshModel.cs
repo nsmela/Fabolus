@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.Extensions;
 using g3;
+using System.CodeDom;
 using System.Windows.Media.Media3D;
 using static MR.DotNet;
 using MeshNormals = g3.MeshNormals;
@@ -42,6 +43,22 @@ public class MeshModel {
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
 
     public double Height => Mesh.CachedBounds.Height + 10.0;
+
+    /// <summary>
+    /// Returns the vertices of a triangle as an array of doubles. 
+    /// </summary>
+    /// <param name="tId"></param>
+    /// <returns>3x3 double array as a simple 9 double array</returns>
+    public double[] GetTriangleAsDoubles(int tId) {
+        Index3i triangle = Mesh.GetTriangle(tId);
+        return new double[] {
+            Mesh.GetVertex(triangle.a).x, Mesh.GetVertex(triangle.a).y, Mesh.GetVertex(triangle.a).z,
+            Mesh.GetVertex(triangle.b).x, Mesh.GetVertex(triangle.b).y, Mesh.GetVertex(triangle.b).z,
+            Mesh.GetVertex(triangle.c).x, Mesh.GetVertex(triangle.c).y, Mesh.GetVertex(triangle.c).z
+        };
+    }
+
+    public int[] GetTriangleNeighbours(int tId) => Mesh.GetTriNeighbourTris(tId).array;
 
     public IEnumerable<(double, double, double)> NormalVectors() {
         for (int i = 0; i < Mesh.VertexCount; i++) {

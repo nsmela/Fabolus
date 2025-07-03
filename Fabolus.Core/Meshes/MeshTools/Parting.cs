@@ -28,9 +28,11 @@ public static partial class MeshTools {
 
         DijkstraGraphDistance graph = DijkstraGraphDistance.MeshVertices(mesh);
         graph.TrackOrder = true;
-        graph.AddSeed(startId, 0);
         graph.AddSeed(endId, 0);
         graph.Compute();
+
+        List<int> path = [];
+        var success = graph.GetPathToSeed(startId, path);
 
         var points = graph.GetOrder().Select(i => mesh.GetVertex(i).ToDoubles());
 
