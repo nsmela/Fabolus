@@ -81,9 +81,6 @@ public class SplitSceneManager : SceneManager {
         if (bolusHit is null) { return; }
         double[] start = new double[3] { bolusHit.PointHit.X, bolusHit.PointHit.Y, bolusHit.PointHit.Z };
         double[] end = new double[3] { 0, 0, 0 };
-
-        var points = MeshTools.PartingLine(_partingMeshModel, start, end);
-        _path = new Vector3Collection(points.Select(p => new Vector3((float)p[0], (float)p[1], (float)p[2])));
     }
 
     private void SetPreview(HitTestResult? hit) {
@@ -197,8 +194,6 @@ public class SplitSceneManager : SceneManager {
 
         // draft angle meshes
         SetDraftMeshes(model);
-
-
     }
 
     private static DraftClassification ReClassifyNeutral(MeshModel model, int tId, Dictionary<int, DraftClassification> results) {
@@ -290,6 +285,7 @@ public class SplitSceneManager : SceneManager {
         // parting line
         // find edges for parting line
         var border = results.Where(x => x.Value == DraftClassification.NEGATIVE).Select(x => x.Key).ToArray();
+        border = MeshTools.PartingLineSmoothing(_partingMeshModel, border);
         var path = model.GetBorderVerts(border).Select(p => new Vector3((float)p[0], (float)p[1], (float)p[2]));
         _parting_curve = new Vector3Collection(path.ToArray());
     }
