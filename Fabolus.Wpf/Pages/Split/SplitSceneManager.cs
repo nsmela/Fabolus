@@ -40,8 +40,9 @@ public class SplitSceneManager : SceneManager {
     private const double DRAFT_ANGLE_THRESHOLD_DEGREES = 10.0;
     private double[] _draftPullDirection = new double[3] { 0, 1, 0 }; // pulling in the positive Y direction
 
-    // silhouette curve
+    // parting
     private Vector3Collection _parting_curve = [];
+    private MeshModel _partingMesh;
 
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
@@ -79,8 +80,8 @@ public class SplitSceneManager : SceneManager {
 
         var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == PartingRegionId);
         if (bolusHit is null) { return; }
-        double[] start = new double[3] { bolusHit.PointHit.X, bolusHit.PointHit.Y, bolusHit.PointHit.Z };
-        double[] end = new double[3] { 0, 0, 0 };
+        double[] start = { bolusHit.PointHit.X, bolusHit.PointHit.Y, bolusHit.PointHit.Z };
+        double[] end = { 0, 0, 0 };
     }
 
     private void SetPreview(HitTestResult? hit) {
@@ -155,7 +156,7 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-        // sihlouette curve
+        // parting curve
         if (_parting_curve.Count > 0) {
             MeshBuilder builder = new();
             builder.AddTube(_parting_curve, 0.3, 16, true);
@@ -171,6 +172,14 @@ public class SplitSceneManager : SceneManager {
                 Geometry = _previewMesh,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = _previewSkin,
+            });
+        }
+
+        if (_partingMesh is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _partingMesh.ToGeometry(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = PhongMaterials.Blue,
             });
         }
 
@@ -199,10 +208,14 @@ public class SplitSceneManager : SceneManager {
     private static DraftClassification ReClassifyNeutral(MeshModel model, int tId, Dictionary<int, DraftClassification> results) {
         var neighbours = model.GetTriangleNeighbours(tId);
 
+        int n0 = neighbours[0];
+        int n1 = neighbours[1];
+        int n2 = neighbours[2];
+
         List<int> ids = [];
-        if (neighbours[0] >= 0 && results[neighbours[0]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[0]); }
-        if (neighbours[1] >= 0 && results[neighbours[1]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[1]); }
-        if (neighbours[2] >= 0 && results[neighbours[2]] != DraftClassification.NEUTRAL) { ids.Add(neighbours[2]); }
+        if (n0 >= 0 && results[n0] != DraftClassification.NEUTRAL) { ids.Add(n0); }
+        if (n1 >= 0 && results[n1] != DraftClassification.NEUTRAL) { ids.Add(n1); }
+        if (n2 >= 0 && results[n2] != DraftClassification.NEUTRAL) { ids.Add(n2); }
 
         if (ids.Count == 0) { return DraftClassification.NEUTRAL; } // no neighbours to classify
         if (ids.Count == 1) { return results[ids[0]]; } // only one neighbour, use its classification
@@ -211,7 +224,7 @@ public class SplitSceneManager : SceneManager {
         if (ids.Count == 2) { return DraftClassification.NEGATIVE; } // two neighbours, but they are not the same
 
         if (results[ids[0]] == results[ids[2]] || results[ids[1]] == results[ids[2]]) { // three neighbours, two are the same
-            return results[neighbours[2]];
+            return results[n2];
         }
 
         return DraftClassification.NEGATIVE;
@@ -286,11 +299,15 @@ public class SplitSceneManager : SceneManager {
         // find edges for parting line
         var region_tris_ids = results.Where(x => x.Value == DraftClassification.NEGATIVE).Select(x => x.Key).ToArray();
         var path_vert_ids  = model.GetBorderEdgeLoop(region_tris_ids).ToArray();
-        path_vert_ids = MeshTools.PartingLineSmoothing(model, path_vert_ids);
+        //path_vert_ids = MeshTools.PartingLineSmoothing(model, path_vert_ids);
         var path = model.GetVertices(path_vert_ids).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2]));
         _parting_curve = new Vector3Collection(path.ToArray());
+
+        // generate parting mesh
+        _partingMesh = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 10.0);
     }
-
-
-
 }
+
+
+
+

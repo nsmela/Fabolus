@@ -64,6 +64,6 @@ public static partial class MeshTools {
             }
             return result;
         }
-        return new(); //return empty mesh if no good triangles foundAdd commentMore actions
+        return new(); //return empty mesh if no good triangles found
     }
 }
