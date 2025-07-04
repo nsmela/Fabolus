@@ -284,9 +284,10 @@ public class SplitSceneManager : SceneManager {
 
         // parting line
         // find edges for parting line
-        var border = results.Where(x => x.Value == DraftClassification.NEGATIVE).Select(x => x.Key).ToArray();
-        border = MeshTools.PartingLineSmoothing(_partingMeshModel, border);
-        var path = model.GetBorderVerts(border).Select(p => new Vector3((float)p[0], (float)p[1], (float)p[2]));
+        var region_tris_ids = results.Where(x => x.Value == DraftClassification.NEGATIVE).Select(x => x.Key).ToArray();
+        var path_vert_ids  = model.GetBorderEdgeLoop(region_tris_ids).ToArray();
+        path_vert_ids = MeshTools.PartingLineSmoothing(model, path_vert_ids);
+        var path = model.GetVertices(path_vert_ids).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2]));
         _parting_curve = new Vector3Collection(path.ToArray());
     }
 

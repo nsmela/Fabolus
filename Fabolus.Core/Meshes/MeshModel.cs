@@ -67,6 +67,30 @@ public class MeshModel {
             Mesh.GetVertex(vId).z
         };
 
+    public IEnumerable<int> GetBorderEdgeLoop(int[] region_ids) {
+        //select the region
+        var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);
+        var loops = region.Loops;
+
+        int last_id = -1;
+        Index4i edge;
+        foreach (var eId in loops[0].Edges) {
+            edge = Mesh.GetEdge(eId);
+            if (edge.a == last_id){ last_id = edge.b; }
+            else { last_id = edge.a; }
+
+            yield return last_id;
+        }
+
+    }
+
+    public IEnumerable<double[]> GetVertices(int[] vert_ids) {
+        foreach(int vId in vert_ids) {
+            var vertex = Mesh.GetVertex(vId);
+            yield return new double[] { vertex.x, vertex.y, vertex.z };
+        }
+    }
+
     public IEnumerable<double[]> GetBorderVerts(int[] region_ids) {
         //select the region
         var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);

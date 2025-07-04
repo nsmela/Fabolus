@@ -43,44 +43,42 @@ public static partial class MeshTools {
         // step one: find any easy edge fixes and apply
         List<int> smoothPath = [];
 
-        int e0, e1, e2;
-        Index2i tris, tri2;
+        int eId0, eId1;
+        Index4i e0, e1;
         int tId;
+        double distance_squared;
         for(int i = 1; i < path.Length - 1; i++) {
             // reset
             tId = -1;
 
             // find triangles to the vertices
-            e0 = mesh.FindEdge(path[i - 1], path[i]);
+            eId0 = mesh.FindEdge(path[i - 1], path[i]);
+            e0 = mesh.GetEdge(eId0);
 
-            // invalid edge
-            if (e0< 0) {
-                smoothPath.Add(path[i]);
-                continue;
-            }
-
-            tris = mesh.GetEdgeT(e0);
-            e1 = mesh.FindEdge(path[i], path[i + 1]);
-
-            // invalid edge
-            if (e1 < 0) {
-                smoothPath.Add(path[i]);
-                continue;
-            }
-
-            tri2 = mesh.GetEdgeT(e1);
+            eId1 = mesh.FindEdge(path[i], path[i + 1]);
+            e1 = mesh.GetEdge(eId1);
 
             // get id of shared triangle
-            if (tris.a == tri2.a || tris.a == tri2.b) { tId = tris.a; }
-            if (tris.b == tri2.a || tris.b == tri2.b) { tId = tris.b; }
+            if (e0.c == e1.c || e0.c == e1.d) { tId = e0.c; }
+            if (e0.d == e1.c || e0.d == e1.d) { tId = e0.d; }
 
-            // no triangle found, just add the vertex
+            // no triangle found, add the current vertex
             if (tId < 0) {
+                smoothPath.Add(path[i]);
+                continue;
+            }
+
+            // new edge would be longer than the current edge, add current vertex
+            distance_squared = mesh.GetVertex(path[i - 1]).DistanceSquared(mesh.GetVertex(path[i + 1]));
+            if (e0.LengthSquared < distance_squared) {
                 smoothPath.Add(path[i]);
                 continue;
             }
         }
 
+        // step two: find triangle pairs that could be skipped
+
+        
         return smoothPath.ToArray();
     }
 }
