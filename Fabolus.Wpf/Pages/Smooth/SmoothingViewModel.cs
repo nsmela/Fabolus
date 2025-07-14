@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
+using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.MainWindow;
 using Fabolus.Wpf.Pages.Smooth.Laplacian;
@@ -80,10 +81,10 @@ public partial class SmoothingViewModel : BaseViewModel {
             return;
         }
         var filepath = boli[0].Filepath.Split(Path.DirectorySeparatorChar).LastOrDefault() ?? "Unknown Filepath";
-        var text = $"Filepath:\r\n   {filepath}\r\nVolume[Original]:\r\n   {boli[0].VolumeToText}";
+        var text = $"Filepath:\r\n   {filepath}\r\nVolume[Original]:\r\n   {boli[0].Mesh.VolumeString()}";
 
         if (boli.Length > 1 && boli[1].BolusType == BolusType.Smooth) {
-            text += $"\r\nVolume[Smoothed]:\r\n   {boli[1].VolumeToText}";
+            text += $"\r\nVolume[Smoothed]:\r\n   {boli[1].Mesh.VolumeString()}";
         }
 
         WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(text));

@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
+using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.MainWindow;
 using Microsoft.Win32;
@@ -28,7 +29,7 @@ public partial class ImportViewModel : BaseViewModel {
             return;
         }
         var filepath = _filepath.Split(Path.DirectorySeparatorChar).LastOrDefault() ?? "Unknown Filepath";
-        var text = $"Filepath:\r\n   {filepath}\r\nVolume:\r\n   {boli[0].VolumeToText}";
+        var text = $"Filepath:\r\n   {filepath}\r\nVolume:\r\n   {boli[0].Mesh.VolumeString()}";
         WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(text));
     }
 

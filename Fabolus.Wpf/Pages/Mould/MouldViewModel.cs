@@ -25,9 +25,13 @@ public partial class MouldViewModel : BaseViewModel {
     private BolusModel? Bolus { get; set; }
 
     public MouldViewModel() {
-        Bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         CurrentMouldViewModel = new SimpleMouldViewModel();
-        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage("TODO:\r\n bolus volume\r\n mould volume"));
+
+        // bolus volume calculation
+        Bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+
+        var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
+        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage($"Bolus Volume:\r\n {Bolus.Mesh.VolumeString()}\r\nMould Volume:\r\n {mould.VolumeString()}"));
     }
 
 }

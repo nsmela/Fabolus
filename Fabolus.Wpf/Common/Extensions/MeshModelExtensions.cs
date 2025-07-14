@@ -1,6 +1,7 @@
 ﻿using Fabolus.Core.Meshes;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
+using SharpDX.Direct3D9;
 
 namespace Fabolus.Wpf.Common.Extensions;
 
@@ -20,6 +21,9 @@ public static class MeshModelExtensions {
         return geometry.ToMeshGeometry3D();       
     }
 
+    public static string VolumeString(this MeshModel mesh) => mesh.Volume.ToString("N2") + " cm³";
+
     private static Vector3 ToVector3(this double[] values) =>
         new((float)values[0], (float)values[1], (float)values[2]);
+
 }
