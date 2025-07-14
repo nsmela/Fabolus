@@ -16,6 +16,8 @@ namespace Fabolus.Wpf.Pages.Channels;
 
 public class ChannelsSceneManager : SceneManager {
 
+    private const double MAX_HEIGHT_OFFSET = 20.0;
+
     private BolusModel _bolus;
     private AirChannelsCollection _channels = [];
     private AirChannelSettings _settings;
@@ -25,7 +27,7 @@ public class ChannelsSceneManager : SceneManager {
     private Material _selectedSkin = DiffuseMaterials.Turquoise;
 
     private Guid? BolusId => _bolus?.Geometry?.GUID;
-    private float MaxHeight => (float)_bolus.Mesh.Height;
+    private float MaxHeight => (float)(_bolus.TransformedMesh().Height + MAX_HEIGHT_OFFSET);
 
     private IAirChannel? GetChannelByGeometryId(Guid id) {
         if (!_channels.Any(c => c.Value.Geometry.GUID == id)) {

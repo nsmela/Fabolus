@@ -42,7 +42,7 @@ public class MeshModel {
 
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
 
-    public double Height => Mesh.CachedBounds.Height + 10.0;
+    public double Height => Mesh.CachedBounds.Max.z;
 
     /// <summary>
     /// Returns the vertices of a triangle as an array of doubles. 
