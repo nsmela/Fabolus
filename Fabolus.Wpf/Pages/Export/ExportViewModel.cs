@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
+using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features.Mould;
 using Fabolus.Wpf.Pages.MainWindow;
@@ -17,17 +18,25 @@ public partial class ExportViewModel : BaseViewModel {
 
     public override SceneManager GetSceneManager => new ExportSceneManager();
 
-    [ObservableProperty] private bool _showBolus;
-    [ObservableProperty] private bool _showMould;
+    [ObservableProperty] private bool _showBolus = false;
+    [ObservableProperty] private bool _showMould = false;
 
     public ExportViewModel() {
+        string mesh_info = string.Empty;
+
         var bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response;
-        ShowBolus = !BolusModel.IsNullOrEmpty(bolus);
+        if (!BolusModel.IsNullOrEmpty(bolus)) {
+            ShowBolus = true;
+            mesh_info += $"Bolus Volume:\r\n {bolus.Mesh.VolumeString()}";
+        }
 
         var mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
-        ShowMould = !MouldModel.IsNullOrEmpty(mould);
+        if (!MouldModel.IsNullOrEmpty(mould)) {
+            ShowMould = true;
+            mesh_info += $"\r\nMould Volume:\r\n {mould.VolumeString()}";
+        }
 
-        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage("TODO:\r\n bolus volume\r\n mould volume"));
+        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(mesh_info));
     }
 
     //commands
