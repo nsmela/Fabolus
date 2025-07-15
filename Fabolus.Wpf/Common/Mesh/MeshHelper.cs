@@ -12,8 +12,14 @@ public static class MeshHelper {
         var rotate = new RotateTransform3D(rotation);
         return new Transform3DGroup { Children = [rotate] };
     }
+
     public static Transform3D TransformFromAxis(Vector3 axis, float angle) =>
         TransformFromAxis(axis.ToVector3D(), angle);
+
+    public static Transform3D TranslationFromAxis(double x, double y, double z) {
+        var translate = new TranslateTransform3D(new Vector3D(x, y, z));
+        return new Transform3DGroup { Children = [translate] };
+    }
 
     public static Transform3D TransformEmpty => TransformFromAxis(VectorZero, 0.0f);
 

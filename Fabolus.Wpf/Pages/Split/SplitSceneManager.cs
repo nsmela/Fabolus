@@ -27,7 +27,10 @@ public class SplitSceneManager : SceneManager {
     private Guid? BolusId;
 
     private Guid? PartingRegionId;
+    private float _model_thickness = 3.0f;
     private MeshModel _partingMeshModel;
+    private MeshModel _partPositiveModel;
+    private MeshModel _partNegativeModel;
     private MeshGeometry3D _partingRegion;
     private Material _partingMaterial = DiffuseMaterials.Green;
 
@@ -106,11 +109,11 @@ public class SplitSceneManager : SceneManager {
 
         var models = new List<DisplayModel3D>();
 
-        //models.Add(new DisplayModel3D {
-        //    Geometry = bolus.Geometry,
-        //    Transform = MeshHelper.TransformEmpty,
-        //    Skin = _skin
-        //});
+        models.Add(new DisplayModel3D {
+            Geometry = bolus.Geometry,
+            Transform = MeshHelper.TransformEmpty,
+            Skin = _skin
+        });
 
         //foreach (var channel in _channels.Values) {
         //    models.Add(new DisplayModel3D {
@@ -147,25 +150,25 @@ public class SplitSceneManager : SceneManager {
         //        Skin = DiffuseMaterials.Red,
         //    });
         //}
-
-        if (_draftAngleMeshNeutral is not null) {
-            models.Add(new DisplayModel3D {
-                Geometry = _draftAngleMeshNeutral,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Gray,
-            });
-        }
+        //
+        //if (_draftAngleMeshNeutral is not null) {
+        //    models.Add(new DisplayModel3D {
+        //        Geometry = _draftAngleMeshNeutral,
+        //        Transform = MeshHelper.TransformEmpty,
+        //        Skin = DiffuseMaterials.Gray,
+        //    });
+        //}
 
         // parting curve
-        if (_parting_curve.Count > 0) {
-            MeshBuilder builder = new();
-            builder.AddTube(_parting_curve, 0.3, 16, true);
-            models.Add(new DisplayModel3D {
-                Geometry = builder.ToMeshGeometry3D(),
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Yellow,
-            });
-        }
+        //if (_parting_curve.Count > 0) {
+        //    MeshBuilder builder = new();
+        //    builder.AddTube(_parting_curve, 0.3, 16, true);
+        //    models.Add(new DisplayModel3D {
+        //        Geometry = builder.ToMeshGeometry3D(),
+        //        Transform = MeshHelper.TransformEmpty,
+        //        Skin = DiffuseMaterials.Yellow,
+        //    });
+        //}
 
         if (_previewMesh is not null) {
             models.Add(new DisplayModel3D {
@@ -175,10 +178,18 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-        if (_partingMesh is not null) {
+        if (_partNegativeModel is not null) {
             models.Add(new DisplayModel3D {
-                Geometry = _partingMesh.ToGeometry(),
-                Transform = MeshHelper.TransformEmpty,
+                Geometry = _partNegativeModel.ToGeometry(),
+                Transform = MeshHelper.TranslationFromAxis(0, -15, 0),
+                Skin = DiffuseMaterials.Red,
+            });
+        }
+
+        if (_partPositiveModel is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _partPositiveModel.ToGeometry(),
+                Transform = MeshHelper.TranslationFromAxis(0, 15, 0),
                 Skin = PhongMaterials.Blue,
             });
         }
@@ -296,19 +307,50 @@ public class SplitSceneManager : SceneManager {
         _draftAngleMeshNeutral = neutral_mesh.ToMeshGeometry3D();
 
         // parting line
-        // find edges for parting line
+        // find edges for parting line and smooth that path
         var region_tris_ids = results.Where(x => x.Value == DraftClassification.NEGATIVE).Select(x => x.Key).ToArray();
         var path_vert_ids  = model.GetBorderEdgeLoop(region_tris_ids).ToArray();
-        //path_vert_ids = MeshTools.PartingLineSmoothing(model, path_vert_ids);
         path_vert_ids = MeshTools.RemoveSingleTriangles(model, path_vert_ids);
-        //path_vert_ids = MeshTools.GraphSmoothing(model, path_vert_ids);
         var path = model.GetVertices(path_vert_ids).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2]));
         _parting_curve = new Vector3Collection(path.ToArray());
 
         // generate parting mesh
         _partingMesh = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 10.0);
         _partingMesh = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshPositive.ToMeshModel());
-        _partingMesh = MeshTools.FinalPass(model, _partingMesh);
+        MeshModel[] meshes = []; 
+        MeshModel offset_mesh = new (MeshTools.OffsetMesh(model, _model_thickness)); // simulates a defines mold shape
+        var task = Task.Run(() => meshes = MeshTools.FinalPass(model, offset_mesh, _partingMesh));
+        task.Wait(); // needed or else mesh can randomly return no mesh
+
+        if ( meshes.Length == 0 ) { return; } //mesh failed
+
+        _partPositiveModel = meshes[0];
+        _partNegativeModel = meshes[1];
+        return;
+
+        // final parting meshes
+        _partPositiveModel = _partingMesh;
+
+        MeshModel model_offset = new MeshModel(MeshTools.OffsetMesh(model, 0.2f));
+        MeshModel b_offset = new MeshModel(MeshTools.OffsetMesh(model, 3.0f));
+        var mesh_result = MeshTools.BooleanSubtraction(b_offset, model_offset);
+        if (mesh_result.IsFailure || mesh_result.Data == null) { return; }
+
+        mesh_result = MeshTools.BooleanSubtraction(mesh_result.Data, _partingMesh);
+        if (mesh_result.IsFailure || mesh_result.Data == null) { return; }
+
+        //b_offset = new MeshModel(MeshTools.OffsetMesh(model, 0.15f));
+        //mesh_result = MeshTools.BooleanSubtraction(mesh_result.Data, b_offset);
+        //if (mesh_result.IsFailure || mesh_result.Data == null) { return; }
+
+        _partNegativeModel = mesh_result.Data;
+        return;
+        //_partingMesh = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshNegative.ToMeshModel());
+        //task = Task.Run(() => _partingMesh = MeshTools.FinalPass(model, _partingMesh));
+        //task.Wait();
+        //mesh_result = MeshTools.BooleanSubtraction(_partingMesh, model);
+        //if (mesh_result.IsFailure || mesh_result.Data == null) { return; }
+        //_partNegativeModel = mesh_result.Data;
     }
 }
 

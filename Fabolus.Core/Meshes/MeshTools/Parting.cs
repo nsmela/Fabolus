@@ -242,7 +242,7 @@ public static partial class MeshTools {
         // extrude outer region backwards
         List<int> extruded_loop = [];
         foreach (int vId in outer_loop.ToArray()) {
-            extruded_loop.Add(result.AppendVertex(result.GetVertex(vId) + Vector3d.AxisY * 100));
+            extruded_loop.Add(result.AppendVertex(result.GetVertex(vId) + direction * 100));
         }
 
         editor = new(result);
@@ -268,7 +268,7 @@ public static partial class MeshTools {
         DMesh3 result = repair.Mesh;
 
         // make solid and manifold
-        MeshSignedDistanceGrid sdf = new(result, 2.0);
+        MeshSignedDistanceGrid sdf = new(result, 3.0);
         sdf.Compute();
 
         DenseGridTrilinearImplicit grid = new(sdf.Grid, sdf.GridOrigin, sdf.CellSize);
@@ -281,20 +281,32 @@ public static partial class MeshTools {
 
         cubes.Bounds.Expand( 3 * cubes.CubeSize );
         cubes.Generate();
+
+        //Remesher r = new(repair.Mesh) {
+        //    MinEdgeLength = 0.5,
+       // };
+        //r.BasicRemeshPass();
+        //r.BasicRemeshPass();
+
         return new(cubes.Mesh);
 
     } 
 
-    public static MeshModel FinalPass(MeshModel model, MeshModel parting_model) {
-        //return parting_model;
-        var offset_mesh = OffsetMesh(model, 3.0f);
+    public static MeshModel[] FinalPass(MeshModel model, MeshModel mould_model, MeshModel parting_model) {
+        List<MeshModel> models = [];
         try {
-            var result = Boolean(offset_mesh, parting_model, BooleanOperation.Intersection);
-            return new(result.mesh);
+            var a = Boolean(mould_model, parting_model, BooleanOperation.Intersection).mesh;
+            a = OffsetMesh(a, 0.5f);
+            var b = Boolean(mould_model, a, BooleanOperation.DifferenceAB).mesh;
+            a = Boolean(a, model, BooleanOperation.DifferenceAB).mesh;
+            b = Boolean(b, model, BooleanOperation.DifferenceAB).mesh;
+            models.Add( new(a));
+            models.Add(new(b));
         } catch (Exception e) {
-            return new();
+            return [];
         }
 
+        return models.ToArray();
     }
 
     private static double DistanceSquared(this PointD point, PointD other) => 
