@@ -2,6 +2,7 @@
 using Fabolus.Core.BolusModel;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.MeshTools;
+using Fabolus.Wpf.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
@@ -50,6 +51,9 @@ public class SplitSceneManager : SceneManager {
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         BolusId = bolus?.Geometry?.GUID;
+
+        // request messages
+        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitRequestModels>(this, (r,m) => m.Reply([r._partNegativeModel, r._partPositiveModel]));
 
         UpdateMesh(bolus.TransformedMesh());
     }

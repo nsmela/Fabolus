@@ -20,5 +20,13 @@
                             AutoToolTipPlacement="TopLeft"
                             IsSnapToTickEnabled="True" 
                             Height="30"/>
+        <Button Content="export models" 
+                Style="{DynamicResource MahApps.Styles.Button.Square}"
+                Height="30"
+                HorizontalAlignment="Stretch"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                Command="{Binding ExportSplitsCommand}" />
     </StackPanel>
 </UserControl>
