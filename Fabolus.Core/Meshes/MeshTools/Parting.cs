@@ -1,5 +1,7 @@
 ﻿using Clipper2Lib;
+using Fabolus.Core.Extensions;
 using g3;
+using gs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Navigation;
 using static g3.DMesh3;
+using static MR.DotNet;
 
 namespace Fabolus.Core.Meshes.MeshTools;
 public static partial class MeshTools {
@@ -37,8 +40,10 @@ public static partial class MeshTools {
 
         List<int> path = [];
         var success = graph.GetPathToSeed(startId, path);
+        var result = graph.GetOrder().ToArray();
 
-        return graph.GetOrder().ToArray();
+        result = RemoveSingleTriangles(mesh, result);
+        return result;
     }
 
     public static int[] PartingLineSmoothing(DMesh3 mesh, int[] path, int iterations = 4) {
@@ -101,12 +106,96 @@ public static partial class MeshTools {
             edges.Add(edge);
         }
 
-        EdgeLoop loop = new(mesh, smoothPath.ToArray(), edges.ToArray(), true);
+        g3.EdgeLoop loop = new(mesh, smoothPath.ToArray(), edges.ToArray(), true);
         MeshLoopSmooth smoother = new(mesh, loop);
         smoother.Alpha = 0.8;
         for (int i = 0; i < iterations; i++) { smoother.Smooth(); }
 
         return smoothPath.ToArray();
+    }
+
+    public static int[] RemoveSingleTriangles(DMesh3 mesh, int[] path, int iterations = 4) {
+        List<int> smoothPath = [];
+
+        int v0, v1, v2;
+        int eId0, eId1;
+        Index4i e0, e1;
+        int tId;
+        double distance_squared;
+        for (int i = 1; i < path.Length - 1; i++) {
+            // reset
+            tId = -1;
+
+            v0 = path[i - 1];
+            v1 = path[i];
+            v2 = path[i + 1];
+
+            // find triangles to the vertices
+            eId0 = mesh.FindEdge(v0, v1);
+            if (eId0 < 0) {
+                // no edge found, skip
+                continue;
+            }
+
+            e0 = mesh.GetEdge(eId0);
+
+            eId1 = mesh.FindEdge(v1, v2);
+            if (eId1 < 0) {
+                // no edge found, skip
+                continue;
+            }
+
+            e1 = mesh.GetEdge(eId1);
+
+            // get id of shared triangle
+            if (e0.c == e1.c || e0.c == e1.d) { tId = e0.c; }
+            if (e0.d == e1.c || e0.d == e1.d) { tId = e0.d; }
+
+            // no triangle found, add the current vertex
+            if (tId < 0) {
+                smoothPath.Add(path[i]);
+                continue;
+            }
+
+            // new edge would be longer than the current edge, add current vertex
+            distance_squared = mesh.GetVertex(v0).DistanceSquared(mesh.GetVertex(v1));
+            if (e0.LengthSquared + e1.LengthSquared < distance_squared) {
+                smoothPath.Add(path[i]);
+                continue;
+            }
+        }
+
+        return smoothPath.ToArray();
+    }
+
+    public static int[] DijkstraSmoothing(DMesh3 mesh, int[] path, int iterations = 4) {
+        DMesh3 graph_mesh = new(mesh);
+
+        DijkstraGraphDistance graph = DijkstraGraphDistance.MeshVertices(graph_mesh);
+        graph.TrackOrder = true;
+        graph.AddSeed(path[0], 0);
+
+        int increment = path.Length / 8;
+        for (int i = increment; i < path.Length; i+=increment) {
+            graph.AddSeed(path[i], 0);
+        }
+        graph.Compute();
+
+        return graph.GetOrder().ToArray();
+    }
+
+    public static int[] GraphSmoothing(DMesh3 mesh, int[] path) {
+        Graph graph = new(mesh);
+        List<int> result = [];
+
+        int increment = 12;
+        int last_id = path[0];
+        for (int i = increment; i < path.Length; i += increment) {
+            result.AddRange(graph.FindPath(last_id, path[i]));
+            last_id = path[i];
+        }
+
+        return result.ToArray();
     }
 
     public static MeshModel GeneratePartingMesh(MeshModel model, int[] path_verts, double[] pull_direction, double extrusion_length = 5.0) {
@@ -150,17 +239,14 @@ public static partial class MeshTools {
 
         DMesh3 result = editor.Mesh;
 
-        // smooth out outer boundry
-        var results = PartingLineSmoothing(mesh, outer_loop.ToArray(), 2);
-
         // extrude outer region backwards
         List<int> extruded_loop = [];
-        foreach (int vId in results) {
+        foreach (int vId in outer_loop.ToArray()) {
             extruded_loop.Add(result.AppendVertex(result.GetVertex(vId) + Vector3d.AxisY * 100));
         }
 
         editor = new(result);
-        editor.StitchLoop(results, extruded_loop.ToArray());
+        editor.StitchLoop(outer_loop.ToArray(), extruded_loop.ToArray());
 
         MeshBoundaryLoops loops = new(editor.Mesh);
 
@@ -170,39 +256,45 @@ public static partial class MeshTools {
         return new(filler.Mesh);
     }
 
-    private static int[] WeldCloseVerts(DMesh3 mesh, int[] loop, double radius = 0.1) {
-        int count = loop.Length;
-        radius *= radius; // square the radius for quick distance comparison
+    public static MeshModel JoinMeshes(DMesh3 parting, DMesh3 face) {
+        MeshEditor editor = new(parting);
+        DMesh3 new_face = new(face);
+        new_face.ReverseOrientation();
+        editor.AppendMesh(new_face);
 
-        Vector3d v0, v1, v2;
-        int r0 = -1, r1 = -1;
-        int e0, e1;
-        for (int i = 1; i < count; i++) {
-            v0 = mesh.GetVertex(loop[i - 1]);
-            v1 = mesh.GetVertex(loop[i]);
-            v2 = mesh.GetVertex(loop[(i + 1) % count]);
+        MeshAutoRepair repair = new(editor.Mesh);
+        repair.Apply();
 
-            // skip if the distance is greater than the radius
-            if (v1.DistanceSquared(v0) > radius || v1.DistanceSquared(v2) > radius) {
-                r0 = loop[i - 1]; // use the current vertex as reference to find the boundry later
-                r1 = loop[i]; // use the next vertex as reference to find the boundry later
-                continue; 
-            } 
+        DMesh3 result = repair.Mesh;
 
-            // if the distance is less than the radius, weld the vertices
-            e0 = mesh.FindEdge(loop[i - 1], loop[i]);
-            e1 = mesh.FindEdge(loop[i], loop[(i + 1) % count]);
+        // make solid and manifold
+        MeshSignedDistanceGrid sdf = new(result, 2.0);
+        sdf.Compute();
 
-            MergeEdgesInfo info = new();
-            var success = mesh.MergeEdges(e0, e1, out info);
+        DenseGridTrilinearImplicit grid = new(sdf.Grid, sdf.GridOrigin, sdf.CellSize);
+
+        MarchingCubes cubes = new() {
+            Implicit = grid,
+            Bounds = result.CachedBounds,
+            CubeSize = grid.CellSize,
+        };
+
+        cubes.Bounds.Expand( 3 * cubes.CubeSize );
+        cubes.Generate();
+        return new(cubes.Mesh);
+
+    } 
+
+    public static MeshModel FinalPass(MeshModel model, MeshModel parting_model) {
+        //return parting_model;
+        var offset_mesh = OffsetMesh(model, 3.0f);
+        try {
+            var result = Boolean(offset_mesh, parting_model, BooleanOperation.Intersection);
+            return new(result.mesh);
+        } catch (Exception e) {
+            return new();
         }
 
-        MeshBoundaryLoops boundries = new(mesh);
-        if (boundries.Count == 0) { return []; }
-        if (boundries.Count == 1) { return boundries[0].Vertices; }
-        if (boundries[0].GetBounds().Volume > boundries[1].GetBounds().Volume) { return boundries[0].Vertices; }
-
-        return boundries[1].Vertices;
     }
 
     private static double DistanceSquared(this PointD point, PointD other) => 

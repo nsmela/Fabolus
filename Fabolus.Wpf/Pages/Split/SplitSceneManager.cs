@@ -132,21 +132,21 @@ public class SplitSceneManager : SceneManager {
         //}
 
         // show draft angle results
-        if (_draftAngleMeshPositive is not null) {
-            models.Add(new DisplayModel3D {
-                Geometry = _draftAngleMeshPositive,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Green,
-            });
-        }
-
-        if (_draftAngleMeshNegative is not null) {
-            models.Add(new DisplayModel3D {
-                Geometry = _draftAngleMeshNegative,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Red,
-            });
-        }
+        //if (_draftAngleMeshPositive is not null) {
+        //    models.Add(new DisplayModel3D {
+        //        Geometry = _draftAngleMeshPositive,
+        //        Transform = MeshHelper.TransformEmpty,
+        //        Skin = DiffuseMaterials.Green,
+        //    });
+        //}
+        //
+        //if (_draftAngleMeshNegative is not null) {
+        //    models.Add(new DisplayModel3D {
+        //        Geometry = _draftAngleMeshNegative,
+        //        Transform = MeshHelper.TransformEmpty,
+        //        Skin = DiffuseMaterials.Red,
+        //    });
+        //}
 
         if (_draftAngleMeshNeutral is not null) {
             models.Add(new DisplayModel3D {
@@ -300,11 +300,15 @@ public class SplitSceneManager : SceneManager {
         var region_tris_ids = results.Where(x => x.Value == DraftClassification.NEGATIVE).Select(x => x.Key).ToArray();
         var path_vert_ids  = model.GetBorderEdgeLoop(region_tris_ids).ToArray();
         //path_vert_ids = MeshTools.PartingLineSmoothing(model, path_vert_ids);
+        path_vert_ids = MeshTools.RemoveSingleTriangles(model, path_vert_ids);
+        //path_vert_ids = MeshTools.GraphSmoothing(model, path_vert_ids);
         var path = model.GetVertices(path_vert_ids).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2]));
         _parting_curve = new Vector3Collection(path.ToArray());
 
         // generate parting mesh
         _partingMesh = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 10.0);
+        _partingMesh = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshPositive.ToMeshModel());
+        _partingMesh = MeshTools.FinalPass(model, _partingMesh);
     }
 }
 
