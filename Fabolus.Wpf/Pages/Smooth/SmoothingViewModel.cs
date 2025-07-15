@@ -26,7 +26,7 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     #region Properties and Events
 
-    [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel = new MarchingCubesViewModel();
+    [ObservableProperty] private BaseSmoothingToolViewModel _setSmoothingViewModel;
     [ObservableProperty] private double _minHeight;
     [ObservableProperty] private double _maxHeight;
     [ObservableProperty] private double _currentHeight;
@@ -95,6 +95,7 @@ public partial class SmoothingViewModel : BaseViewModel {
     public SmoothingViewModel() {
         UpdateSlider();
         UpdateMeshText();
+        SetSmoothingViewModel = GetView(_smoothingTypeIndex);
     }
 
     #region Commands
