@@ -17,6 +17,7 @@ public partial class RotateViewModel : BaseViewModel {
     public override SceneManager GetSceneManager => new RotateSceneManager();
 
     private bool _isLocked = false;
+
     [ObservableProperty] private float _xAxisAngle;
     [ObservableProperty] private float _yAxisAngle;
     [ObservableProperty] private float _zAxisAngle;
@@ -37,6 +38,10 @@ public partial class RotateViewModel : BaseViewModel {
 
     public RotateViewModel() {
         WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(string.Empty));
+    }
+
+    private void ShowAxisRotation(Vector3 axis) {
+        WeakReferenceMessenger.Default.Send(new ShowActiveRotationMessage(axis));
     }
 
     private void SendTempRotation(Vector3 axis, float angle) {
@@ -75,6 +80,19 @@ public partial class RotateViewModel : BaseViewModel {
         ResetValues();
         WeakReferenceMessenger.Default.Send(new ApplyRotationMessage(axis, angle));
     }
+
+    [RelayCommand]
+    private void ShowAxisXRotation() => ShowAxisRotation(Vector3.UnitX);
+
+    [RelayCommand]
+    private void ShowAxisYRotation() => ShowAxisRotation(Vector3.UnitY);
+    
+    [RelayCommand]
+    private void ShowAxisZRotation() => ShowAxisRotation(Vector3.UnitZ);
+    
+    [RelayCommand]
+    private void HideAxisRotation() => ShowAxisRotation(Vector3.Zero);
+
     #endregion
 
     #region Overhangs
