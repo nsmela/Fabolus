@@ -11,6 +11,8 @@ using Material = HelixToolkit.Wpf.SharpDX.Material;
 using Fabolus.Wpf.Features;
 using System;
 using Fabolus.Core.AirChannel;
+using SharpDX;
+using ControlzEx.Standard;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
@@ -29,6 +31,8 @@ public class ChannelsSceneManager : SceneManager {
     private Guid? BolusId => _bolus?.Geometry?.GUID;
     private float MaxHeight => (float)(_bolus.TransformedMesh().Height + MAX_HEIGHT_OFFSET);
 
+    private MeshGeometry3D _airPockets;
+
     private IAirChannel? GetChannelByGeometryId(Guid id) {
         if (!_channels.Any(c => c.Value.Geometry.GUID == id)) {
             return null;
@@ -39,6 +43,7 @@ public class ChannelsSceneManager : SceneManager {
 
     public ChannelsSceneManager() {
         SetMessaging();
+        SetAirPockets();
     }
 
     protected override void SetMessaging() {
@@ -62,6 +67,31 @@ public class ChannelsSceneManager : SceneManager {
  
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         BolusUpdated(bolus);
+    }
+
+    private void SetAirPockets() {
+        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+        var results = AirPockets.Detect(bolus.TransformedMesh());
+        var points = results.Select(r => new Vector3((float)r[0], (float)r[1], (float)r[2])); // convert from double [x, y, z] to Vector3
+
+        MeshBuilder builder = new MeshBuilder();
+        foreach (Vector3 point in points) {
+            builder.AddSphere(point);
+        }
+
+        _airPockets = builder.ToMeshGeometry3D();
+
+        if (_channels is null || _channels.Count > 0) { return; } // skip if channels already placed
+
+        foreach(Vector3 point in points) {
+            var channel = _settings[_activeChannel.ChannelType].New();
+            channel.Height = MaxHeight;
+            HitTestResult hit = new HitTestResult() { PointHit = point };
+            channel = channel.WithHit(hit);
+            _channels.Add(channel);
+        }
+
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
     }
 
     private async Task ActiveAirChannelUpdated(IAirChannel channel) {
@@ -173,6 +203,16 @@ public class ChannelsSceneManager : SceneManager {
                 Geometry = _previewMesh,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Ruby
+            });
+        }
+
+        // shows air pockets
+        if (_airPockets is not null) {
+
+            models.Add(new DisplayModel3D {
+                Geometry = _airPockets,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Orange
             });
         }
 
