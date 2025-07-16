@@ -5,10 +5,13 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Rotate"
              xmlns:b="clr-namespace:Fabolus.Wpf.Pages.Rotate.Behaviors"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="200">
+    
     <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="4,0,4,0">
+ 
         <Label Content="x axis" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
@@ -21,7 +24,17 @@
                 b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
                 AutoToolTipPlacement="TopLeft"
                 AutoToolTipPrecision="1"
-                Margin="2" />
+                Margin="2">
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="MouseEnter">
+                    <i:InvokeCommandAction Command="{Binding ShowAxisXRotationCommand}" />
+                </i:EventTrigger>
+                <i:EventTrigger EventName="MouseLeave">
+                    <i:InvokeCommandAction Command="{Binding HideAxisRotationCommand}" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </Slider>
+        
         <Label Content="y axis" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
@@ -34,7 +47,17 @@
                 b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
                 AutoToolTipPlacement="TopLeft"
                 AutoToolTipPrecision="1"
-                Margin="2"/>
+                Margin="2">
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="MouseEnter">
+                    <i:InvokeCommandAction Command="{Binding ShowAxisYRotationCommand}" />
+                </i:EventTrigger>
+                <i:EventTrigger EventName="MouseLeave">
+                    <i:InvokeCommandAction Command="{Binding HideAxisRotationCommand}" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </Slider>
+        
         <Label Content="z axis" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
@@ -47,7 +70,17 @@
                 b:SliderExtension.DragCompletedCommand="{Binding SaveRotationCommand}"
                 AutoToolTipPlacement="TopLeft"
                 AutoToolTipPrecision="1"
-                Margin="2"/>
+                Margin="2">
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="MouseEnter">
+                    <i:InvokeCommandAction Command="{Binding ShowAxisZRotationCommand}" />
+                </i:EventTrigger>
+                <i:EventTrigger EventName="MouseLeave">
+                    <i:InvokeCommandAction Command="{Binding HideAxisRotationCommand}" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </Slider>
+        
         <Label Content="overhang display" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
@@ -73,6 +106,7 @@
                 </DataTemplate>
             </mah:RangeSlider.AutoToolTipRangeValuesTemplate>
         </mah:RangeSlider>
+        
         <Button Content="reset" 
                 Height="30"
                 HorizontalAlignment="Stretch"
@@ -81,5 +115,7 @@
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
                 Command="{Binding ClearRotationCommand}" />
+        
     </StackPanel>
+    
 </UserControl>

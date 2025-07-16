@@ -22,6 +22,7 @@ public sealed class RotateSceneManager : SceneManager {
     private Material _overhangSkin = new ColorStripeMaterial();
     private Vector3 _tempAxis = Vector3.Zero;
     private float _tempAngle = 0.0f;
+    private Vector3 _activeAxis = Vector3.Zero; // to display the proper widget
 
     private Transform3D TempRotation => MeshHelper.TransformFromAxis(_tempAxis, _tempAngle);
 
@@ -35,6 +36,8 @@ public sealed class RotateSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.Axis, m.Angle));
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.Bolus));
         WeakReferenceMessenger.Default.Register<ApplyOverhangSettings>(this, (r, m) => ApplyOverhangSettings(m.LowerAngle, m.UpperAngle));
+
+        WeakReferenceMessenger.Default.Register<ShowActiveRotationMessage>(this, (r, m) => UpdateActiveAxis(m.axis));
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         BolusUpdated(bolus);
@@ -53,6 +56,12 @@ public sealed class RotateSceneManager : SceneManager {
         _tempAxis = axis;
         _tempAngle = angle;
 
+        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        UpdateDisplay(bolus);
+    }
+
+    private void UpdateActiveAxis(Vector3 axis) {
+        _activeAxis = axis;
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         UpdateDisplay(bolus);
     }
@@ -84,7 +93,7 @@ public sealed class RotateSceneManager : SceneManager {
             Skin = _overhangSkin
         });
 
-        if (_tempAngle != 0.0) {
+        if (_activeAxis != Vector3.Zero) {
             models.Add(GenerateAxisWidget(bolus.Geometry.BoundingSphere.Radius));
         }
 
@@ -97,13 +106,13 @@ public sealed class RotateSceneManager : SceneManager {
         var mesh = new MeshBuilder();
         mesh.AddTorus(radius * 2, 2.0);
 
-        Transform3D transform = _tempAxis switch {
+        Transform3D transform = _activeAxis switch {
             { X: 1 } => MeshHelper.TransformFromAxis(Vector3.UnitY, 90.0f),
             { Y: 1 } => MeshHelper.TransformFromAxis(Vector3.UnitX, 90.0f),
             _ => MeshHelper.TransformEmpty,
         };
 
-        Material skin = _tempAxis switch {
+        Material skin = _activeAxis switch {
             { X: 1 } => DiffuseMaterials.Red,
             { Y: 1 } => DiffuseMaterials.Green,
             _ => DiffuseMaterials.Blue,
