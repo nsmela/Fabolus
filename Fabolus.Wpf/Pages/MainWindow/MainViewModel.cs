@@ -23,9 +23,14 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using HelixToolkit.Wpf.SharpDX.Utilities;
 using System.Windows.Controls;
+using System.Configuration;
+using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Pages.Preferences;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
+    AppPreferencesStore _appPreferences = new();
+
     private const string NoFileText = "No file loaded";
 
     [ObservableProperty] private BaseViewModel? _currentViewModel;
@@ -67,11 +72,15 @@ public partial class MainViewModel : ObservableObject {
     }
 
     public MainViewModel() {
+
         CurrentMeshInfo = new();
         _sceneModel = new();
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
 
         NavigateTo(new ImportViewModel());
+
+        PreferencesView preferencesWindow = new PreferencesView();
+        preferencesWindow.Show();
     }
 
     private void BolusUpdated() {
