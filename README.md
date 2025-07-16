@@ -1,5 +1,5 @@
 # Fabolus
-Fabolus is a .NET desktop app for Windows designed to assist radiation therapy prepare bolus meshes for 3D printing. It's specialty is to smooth the bolus surface without sacrificing volume and to design a sacrifical mould for curing silicone into the prescribed bolus shape.
+**Fabolus** is a Windows-based app designed to assist radiation therapy prepare bolus meshes for 3D printing. It's specialty is to smooth the bolus surface without sacrificing volume and to design a sacrifical mould for curing silicone into the prescribed bolus shape.
 
 This application can import a STL file, smooth it, add airchannels, and create an encompasing mould around the bolus and subtracting the air channels.
 
