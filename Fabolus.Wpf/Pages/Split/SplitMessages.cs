@@ -8,4 +8,5 @@ using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Pages.Split;
 
+public sealed record SplitSperationDistanceChangedMessage(float Distance);
 public sealed class SplitRequestModels : RequestMessage<MeshModel[]>;

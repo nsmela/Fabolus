@@ -13,7 +13,7 @@
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding SmoothnessDegree, Mode=TwoWay}"
+        <Slider Value="{Binding Sperationdistance, Mode=TwoWay}"
                             Minimum="5" Maximum="45" 
                             TickFrequency="5" 
                             TickPlacement="TopLeft" 

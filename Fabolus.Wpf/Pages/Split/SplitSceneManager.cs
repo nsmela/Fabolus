@@ -47,6 +47,7 @@ public class SplitSceneManager : SceneManager {
     // parting
     private Vector3Collection _parting_curve = [];
     private MeshModel _partingMesh;
+    private float _splitDistance;
 
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
@@ -55,6 +56,7 @@ public class SplitSceneManager : SceneManager {
         // request messages
         WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitRequestModels>(this, (r,m) => m.Reply([r._partNegativeModel, r._partPositiveModel]));
 
+        WeakReferenceMessenger.Default.Register<SplitSperationDistanceChangedMessage>(this, (r, m) => _model_thickness = m.Distance);
         UpdateMesh(bolus.TransformedMesh());
     }
 

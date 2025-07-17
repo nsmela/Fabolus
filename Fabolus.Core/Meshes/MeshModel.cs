@@ -167,7 +167,25 @@ public class MeshModel {
         }
 
     }
-    
+
+    // combine two MeshModels into one
+    public MeshModel(IEnumerable<MeshModel> models, float distance = 0.1f) {
+        DMesh3[] meshes = models.Select(m => m.Mesh).ToArray();
+        if (meshes.Length < 2) {
+            throw new ArgumentException("At least two MeshModels are required to combine them.");
+        }
+
+        distance = Math.Abs(distance); // Ensure distance is non-negative
+
+        MeshEditor editor = new(meshes[0]);
+        DMesh3 mesh2 = new(meshes[1]);
+        MeshTransforms.Translate(mesh2, new Vector3d(0, distance, 0));
+        editor.AppendMesh(mesh2);
+
+        Mesh = new DMesh3(editor.Mesh);
+    }
+
+
     // Operators
 
     public static implicit operator DMesh3(MeshModel model) => model.Mesh;
