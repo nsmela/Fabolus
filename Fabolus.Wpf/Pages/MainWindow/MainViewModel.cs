@@ -78,9 +78,6 @@ public partial class MainViewModel : ObservableObject {
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
 
         NavigateTo(new ImportViewModel());
-
-        PreferencesView preferencesWindow = new PreferencesView();
-        preferencesWindow.Show();
     }
 
     private void BolusUpdated() {
@@ -125,5 +122,6 @@ public partial class MainViewModel : ObservableObject {
         }
     }
 
+    [RelayCommand] public async Task OpenPreferences() => new PreferencesView().Show();
     #endregion
 }

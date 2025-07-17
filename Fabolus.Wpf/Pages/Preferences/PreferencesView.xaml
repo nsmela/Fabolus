@@ -4,9 +4,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro" 
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Preferences"
         mc:Ignorable="d"
-        Title="App Preferences" Height="270" Width="240">
+        Title="App Preferences" Height="270" Width="245">
     <Window.DataContext>
         <local:PreferencesViewModel />
     </Window.DataContext>
@@ -14,15 +15,15 @@
     <StackPanel Orientation="Vertical">
 
         <Label Content="Default Import Folder Path:" />
-        <StackPanel Orientation="Horizontal" Margin="4">
-            <TextBlock IsEnabled="False" Width="196" />
-            <Button Content="..." Width="40"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="4">
+            <TextBlock IsEnabled="False" Width="196" Text="{Binding ImportFilepath}"/>
+            <Button Content="..." Width="40" Command="{Binding SetImportFolderCommand}"/>
         </StackPanel>
 
         <Label Content="Default Export Folder Path:" />
         <StackPanel Orientation="Horizontal" Margin="4">
-            <TextBlock IsEnabled="False" Width="196" />
-            <Button Content="..." Width="40"/>
+            <TextBlock IsEnabled="False" Width="196" Text="{Binding ExportFilepath}"/>
+            <Button Content="..." Width="40" Command="{Binding SetExportFolderCommand}"/>
         </StackPanel>
 
         <Label Content="Print Bed Size (Width x Depth in cm)" />
@@ -35,6 +36,16 @@
             <mah:NumericUpDown Width="160"/>
         </StackPanel>
 
-        <Button Content="Close" HorizontalAlignment="Right" Margin="6" />
+        <Button Content="Close" HorizontalAlignment="Right" Margin="6">
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="Click">
+                    <i:CallMethodAction MethodName="Close"
+                           TargetObject="{Binding RelativeSource={RelativeSource
+                                                  Mode=FindAncestor,
+                                                  AncestorType=Window}}" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </Button>
+        
     </StackPanel>
 </mah:MetroWindow>
