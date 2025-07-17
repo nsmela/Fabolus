@@ -5,6 +5,7 @@ using Fabolus.Core.Meshes;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Mould;
 using Microsoft.Win32;
 using static Fabolus.Wpf.Bolus.BolusStore;
@@ -33,9 +34,13 @@ public partial class ExportViewModel : BaseViewModel {
     public async Task ExportBolus() {
         var bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response;
         if (BolusModel.IsNullOrEmpty(bolus)) { return; }
+        
+        // get app preference for import folder
+        string export_folder = WeakReferenceMessenger.Default.Send(new PreferencesExportFolderRequest()).Response;
 
         SaveFileDialog saveFile = new() {
-            Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*"
+            Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*",
+            InitialDirectory = export_folder,
         };
 
         //if successful, create mesh
@@ -51,8 +56,12 @@ public partial class ExportViewModel : BaseViewModel {
         var mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
         if (MouldModel.IsNullOrEmpty(mould)) { return; }
 
+        // get app preference for import folder
+        string export_folder = WeakReferenceMessenger.Default.Send(new PreferencesExportFolderRequest()).Response;
+
         SaveFileDialog saveFile = new() {
-            Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*"
+            Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*",
+            InitialDirectory = export_folder,
         };
 
         //if successful, create mesh
