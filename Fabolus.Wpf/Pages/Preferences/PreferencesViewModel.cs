@@ -60,7 +60,7 @@ public partial class PreferencesViewModel : ObservableObject {
 
         WeakReferenceMessenger.Default.Send(new PreferencesSetExportFolderMessage(ofd.FolderName));
         var response = WeakReferenceMessenger.Default.Send<PreferencesExportFolderRequest>().Response;
-        ImportFilepath = Path.GetFullPath(response);
+        ExportFilepath = Path.GetFullPath(response);
     }
 
 }
