@@ -17,7 +17,7 @@ namespace Fabolus.Wpf.Pages.Preferences;
 /// <summary>
 /// Interaction logic for PreferencesView.xaml
 /// </summary>
-public partial class PreferencesView : MetroWindow {
+public partial class PreferencesView : Window {
     public PreferencesView() {
         InitializeComponent();
     }

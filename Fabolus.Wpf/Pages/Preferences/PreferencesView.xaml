@@ -1,4 +1,4 @@
-﻿<mah:MetroWindow x:Class="Fabolus.Wpf.Pages.Preferences.PreferencesView"
+﻿<Window x:Class="Fabolus.Wpf.Pages.Preferences.PreferencesView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -7,25 +7,53 @@
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Preferences"
         mc:Ignorable="d"
-        Title="App Preferences" Height="270" Width="245">
+        ResizeMode="CanResizeWithGrip"
+        WindowStyle="ToolWindow"
+        WindowStartupLocation="CenterScreen"
+        Title="App Preferences" MinHeight="300" MaxHeight="300" MinWidth="260" Width="260">
     <Window.DataContext>
         <local:PreferencesViewModel />
     </Window.DataContext>
     
-    <StackPanel Orientation="Vertical">
+    <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch">
 
-        <Label Content="Default Import Folder Path:" />
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="4">
-            <TextBlock IsEnabled="False" Width="196" Text="{Binding ImportFilepath}"/>
-            <Button Content="..." Width="40" Command="{Binding SetImportFolderCommand}"/>
-        </StackPanel>
+        <!-- Import Folder Path Selection -->
+        <Label Content="Default Import Folder Path" FontWeight="Bold" FontSize="14"/>
+        
+        <Grid Margin="16, 0, 4, 2" Height="26" Background="LightGray">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" IsEnabled="False" MinWidth="200" 
+                    VerticalAlignment="Center"
+                    Text="{Binding ImportFilepath}"
+                    Padding="4,0,0,0"
+                    FontStyle="Oblique" 
+                    TextTrimming="WordEllipsis" 
+                    TextAlignment="Left" />
+            <Button Grid.Column="1" Content="..." Width="40" Height="10" Command="{Binding SetImportFolderCommand}" />
+        </Grid>
 
-        <Label Content="Default Export Folder Path:" />
-        <StackPanel Orientation="Horizontal" Margin="4">
-            <TextBlock IsEnabled="False" Width="196" Text="{Binding ExportFilepath}"/>
-            <Button Content="..." Width="40" Command="{Binding SetExportFolderCommand}"/>
-        </StackPanel>
+        <!-- Export Folder Path Selection -->
+        <Label Content="Default Export Folder Path" FontWeight="Bold" FontSize="14"/>
 
+        <Grid Margin="16, 0, 4, 2" Height="26" Background="LightGray">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" IsEnabled="False" MinWidth="200" 
+                    VerticalAlignment="Center"
+                    Text="{Binding ExportFilepath}"
+                    Padding="4,0,0,0"
+                    FontStyle="Oblique" 
+                    TextTrimming="WordEllipsis" 
+                    TextAlignment="Left" />
+            <Button Grid.Column="1" Content="..." Width="40" Height="10" Command="{Binding SetExportFolderCommand}" />
+        </Grid>
+
+        <!-- Print Bed Size -->
         <Label Content="Print Bed Size (Width x Depth in cm)" />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4">
             <Label Content="Width (X):" />
@@ -33,9 +61,10 @@
         </StackPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4">
             <Label Content="Depth (Y):" />
-            <mah:NumericUpDown Width="160"/>
+            <mah:NumericUpDown Width="160" />
         </StackPanel>
 
+        <!-- Close Button -->
         <Button Content="Close" HorizontalAlignment="Right" Margin="6">
             <i:Interaction.Triggers>
                 <i:EventTrigger EventName="Click">
@@ -48,4 +77,4 @@
         </Button>
         
     </StackPanel>
-</mah:MetroWindow>
+</Window>
