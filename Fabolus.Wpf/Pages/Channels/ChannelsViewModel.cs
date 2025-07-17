@@ -20,6 +20,8 @@ public partial class ChannelsViewModel : BaseViewModel {
     [ObservableProperty] private string[] _channelNames = [];
     [ObservableProperty] private int _activeToolIndex = 0;
 
+    private bool _autoload_channels;
+
     private ChannelTypes CurrentType {
         get => (ChannelTypes)ActiveToolIndex;
         set => ActiveToolIndex = (int)value;
@@ -56,6 +58,7 @@ public partial class ChannelsViewModel : BaseViewModel {
 
         CurrentType = _settings.SelectedType; //set active index and generates view model
         CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
+
     }
 
     public override void Dispose() {
