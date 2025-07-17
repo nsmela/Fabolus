@@ -122,6 +122,12 @@ public partial class MainViewModel : ObservableObject {
         }
     }
 
-    [RelayCommand] public async Task OpenPreferences() => new PreferencesView().Show();
+    [RelayCommand]
+    public async Task OpenPreferences() {
+        PreferencesView preferences = Application.Current.Windows.OfType<PreferencesView>().SingleOrDefault() ?? new PreferencesView();
+        preferences.Show();
+        preferences.WindowState = WindowState.Normal;
+        preferences.Activate();
+    }
     #endregion
 }

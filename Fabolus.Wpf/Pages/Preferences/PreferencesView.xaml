@@ -54,15 +54,23 @@
         </Grid>
 
         <!-- Print Bed Size -->
-        <Label Content="Print Bed Size (Width x Depth in cm)" />
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4">
-            <Label Content="Width (X):" />
-            <mah:NumericUpDown Width="160"/>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4">
-            <Label Content="Depth (Y):" />
-            <mah:NumericUpDown Width="160" />
-        </StackPanel>
+        <Label Content="Print Bed Size (Width x Depth in cm)" FontWeight="Bold" FontSize="14"/>
+        <Grid Margin="16, 0, 4, 2" >
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            
+            <Label Grid.Column="0" Grid.Row="0"  Content="Width (X):" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            <mah:NumericUpDown Grid.Column="1" Grid.Row="0" Margin="0, 2, 0, 0" Value="{Binding PrintbedWidth}" StringFormat="N1"/>
+
+            <Label Grid.Column="0" Grid.Row="1"  Content="Depth (Y):" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            <mah:NumericUpDown Grid.Column="1" Grid.Row="1" Margin="0, 2, 0, 0" Value="{Binding PrintbedDepth}" StringFormat="N1"/>
+        </Grid> 
 
         <!-- Close Button -->
         <Button Content="Close" HorizontalAlignment="Right" Margin="6">

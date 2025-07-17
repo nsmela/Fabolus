@@ -7,10 +7,14 @@ namespace Fabolus.Wpf.Features.AppPreferences;
 // messages
 public sealed record PreferencesSetImportFolderMessage(string ImportFolder);
 public sealed record PreferencesSetExportFolderMessage(string ExportFolder);
+public sealed record PreferencesSetPrintbedWidthMessage(float Width);
+public sealed record PreferencesSetPrintbedDepthMessage(float Depth);
 
 // requests
 public class PreferencesImportFolderRequest : RequestMessage<string> { }
 public class PreferencesExportFolderRequest : RequestMessage<string> { }
+public class PreferencesPrintbedWidthRequest : RequestMessage<float> { }
+public class PreferencesPrintbedDepthRequest : RequestMessage<float> { }
 
 public class AppPreferencesStore {
     // App Preferences Configuration
@@ -24,13 +28,17 @@ public class AppPreferencesStore {
             _appConfig.Sections.Add(UISettings.Label, new UISettings() {
                 DefaultImportFolder = Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments),
                 DefaultExportFolder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                PrintBedWidth = 250.0f, // Default print bed width
+                PrintBedDepth = 250.0f // Default print bed depth
             });
         }
 
-        _settings = _appConfig.GetSection(UISettings.Label) as UISettings;
-        if (_settings is null) {
+        var settings = _appConfig.GetSection(UISettings.Label) as UISettings;
+        if (settings is null) {
             throw new ConfigurationErrorsException($"The preference section '{UISettings.Label}' is not properly configured.");
         }
+
+        _settings = settings;
 
         // messages
         WeakReferenceMessenger.Default.Register<PreferencesSetImportFolderMessage>(this, (r, m) => {
@@ -43,8 +51,20 @@ public class AppPreferencesStore {
             _appConfig.Save();
         });
 
+        WeakReferenceMessenger.Default.Register<PreferencesSetPrintbedWidthMessage>(this, (r, m) => {
+            _settings.PrintBedWidth = m.Width;
+            _appConfig.Save();
+        });
+
+        WeakReferenceMessenger.Default.Register<PreferencesSetPrintbedDepthMessage>(this, (r, m) => {
+            _settings.PrintBedDepth = m.Depth;
+            _appConfig.Save();
+        });
+
         // requests
         WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesImportFolderRequest>(this, (r, m) => m.Reply(_settings.DefaultImportFolder));
         WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesExportFolderRequest>(this, (r, m) => m.Reply(_settings.DefaultExportFolder));
+        WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesPrintbedWidthRequest>(this, (r, m) => m.Reply(_settings.PrintBedWidth));
+        WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesPrintbedDepthRequest>(this, (r, m) => m.Reply(_settings.PrintBedDepth));
     }
 }

@@ -13,9 +13,22 @@ public partial class PreferencesViewModel : ObservableObject {
     [ObservableProperty] private float _printbedWidth;
     [ObservableProperty] private float _printbedDepth;
 
+    partial void OnPrintbedWidthChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        WeakReferenceMessenger.Default.Send(new PreferencesSetPrintbedWidthMessage(newValue));
+    }
+
+    partial void OnPrintbedDepthChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        WeakReferenceMessenger.Default.Send(new PreferencesSetPrintbedDepthMessage(newValue));
+
+    }
+
     public PreferencesViewModel() {
-        ImportFilepath = WeakReferenceMessenger.Default.Send(new PreferencesImportFolderRequest()).Response;
-        ExportFilepath = WeakReferenceMessenger.Default.Send(new PreferencesExportFolderRequest()).Response;
+        _importFilepath = WeakReferenceMessenger.Default.Send<PreferencesImportFolderRequest>().Response;
+        _exportFilepath = WeakReferenceMessenger.Default.Send<PreferencesExportFolderRequest>().Response;
+        _printbedWidth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedWidthRequest>().Response;
+        _printbedDepth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedDepthRequest>().Response;
     }
 
     [RelayCommand]
