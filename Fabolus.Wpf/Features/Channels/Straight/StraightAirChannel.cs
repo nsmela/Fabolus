@@ -12,11 +12,11 @@ public sealed record StraightAirChannel : IAirChannel {
     public StraightAirChannel() : base() { }
 
     public ChannelTypes ChannelType => ChannelTypes.Straight;
-    public float Depth { get; set; } = 0.5f;
+    public float Depth { get; set; } = 1.5f;
     public MeshGeometry3D Geometry { get; set; }
     public Guid GUID { get; init; }
     public float Height { get; set; } = 10.0f;
-    public float LowerDiameter { get; set; } = 5.0f;
+    public float LowerDiameter { get; set; } = 4.0f;
     public Vector3 Origin { get; set; }
     public float TipLength { get; set; } = 3.0f;
     public float UpperDiameter { get; set; } = 6.0f;

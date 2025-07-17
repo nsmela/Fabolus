@@ -12,6 +12,7 @@ public partial class PreferencesViewModel : ObservableObject {
     [ObservableProperty] private string _exportFilepath;
     [ObservableProperty] private float _printbedWidth;
     [ObservableProperty] private float _printbedDepth;
+    [ObservableProperty] private bool _autodetectChannels;
 
     partial void OnPrintbedWidthChanged(float oldValue, float newValue) {
         if (oldValue == newValue) { return; }
@@ -24,11 +25,17 @@ public partial class PreferencesViewModel : ObservableObject {
 
     }
 
+    partial void OnAutodetectChannelsChanged(bool oldValue, bool newValue) {
+        if (oldValue == newValue) { return; }
+        WeakReferenceMessenger.Default.Send(new PreferencesSetAutodetectChannelsMessage(newValue));
+    }
+
     public PreferencesViewModel() {
         _importFilepath = WeakReferenceMessenger.Default.Send<PreferencesImportFolderRequest>().Response;
         _exportFilepath = WeakReferenceMessenger.Default.Send<PreferencesExportFolderRequest>().Response;
         _printbedWidth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedWidthRequest>().Response;
         _printbedDepth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedDepthRequest>().Response;
+        _autodetectChannels = WeakReferenceMessenger.Default.Send<PreferencesAutodetectChannelsRequest>().Response;
     }
 
     [RelayCommand]

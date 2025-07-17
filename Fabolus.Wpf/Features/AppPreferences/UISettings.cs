@@ -14,6 +14,7 @@ internal class UISettings : ConfigurationSection {
     public const string DefaultExportFolderLabel = "default_export_folder";
     public const string PrintBedWidthLabel = "print_bed_width";
     public const string PrintBedDepthLabel = "print_bed_depth";
+    public const string AutodetectChannelsLabel = "autodetect_channels";
 
     [ConfigurationProperty(DefaultImportFolderLabel)]
     public string DefaultImportFolder {
@@ -37,5 +38,11 @@ internal class UISettings : ConfigurationSection {
     public float PrintBedDepth {
         get => (float)this[PrintBedDepthLabel];
         set => this[PrintBedDepthLabel] = value;
+    }
+
+    [ConfigurationProperty(AutodetectChannelsLabel, DefaultValue = true)]
+    public bool AutodetectChannels {
+        get => (bool)this[AutodetectChannelsLabel];
+        set => this[AutodetectChannelsLabel] = value;
     }
 }

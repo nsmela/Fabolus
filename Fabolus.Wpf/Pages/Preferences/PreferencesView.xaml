@@ -10,7 +10,7 @@
         ResizeMode="CanResizeWithGrip"
         WindowStyle="ToolWindow"
         WindowStartupLocation="CenterScreen"
-        Title="App Preferences" MinHeight="300" MaxHeight="300" MinWidth="260" Width="260">
+        Title="App Preferences" MinHeight="340" MaxHeight="340" MinWidth="260" Width="260">
     <Window.DataContext>
         <local:PreferencesViewModel />
     </Window.DataContext>
@@ -70,8 +70,15 @@
 
             <Label Grid.Column="0" Grid.Row="1"  Content="Depth (Y):" HorizontalAlignment="Right" VerticalAlignment="Center"/>
             <mah:NumericUpDown Grid.Column="1" Grid.Row="1" Margin="0, 2, 0, 0" Value="{Binding PrintbedDepth}" StringFormat="N1"/>
-        </Grid> 
+        </Grid>
 
+        <Label Content="Auto-detect air channels" FontWeight="Bold" FontSize="14"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0, 0, 8, 0">
+            <Label Content="Generate airchannels automatically"/>
+            <CheckBox Margin="16, 0, 4, 2" IsChecked="{Binding AutodetectChannels}" FlowDirection="RightToLeft" />
+
+        </StackPanel>
+        
         <!-- Close Button -->
         <Button Content="Close" HorizontalAlignment="Right" Margin="6">
             <i:Interaction.Triggers>
