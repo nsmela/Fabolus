@@ -2,13 +2,15 @@
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
+using System.Windows.Controls;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
-using Vector3D = System.Windows.Media.Media3D.Vector3D;
 using Transform3D = System.Windows.Media.Media3D.Transform3D;
-using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
+using Vector3D = System.Windows.Media.Media3D.Vector3D;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 
@@ -30,7 +32,9 @@ public sealed class RotateSceneManager : SceneManager {
 
     public RotateSceneManager() {
         _overhangSkin = OverhangsHelper.CreateOverhangsMaterial(_overhangLowerAngle, _overhangUpperAngle);
-        AxisLines = GenerateAxisLines(100, 100);
+        var printbedWidth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedWidthRequest>().Response;
+        var printbedDepth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedDepthRequest>().Response;
+        AxisLines = GenerateAxisLines(printbedWidth / 2, printbedDepth / 2);
 
         WeakReferenceMessenger.Default.UnregisterAll(this);
         WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.Axis, m.Angle));
@@ -38,6 +42,8 @@ public sealed class RotateSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Register<ApplyOverhangSettings>(this, (r, m) => ApplyOverhangSettings(m.LowerAngle, m.UpperAngle));
 
         WeakReferenceMessenger.Default.Register<ShowActiveRotationMessage>(this, (r, m) => UpdateActiveAxis(m.axis));
+
+
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         BolusUpdated(bolus);
