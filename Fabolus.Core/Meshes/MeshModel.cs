@@ -40,7 +40,6 @@ public class MeshModel {
     public void ApplyTranslation(double x, double y, double z) =>
         MeshTransforms.Translate(Mesh, new Vector3d(x, y, z));
 
-
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
 
     public double Height => Mesh.CachedBounds.Max.z;

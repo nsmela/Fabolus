@@ -14,6 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
+
 namespace Fabolus.Wpf.Pages.Split;
 
 public partial class SplitViewModel : BaseViewModel {
@@ -70,7 +71,16 @@ public partial class SplitViewModel : BaseViewModel {
         if (saveFile.ShowDialog() != true) { return; }
 
         // saving both models in a single STL file with a small gap between them
-        MeshModel combinedModel = MeshModel.Combine(models);
+        // copying the meshes to ensure they dont modify the originals
+        MeshModel negative_parting_model = MeshModel.Copy(models[0]);
+        MeshModel positive_parting_model = MeshModel.Copy(models[1]);
+        positive_parting_model.ApplyTranslation(0, SeperationDistance, 0); // move to create gap
+
+        MeshModel combinedModel = MeshModel.Combine([
+            negative_parting_model,
+            positive_parting_model,
+        ]);
+
         await MeshModel.ToFile(saveFile.FileName, combinedModel);
     }
 }
