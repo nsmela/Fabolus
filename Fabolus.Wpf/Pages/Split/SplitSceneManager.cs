@@ -6,6 +6,7 @@ using Fabolus.Wpf.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
@@ -47,6 +48,7 @@ public class SplitSceneManager : SceneManager {
     // parting
     private Vector3Collection _parting_curve = [];
     private MeshModel _partingMesh;
+    private float _splitDistance;
 
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
@@ -55,6 +57,7 @@ public class SplitSceneManager : SceneManager {
         // request messages
         WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitRequestModels>(this, (r,m) => m.Reply([r._partNegativeModel, r._partPositiveModel]));
 
+        WeakReferenceMessenger.Default.Register<SplitSperationDistanceChangedMessage>(this, (r, m) => _model_thickness = m.Distance);
         UpdateMesh(bolus.TransformedMesh());
     }
 
@@ -139,40 +142,40 @@ public class SplitSceneManager : SceneManager {
         //}
 
         // show draft angle results
-        //if (_draftAngleMeshPositive is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _draftAngleMeshPositive,
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Green,
-        //    });
-        //}
-        //
-        //if (_draftAngleMeshNegative is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _draftAngleMeshNegative,
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Red,
-        //    });
-        //}
-        //
-        //if (_draftAngleMeshNeutral is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _draftAngleMeshNeutral,
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Gray,
-        //    });
-        //}
+        if (_draftAngleMeshPositive is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _draftAngleMeshPositive,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Green,
+            });
+        }
+        
+        if (_draftAngleMeshNegative is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _draftAngleMeshNegative,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Red,
+            });
+        }
+        
+        if (_draftAngleMeshNeutral is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _draftAngleMeshNeutral,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Gray,
+            });
+        }
 
         // parting curve
-        //if (_parting_curve.Count > 0) {
-        //    MeshBuilder builder = new();
-        //    builder.AddTube(_parting_curve, 0.3, 16, true);
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = builder.ToMeshGeometry3D(),
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Yellow,
-        //    });
-        //}
+        if (_parting_curve.Count > 0) {
+            MeshBuilder builder = new();
+            builder.AddTube(_parting_curve, 0.3, 16, true);
+            models.Add(new DisplayModel3D {
+                Geometry = builder.ToMeshGeometry3D(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Yellow,
+            });
+        }
 
         if (_previewMesh is not null) {
             models.Add(new DisplayModel3D {
@@ -319,10 +322,15 @@ public class SplitSceneManager : SceneManager {
         _parting_curve = new Vector3Collection(path.ToArray());
 
         // generate parting mesh
-        _partingMesh = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 10.0);
+        _partingMesh = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 20.0);
         _partingMesh = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshPositive.ToMeshModel());
         MeshModel[] meshes = []; 
         MeshModel offset_mesh = new (MeshTools.OffsetMesh(model, _model_thickness)); // simulates a defines mold shape
+
+        // tool mesh, combination of bolus and air channels
+        
+        var channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response;
+        var tools = MeshModel.Combine(channels.Select(c => c.Value.Geometry.ToMeshModel()).ToArray());
         var task = Task.Run(() => meshes = MeshTools.FinalPass(model, offset_mesh, _partingMesh));
         task.Wait(); // needed or else mesh can randomly return no mesh
 
@@ -330,6 +338,13 @@ public class SplitSceneManager : SceneManager {
 
         _partPositiveModel = meshes[0];
         _partNegativeModel = meshes[1];
+
+        // remove air channels
+        _partPositiveModel = MeshTools.BooleanSubtraction(_partPositiveModel, tools).Data;
+
+        tools = MeshModel.Combine(channels.Select(c => c.Value.Geometry.ToMeshModel()).ToArray());
+        _partNegativeModel = MeshTools.BooleanSubtraction(_partNegativeModel, tools).Data;
+
         return;
 
         // final parting meshes

@@ -21,7 +21,13 @@ public partial class SplitViewModel : BaseViewModel {
 
     public override SceneManager GetSceneManager => new SplitSceneManager();
 
-    [ObservableProperty] private int _smoothnessDegree = 5;
+    [ObservableProperty] private float _sperationdistance = 0.1f;
+
+    partial void OnSperationdistanceChanged(float oldValue, float newValue)
+    {
+        if (oldValue == newValue) { return; }
+        WeakReferenceMessenger.Default.Send(new SplitSperationDistanceChangedMessage(newValue));
+    }
 
     [RelayCommand]
     public async Task ExportSplits() {
@@ -40,10 +46,13 @@ public partial class SplitViewModel : BaseViewModel {
         var filetype = Path.GetExtension(saveFile.FileName);
 
         string path = string.Empty;
-        for (int i = 0; i < models.Length; i++) {
-            path = Path.Combine(folder, $"{filename}0{i}{filetype}");
-            await MeshModel.ToFile(path, models[i]);
-        }
+        //for (int i = 0; i < models.Length; i++) {
+        //    path = Path.Combine(folder, $"{filename}0{i}{filetype}");
+        //    await MeshModel.ToFile(path, models[i]);
+        //}
 
+        // saving both models in a single STL file with a small gap between them
+        MeshModel combinedModel = new(models);
+        await MeshModel.ToFile(saveFile.FileName, combinedModel);
     }
 }

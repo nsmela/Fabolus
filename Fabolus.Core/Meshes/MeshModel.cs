@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.Extensions;
 using g3;
+using gs;
 using System.CodeDom;
 using System.Windows.Media.Media3D;
 using static MR.DotNet;
@@ -150,6 +151,20 @@ public class MeshModel {
         Mesh = mesh;
     }
 
+    public static MeshModel Combine(MeshModel[] models) {
+        MeshEditor editor = new(new DMesh3());
+
+        // assume meshes do not overlap and can be appended directly
+        foreach (DMesh3 model in models.Select(m => m.Mesh)) {
+            editor.AppendMesh(model);
+        }
+
+        MeshAutoRepair repair = new(editor.Mesh);
+        repair.Apply();
+
+        return new(repair.Mesh);
+    }
+
     public MeshModel(Mesh mesh) {
         Mesh = mesh.ToDMesh();
         _mesh = mesh; // Store the original Mesh for further operations if needed
@@ -167,7 +182,25 @@ public class MeshModel {
         }
 
     }
-    
+
+    // combine two MeshModels into one
+    public MeshModel(IEnumerable<MeshModel> models, float distance = 0.1f) {
+        DMesh3[] meshes = models.Select(m => m.Mesh).ToArray();
+        if (meshes.Length < 2) {
+            throw new ArgumentException("At least two MeshModels are required to combine them.");
+        }
+
+        distance = Math.Abs(distance); // Ensure distance is non-negative
+
+        MeshEditor editor = new(meshes[0]);
+        DMesh3 mesh2 = new(meshes[1]);
+        MeshTransforms.Translate(mesh2, new Vector3d(0, distance, 0));
+        editor.AppendMesh(mesh2);
+
+        Mesh = new DMesh3(editor.Mesh);
+    }
+
+
     // Operators
 
     public static implicit operator DMesh3(MeshModel model) => model.Mesh;

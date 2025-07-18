@@ -13,9 +13,9 @@
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding SmoothnessDegree, Mode=TwoWay}"
-                            Minimum="5" Maximum="45" 
-                            TickFrequency="5" 
+        <Slider Value="{Binding Sperationdistance, Mode=TwoWay}"
+                            Minimum="0.02" Maximum="1.0" 
+                            TickFrequency="0.02" 
                             TickPlacement="TopLeft" 
                             AutoToolTipPlacement="TopLeft"
                             IsSnapToTickEnabled="True" 
