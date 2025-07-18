@@ -13,6 +13,8 @@ using System;
 using Fabolus.Core.AirChannel;
 using SharpDX;
 using ControlzEx.Standard;
+using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.Channels.Straight;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
@@ -83,8 +85,13 @@ public class ChannelsSceneManager : SceneManager {
 
         if (_channels is null || _channels.Count > 0) { return; } // skip if channels already placed
 
-        foreach(Vector3 point in points) {
-            var channel = _settings[_activeChannel.ChannelType].New();
+        // check if preferences is set to allow autogenerating channels
+        if(!WeakReferenceMessenger.Default.Send<PreferencesAutodetectChannelsRequest>().Response) { return; }
+
+        var _default_air_channel = new StraightAirChannel();
+
+        foreach (Vector3 point in points) {
+            var channel = _default_air_channel.New();
             channel.Height = MaxHeight;
             HitTestResult hit = new HitTestResult() { PointHit = point };
             channel = channel.WithHit(hit);

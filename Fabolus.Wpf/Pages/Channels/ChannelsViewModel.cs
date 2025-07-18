@@ -21,6 +21,8 @@ public partial class ChannelsViewModel : BaseViewModel {
     [ObservableProperty] private string[] _channelNames = [];
     [ObservableProperty] private int _activeToolIndex = 0;
 
+    private bool _autoload_channels;
+
     private ChannelTypes CurrentType {
         get => (ChannelTypes)ActiveToolIndex;
         set => ActiveToolIndex = (int)value;

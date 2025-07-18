@@ -4,7 +4,7 @@ using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Scene;
-using Fabolus.Wpf.Pages.MainWindow;
+using Fabolus.Wpf.Features.AppPreferences;
 using Microsoft.Win32;
 using System.IO;
 using static Fabolus.Wpf.Bolus.BolusStore;
@@ -37,13 +37,14 @@ public partial class ImportViewModel : BaseViewModel {
     #region Commands
     [RelayCommand]
     public async Task ImportFile() {
-        //clear the bolus
-        //send message to clear the bolus
+        // get app preference for import folder
+        string import_folder = WeakReferenceMessenger.Default.Send(new PreferencesImportFolderRequest()).Response;
 
         //open file dialog box
         OpenFileDialog openFile = new() {
             Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*",
-            Multiselect = false
+            Multiselect = false,
+            InitialDirectory = import_folder,
         };
 
         //if successful, create mesh

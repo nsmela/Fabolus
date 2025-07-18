@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common.Mesh;
+using Fabolus.Wpf.Features.AppPreferences;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using SharpDX.Direct3D11;
@@ -16,7 +17,6 @@ namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 
 public partial class MeshViewModel : ObservableObject {
 
-    
     [ObservableProperty] private Camera _camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera();
     [ObservableProperty] private IEffectsManager _effectsManager = new DefaultEffectsManager();
 
@@ -47,13 +47,32 @@ public partial class MeshViewModel : ObservableObject {
     public ObservableElement3DCollection CurrentModel { get; init; } = new ObservableElement3DCollection();
     [ObservableProperty] private Transform3D _mainTransform = MeshHelper.TransformEmpty;
 
+    //printbed dimensions
+    private float _printbedWidth;
+    private float _printbedDepth;
+
     public MeshViewModel() {
-        Grid.Geometry = GenerateGrid();
+
+        // Register messages
         WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, async (r, m) => await UpdateModels(m.models));
         WeakReferenceMessenger.Default.Register<MeshSetInputBindingsMessage>(this, (r, m) => UpdateInputBindings(m.LeftMouseButton, m.MiddleMouseButton, m.RightMouseButton));
         WeakReferenceMessenger.Default.Register<WireframeToggleMessage>(this, async (r, m) => await ToggleWireframe());
+
+        WeakReferenceMessenger.Default.Register<PreferencesSetPrintbedDepthMessage>(this, (r, m) => {
+                _printbedDepth = m.Depth;
+                Grid.Geometry = GenerateGrid((-_printbedWidth / 2), (_printbedWidth / 2), (-_printbedDepth / 2), (_printbedDepth / 2));
+        });
+
+        WeakReferenceMessenger.Default.Register<PreferencesSetPrintbedWidthMessage>(this, (r, m) => {
+            _printbedWidth = m.Width;
+            Grid.Geometry = GenerateGrid((-_printbedWidth / 2), (_printbedWidth / 2), (-_printbedDepth / 2), (_printbedDepth / 2));
+        });
+
         ResetCamera();
 
+        _printbedWidth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedWidthRequest>().Response;
+        _printbedDepth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedDepthRequest>().Response;
+        Grid.Geometry = GenerateGrid((-_printbedWidth/2), (_printbedWidth / 2), (-_printbedDepth / 2), (_printbedDepth / 2));
 
         UpdateDisplay();
     }
