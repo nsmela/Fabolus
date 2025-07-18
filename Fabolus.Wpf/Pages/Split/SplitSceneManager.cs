@@ -6,6 +6,7 @@ using Fabolus.Wpf.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
+using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
@@ -141,40 +142,40 @@ public class SplitSceneManager : SceneManager {
         //}
 
         // show draft angle results
-        //if (_draftAngleMeshPositive is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _draftAngleMeshPositive,
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Green,
-        //    });
-        //}
-        //
-        //if (_draftAngleMeshNegative is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _draftAngleMeshNegative,
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Red,
-        //    });
-        //}
-        //
-        //if (_draftAngleMeshNeutral is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _draftAngleMeshNeutral,
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Gray,
-        //    });
-        //}
+        if (_draftAngleMeshPositive is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _draftAngleMeshPositive,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Green,
+            });
+        }
+        
+        if (_draftAngleMeshNegative is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _draftAngleMeshNegative,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Red,
+            });
+        }
+        
+        if (_draftAngleMeshNeutral is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _draftAngleMeshNeutral,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Gray,
+            });
+        }
 
         // parting curve
-        //if (_parting_curve.Count > 0) {
-        //    MeshBuilder builder = new();
-        //    builder.AddTube(_parting_curve, 0.3, 16, true);
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = builder.ToMeshGeometry3D(),
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Yellow,
-        //    });
-        //}
+        if (_parting_curve.Count > 0) {
+            MeshBuilder builder = new();
+            builder.AddTube(_parting_curve, 0.3, 16, true);
+            models.Add(new DisplayModel3D {
+                Geometry = builder.ToMeshGeometry3D(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Yellow,
+            });
+        }
 
         if (_previewMesh is not null) {
             models.Add(new DisplayModel3D {
@@ -321,16 +322,20 @@ public class SplitSceneManager : SceneManager {
         _parting_curve = new Vector3Collection(path.ToArray());
 
         // generate parting mesh
-        _partingMesh = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 10.0);
+        _partingMesh = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 20.0);
         _partingMesh = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshPositive.ToMeshModel());
         MeshModel[] meshes = []; 
         MeshModel offset_mesh = new (MeshTools.OffsetMesh(model, _model_thickness)); // simulates a defines mold shape
-        var task = Task.Run(() => meshes = MeshTools.FinalPass(model, offset_mesh, _partingMesh));
+
+        // tool mesh, combination of bolus and air channels
+        var channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response.Select(c => c.Value.Geometry.ToMeshModel()).ToArray();
+        var tools = new MeshModel[] { model }.Concat(channels).ToArray();
+        var task = Task.Run(() => meshes = MeshTools.FinalPass(tools, offset_mesh, _partingMesh));
         task.Wait(); // needed or else mesh can randomly return no mesh
 
         if ( meshes.Length == 0 ) { return; } //mesh failed
 
-        _partPositiveModel = meshes[0];
+        _partPositiveModel = meshes[0];//meshes[0];
         _partNegativeModel = meshes[1];
         return;
 

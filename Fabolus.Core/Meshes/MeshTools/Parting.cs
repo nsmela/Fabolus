@@ -292,16 +292,19 @@ public static partial class MeshTools {
 
     } 
 
-    public static MeshModel[] FinalPass(MeshModel model, MeshModel mould_model, MeshModel parting_model) {
+    public static MeshModel[] FinalPass(MeshModel[] tools, MeshModel mould_model, MeshModel parting_model) {
         List<MeshModel> models = [];
         try {
             var a = Boolean(mould_model, parting_model, BooleanOperation.Intersection).mesh;
             a = OffsetMesh(a, 0.5f);
             var b = Boolean(mould_model, a, BooleanOperation.DifferenceAB).mesh;
-            a = Boolean(a, model, BooleanOperation.DifferenceAB).mesh;
-            b = Boolean(b, model, BooleanOperation.DifferenceAB).mesh;
+            foreach(MeshModel m in tools)
+            {
+                a = Boolean(a, m.Mesh.ToMesh(), BooleanOperation.DifferenceAB).mesh;
+                b = Boolean(b, m.Mesh.ToMesh(), BooleanOperation.DifferenceAB).mesh;
+            }
             models.Add( new(a));
-            models.Add(new(b));
+            models.Add( new(b));
         } catch (Exception e) {
             return [];
         }
