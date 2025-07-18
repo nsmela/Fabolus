@@ -41,8 +41,9 @@ public record struct Result<T> {
     public static Result<T> Fail(List<MeshError> errors) => new Result<T>() { IsSuccess = false, Errors = errors };
     public static Result<T> Fail(MeshError error) => new Result<T>() { IsSuccess = false, Errors = [error] };
 
-    public static implicit operator Result<T>(T data) => new Result<T> { Data = data };
+    public static implicit operator Result<T>(T data) => new Result<T> { IsSuccess = true, Data = data };
     public static implicit operator Result<T>(List<MeshError> errors) => new Result<T> { IsSuccess = false, Errors = errors };
+    public static implicit operator Result<T>(MeshError error) => new Result<T> { IsSuccess = false, Errors = [error] };
 }
 
 public record struct MeshError {

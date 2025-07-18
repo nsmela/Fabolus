@@ -13,13 +13,14 @@
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding Sperationdistance, Mode=TwoWay}"
+        <Slider Value="{Binding SeperationDistance, Mode=TwoWay}"
                             Minimum="0.02" Maximum="1.0" 
                             TickFrequency="0.02" 
                             TickPlacement="TopLeft" 
                             AutoToolTipPlacement="TopLeft"
                             IsSnapToTickEnabled="True" 
                             Height="30"/>
+
         <Button Content="export models" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
@@ -27,6 +28,16 @@
                 FontSize="14" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
-                Command="{Binding ExportSplitsCommand}" />
+                Command="{Binding ExportSeperateCommand}" />
+
+        <Button Content="export joined models" 
+                Style="{DynamicResource MahApps.Styles.Button.Square}"
+                Height="30"
+                HorizontalAlignment="Stretch"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                Command="{Binding ExportJoinedCommand}" />
+        
     </StackPanel>
 </UserControl>

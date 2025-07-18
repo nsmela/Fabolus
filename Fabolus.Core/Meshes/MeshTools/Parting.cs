@@ -198,7 +198,7 @@ public static partial class MeshTools {
         return result.ToArray();
     }
 
-    public static MeshModel GeneratePartingMesh(MeshModel model, int[] path_verts, double[] pull_direction, double extrusion_length = 5.0) {
+    public static Result<MeshModel> GeneratePartingMesh(MeshModel model, int[] path_verts, double[] pull_direction, double extrusion_length = 5.0) {
         DMesh3 mesh = new DMesh3(model.Mesh);
         Vector3d direction = new Vector3d(pull_direction[0], pull_direction[1], pull_direction[2]).Normalized;
 
@@ -208,6 +208,8 @@ public static partial class MeshTools {
         // convert into Clipper2 path
         PathsD paths = new() { new PathD(polygon.Vertices.Select(v => new PointD(v.x, v.y)).ToList()) };
         PathsD solution = Clipper.InflatePaths(paths, -extrusion_length, JoinType.Round, EndType.Polygon);
+
+        if (solution is null || solution.Count == 0) { return new MeshError("Failed to generate parting mesh: No solution found."); }
 
         // need to prep for stiching the two loops together
         // stiching requires both loops (inner and outer) to be the same length
@@ -253,10 +255,10 @@ public static partial class MeshTools {
         SimpleHoleFiller filler = new(editor.Mesh, loops[1]);
         filler.Fill();
 
-        return new(filler.Mesh);
+        return new MeshModel(filler.Mesh);
     }
 
-    public static MeshModel JoinMeshes(DMesh3 parting, DMesh3 face) {
+    public static Result<MeshModel> JoinMeshes(DMesh3 parting, DMesh3 face) {
         MeshEditor editor = new(parting);
         DMesh3 new_face = new(face);
         new_face.ReverseOrientation();
@@ -282,13 +284,7 @@ public static partial class MeshTools {
         cubes.Bounds.Expand( 3 * cubes.CubeSize );
         cubes.Generate();
 
-        //Remesher r = new(repair.Mesh) {
-        //    MinEdgeLength = 0.5,
-       // };
-        //r.BasicRemeshPass();
-        //r.BasicRemeshPass();
-
-        return new(cubes.Mesh);
+        return new MeshModel(cubes.Mesh);
 
     } 
 

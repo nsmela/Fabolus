@@ -5,6 +5,7 @@ using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Pages.MainWindow;
 using Microsoft.Win32;
 using System.IO;
 using static Fabolus.Wpf.Bolus.BolusStore;

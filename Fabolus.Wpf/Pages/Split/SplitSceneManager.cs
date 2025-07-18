@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
+using ControlzEx.Standard;
 using Fabolus.Core.BolusModel;
 using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.MeshTools;
@@ -16,9 +17,11 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using static Fabolus.Core.Meshes.MeshTools.MeshTools;
 using static Fabolus.Wpf.Bolus.BolusStore;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -48,7 +51,6 @@ public class SplitSceneManager : SceneManager {
     // parting
     private Vector3Collection _parting_curve = [];
     private MeshModel _partingMesh;
-    private float _splitDistance;
 
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
@@ -57,7 +59,7 @@ public class SplitSceneManager : SceneManager {
         // request messages
         WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitRequestModels>(this, (r,m) => m.Reply([r._partNegativeModel, r._partPositiveModel]));
 
-        WeakReferenceMessenger.Default.Register<SplitSperationDistanceChangedMessage>(this, (r, m) => _model_thickness = m.Distance);
+        WeakReferenceMessenger.Default.Register<SplitSeperationDistanceMessage>(this, (r, m) => _model_thickness = m.Distance);
         UpdateMesh(bolus.TransformedMesh());
     }
 
@@ -121,25 +123,6 @@ public class SplitSceneManager : SceneManager {
             Transform = MeshHelper.TransformEmpty,
             Skin = _skin
         });
-
-        //foreach (var channel in _channels.Values) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = channel.Geometry,
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = channel.GUID == _activeChannel.GUID
-        //         ? _selectedSkin
-        //         : _channelSkin
-        //    });
-        //}
-
-        // display region where the parting line can travel
-        //if (_partingRegion is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _partingRegion,
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = _partingMaterial,
-        //    });
-        //}
 
         // show draft angle results
         if (_draftAngleMeshPositive is not null) {
@@ -322,8 +305,28 @@ public class SplitSceneManager : SceneManager {
         _parting_curve = new Vector3Collection(path.ToArray());
 
         // generate parting mesh
-        _partingMesh = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 20.0);
-        _partingMesh = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshPositive.ToMeshModel());
+        var response = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 10.0);
+
+        if (response.IsFailure || response.Data is null) {
+            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        _partingMesh = response.Data;
+
+        // joining the meshes
+        response = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshPositive.ToMeshModel());
+
+        if (response.IsFailure || response.Data is null) {
+            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        _partingMesh = response.Data;
+
+        // create inflated mesh to boolean insersect with the parting mesh
         MeshModel[] meshes = []; 
         MeshModel offset_mesh = new (MeshTools.OffsetMesh(model, _model_thickness)); // simulates a defines mold shape
 
@@ -347,29 +350,6 @@ public class SplitSceneManager : SceneManager {
 
         return;
 
-        // final parting meshes
-        _partPositiveModel = _partingMesh;
-
-        MeshModel model_offset = new MeshModel(MeshTools.OffsetMesh(model, 0.2f));
-        MeshModel b_offset = new MeshModel(MeshTools.OffsetMesh(model, 3.0f));
-        var mesh_result = MeshTools.BooleanSubtraction(b_offset, model_offset);
-        if (mesh_result.IsFailure || mesh_result.Data == null) { return; }
-
-        mesh_result = MeshTools.BooleanSubtraction(mesh_result.Data, _partingMesh);
-        if (mesh_result.IsFailure || mesh_result.Data == null) { return; }
-
-        //b_offset = new MeshModel(MeshTools.OffsetMesh(model, 0.15f));
-        //mesh_result = MeshTools.BooleanSubtraction(mesh_result.Data, b_offset);
-        //if (mesh_result.IsFailure || mesh_result.Data == null) { return; }
-
-        _partNegativeModel = mesh_result.Data;
-        return;
-        //_partingMesh = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshNegative.ToMeshModel());
-        //task = Task.Run(() => _partingMesh = MeshTools.FinalPass(model, _partingMesh));
-        //task.Wait();
-        //mesh_result = MeshTools.BooleanSubtraction(_partingMesh, model);
-        //if (mesh_result.IsFailure || mesh_result.Data == null) { return; }
-        //_partNegativeModel = mesh_result.Data;
     }
 }
 
