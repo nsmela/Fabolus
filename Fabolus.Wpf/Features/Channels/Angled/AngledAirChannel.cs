@@ -7,9 +7,9 @@ namespace Fabolus.Wpf.Features.Channels.Angled;
 
 public sealed record AngledAirChannel : IAirChannel {
     public Vector3 Anchor { get; set; }
-    public float BottomDiameter { get; set; } = 4.0f;
+    public float BottomDiameter { get; set; } = 5.0f;
     public ChannelTypes ChannelType => ChannelTypes.AngledHead;
-    public float Diameter { get; set; } = 6.0f;
+    public float Diameter { get; set; } = 5.0f;
     public float Depth { get; set; } = 0.5f;
     public MeshGeometry3D Geometry { get; set; }
     public Guid GUID { get; init; }
