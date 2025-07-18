@@ -328,15 +328,23 @@ public class SplitSceneManager : SceneManager {
         MeshModel offset_mesh = new (MeshTools.OffsetMesh(model, _model_thickness)); // simulates a defines mold shape
 
         // tool mesh, combination of bolus and air channels
-        var channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response.Select(c => c.Value.Geometry.ToMeshModel()).ToArray();
-        var tools = new MeshModel[] { model }.Concat(channels).ToArray();
-        var task = Task.Run(() => meshes = MeshTools.FinalPass(tools, offset_mesh, _partingMesh));
+        
+        var channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response;
+        var tools = MeshModel.Combine(channels.Select(c => c.Value.Geometry.ToMeshModel()).ToArray());
+        var task = Task.Run(() => meshes = MeshTools.FinalPass(model, offset_mesh, _partingMesh));
         task.Wait(); // needed or else mesh can randomly return no mesh
 
         if ( meshes.Length == 0 ) { return; } //mesh failed
 
-        _partPositiveModel = meshes[0];//meshes[0];
+        _partPositiveModel = meshes[0];
         _partNegativeModel = meshes[1];
+
+        // remove air channels
+        _partPositiveModel = MeshTools.BooleanSubtraction(_partPositiveModel, tools).Data;
+
+        tools = MeshModel.Combine(channels.Select(c => c.Value.Geometry.ToMeshModel()).ToArray());
+        _partNegativeModel = MeshTools.BooleanSubtraction(_partNegativeModel, tools).Data;
+
         return;
 
         // final parting meshes

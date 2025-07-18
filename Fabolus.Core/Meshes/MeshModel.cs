@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.Extensions;
 using g3;
+using gs;
 using System.CodeDom;
 using System.Windows.Media.Media3D;
 using static MR.DotNet;
@@ -148,6 +149,20 @@ public class MeshModel {
 
     public MeshModel(DMesh3 mesh) {
         Mesh = mesh;
+    }
+
+    public static MeshModel Combine(MeshModel[] models) {
+        MeshEditor editor = new(new DMesh3());
+
+        // assume meshes do not overlap and can be appended directly
+        foreach (DMesh3 model in models.Select(m => m.Mesh)) {
+            editor.AppendMesh(model);
+        }
+
+        MeshAutoRepair repair = new(editor.Mesh);
+        repair.Apply();
+
+        return new(repair.Mesh);
     }
 
     public MeshModel(Mesh mesh) {
