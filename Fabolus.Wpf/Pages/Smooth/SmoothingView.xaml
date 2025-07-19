@@ -15,25 +15,6 @@
     <StackPanel Orientation="Horizontal">
         <StackPanel Orientation="Vertical" Margin="4" Width="160">
 
-            <Label Content="smoothing type" 
-                HorizontalAlignment="Center" 
-                VerticalAlignment="Center"
-                FontSize="12" 
-                FontWeight="Bold"
-                FontFamily="\Fonts\#Poppins"/>
-            
-            <ComboBox
-            SelectedIndex="{Binding SmoothingTypeIndex}"
-            Margin="4"
-            FontSize="14"
-            FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins">
-                <ComboBoxItem IsSelected="True">Poisson</ComboBoxItem>
-                <ComboBoxItem>Marching Cubes</ComboBoxItem>
-                <ComboBoxItem>Laplacian</ComboBoxItem>
-                <ComboBoxItem>Weighted Offets</ComboBoxItem>
-            </ComboBox>
-            
             <ContentControl Content="{Binding SetSmoothingViewModel}"/>
 
             <Label Content="view setting" 

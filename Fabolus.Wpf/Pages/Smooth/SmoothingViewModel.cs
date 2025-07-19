@@ -95,7 +95,7 @@ public partial class SmoothingViewModel : BaseViewModel {
     public SmoothingViewModel() {
         UpdateSlider();
         UpdateMeshText();
-        SetSmoothingViewModel = GetView(_smoothingTypeIndex);
+        SetSmoothingViewModel = new MarchingCubesViewModel();
     }
 
     #region Commands
