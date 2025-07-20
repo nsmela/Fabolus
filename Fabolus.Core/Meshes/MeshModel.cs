@@ -27,8 +27,6 @@ public class MeshModel {
     }
 
     public static async Task ToFile(string filepath, MeshModel model) {
-        //var mesh = model.Mesh;
-        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
         MeshSave.ToAnySupportedFormat(model, filepath);
     }
 
@@ -70,11 +68,11 @@ public class MeshModel {
     public IEnumerable<int> GetBorderEdgeLoop(int[] region_ids) {
         //select the region
         var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);
-        var loops = region.Loops;
+        var loop = region.Loops.OrderByDescending(x => x.EdgeCount).First();
 
         int last_id = -1;
         Index4i edge;
-        foreach (var eId in loops[0].Edges) {
+        foreach (var eId in loop.Edges) {
             edge = Mesh.GetEdge(eId);
             if (edge.a == last_id){ last_id = edge.b; }
             else { last_id = edge.a; }

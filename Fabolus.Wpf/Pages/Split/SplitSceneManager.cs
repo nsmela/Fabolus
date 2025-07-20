@@ -22,6 +22,8 @@ using System.Windows.Input;
 using static Fabolus.Core.Meshes.MeshTools.MeshTools;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using static Fabolus.Core.Meshes.PartingTools.PartingTools;
+using Fabolus.Core.Meshes.PartingTools;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -118,11 +120,11 @@ public class SplitSceneManager : SceneManager {
 
         var models = new List<DisplayModel3D>();
 
-        models.Add(new DisplayModel3D {
-            Geometry = bolus.Geometry,
-            Transform = MeshHelper.TransformEmpty,
-            Skin = _skin
-        });
+        //models.Add(new DisplayModel3D {
+        //    Geometry = bolus.Geometry,
+        //    Transform = MeshHelper.TransformEmpty,
+        //    Skin = _skin
+        //});
 
         // show draft angle results
         if (_draftAngleMeshPositive is not null) {
@@ -168,21 +170,21 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-        if (_partNegativeModel is not null) {
-            models.Add(new DisplayModel3D {
-                Geometry = _partNegativeModel.ToGeometry(),
-                Transform = MeshHelper.TranslationFromAxis(0, -15, 0),
-                Skin = DiffuseMaterials.Red,
-            });
-        }
-
-        if (_partPositiveModel is not null) {
-            models.Add(new DisplayModel3D {
-                Geometry = _partPositiveModel.ToGeometry(),
-                Transform = MeshHelper.TranslationFromAxis(0, 15, 0),
-                Skin = PhongMaterials.Blue,
-            });
-        }
+        //if (_partNegativeModel is not null) {
+        //    models.Add(new DisplayModel3D {
+        //        Geometry = _partNegativeModel.ToGeometry(),
+        //        Transform = MeshHelper.TranslationFromAxis(0, -15, 0),
+        //        Skin = DiffuseMaterials.Red,
+        //    });
+        //}
+        //
+        //if (_partPositiveModel is not null) {
+        //    models.Add(new DisplayModel3D {
+        //        Geometry = _partPositiveModel.ToGeometry(),
+        //        Transform = MeshHelper.TranslationFromAxis(0, 15, 0),
+        //        Skin = PhongMaterials.Blue,
+        //    });
+        //}
 
         if (_path.Count > 0) {
             MeshBuilder builder = new();
@@ -233,52 +235,14 @@ public class SplitSceneManager : SceneManager {
 
     private void SetDraftMeshes(MeshModel model) {
         // draft angle meshes
+        Vector3 v0, v1, v2; // to be used in the loop
+        double[] values;
+
+        DraftCollection results = PartingTools.GenerateDraftCollection(model, System.Numerics.Vector3.UnitY, DRAFT_ANGLE_THRESHOLD_DEGREES);
 
         MeshBuilder positive_mesh = new();
         MeshBuilder negative_mesh = new();
         MeshBuilder neutral_mesh = new();
-
-        Vector3 v0, v1, v2; // to be used in the loop
-        double[] values;
-
-        Dictionary<int, DraftClassification> results = MeshTools.DraftAngleAnalysis(model, _draftPullDirection, DRAFT_ANGLE_THRESHOLD_DEGREES);
-        Queue<int> remaining = [];
-
-        // first pass tp check if triangle is not connected to anything and add it to neutral if so
-        foreach (var (tId, result) in results) {
-            var neighbours = model.GetTriangleNeighbours(tId);
-            if (neighbours[0] < 0 || neighbours[1] < 0 || neighbours[2] < 0) { // no neighbours
-                results[tId] = DraftClassification.NEUTRAL; // mark as neutral
-                remaining.Enqueue(tId);
-                continue;
-            }
-
-            Console.WriteLine(tId);
-            if (result != DraftClassification.NEUTRAL &&
-                results[neighbours[0]] != result &&
-                results[neighbours[1]] != result &&
-                results[neighbours[2]] != result) {
-
-                results[tId] = DraftClassification.NEUTRAL; // mark as neutral if all neighbours are not the same classification
-            }
-
-            if ((results[tId] == DraftClassification.NEUTRAL)) { remaining.Enqueue(tId); }
-
-        }
-
-        // second pass to eliminate neutrals
-        int id = -1;
-        while (remaining.Count > 0) {
-            id = remaining.Dequeue();
-            results[id] = ReClassifyNeutral(model, id, results); // change classification based on neighbours
-        }
-
-        // third and final pass
-        foreach (var (key, value) in results) {
-            if (value != DraftClassification.NEUTRAL) { continue; }
-
-            results[key] = ReClassifyNeutral(model, key, results); // reclassify neutral triangles based on neighbours
-        }
 
         // add triangles to meshes
         foreach (var (tId, result) in results) {
@@ -287,9 +251,9 @@ public class SplitSceneManager : SceneManager {
             v1 = new Vector3((float)values[3], (float)values[4], (float)values[5]);
             v2 = new Vector3((float)values[6], (float)values[7], (float)values[8]);
 
-            if (result == MeshTools.DraftClassification.POSITIVE) { positive_mesh.AddTriangle(v0, v1, v2); }
-            if (result == MeshTools.DraftClassification.NEGATIVE) { negative_mesh.AddTriangle(v0, v1, v2); }
-            if (result == MeshTools.DraftClassification.NEUTRAL) { neutral_mesh.AddTriangle(v0, v1, v2); }
+            if (result == PartingTools.DraftClassification.POSITIVE) { positive_mesh.AddTriangle(v0, v1, v2); }
+            if (result == PartingTools.DraftClassification.NEGATIVE) { negative_mesh.AddTriangle(v0, v1, v2); }
+            if (result == PartingTools.DraftClassification.NEUTRAL) { neutral_mesh.AddTriangle(v0, v1, v2); }
         }
 
         _draftAngleMeshPositive = positive_mesh.ToMeshGeometry3D();
@@ -298,14 +262,20 @@ public class SplitSceneManager : SceneManager {
 
         // parting line
         // find edges for parting line and smooth that path
-        var region_tris_ids = results.Where(x => x.Value == DraftClassification.NEGATIVE).Select(x => x.Key).ToArray();
-        var path_vert_ids  = model.GetBorderEdgeLoop(region_tris_ids).ToArray();
-        path_vert_ids = MeshTools.RemoveSingleTriangles(model, path_vert_ids);
-        var path = model.GetVertices(path_vert_ids).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2]));
-        _parting_curve = new Vector3Collection(path.ToArray());
+        var path_response = PartingTools.PartingLine(model, results);
 
+        if (path_response.IsFailure || path_response.Data is null)
+        {
+            var errors = path_response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Parting Line Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var path = path_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z));
+        _parting_curve = new Vector3Collection(path);
+        return;
         // generate parting mesh
-        var response = MeshTools.GeneratePartingMesh(model, path_vert_ids, _draftPullDirection, 10.0);
+        var response = MeshTools.GeneratePartingMesh(model, [], _draftPullDirection, 10.0);
 
         if (response.IsFailure || response.Data is null) {
             var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();

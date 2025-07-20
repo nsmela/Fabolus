@@ -60,7 +60,7 @@ public partial class ExportViewModel : BaseViewModel {
 
         var filepath = saveFile.FileName;
 
-        await MeshModel.ToFile(filepath, bolus.Mesh);
+        await MeshModel.ToFile(filepath, bolus.TransformedMesh());
     }
 
     [RelayCommand]
