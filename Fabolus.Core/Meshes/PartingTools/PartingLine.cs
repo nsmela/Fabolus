@@ -22,6 +22,7 @@ public static partial class PartingTools {
     /// <returns>An ordered array of indexes of the points along the mesh representing the parting line</returns>
     public static Result<Vector3[]> PartingLine(MeshModel model, DraftCollection drafts) {
         // get triangle ids of the negative pull direction region on the mesh
+        
         var region_ids = drafts.GetDraftRegion(DraftClassification.NEGATIVE).ToArray();
         var path = model.GetBorderEdgeLoop(region_ids).ToArray(); // a list of vert IDs on the mesh
         Smooth(model, ref path);
@@ -31,6 +32,7 @@ public static partial class PartingTools {
 
     private static void Smooth(DMesh3 mesh, ref int[] path) {
         Graph graph = new(mesh);
+        GeodiscPathing geodiscPathing = new(mesh, path);
 
         List<int> smoothPath = [];
 
@@ -124,6 +126,14 @@ public static partial class PartingTools {
         Vector3d edge2 = (v2 - v1).Normalized;
 
         return edge1.AngleR(edge2) > angle_rads;
+    }
+
+    private static void GeodiscPath(DMesh3 mesh, int vId0, int vId1, int vId2) {
+        if (!SharpAngle(mesh, vId0, vId1, vId2, Math.PI)) {
+            return; // no sharp angle, no need to check
+        }
+
+
     }
 
     private static bool GetEdge(DMesh3 mesh, int a, int b, out Index4i edge) {

@@ -21,7 +21,6 @@ public class MeshModel {
     }
 
     public static async Task<MeshModel> FromFile(string filepath) {
-        //var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true);
         var mesh = MeshLoad.FromAnySupportedFormat(filepath);
         return new MeshModel(mesh);
     }
