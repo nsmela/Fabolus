@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Fabolus.Core.Meshes.MeshTools;
+namespace Fabolus.Core.Meshes.PartingTools;
 
 public class Graph {
 
@@ -28,14 +28,15 @@ public class Graph {
         _mesh = mesh;
     }
 
-    public int[] FindPath(int start_index, int end_index) {
+
+    public int[] FindPath(int start_index, int end_index, bool exclude_start_and_finish = false) {
 
         PathNode start_node = new(start_index, 0.0) {
             HCost = GetVertexDistance(start_index, end_index)
         };
 
-        var nodes = new Dictionary<int, PathNode> { 
-            { start_index, start_node } 
+        var nodes = new Dictionary<int, PathNode> {
+            { start_index, start_node }
         };
 
         List<PathNode> open_set = new() { start_node };
@@ -46,12 +47,12 @@ public class Graph {
         double new_cost;
         while (open_set.Count > 0) {
             // get node with lowest FCost
-            open_set.Sort( (a, b) => a.FCost.CompareTo(b.FCost));
+            open_set.Sort((a, b) => a.FCost.CompareTo(b.FCost));
             current_node = open_set[0];
 
             // check if this is the goal
             if (current_node.VertexId == end_index) {
-                return RetracePath(current_node);
+                return RetracePath(current_node, exclude_start_and_finish);
             }
 
             // ensure this node isn't processed again
@@ -87,12 +88,18 @@ public class Graph {
         return []; // no path found
     }
 
-    private int[] RetracePath(PathNode node) {
+    private int[] RetracePath(PathNode node, bool exclude_start_and_end) {
         List<int> path = [];
         PathNode current_node = node;
+
         while (current_node != null) {
             path.Add(current_node.VertexId);
             current_node = current_node.Parent;
+        }
+
+        if (exclude_start_and_end) {
+            path.RemoveAt(path.Count - 1); // remove the end node
+            path.RemoveAt(0); // remove the start node
         }
 
         path.Reverse();

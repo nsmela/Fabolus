@@ -208,41 +208,17 @@ public class SplitSceneManager : SceneManager {
         SetDraftMeshes(model);
     }
 
-    private static DraftClassification ReClassifyNeutral(MeshModel model, int tId, Dictionary<int, DraftClassification> results) {
-        var neighbours = model.GetTriangleNeighbours(tId);
-
-        int n0 = neighbours[0];
-        int n1 = neighbours[1];
-        int n2 = neighbours[2];
-
-        List<int> ids = [];
-        if (n0 >= 0 && results[n0] != DraftClassification.NEUTRAL) { ids.Add(n0); }
-        if (n1 >= 0 && results[n1] != DraftClassification.NEUTRAL) { ids.Add(n1); }
-        if (n2 >= 0 && results[n2] != DraftClassification.NEUTRAL) { ids.Add(n2); }
-
-        if (ids.Count == 0) { return DraftClassification.NEUTRAL; } // no neighbours to classify
-        if (ids.Count == 1) { return results[ids[0]]; } // only one neighbour, use its classification
-
-        if (results[ids[0]] == results[ids[1]]) { return results[ids[0]]; }
-        if (ids.Count == 2) { return DraftClassification.NEGATIVE; } // two neighbours, but they are not the same
-
-        if (results[ids[0]] == results[ids[2]] || results[ids[1]] == results[ids[2]]) { // three neighbours, two are the same
-            return results[n2];
-        }
-
-        return DraftClassification.NEGATIVE;
-    }
-
     private void SetDraftMeshes(MeshModel model) {
         // draft angle meshes
-        Vector3 v0, v1, v2; // to be used in the loop
-        double[] values;
+        DraftCollection results = GenerateDraftCollection(model, System.Numerics.Vector3.UnitY, DRAFT_ANGLE_THRESHOLD_DEGREES);
 
-        DraftCollection results = PartingTools.GenerateDraftCollection(model, System.Numerics.Vector3.UnitY, DRAFT_ANGLE_THRESHOLD_DEGREES);
+        Vector3 v0, v1, v2; // to be used in the loop
+        double[] values = new double[9];
 
         MeshBuilder positive_mesh = new();
         MeshBuilder negative_mesh = new();
         MeshBuilder neutral_mesh = new();
+        MeshBuilder invalid_mesh = new();
 
         // add triangles to meshes
         foreach (var (tId, result) in results) {
@@ -251,9 +227,9 @@ public class SplitSceneManager : SceneManager {
             v1 = new Vector3((float)values[3], (float)values[4], (float)values[5]);
             v2 = new Vector3((float)values[6], (float)values[7], (float)values[8]);
 
-            if (result == PartingTools.DraftClassification.POSITIVE) { positive_mesh.AddTriangle(v0, v1, v2); }
-            if (result == PartingTools.DraftClassification.NEGATIVE) { negative_mesh.AddTriangle(v0, v1, v2); }
-            if (result == PartingTools.DraftClassification.NEUTRAL) { neutral_mesh.AddTriangle(v0, v1, v2); }
+            if (result == DraftClassification.POSITIVE) { positive_mesh.AddTriangle(v0, v1, v2); }
+            if (result == DraftClassification.NEGATIVE) { negative_mesh.AddTriangle(v0, v1, v2); }
+            if (result == DraftClassification.NEUTRAL) { neutral_mesh.AddTriangle(v0, v1, v2); }
         }
 
         _draftAngleMeshPositive = positive_mesh.ToMeshGeometry3D();
@@ -262,7 +238,7 @@ public class SplitSceneManager : SceneManager {
 
         // parting line
         // find edges for parting line and smooth that path
-        var path_response = PartingTools.PartingLine(model, results);
+        var path_response = PartingLine(model, results);
 
         if (path_response.IsFailure || path_response.Data is null)
         {
@@ -271,7 +247,7 @@ public class SplitSceneManager : SceneManager {
             return;
         }
 
-        var path = path_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z));
+        var path = path_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z)); // converting System.Numerics.Vector3[] to SharpDX.Vector3 IEnumerable
         _parting_curve = new Vector3Collection(path);
         return;
         // generate parting mesh

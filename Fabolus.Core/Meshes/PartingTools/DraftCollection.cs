@@ -11,7 +11,7 @@ public static partial class PartingTools {
             Mesh.GetTriNeighbourTris(tId).array;
     }
 
-    public static IEnumerable<int> GetRegion(this DraftCollection collection, DraftClassification classification) =>
+    public static IEnumerable<int> GetDraftRegion(this DraftCollection collection, DraftClassification classification) =>
         collection
             .Where(x => x.Value == classification)
             .Select(x => x.Key);
