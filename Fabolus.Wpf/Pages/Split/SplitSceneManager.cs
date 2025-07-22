@@ -52,6 +52,7 @@ public class SplitSceneManager : SceneManager {
 
     // parting
     private Vector3Collection _parting_curve = [];
+    private Vector3Collection _contour_curve = [];
     private MeshModel _partingMesh;
 
     public SplitSceneManager() {
@@ -120,12 +121,6 @@ public class SplitSceneManager : SceneManager {
 
         var models = new List<DisplayModel3D>();
 
-        //models.Add(new DisplayModel3D {
-        //    Geometry = bolus.Geometry,
-        //    Transform = MeshHelper.TransformEmpty,
-        //    Skin = _skin
-        //});
-
         // show draft angle results
         if (_draftAngleMeshPositive is not null) {
             models.Add(new DisplayModel3D {
@@ -162,11 +157,30 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
+        // contour curve (used to cut the mould)
+        if (_contour_curve.Count > 0) {
+            MeshBuilder builder = new();
+            builder.AddTube(_contour_curve, 0.3, 16, true);
+            models.Add(new DisplayModel3D {
+                Geometry = builder.ToMeshGeometry3D(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Copper,
+            });
+        }
+
         if (_previewMesh is not null) {
             models.Add(new DisplayModel3D {
                 Geometry = _previewMesh,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = _previewSkin,
+            });
+        }
+
+        if(_partingMesh is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _partingMesh.ToGeometry(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Blue,
             });
         }
 
@@ -249,6 +263,25 @@ public class SplitSceneManager : SceneManager {
 
         var path = path_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z)); // converting System.Numerics.Vector3[] to SharpDX.Vector3 IEnumerable
         _parting_curve = new Vector3Collection(path);
+
+        // TODO: temp, showing the curve generated to cut the mesh
+        var contour_response = PartingTools.PartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
+        if (contour_response.IsFailure || contour_response.Data is null) {
+            var errors = contour_response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Contour Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        //_contour_curve = new Vector3Collection(contour_response.Data.Select(v => new Vector3((float)v.X, (float)v.Y, (float)v.Z)));
+        var parting_response = PartingTools.PartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
+        if (parting_response.IsFailure || parting_response.Data is null) {
+            var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        _partingMesh = parting_response.Data;
+
         return;
         // generate parting mesh
         var response = MeshTools.GeneratePartingMesh(model, [], _draftPullDirection, 10.0);
