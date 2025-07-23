@@ -24,6 +24,7 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 using Fabolus.Core.Meshes.PartingTools;
+using g3;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -176,29 +177,29 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-        if(_partingMesh is not null) {
+        //if(_partingMesh is not null) {
+        //    models.Add(new DisplayModel3D {
+        //        Geometry = _partingMesh.ToGeometry(),
+        //        Transform = MeshHelper.TransformEmpty,
+        //        Skin = DiffuseMaterials.Blue,
+        //    });
+        //}
+
+        if (_partNegativeModel is not null) {
             models.Add(new DisplayModel3D {
-                Geometry = _partingMesh.ToGeometry(),
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Blue,
+                Geometry = _partNegativeModel.ToGeometry(),
+                Transform = MeshHelper.TranslationFromAxis(0, -15, 0),
+                Skin = DiffuseMaterials.Red,
             });
         }
-
-        //if (_partNegativeModel is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _partNegativeModel.ToGeometry(),
-        //        Transform = MeshHelper.TranslationFromAxis(0, -15, 0),
-        //        Skin = DiffuseMaterials.Red,
-        //    });
-        //}
-        //
-        //if (_partPositiveModel is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _partPositiveModel.ToGeometry(),
-        //        Transform = MeshHelper.TranslationFromAxis(0, 15, 0),
-        //        Skin = PhongMaterials.Blue,
-        //    });
-        //}
+        
+        if (_partPositiveModel is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _partPositiveModel.ToGeometry(),
+                Transform = MeshHelper.TranslationFromAxis(0, 15, 0),
+                Skin = PhongMaterials.Blue,
+            });
+        }
 
         if (_path.Count > 0) {
             MeshBuilder builder = new();
@@ -264,15 +265,7 @@ public class SplitSceneManager : SceneManager {
         var path = path_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z)); // converting System.Numerics.Vector3[] to SharpDX.Vector3 IEnumerable
         _parting_curve = new Vector3Collection(path);
 
-        // TODO: temp, showing the curve generated to cut the mesh
-        //var contour_response = PartingTools.PartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
-        //if (contour_response.IsFailure || contour_response.Data is null) {
-        //    var errors = contour_response.Errors.Select(e => e.ErrorMessage).ToArray();
-        //    MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Contour Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        //    return;
-        //}
-
-        //_contour_curve = new Vector3Collection(contour_response.Data.Select(v => new Vector3((float)v.X, (float)v.Y, (float)v.Z)));
+        // creates the parting mesh to boolean subtract from the main mould
         var parting_response = PartingTools.EvenPartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
         if (parting_response.IsFailure || parting_response.Data is null) {
             var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
@@ -282,33 +275,33 @@ public class SplitSceneManager : SceneManager {
 
         _partingMesh = parting_response.Data;
 
-        return;
-        // generate parting mesh
-        var response = MeshTools.GeneratePartingMesh(model, [], _draftPullDirection, 10.0);
-
-        if (response.IsFailure || response.Data is null) {
-            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        _partingMesh = response.Data;
-
-        // joining the meshes
-        response = MeshTools.JoinMeshes(_partingMesh, _draftAngleMeshPositive.ToMeshModel());
-
-        if (response.IsFailure || response.Data is null) {
-            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        _partingMesh = response.Data;
-
         // create inflated mesh to boolean insersect with the parting mesh
         MeshModel[] meshes = []; 
         MeshModel offset_mesh = new (MeshTools.OffsetMesh(model, _model_thickness)); // simulates a defines mold shape
 
+        var boolean_response = MeshTools.BooleanSubtraction(offset_mesh, model);
+        if (boolean_response.IsFailure || boolean_response.Data is null) {
+            var errors = boolean_response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Offset model subtraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        offset_mesh = boolean_response.Data;
+
+        boolean_response = MeshTools.BooleanSubtraction(offset_mesh, _partingMesh);
+        if (boolean_response.IsFailure || boolean_response.Data is null) {
+            var errors = boolean_response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Offset mesh subtraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        // break the models up into connected components
+        var models = MeshTools.SeperateModels(boolean_response.Data);
+
+        if ( models.Length > 0) { _partPositiveModel = models[0]; }
+        if (models.Length > 1) { _partNegativeModel = models[1]; }
+
+        return;
         // tool mesh, combination of bolus and air channels
         
         var channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response;
@@ -322,10 +315,10 @@ public class SplitSceneManager : SceneManager {
         _partNegativeModel = meshes[1];
 
         // remove air channels
-        _partPositiveModel = MeshTools.BooleanSubtraction(_partPositiveModel, tools).Data;
+        //_partPositiveModel = MeshTools.BooleanSubtraction(_partPositiveModel, tools).Data;
 
-        tools = MeshModel.Combine(channels.Select(c => c.Value.Geometry.ToMeshModel()).ToArray());
-        _partNegativeModel = MeshTools.BooleanSubtraction(_partNegativeModel, tools).Data;
+        //tools = MeshModel.Combine(channels.Select(c => c.Value.Geometry.ToMeshModel()).ToArray());
+        //_partNegativeModel = MeshTools.BooleanSubtraction(_partNegativeModel, tools).Data;
 
         return;
 

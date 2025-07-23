@@ -10,68 +10,6 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
 
-    public static Result<MeshModel> PartingMesh(IEnumerable<Vector3> points, double offset) {
-        // create the countours used to make the mesh cutter
-        var outer_contour = GenerateContour(points.Select(p => new Vector2d(p.X, p.Z)), offset);
-        if (outer_contour.IsFailure) { return outer_contour.Errors; }
-        Polygon2d outer_polygon = new(outer_contour.Data.Select(v => new Vector2d(v.x, v.y)));
-
-        var inner_contour = GenerateContour(points.Select(p => new Vector2d(p.X, p.Z)), -1.5);
-        if (inner_contour.IsFailure) { return inner_contour.Errors; }
-        Polygon2d inner_polygon = new(inner_contour.Data.Select(v => new Vector2d(v.x, v.y)));
-        inner_polygon.Reverse(); // ensure the inner polygon is reversed to be a hole
-
-        // even out the loops so they're consistent
-        //var input_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
-
-        // triangulate the contours
-        PlanarSolid2d planar = new();
-        planar.SetOuter(CurveUtils2.Convert(outer_polygon), false);
-        planar.AddHole(CurveUtils2.Convert(inner_polygon));
-
-        TriangulatedPolygonGenerator generator = new() {
-            Clockwise = true,
-            Polygon = planar.Convert(2.0, 2.0, 0.2)
-        };
-
-        DMesh3 result = new();
-        try {
-            result = generator.Generate().MakeDMesh();
-
-            // rotating the mesh. Tried MeshTransforms.Rotate but no effect
-            int id;
-            Vector3d v;
-            foreach (int vId in result.VertexIndices()) {
-                v = result.GetVertex(vId);
-                result.SetVertex(vId, new Vector3d(v.x, 0, v.y));
-            }
-
-            // progress offset on inner boundry
-            List<Vector3d> path = points.Select(p => new Vector3d(p.X, p.Y, p.Z)).ToList();
-            var path_offsets = new ContourOffsetGraph(path);
-
-            foreach(EdgeLoop loop in new MeshBoundaryLoops(result)) {
-                if (loop.VertexCount < 3) { continue; } // skip degenerate loops
-                var offsets = new ContourOffsetGraph(result, loop);
-
-                for (int i = 0; i < loop.VertexCount; i++) {
-                    int index = (offsets.StartIndex + i) % loop.VertexCount;
-                    float progress = (float)offsets.Distances[index];
-                    double y_offset = path_offsets.GetYOffset(progress);
-
-                    int vId = loop.Vertices[index];
-                    Vector3d vector = result.GetVertex(vId) + Vector3d.AxisY * y_offset;
-                    result.SetVertex(vId, vector);
-                }
-            }
-
-        } catch (Exception ex) {
-            return new MeshError($"Failed to triangulate parting mesh: {ex.Message}");
-        }
-
-        return new MeshModel(result);
-    }
-
     public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset) {
         var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
 
@@ -196,27 +134,6 @@ public static partial class PartingTools {
                 Distances.Add(distance / TotalLength); // accumulate percentage
             }
 
-        }
-
-        /// <summary>
-        /// Returns the YOffset for the percentage along this path, from 0.0 to 1.0
-        /// </summary>
-        public double GetYOffset(float progress) {
-            if (progress < 0.0 || progress > 1.0) {
-                throw new ArgumentOutOfRangeException(nameof(progress), "Progress must be between 0.0 and 1.0");
-            }
-
-            // find the relevant section
-            // TODO: make this more efficient
-            int index = -1;
-            for (int i = 0; i < Distances.Count(); i++) {
-                if (Distances[i] >= progress) {
-                    return _vertices[i].y; // return the Y value at this index
-                }
-            }
-
-            // if we reach here, the progress is beyond the end of the path
-            return 1.0;
         }
 
         // ensures the path is going a specific direction
