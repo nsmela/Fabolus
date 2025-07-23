@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Media;
 
 namespace Fabolus.Core.Meshes.PartingTools;
 
@@ -74,38 +75,76 @@ public static class EvenEdgeLoop {
         // starting with z_intersection
         double segment_spacing = cumlative_length / number_of_segments;
         List<Vector3d> sample_points = [z_intersection];
+        Vector3d current_pos = z_intersection;
+        Vector3d previous = Vector3d.Zero;
         double target_distance = segment_spacing;
         int seg_index = 0;
 
-        for (int i = 1; i < number_of_segments; i++) {
-            // iterate until at the right vertex based on needed distance
-            while (seg_index < lengths.Count - 1 && lengths[seg_index] < target_distance) {
-                seg_index++;
+        for(int i = 0; i < number_of_segments - 1; i++) { 
+            if (!TryFindNextSphereIntersection(points, sample_points.Last(), previous, segment_spacing, ref seg_index, out Vector3d next_point)) {
+                break; // no more points can be found
             }
 
-            double start_distance = lengths[seg_index - 1];
-            double end_distance = lengths[seg_index];
-            double t = (target_distance - start_distance) / (end_distance - start_distance);
-
-            v0 = points[seg_index];
-            v1 = points[(seg_index + 1) % points.Count];
-
-            Vector3d sample_point = Vector3d.Lerp(v0, v1, t);
-            sample_points.Add(sample_point);
-
-            target_distance += segment_spacing;
-        }
-
-        // TODO DEBUGGING
-        for (int i = 1; i < sample_points.Count; i++) {
-            v0 = sample_points[i - 1];
-            v1 = sample_points[i];
-            double distance = v0.Distance(v1);
-            if (distance != segment_spacing) {
-                Debug.WriteLine($"Segment {i} distance: {distance}, expected: {segment_spacing}");
-            }
+            previous = current_pos;
+            current_pos = next_point;
+            sample_points.Add(next_point); // add the next point to the sample points
         }
 
         return sample_points;
     }
+
+    public static bool TryFindNextSphereIntersection(
+        List<Vector3d> path, Vector3d center, Vector3d previous, double radius,
+        ref int segmentIndex, out Vector3d nextPoint) {
+
+        nextPoint = Vector3d.Zero;
+        double r2 = radius * radius;
+
+        int maxSteps = 10;
+        for (int step = 0; step < maxSteps; step++) {
+            Vector3d a = path[segmentIndex];
+            Vector3d b = path[(segmentIndex + 1) % path.Count];
+            Vector3d d = b - a;
+            Vector3d f = a - center;
+
+            double A = d.Dot(d);
+            double B = 2 * f.Dot(d);
+            double C = f.Dot(f) - r2;
+
+            double discriminant = B * B - 4 * A * C;
+
+            if (discriminant < 0) {
+                segmentIndex = (segmentIndex + 1) % path.Count;
+                continue;
+            }
+
+            double sqrtD = Math.Sqrt(discriminant);
+            double inv2A = 1 / (2 * A);
+            double t1 = (-B - sqrtD) * inv2A;
+            double t2 = (-B + sqrtD) * inv2A;
+
+            // Only consider intersections ahead along the path
+            if (t1 > 0 && t1 <= 1) {
+                Vector3d hit = a + t1 * d;
+                if (hit.Distance(previous) >= radius / 2) {
+                    nextPoint = hit;
+                    return true;
+                }
+            }
+
+            if (t2 > 0 && t2 <= 1) {
+                Vector3d hit = a + t2 * d;
+                if (hit.Distance(previous) >= radius / 2) {
+                    nextPoint = hit;
+                    return true;
+                }
+            }
+            
+            // Move to next segment if not found
+            segmentIndex = (segmentIndex + 1) % path.Count;
+        }
+
+        return false; // No valid forward intersection found
+    }
+
 }

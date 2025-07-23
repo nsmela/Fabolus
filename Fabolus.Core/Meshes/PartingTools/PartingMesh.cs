@@ -22,7 +22,7 @@ public static partial class PartingTools {
         inner_polygon.Reverse(); // ensure the inner polygon is reversed to be a hole
 
         // even out the loops so they're consistent
-        var input_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
+        //var input_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
 
         // triangulate the contours
         PlanarSolid2d planar = new();
@@ -70,6 +70,43 @@ public static partial class PartingTools {
         }
 
         return new MeshModel(result);
+    }
+
+    public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset) {
+        var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
+
+        // create the contours used to make the mesh cutter
+        var outer_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), offset);
+        if (outer_contour.IsFailure) { return outer_contour.Errors; }
+        var outer_even_loop = EvenEdgeLoop.Generate(outer_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
+
+        var inner_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), -1.5);
+        if (inner_contour.IsFailure) { return inner_contour.Errors; }
+        var inner_even_loop = EvenEdgeLoop.Generate(inner_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
+
+        // add y offsets back to the loops
+        for (int i = 0; i < even_path.Count; i++) {
+            outer_even_loop[i] += Vector3d.AxisY * even_path[i].y;
+            inner_even_loop[i] += Vector3d.AxisY * even_path[i].y;
+        }
+
+        // triangulate the space between the two loops
+        DMesh3 mesh = new();
+        
+        List<int> outer_indexes = [];
+        foreach(Vector3d v in outer_even_loop) {
+            outer_indexes.Add(mesh.AppendVertex(v));
+        }
+
+        List<int> inner_indexes = [];
+        foreach (Vector3d v in inner_even_loop) {
+            inner_indexes.Add(mesh.AppendVertex(v));
+        }
+
+        MeshEditor editor = new(mesh);
+        editor.StitchLoop(outer_indexes.ToArray(), inner_indexes.ToArray());
+
+        return new MeshModel(editor.Mesh);
     }
 
     internal static Result<Vector2d[]> GenerateContour(IEnumerable<Vector2d> points, double offset) {

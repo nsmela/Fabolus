@@ -27,7 +27,10 @@ public static partial class PartingTools {
         Smooth(model, ref path);
 
         // ensure the contour points are evenly spaced
-        var result = EvenEdgeLoop.Generate(path.Select(vId => model.Mesh.GetVertex(vId)), 100);
+        var result = EvenEdgeLoop.Generate(path.Select(vId => model.Mesh.GetVertex(vId)), 100); //.Generate(path.Select(vId => model.Mesh.GetVertex(vId)), 100);
+        //return path.Select(vId => model.Mesh.GetVertexf(vId))
+            //.Select(v => new Vector3(v.x, v.y, v.z))
+            //.ToArray();
         return result.Select(v => new Vector3((float)v.x, (float)v.y, (float)v.z)).ToArray();
     }
 

@@ -265,15 +265,15 @@ public class SplitSceneManager : SceneManager {
         _parting_curve = new Vector3Collection(path);
 
         // TODO: temp, showing the curve generated to cut the mesh
-        var contour_response = PartingTools.PartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
-        if (contour_response.IsFailure || contour_response.Data is null) {
-            var errors = contour_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Contour Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
+        //var contour_response = PartingTools.PartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
+        //if (contour_response.IsFailure || contour_response.Data is null) {
+        //    var errors = contour_response.Errors.Select(e => e.ErrorMessage).ToArray();
+        //    MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Contour Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        //    return;
+        //}
 
         //_contour_curve = new Vector3Collection(contour_response.Data.Select(v => new Vector3((float)v.X, (float)v.Y, (float)v.Z)));
-        var parting_response = PartingTools.PartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
+        var parting_response = PartingTools.EvenPartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
         if (parting_response.IsFailure || parting_response.Data is null) {
             var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
