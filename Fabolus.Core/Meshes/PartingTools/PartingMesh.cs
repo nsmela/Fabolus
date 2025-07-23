@@ -106,7 +106,13 @@ public static partial class PartingTools {
         MeshEditor editor = new(mesh);
         editor.StitchLoop(outer_indexes.ToArray(), inner_indexes.ToArray());
 
-        return new MeshModel(editor.Mesh);
+        // extrude the mesh face
+        MeshExtrudeMesh extrude = new(editor.Mesh) {
+            ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * 1.0, // extrude upwards by 0.1 units
+        };
+        extrude.Extrude();
+
+        return new MeshModel(extrude.Mesh);
     }
 
     internal static Result<Vector2d[]> GenerateContour(IEnumerable<Vector2d> points, double offset) {
