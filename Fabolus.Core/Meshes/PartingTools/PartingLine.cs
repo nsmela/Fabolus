@@ -26,7 +26,9 @@ public static partial class PartingTools {
         var path = model.GetBorderEdgeLoop(region_ids).ToArray(); // a list of vert IDs on the mesh
         Smooth(model, ref path);
 
-        return model.GetVertices(path).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2])).ToArray();
+        // ensure the contour points are evenly spaced
+        var result = EvenEdgeLoop.Generate(path.Select(vId => model.Mesh.GetVertex(vId)), 100);
+        return result.Select(v => new Vector3((float)v.x, (float)v.y, (float)v.z)).ToArray();
     }
 
     private static void Smooth(DMesh3 mesh, ref int[] path) {

@@ -21,6 +21,9 @@ public static partial class PartingTools {
         Polygon2d inner_polygon = new(inner_contour.Data.Select(v => new Vector2d(v.x, v.y)));
         inner_polygon.Reverse(); // ensure the inner polygon is reversed to be a hole
 
+        // even out the loops so they're consistent
+        var input_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
+
         // triangulate the contours
         PlanarSolid2d planar = new();
         planar.SetOuter(CurveUtils2.Convert(outer_polygon), false);
