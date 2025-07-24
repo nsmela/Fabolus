@@ -57,61 +57,24 @@ public class SplitSceneManager : SceneManager {
     private Vector3Collection _contour_curve = [];
     private MeshModel _partingMesh;
 
+    // view options
+    private SplitViewOptions _view_options;
+
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         BolusId = bolus?.Geometry?.GUID;
 
         // request messages
-        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitRequestModels>(this, (r,m) => m.Reply([r._partNegativeModel, r._partPositiveModel]));
-
+        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitRequestModelsMessage>(this, (r,m) => m.Reply([r._partNegativeModel, r._partPositiveModel]));
+        WeakReferenceMessenger.Default.Register<SplitSceneManager, UpdateSplitViewOptionsMessage>(this, (r, m) => {
+            _view_options = m.Options;
+            UpdateDisplay();
+        });
         WeakReferenceMessenger.Default.Register<SplitSeperationDistanceMessage>(this, (r, m) => _model_thickness = m.Distance);
+
+        // initial values
+        _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
         UpdateMesh(bolus.TransformedMesh());
-    }
-
-    protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
-        _previewMesh = null;
-        if (hits is null || hits.Count() == 0) {
-            UpdateDisplay();
-            return;
-        }
-
-        var mouse = args as MouseEventArgs;
-        if (mouse.RightButton == MouseButtonState.Pressed
-            || mouse.MiddleButton == MouseButtonState.Pressed
-            || mouse.LeftButton == MouseButtonState.Pressed) {
-            UpdateDisplay();
-            return;
-        }
-
-        var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
-        SetPreview(bolusHit);
-
-    }
-
-    protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
-        _previewMesh = null;
-        if (hits is null || hits.Count() == 0) {
-            UpdateDisplay();
-            return;
-        }
-
-        var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == PartingRegionId);
-        if (bolusHit is null) { return; }
-        double[] start = { bolusHit.PointHit.X, bolusHit.PointHit.Y, bolusHit.PointHit.Z };
-        double[] end = { 0, 0, 0 };
-    }
-
-    private void SetPreview(HitTestResult? hit) {
-        if (hit is null) {
-            UpdateDisplay();
-            return;
-        }
-
-        MeshBuilder builder = new MeshBuilder();
-        builder.AddSphere(hit.PointHit, 0.5f);
-        _previewMesh = builder.ToMeshGeometry3D();
-
-        UpdateDisplay();
     }
 
     private void UpdateDisplay() {
@@ -123,8 +86,16 @@ public class SplitSceneManager : SceneManager {
 
         var models = new List<DisplayModel3D>();
 
+        if (bolus is not null && _view_options.ShowBolus) {
+            models.Add(new DisplayModel3D {
+                Geometry = bolus.Geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.LightGray,
+            });
+        }
+
         // show draft angle results
-        if (_draftAngleMeshPositive is not null) {
+        if (_draftAngleMeshPositive is not null && _view_options.ShowPullRegions) {
             models.Add(new DisplayModel3D {
                 Geometry = _draftAngleMeshPositive,
                 Transform = MeshHelper.TransformEmpty,
@@ -132,7 +103,7 @@ public class SplitSceneManager : SceneManager {
             });
         }
         
-        if (_draftAngleMeshNegative is not null) {
+        if (_draftAngleMeshNegative is not null && _view_options.ShowPullRegions) {
             models.Add(new DisplayModel3D {
                 Geometry = _draftAngleMeshNegative,
                 Transform = MeshHelper.TransformEmpty,
@@ -140,7 +111,7 @@ public class SplitSceneManager : SceneManager {
             });
         }
         
-        if (_draftAngleMeshNeutral is not null) {
+        if (_draftAngleMeshNeutral is not null && _view_options.ShowPullRegions) {
             models.Add(new DisplayModel3D {
                 Geometry = _draftAngleMeshNeutral,
                 Transform = MeshHelper.TransformEmpty,
@@ -149,7 +120,7 @@ public class SplitSceneManager : SceneManager {
         }
 
         // parting curve
-        if (_parting_curve.Count > 0) {
+        if (_parting_curve.Count > 0 && _view_options.ShowPartingLine) {
             MeshBuilder builder = new();
             builder.AddTube(_parting_curve, 0.3, 16, true);
             models.Add(new DisplayModel3D {
@@ -159,56 +130,28 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-        // contour curve (used to cut the mould)
-        if (_contour_curve.Count > 0) {
-            MeshBuilder builder = new();
-            builder.AddTube(_contour_curve, 0.3, 16, true);
+        if(_partingMesh is not null && _view_options.ShowPartingMesh) {
             models.Add(new DisplayModel3D {
-                Geometry = builder.ToMeshGeometry3D(),
+                Geometry = _partingMesh.ToGeometry(),
                 Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Copper,
+                Skin = DiffuseMaterials.Blue,
             });
         }
 
-        if (_previewMesh is not null) {
-            models.Add(new DisplayModel3D {
-                Geometry = _previewMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = _previewSkin,
-            });
-        }
-
-        //if(_partingMesh is not null) {
-        //    models.Add(new DisplayModel3D {
-        //        Geometry = _partingMesh.ToGeometry(),
-        //        Transform = MeshHelper.TransformEmpty,
-        //        Skin = DiffuseMaterials.Blue,
-        //    });
-        //}
-
-        if (_partNegativeModel is not null) {
+        double spacing = _view_options.ExplodePartingMeshes ? 15 : 0;
+        if (_partNegativeModel is not null && _view_options.ShowNegativeParting) {
             models.Add(new DisplayModel3D {
                 Geometry = _partNegativeModel.ToGeometry(),
-                Transform = MeshHelper.TranslationFromAxis(0, -15, 0),
+                Transform = MeshHelper.TranslationFromAxis(0, -spacing, 0),
                 Skin = DiffuseMaterials.Red,
             });
         }
         
-        if (_partPositiveModel is not null) {
+        if (_partPositiveModel is not null && _view_options.ShowPositiveParting) {
             models.Add(new DisplayModel3D {
                 Geometry = _partPositiveModel.ToGeometry(),
-                Transform = MeshHelper.TranslationFromAxis(0, 15, 0),
+                Transform = MeshHelper.TranslationFromAxis(0, spacing, 0),
                 Skin = DiffuseMaterials.Green,
-            });
-        }
-
-        if (_path.Count > 0) {
-            MeshBuilder builder = new();
-            builder.AddTube(_path, 0.2, 16, false);
-            models.Add(new DisplayModel3D {
-                Geometry = builder.ToMeshGeometry3D(),
-                Transform = MeshHelper.TransformEmpty,
-                Skin = PhongMaterials.Black,
             });
         }
 
@@ -267,7 +210,7 @@ public class SplitSceneManager : SceneManager {
         _parting_curve = new Vector3Collection(path);
 
         // creates the parting mesh to boolean subtract from the main mould
-        var parting_response = PartingTools.EvenPartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20);
+        var parting_response = PartingTools.EvenPartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20, extrude_distance: 0.15);
         if (parting_response.IsFailure || parting_response.Data is null) {
             var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -296,7 +239,7 @@ public class SplitSceneManager : SceneManager {
                 return;
             case (1):
                 _partPositiveModel = models[0];
-                _partNegativeModel = new MeshModel(new DMesh3()); // empty model for negative part
+                _partNegativeModel = null; // empty model for negative part
                 break;
             case (2):
                 var bounds0 = models[0].BoundsLower();

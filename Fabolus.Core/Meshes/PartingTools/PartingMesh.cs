@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
 
-    public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset) {
+    public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset, double extrude_distance = 0.1) {
         var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
 
         // create the contours used to make the mesh cutter
@@ -48,7 +48,7 @@ public static partial class PartingTools {
 
         // extrude the mesh face
         MeshExtrudeMesh extrude = new(editor.Mesh) {
-            ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * 0.1, // extrude upwards by 0.1 units
+            ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * extrude_distance,
         };
         extrude.Extrude();
 

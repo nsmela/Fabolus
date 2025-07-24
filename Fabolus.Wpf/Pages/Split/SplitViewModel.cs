@@ -23,12 +23,49 @@ public partial class SplitViewModel : BaseViewModel {
     public override SceneManager GetSceneManager => new SplitSceneManager();
 
     [ObservableProperty] private float _seperationDistance = 0.3f;
-
     partial void OnSeperationDistanceChanged(float oldValue, float newValue)
     {
         if (oldValue == newValue) { return; }
         WeakReferenceMessenger.Default.Send(new SplitSeperationDistanceMessage(newValue));
     }
+
+    // view meshes
+    [ObservableProperty] private bool _showBolus = false;
+    [ObservableProperty] private bool _showNegativeParting = true;
+    [ObservableProperty] private bool _showPositiveParting = true;
+    [ObservableProperty] private bool _showPullRegions = true;
+    [ObservableProperty] private bool _showPartingLine;
+    [ObservableProperty] private bool _showPartingMesh;
+    [ObservableProperty] private bool _explodePartingMeshes = true;
+
+    partial void OnShowBolusChanged(bool value) { UpdateViewOptions(); }
+    partial void OnShowNegativePartingChanged(bool value) { UpdateViewOptions(); }
+    partial void OnShowPositivePartingChanged(bool value) { UpdateViewOptions(); }
+    partial void OnShowPullRegionsChanged(bool value) { UpdateViewOptions(); }
+    partial void OnShowPartingLineChanged(bool value) { UpdateViewOptions(); }
+    partial void OnShowPartingMeshChanged(bool value) { UpdateViewOptions(); }
+    partial void OnExplodePartingMeshesChanged(bool value) { UpdateViewOptions(); }
+
+    private void UpdateViewOptions() {
+        WeakReferenceMessenger.Default.Send(new UpdateSplitViewOptionsMessage(ViewOptions));
+    }
+
+
+    private SplitViewOptions ViewOptions => new SplitViewOptions(
+            ShowBolus,
+            ShowNegativeParting,
+            ShowPositiveParting,
+            ShowPullRegions,
+            ShowPartingLine,
+            ShowPartingMesh,
+            ExplodePartingMeshes
+        );
+
+    public SplitViewModel() {
+        WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestViewOptionsMessage>(this, (r, m) => m.Reply(ViewOptions));
+    }
+
+    // commands
 
     [RelayCommand]
     private async Task Generate() {
@@ -37,7 +74,7 @@ public partial class SplitViewModel : BaseViewModel {
 
     [RelayCommand]
     private async Task ExportSeperate() {
-        var models = WeakReferenceMessenger.Default.Send(new SplitRequestModels()).Response;
+        var models = WeakReferenceMessenger.Default.Send(new SplitRequestModelsMessage()).Response;
         if (models is null || models.Length == 0) { return; }
 
         SaveFileDialog saveFile = new() {
@@ -53,6 +90,7 @@ public partial class SplitViewModel : BaseViewModel {
 
         string path = string.Empty;
         for (int i = 0; i < models.Length; i++) {
+            if (MeshModel.IsNullOrEmpty(models[i])) { continue; } // skip empty models
             path = Path.Combine(folder, $"{filename}0{i}{filetype}");
             await MeshModel.ToFile(path, models[i]);
         }
@@ -60,7 +98,7 @@ public partial class SplitViewModel : BaseViewModel {
 
     [RelayCommand]
     private async Task ExportJoined() {
-        var models = WeakReferenceMessenger.Default.Send(new SplitRequestModels()).Response;
+        var models = WeakReferenceMessenger.Default.Send(new SplitRequestModelsMessage()).Response;
         if (models is null || models.Length == 0) { return; }
 
         SaveFileDialog saveFile = new() {

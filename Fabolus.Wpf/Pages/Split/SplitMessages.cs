@@ -1,12 +1,18 @@
 ﻿using CommunityToolkit.Mvvm.Messaging.Messages;
 using Fabolus.Core.Meshes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Fabolus.Wpf.Pages.Split;
 
+public record struct SplitViewOptions(
+    bool ShowBolus,
+    bool ShowNegativeParting,
+    bool ShowPositiveParting,
+    bool ShowPullRegions,
+    bool ShowPartingLine,
+    bool ShowPartingMesh,
+    bool ExplodePartingMeshes);
+
 public sealed record SplitSeperationDistanceMessage(float Distance);
-public sealed class SplitRequestModels : RequestMessage<MeshModel[]>;
+public sealed record UpdateSplitViewOptionsMessage(SplitViewOptions Options);
+public sealed class SplitRequestModelsMessage : RequestMessage<MeshModel[]>;
+public sealed class SplitRequestViewOptionsMessage : RequestMessage<SplitViewOptions>;
