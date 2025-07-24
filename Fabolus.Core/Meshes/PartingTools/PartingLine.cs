@@ -43,4 +43,49 @@ public static partial class PartingTools {
         path = geodisc.Path().ToArray();
     }
 
+    public static Result<Vector3[]> OrientedPartingLine(MeshModel model) {
+        List<Vector3d> result = [];
+
+        // we collect the closest points to each corner of the model
+        // these are used to determine the parting line
+        // by graphing the path between each
+
+        // max x, y, max z
+        var bounds = model.Mesh.CachedBounds;
+        var tree = new DMeshAABBTree3(model, true);
+
+        Vector3d target;
+        int[] id = new int[4];
+
+        target = bounds.Max;
+        target.y = 0;
+        id[0] = tree.FindNearestVertex(target);
+
+        target.z = bounds.Min.z;
+        id[1] = tree.FindNearestVertex(target);
+
+        target.x = bounds.Min.x;
+        id[2] = tree.FindNearestVertex(target);
+
+        target.z = bounds.Max.z;
+        id[3] = tree.FindNearestVertex(target);
+
+        List<int> path = [];
+        Graph graph = new(model);
+
+        path.AddRange(graph.FindPath(id[0], id[1]));
+        path.AddRange(graph.FindPath(id[1], id[2]));
+        path.AddRange(graph.FindPath(id[2], id[3]));
+        path.AddRange(graph.FindPath(id[3], id[0]));
+
+        return path.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
+
+        GeodiscPathing geodisc = new(model, path);
+        geodisc.Compute();
+
+        return geodisc.Path().Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
+    }
+
+    private static Vector3 ToVector3(this Vector3d v) => new Vector3((float)v.x, (float)v.y, (float)v.z);
+    
 }

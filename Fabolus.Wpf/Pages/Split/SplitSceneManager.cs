@@ -168,6 +168,15 @@ public class SplitSceneManager : SceneManager {
     }
 
     private void SetDraftMeshes(MeshModel model) {
+        var curve_response = PartingTools.OrientedPartingLine(model);
+        if (curve_response.IsFailure || curve_response.Data is null) {
+            var errors = curve_response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Oriented Parting Line Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        _parting_curve = new Vector3Collection(curve_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z)));
+        return;
         // draft angle meshes
         DraftCollection results = GenerateDraftCollection(model, System.Numerics.Vector3.UnitY, DRAFT_ANGLE_THRESHOLD_DEGREES);
 

@@ -63,7 +63,9 @@ public class Graph {
             foreach (int id in _mesh.VtxVerticesItr(current_node.VertexId)) {
                 if (closed_set.Contains(id)) { continue; } //already processed
 
-                new_cost = GetVertexDistance(id, current_node.VertexId) + current_node.GCost;
+                new_cost = GetVertexDistance(id, current_node.VertexId);
+                new_cost += GetAngleDifference(id, current_node.VertexId);
+                new_cost += current_node.GCost;
 
                 // if node isn't tracked, add it
                 if (!nodes.TryGetValue(id, out PathNode neighbour_node)) {
@@ -107,5 +109,9 @@ public class Graph {
     }
 
     private double GetVertexDistance(int v0, int v1) =>
-            _mesh.GetVertex(v0).Distance(_mesh.GetVertex(v1));
+        _mesh.GetVertex(v0).Distance(_mesh.GetVertex(v1));
+
+    private double GetAngleDifference(int v0, int v1) =>
+        //1 + Math.Abs(_mesh.GetVertex(v0).AngleR(_mesh.GetVertex(v1))) / MathUtil.HalfPI;
+        2 * Math.Abs(_mesh.GetVertex(v0).AngleD(Vector3d.AxisY)) / 90;
 }

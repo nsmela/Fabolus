@@ -33,8 +33,8 @@ public static partial class PartingTools {
 
             // collect the boundry points
             List<int> outer_points = [v0]; // points that are on the outer boundry of the wedge, starting at v0
-
-            while (vId != v0) {
+            var count = mesh.VtxVerticesItr(v1).Count();
+            while (vId != v0 && outer_points.Count < count) {
                 outer_points.Add(vId);
 
                 tId = GetOpposingTriangle(mesh, v1, vId, tId); // get the other triangle from the shared edge

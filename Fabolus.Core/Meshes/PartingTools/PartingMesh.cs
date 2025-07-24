@@ -15,7 +15,7 @@ public static partial class PartingTools {
 
         // create the contours used to make the mesh cutter
         // inner contour first to ensure good penetration of the model
-        var inner_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), -1.5);
+        var inner_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), -0.5);
         if (inner_contour.IsFailure) { return inner_contour.Errors; }
         var inner_even_loop = EvenEdgeLoop.Generate(inner_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
 
@@ -23,6 +23,9 @@ public static partial class PartingTools {
         if (outer_contour.IsFailure) { return outer_contour.Errors; }
         var outer_even_loop = EvenEdgeLoop.Generate(outer_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
 
+        if (outer_even_loop.Count != inner_even_loop.Count || outer_even_loop.Count != even_path.Count) {
+            return new MeshError($"Outer and inner loops have different vertex counts: Path: {even_path.Count} Outer: {outer_even_loop.Count} != Inner: {inner_even_loop.Count}");
+        }
 
         // add y offsets back to the loops
         for (int i = 0; i < even_path.Count; i++) {
