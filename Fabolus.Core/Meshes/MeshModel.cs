@@ -55,15 +55,6 @@ public class MeshModel {
         };
     }
 
-    public int[] GetTriangleNeighbours(int tId) => Mesh.GetTriNeighbourTris(tId).array;
-
-    public double[] GetVector(int vId) =>
-        new double[] {
-            Mesh.GetVertex(vId).x,
-            Mesh.GetVertex(vId).y,
-            Mesh.GetVertex(vId).z
-        };
-
     public IEnumerable<int> GetBorderEdgeLoop(int[] region_ids) {
         //select the region
         var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);
@@ -139,6 +130,15 @@ public class MeshModel {
         return Enumerable.Range(0, Mesh.VertexCount).Select(i => Mesh.GetVertexNormal(i).ToArray());
     }
 
+    /// <summary>
+    /// Returns a [x,y,z] array of the lower bounds of the mesh.
+    /// </summary>
+    /// <returns></returns>
+    public double[] BoundsLower() {
+        var bounds = Mesh.CachedBounds;
+        return new double[] { bounds.Min.x, bounds.Min.y, bounds.Min.z };
+    }
+
     // Constructors
 
     public MeshModel() { }
@@ -195,7 +195,6 @@ public class MeshModel {
 
         Mesh = new DMesh3(editor.Mesh);
     }
-
 
     // Operators
 

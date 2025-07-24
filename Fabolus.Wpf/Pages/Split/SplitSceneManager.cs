@@ -197,7 +197,7 @@ public class SplitSceneManager : SceneManager {
             models.Add(new DisplayModel3D {
                 Geometry = _partPositiveModel.ToGeometry(),
                 Transform = MeshHelper.TranslationFromAxis(0, 15, 0),
-                Skin = PhongMaterials.Blue,
+                Skin = DiffuseMaterials.Green,
             });
         }
 
@@ -298,29 +298,31 @@ public class SplitSceneManager : SceneManager {
         // break the models up into connected components
         var models = MeshTools.SeperateModels(boolean_response.Data);
 
-        if ( models.Length > 0) { _partPositiveModel = models[0]; }
-        if (models.Length > 1) { _partNegativeModel = models[1]; }
+        // check if the models are valid after split
+        switch (models.Length) {
+            case (< 1):
+                MessageBox.Show("No models found after boolean subtraction.", "Split Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            case (1):
+                _partPositiveModel = models[0];
+                _partNegativeModel = new MeshModel(new DMesh3()); // empty model for negative part
+                break;
+            case (2):
+                var bounds0 = models[0].BoundsLower();
+                var bounds1 = models[1].BoundsLower();
 
-        return;
-        // tool mesh, combination of bolus and air channels
-        
-        var channels = WeakReferenceMessenger.Default.Send<AirChannelsRequestMessage>().Response;
-        var tools = MeshModel.Combine(channels.Select(c => c.Value.Geometry.ToMeshModel()).ToArray());
-        var task = Task.Run(() => meshes = MeshTools.FinalPass(model, offset_mesh, _partingMesh));
-        task.Wait(); // needed or else mesh can randomly return no mesh
-
-        if ( meshes.Length == 0 ) { return; } //mesh failed
-
-        _partPositiveModel = meshes[0];
-        _partNegativeModel = meshes[1];
-
-        // remove air channels
-        //_partPositiveModel = MeshTools.BooleanSubtraction(_partPositiveModel, tools).Data;
-
-        //tools = MeshModel.Combine(channels.Select(c => c.Value.Geometry.ToMeshModel()).ToArray());
-        //_partNegativeModel = MeshTools.BooleanSubtraction(_partNegativeModel, tools).Data;
-
-        return;
+                if (bounds0[1] > bounds1[1]) {
+                    _partPositiveModel = models[0]; // if the y coordinate of the first mesh is lower than the second, then it is the positive part
+                    _partNegativeModel = models[1];
+                } else {
+                    _partPositiveModel = models[1]; // if the y coordinate of the first mesh is lower than the second, then it is the positive part
+                    _partNegativeModel = models[0];
+                }
+                break;
+            default:
+                MessageBox.Show("More than two models found after boolean subtraction. Please check the model.", "Split Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+        }
 
     }
 }

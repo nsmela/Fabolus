@@ -14,13 +14,15 @@ public static partial class PartingTools {
         var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
 
         // create the contours used to make the mesh cutter
-        var outer_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), offset);
-        if (outer_contour.IsFailure) { return outer_contour.Errors; }
-        var outer_even_loop = EvenEdgeLoop.Generate(outer_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
-
+        // inner contour first to ensure good penetration of the model
         var inner_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), -1.5);
         if (inner_contour.IsFailure) { return inner_contour.Errors; }
         var inner_even_loop = EvenEdgeLoop.Generate(inner_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
+
+        var outer_contour = GenerateContour(inner_even_loop.Select(p => new Vector2d(p.x, p.z)), offset + 1.0);
+        if (outer_contour.IsFailure) { return outer_contour.Errors; }
+        var outer_even_loop = EvenEdgeLoop.Generate(outer_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
+
 
         // add y offsets back to the loops
         for (int i = 0; i < even_path.Count; i++) {
@@ -46,7 +48,7 @@ public static partial class PartingTools {
 
         // extrude the mesh face
         MeshExtrudeMesh extrude = new(editor.Mesh) {
-            ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * 1.0, // extrude upwards by 0.1 units
+            ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * 0.1, // extrude upwards by 0.1 units
         };
         extrude.Extrude();
 
