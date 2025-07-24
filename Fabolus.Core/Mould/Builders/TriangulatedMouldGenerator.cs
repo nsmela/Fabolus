@@ -13,6 +13,9 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Mould.Builders;
 
 public sealed record TriangulatedMouldGenerator : MouldGenerator {
+    public double OffsetXY { get; private set; } = 3.0;
+    public double OffsetTop { get; private set; } = 2.0;
+    public double OffsetBottom { get; private set; } = 2.0;
     public bool IsTight { get; private set; } = true;
     public bool HasTrough { get; private set; } = false; // whether to create a trough for excess silicone
     public double MaxHeight { get; private set; } = 10.0;
@@ -25,7 +28,7 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public TriangulatedMouldGenerator WithContour(Polygon2d contour) => this with { Contour = contour };
     public TriangulatedMouldGenerator WithTightContour(bool isTight = true) => this with { IsTight = isTight, Contour = new() }; //resets the contour to empty to ensure recalculation
     public TriangulatedMouldGenerator WithTrough(bool hasTrough = true) => this with { HasTrough = hasTrough}; 
-    public TriangulatedMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select(tm => tm.Mesh).ToArray() };
+    public TriangulatedMouldGenerator WithToolMeshes(IEnumerable<MeshModel> toolMeshes) => this with { ToolMeshes = toolMeshes.ToArray() };
     public TriangulatedMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public TriangulatedMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
 
@@ -45,7 +48,7 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         MeshEditor editor = new(new DMesh3());
         if (ToolMeshes.Count() > 0) {
             foreach (var mesh in ToolMeshes) {
-                editor.AppendMesh(mesh);
+                editor.AppendMesh(mesh.Mesh);
             }
 
             MeshAutoRepair repair = new(editor.Mesh);
@@ -62,18 +65,18 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public override Result<MeshModel> Preview() {
         if (BolusReference is null) { throw new NullReferenceException("Build: Bolus mesh is null"); }
 
-        MaxHeight = BolusReference.CachedBounds.Max.z + OffsetTop;
-        MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
+        MaxHeight = BolusReference.Mesh.CachedBounds.Max.z + OffsetTop;
+        MinHeight = BolusReference.Mesh.CachedBounds.Min.z - OffsetBottom;
 
         // if done before, we can skip this step to save time
         if (Contour.IsEmpty()) {
             MeshEditor editor = new(new DMesh3());
             if (ToolMeshes.Count() > 0) {
                 foreach (var m in ToolMeshes) {
-                    editor.AppendMesh(m);
+                    editor.AppendMesh(m.Mesh);
                 }
             }
-            editor.AppendMesh(BolusReference);
+            editor.AppendMesh(BolusReference.Mesh);
 
             if (IsTight) { Contour = MeshTools.ConcaveContour(editor.Mesh); }
             else { Contour = MeshTools.ConvexContour(editor.Mesh); }

@@ -11,8 +11,12 @@ public static partial class MeshTools {
         Mesh bodyMesh = body;
         Mesh toolMesh = tool;
 
+        return BooleanSubtraction(bodyMesh, toolMesh);
+    }
+
+    public static Result<MeshModel> BooleanSubtraction(Mesh body, Mesh tool) {
         try {
-            var result = Boolean(bodyMesh, toolMesh, BooleanOperation.DifferenceAB);
+            var result = Boolean(body, tool, BooleanOperation.DifferenceAB);
             return Result<MeshModel>.Pass(new(result.mesh));
         } catch (Exception e) {
             return Result<MeshModel>.Fail([new MeshError($"Boolean Subtraction failed: {e.Message}")]);

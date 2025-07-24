@@ -25,6 +25,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 using Fabolus.Core.Meshes.PartingTools;
 using g3;
+using Fabolus.Wpf.Features.Mould;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -275,20 +276,10 @@ public class SplitSceneManager : SceneManager {
 
         _partingMesh = parting_response.Data;
 
-        // create inflated mesh to boolean insersect with the parting mesh
-        MeshModel[] meshes = []; 
-        MeshModel offset_mesh = new (MeshTools.OffsetMesh(model, _model_thickness)); // simulates a defines mold shape
+        // create inflated mesh to boolean intersect with the parting mesh
+        var offset_mesh = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
 
-        var boolean_response = MeshTools.BooleanSubtraction(offset_mesh, model);
-        if (boolean_response.IsFailure || boolean_response.Data is null) {
-            var errors = boolean_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Offset model subtraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        offset_mesh = boolean_response.Data;
-
-        boolean_response = MeshTools.BooleanSubtraction(offset_mesh, _partingMesh);
+        var boolean_response = MeshTools.BooleanSubtraction(offset_mesh, _partingMesh);
         if (boolean_response.IsFailure || boolean_response.Data is null) {
             var errors = boolean_response.Errors.Select(e => e.ErrorMessage).ToArray();
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Offset mesh subtraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
