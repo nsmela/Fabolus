@@ -30,11 +30,11 @@ public partial class SplitViewModel : BaseViewModel {
     }
 
     // view meshes
-    [ObservableProperty] private bool _showBolus = false;
-    [ObservableProperty] private bool _showNegativeParting = true;
-    [ObservableProperty] private bool _showPositiveParting = true;
+    [ObservableProperty] private bool _showBolus = true;
+    [ObservableProperty] private bool _showNegativeParting = false;
+    [ObservableProperty] private bool _showPositiveParting = false;
     [ObservableProperty] private bool _showPullRegions = true;
-    [ObservableProperty] private bool _showPartingLine;
+    [ObservableProperty] private bool _showPartingLine = true;
     [ObservableProperty] private bool _showPartingMesh;
     [ObservableProperty] private bool _explodePartingMeshes = true;
 

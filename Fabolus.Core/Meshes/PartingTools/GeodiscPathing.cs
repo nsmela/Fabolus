@@ -24,7 +24,7 @@ public static partial class PartingTools {
 
             // determine the starting point for calculations
             int eId = mesh.FindEdge(v0, v1);
-            if(eId == DMesh3.InvalidID) { return; }
+            if(eId == DMesh3.InvalidID) { throw new Exception($"Geodisc pathing: edge id {eId} is invalid for v0 {v0} and v1 {v1}"); }
             Index4i edge = mesh.GetEdge(eId); // starting edge
 
             int tId = edge.c;
@@ -51,7 +51,6 @@ public static partial class PartingTools {
                 var angle = GetAngleBetweenVectors(mesh, outer_points[i - 1], v1, outer_points[i]);
                 total_angle += angle;
 
-                
             }
 
             // determine which set of triangles are valid: the ones we scanned or the ones remaining

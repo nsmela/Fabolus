@@ -73,8 +73,10 @@ public class SplitSceneManager : SceneManager {
         WeakReferenceMessenger.Default.Register<SplitSeperationDistanceMessage>(this, (r, m) => _model_thickness = m.Distance);
 
         // initial values
-        _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
         UpdateMesh(bolus.TransformedMesh());
+        _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
+
+        UpdateDisplay();
     }
 
     private void UpdateDisplay() {

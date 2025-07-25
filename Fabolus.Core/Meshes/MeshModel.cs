@@ -144,9 +144,12 @@ public class MeshModel {
     public MeshModel() { }
 
     public MeshModel(DMesh3 mesh) {
-        Mesh = mesh;
+        Mesh = new DMesh3(mesh, true);
     }
 
+    /// <summary>
+    /// Joins two seperate meshes togther that have no overlapping triangles
+    /// </summary>
     public static MeshModel Combine(MeshModel[] models) {
         MeshEditor editor = new(new DMesh3());
 
@@ -162,7 +165,7 @@ public class MeshModel {
     }
 
     public MeshModel(Mesh mesh) {
-        Mesh = mesh.ToDMesh();
+        Mesh = new DMesh3(mesh.ToDMesh());
         _mesh = mesh; // Store the original Mesh for further operations if needed
     }
 
