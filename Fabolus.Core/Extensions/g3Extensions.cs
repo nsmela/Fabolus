@@ -14,8 +14,13 @@ public static class g3Extensions {
 
     public static double[] ToArray(this g3.Vector3f vector) => new double[] { vector.x, vector.y, vector.z };
     public static Vector3d ToVector3d(this double[] array) => new Vector3d(array[0], array[1], array[2]);
-    public static Vector3d ToVector3d(this Vector3 vector) => new Vector3d(vector.X, vector.Y, vector.Z);
     public static bool IsEmpty(this DMesh3 mesh) => mesh.VertexCount == 0 || mesh.TriangleCount == 0;
     public static bool IsEmpty(this Polygon2d polygon) => polygon.Vertices.Count == 0;
+
+    // System.Numerics Converters 
+    // these are the values used to as a sommon value between Fabolus.Core and Fabolus.Wpf
+    // to seperate Wpf from using g3 or MeshLib, only standard libraries
+    public static Vector3 ToVector3(this Vector3d v) => new Vector3((float)v.x, (float)v.y, (float)v.z);
+    public static Vector3d ToVector3d(this Vector3 vector) => new Vector3d(vector.X, vector.Y, vector.Z);
 
 }

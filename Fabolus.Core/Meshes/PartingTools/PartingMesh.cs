@@ -1,4 +1,5 @@
 ﻿using Clipper2Lib;
+using Fabolus.Core.Extensions;
 using g3;
 using System;
 using System.Collections.Generic;
@@ -11,17 +12,17 @@ namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
 
     public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset, double extrude_distance = 0.1) {
-        var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), 100);
-
+        //var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), points.Count() * 2);
+        List<Vector3d> even_path = points.Select(v => v.ToVector3d()).ToList();
         // create the contours used to make the mesh cutter
         // inner contour first to ensure good penetration of the model
-        var inner_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), -0.5);
+        var inner_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), -0.2);
         if (inner_contour.IsFailure) { return inner_contour.Errors; }
-        var inner_even_loop = EvenEdgeLoop.Generate(inner_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
+        var inner_even_loop = EvenEdgeLoop.Generate(inner_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), even_path.Count);
 
         var outer_contour = GenerateContour(inner_even_loop.Select(p => new Vector2d(p.x, p.z)), offset + 1.0);
         if (outer_contour.IsFailure) { return outer_contour.Errors; }
-        var outer_even_loop = EvenEdgeLoop.Generate(outer_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), 100);
+        var outer_even_loop = EvenEdgeLoop.Generate(outer_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), even_path.Count);
 
         if (outer_even_loop.Count != inner_even_loop.Count || outer_even_loop.Count != even_path.Count) {
             return new MeshError($"Outer and inner loops have different vertex counts: Path: {even_path.Count} Outer: {outer_even_loop.Count} != Inner: {inner_even_loop.Count}");
