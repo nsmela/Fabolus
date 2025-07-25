@@ -1,4 +1,5 @@
-﻿using g3;
+﻿using Fabolus.Core.Extensions;
+using g3;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -78,7 +79,20 @@ public static partial class PartingTools {
         path.AddRange(graph.FindPath(id[2], id[3]));
         path.AddRange(graph.FindPath(id[3], id[0]));
 
-        return path.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
+        //var even_path = EvenEdgeLoop.Generate(path.Select(vId => model.Mesh.GetVertex(vId)), path.Count);
+        //return even_path.Select(v => v.ToVector3()).Reverse().ToArray();
+
+        // remove paths that could skip a triangle
+        for (int i = path.Count - 1; i < 1; i--) { // going in reverse to allow removing from list
+            int v0 = path[i - 1];
+            int v1 = path[i];
+            int v2 = path[i + 1];
+            if (SkipThisVertex(model.Mesh, v0, v1, v2)) {
+                path.RemoveAt(i);
+            }
+        }
+        //return path.ToArray().Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
+
 
         GeodiscPathing geodisc = new(model, path);
         geodisc.Compute();
@@ -86,6 +100,11 @@ public static partial class PartingTools {
         return geodisc.Path().Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
     }
 
-    private static Vector3 ToVector3(this Vector3d v) => new Vector3((float)v.x, (float)v.y, (float)v.z);
-    
+
+    private static bool SkipThisVertex(DMesh3 mesh, int v0, int v1, int v2) {
+        var path_distance = mesh.GetVertex(v0).Distance(mesh.GetVertex(v1)) +
+                            mesh.GetVertex(v1).Distance(mesh.GetVertex(v2));
+
+        return path_distance > mesh.GetVertex(v0).Distance(mesh.GetVertex(v2)); // skip if the path is longer than the direct distance
+    }
 }

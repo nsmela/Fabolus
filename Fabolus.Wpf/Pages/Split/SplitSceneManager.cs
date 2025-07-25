@@ -176,8 +176,19 @@ public class SplitSceneManager : SceneManager {
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Oriented Parting Line Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
-
+        
         _parting_curve = new Vector3Collection(curve_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z)));
+
+        // creates the parting mesh to boolean subtract from the main mould
+        var parting_response = PartingTools.EvenPartingMesh(curve_response.Data.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20, extrude_distance: 0.15);
+        if (parting_response.IsFailure || parting_response.Data is null) {
+            var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        _partingMesh = parting_response.Data;
+
         return;
         // draft angle meshes
         DraftCollection results = GenerateDraftCollection(model, System.Numerics.Vector3.UnitY, DRAFT_ANGLE_THRESHOLD_DEGREES);
@@ -221,7 +232,7 @@ public class SplitSceneManager : SceneManager {
         _parting_curve = new Vector3Collection(path);
 
         // creates the parting mesh to boolean subtract from the main mould
-        var parting_response = PartingTools.EvenPartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20, extrude_distance: 0.15);
+        parting_response = PartingTools.EvenPartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20, extrude_distance: 0.15);
         if (parting_response.IsFailure || parting_response.Data is null) {
             var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);

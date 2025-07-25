@@ -43,6 +43,11 @@ public static class EvenEdgeLoop {
             index = i;
         }
 
+        if (index <0) {
+            // no z intersections found, return empty list
+            throw new Exception("No z intersections found in the path. Ensure the path crosses the z=0 plane.");
+        }
+
         Vector3d z_intersection = z_intersections[index];
         int z_index = z_indexes[index];
 
