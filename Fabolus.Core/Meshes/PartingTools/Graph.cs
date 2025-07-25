@@ -119,6 +119,6 @@ public class Graph {
         _mesh.GetVertex(v0).Distance(_mesh.GetVertex(v1));
 
     private double AnglePenalty(Vector3d v0, Vector3d reference) =>
-        1 + Math.Abs((MathUtil.HalfPI - v0.AngleR(reference)) / MathUtil.HalfPI);
+        1 + 2 * Math.Abs((MathUtil.HalfPI - v0.AngleR(reference)) / MathUtil.HalfPI);
 
 }
