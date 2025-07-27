@@ -56,6 +56,7 @@ public static class EvenEdgeLoop {
 
         points = [..points.Skip(z_index), .. points.Take(z_index)];
 
+
         // determine if the path is counter-clockwise or clockwise based on the first two points
         // start at the z intersection point for consistency
         // check the direction of the path around the y axis
@@ -65,13 +66,14 @@ public static class EvenEdgeLoop {
         }
 
         points.Insert(0, z_intersection); // insert the z intersection point at the start
+        if (points.Last().z > 0) { points.RemoveAt(points.Count - 1); } // trim the last point if too high
 
         // generate the stored lengths
-        List<double> lengths = [0.0];
+        List<double> lengths = [];
         double cumlative_length = 0.0;
-        for(int i = 1; i < points.Count; i++) {
-            v0 = points[i - 1];
-            v1 = points[i];
+        for(int i = 0; i < points.Count; i++) {
+            v0 = points[i];
+            v1 = points[(i + 1) % points.Count];
             cumlative_length += v0.Distance(v1);
             lengths.Add(cumlative_length);
         }
@@ -90,6 +92,10 @@ public static class EvenEdgeLoop {
                 break; // no more points can be found
             }
 
+
+            if (seg_index > points.Count) {
+                seg_index = 0; // troubleshooting
+            }
             previous = current_pos;
             current_pos = next_point;
             sample_points.Add(next_point); // add the next point to the sample points

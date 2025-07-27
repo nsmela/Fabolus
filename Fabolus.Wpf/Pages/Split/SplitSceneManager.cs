@@ -56,6 +56,8 @@ public class SplitSceneManager : SceneManager {
     private Vector3Collection _parting_curve = [];
     private Vector3Collection _contour_curve = [];
     private MeshModel _partingMesh;
+    private MeshGeometry3D _offsetMesh;
+    private MeshGeometry3D _innerMesh;
 
     // view options
     private SplitViewOptions _view_options;
@@ -130,6 +132,28 @@ public class SplitSceneManager : SceneManager {
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Yellow,
             });
+
+            builder = new();
+            builder.AddSphere(_parting_curve.First(), 0.5);
+            builder.AddSphere(_parting_curve.Last(), 0.5);
+            models.Add(new DisplayModel3D {
+                Geometry = builder.ToMeshGeometry3D(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Ruby,
+            });
+
+            // used to show the polylines generated from offsetting the parting curve
+            models.Add(new DisplayModel3D {
+                Geometry = _offsetMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Ruby,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _innerMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Ruby,
+            });
         }
 
         if(_partingMesh is not null && _view_options.ShowPartingMesh) {
@@ -176,9 +200,27 @@ public class SplitSceneManager : SceneManager {
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Oriented Parting Line Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
-        
-        _parting_curve = new Vector3Collection(curve_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z)));
 
+        var curve = PartingTools.GeneratePartingLine(model);
+
+        _parting_curve = new Vector3Collection(PartingTools.OrientedPartingLine(model, curve).Data.Select(v => new Vector3(v.X, v.Y, v.Z)));
+
+        // calculate the offset polyline curve
+        var offset_response = PartingTools.OffsetPath(model, curve, 15.0f);
+
+        MeshBuilder builder = new();
+        builder.AddTube(new Vector3Collection(offset_response.Select(v => new Vector3(v.X, v.Y, v.Z))), 0.3, 16, true);
+        _offsetMesh = builder.ToMeshGeometry3D();
+
+        // 
+        // calculate the offset polyline curve
+        var inner_response = PartingTools.OffsetPath(model, curve, -1.0f);
+
+        builder = new();
+        builder.AddTube(new Vector3Collection(inner_response.Select(v => new Vector3(v.X, v.Y, v.Z))), 0.3, 16, true);
+        _innerMesh = builder.ToMeshGeometry3D();
+
+        return;
         // creates the parting mesh to boolean subtract from the main mould
         var parting_response = PartingTools.EvenPartingMesh(curve_response.Data.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20, extrude_distance: 0.15);
         if (parting_response.IsFailure || parting_response.Data is null) {

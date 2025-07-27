@@ -44,7 +44,7 @@ public static partial class PartingTools {
         path = geodisc.Path().ToArray();
     }
 
-    public static Result<Vector3[]> OrientedPartingLine(MeshModel model) {
+    public static IEnumerable<int> GeneratePartingLine(MeshModel model) {
         List<Vector3d> result = [];
 
         // we collect the closest points to each corner of the model
@@ -79,19 +79,24 @@ public static partial class PartingTools {
         path.AddRange(graph.FindPath(id[2], id[3]));
         path.AddRange(graph.FindPath(id[3], id[0]));
 
-        var even_path = EvenEdgeLoop.Generate(path.Select(vId => model.Mesh.GetVertex(vId)), path.Count);
-        return even_path.Select(v => v.ToVector3()).Reverse().ToArray();
-
         // remove paths that could skip a triangle
-        for (int i = path.Count - 1; i < 1; i--) { // going in reverse to allow removing from list
+        for (int i = path.Count; i < 1; i--) { // going in reverse to allow removing from list
             int v0 = path[i - 1];
             int v1 = path[i];
-            int v2 = path[i + 1];
+            int v2 = path[(i + 1) % path.Count];
             if (SkipThisVertex(model.Mesh, v0, v1, v2)) {
                 path.RemoveAt(i);
             }
         }
-        //return path.ToArray().Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
+
+        return path;
+    }
+
+    public static Result<Vector3[]> OrientedPartingLine(MeshModel model) {
+        var path = GeneratePartingLine(model);
+        var value = path.Select(i => model.Mesh.GetVertex(i)).ToArray();
+
+        return path.ToArray().Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
 
 
         GeodiscPathing geodisc = new(model, path);
@@ -99,6 +104,9 @@ public static partial class PartingTools {
 
         return geodisc.Path().Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
     }
+
+    public static Result<Vector3[]> OrientedPartingLine(MeshModel model, IEnumerable<int> path_ids) => 
+        path_ids.ToArray().Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray();
 
 
     private static bool SkipThisVertex(DMesh3 mesh, int v0, int v1, int v2) {

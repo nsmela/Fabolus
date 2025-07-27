@@ -12,15 +12,16 @@ namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
 
     public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset, double extrude_distance = 0.1) {
-        //var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), points.Count() * 2);
-        List<Vector3d> even_path = points.Select(v => v.ToVector3d()).ToList();
+        // create a consistent reference for the inner and outer loops to reference for the y offset
+        var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), points.Count());
+
         // create the contours used to make the mesh cutter
         // inner contour first to ensure good penetration of the model
         var inner_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), -0.2);
         if (inner_contour.IsFailure) { return inner_contour.Errors; }
         var inner_even_loop = EvenEdgeLoop.Generate(inner_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), even_path.Count);
 
-        var outer_contour = GenerateContour(inner_even_loop.Select(p => new Vector2d(p.x, p.z)), offset + 1.0);
+        var outer_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), offset + 1.0);
         if (outer_contour.IsFailure) { return outer_contour.Errors; }
         var outer_even_loop = EvenEdgeLoop.Generate(outer_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), even_path.Count);
 
@@ -30,8 +31,11 @@ public static partial class PartingTools {
 
         // add y offsets back to the loops
         for (int i = 0; i < even_path.Count; i++) {
-            outer_even_loop[i] += Vector3d.AxisY * even_path[i].y;
-            inner_even_loop[i] += Vector3d.AxisY * even_path[i].y;
+            var v_y = Vector3d.AxisY * even_path[i].y;
+            var v0 = outer_even_loop[i] + v_y;
+            var v1 = inner_even_loop[i] + v_y;
+            outer_even_loop[i] = v0;
+            inner_even_loop[i] = v1;
         }
 
         // triangulate the space between the two loops
