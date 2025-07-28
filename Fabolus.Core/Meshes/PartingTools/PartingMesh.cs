@@ -11,6 +11,62 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
 
+    public static Result<MeshModel> JoinPolylines(Vector3[] inner, Vector3[] outer) {
+        int nA = inner.Length;
+        int nB = outer.Length;
+        Vector3d[] polyA = inner.Select(v => v.ToVector3d()).ToArray();
+        Vector3d[] polyB = outer.Select(v => v.ToVector3d()).ToArray();
+
+        // align the two loops
+        int closest = -1;
+        double min_dist = double.MaxValue;
+        double distance = 0.0;
+        for (int i = 0; i < nB; i++) {
+            distance = (polyA[0] - polyB[i]).LengthSquared;
+            if (distance > min_dist) { continue; }
+
+            closest = i;
+            min_dist = distance;
+        }
+
+        // 'rotate' polyB to align
+        List<Vector3d> new_poly = new(polyB.Count()); 
+        new_poly.AddRange(polyB.Skip(closest+1));
+        new_poly.AddRange(polyB.Take(closest));
+        polyB = new_poly.ToArray();
+        nB = polyB.Length;
+
+        // add verts to mesh
+        DMesh3 mesh = new();
+        List<int> a_indices = new(nA); // pre-set size for efficiency
+        List<int> b_indices = new(nB);
+        foreach (Vector3d v in polyA) {
+            a_indices.Add(mesh.AppendVertex(v));
+        }
+
+        foreach (Vector3d v in polyB) {
+            b_indices.Add(mesh.AppendVertex(v));
+        }
+
+        int a = 0, b = 0;
+        while (a < nA || b < nB) {
+            int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
+
+            if (mesh.GetVertex(a1).DistanceSquared(mesh.GetVertex(b0)) <
+                    mesh.GetVertex(b1).DistanceSquared(mesh.GetVertex(a0))) {
+                mesh.AppendTriangle(a1, a0, b0);
+                a++;
+            } else {
+                mesh.AppendTriangle(a0, b0, b1);
+                b++;
+            }
+        }
+        return new MeshModel(mesh);
+    }
+
+    private static double TriangleArea(Vector3d a, Vector3d b, Vector3d c) =>
+        0.5 * Math.Abs((a - b).Length * (c-b).Length);
+
     public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset, double extrude_distance = 0.1) {
         // create a consistent reference for the inner and outer loops to reference for the y offset
         var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), points.Count());

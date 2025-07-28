@@ -237,12 +237,11 @@ public class SplitSceneManager : SceneManager {
         }
         _segmentsMesh = builder.ToMeshGeometry3D();
 
-        return;
         // creates the parting mesh to boolean subtract from the main mould
-        var parting_response = PartingTools.EvenPartingMesh(curve_response.Data.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20, extrude_distance: 0.15);
+        var parting_response = PartingTools.JoinPolylines(inner_response.ToArray(), offset_response.ToArray());
         if (parting_response.IsFailure || parting_response.Data is null) {
             var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Mesh Stiching Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
