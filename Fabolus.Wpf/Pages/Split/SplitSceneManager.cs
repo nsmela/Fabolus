@@ -125,7 +125,7 @@ public class SplitSceneManager : SceneManager {
         }
 
         // parting curve
-        if (_parting_curve.Count > 0 && _view_options.ShowPartingLine) {
+        if (false && _parting_curve.Count > 0 && _view_options.ShowPartingLine) {
             MeshBuilder builder = new();
             builder.AddTube(_parting_curve, 0.3, 16, true);
             models.Add(new DisplayModel3D {
@@ -164,7 +164,7 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-        if(_partingMesh is not null && _view_options.ShowPartingMesh) {
+        if (_partingMesh is not null && _view_options.ShowPartingMesh) {
             models.Add(new DisplayModel3D {
                 Geometry = _partingMesh.ToGeometry(),
                 Transform = MeshHelper.TransformEmpty,
@@ -220,7 +220,6 @@ public class SplitSceneManager : SceneManager {
         builder.AddTube(new Vector3Collection(offset_response.Select(v => new Vector3(v.X, v.Y, v.Z))), 0.3, 16, true);
         _offsetMesh = builder.ToMeshGeometry3D();
 
-        // 
         // calculate the offset polyline curve
         var inner_response = PartingTools.OffsetPath(model, curve, -1.0f);
 
@@ -228,72 +227,17 @@ public class SplitSceneManager : SceneManager {
         builder.AddTube(new Vector3Collection(inner_response.Select(v => new Vector3(v.X, v.Y, v.Z))), 0.3, 16, true);
         _innerMesh = builder.ToMeshGeometry3D();
 
-        // show defective segments
-        var segments = PartingTools.SegmentIntersections(offset_response);
-        builder = new();
-        foreach (System.Numerics.Vector3[] segment in segments) {
-            
-            builder.AddCylinder(ToVector3(segment[0]), ToVector3(segment[1]), 0.5, 16, true);
-        }
-        _segmentsMesh = builder.ToMeshGeometry3D();
-
         // creates the parting mesh to boolean subtract from the main mould
-        var parting_response = PartingTools.JoinPolylines(inner_response.ToArray(), offset_response.ToArray());
+        CuttingMeshParams settings = new() {
+            Model = model,
+            OuterOffset = 90.0f,
+            InnerOffset = 0.5f,
+            MeshDepth = 0.2
+        };
+        var parting_response = PartingTools.DualOffsetCuttingMesh(settings);
         if (parting_response.IsFailure || parting_response.Data is null) {
             var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Mesh Stiching Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        _partingMesh = parting_response.Data;
-
-        return;
-        // draft angle meshes
-        DraftCollection results = GenerateDraftCollection(model, System.Numerics.Vector3.UnitY, DRAFT_ANGLE_THRESHOLD_DEGREES);
-
-        Vector3 v0, v1, v2; // to be used in the loop
-        double[] values = new double[9];
-
-        MeshBuilder positive_mesh = new();
-        MeshBuilder negative_mesh = new();
-        MeshBuilder neutral_mesh = new();
-        MeshBuilder invalid_mesh = new();
-
-        // add triangles to meshes
-        foreach (var (tId, result) in results) {
-            values = model.GetTriangleAsDoubles(tId);
-            v0 = new Vector3((float)values[0], (float)values[1], (float)values[2]);
-            v1 = new Vector3((float)values[3], (float)values[4], (float)values[5]);
-            v2 = new Vector3((float)values[6], (float)values[7], (float)values[8]);
-
-            if (result == DraftClassification.POSITIVE) { positive_mesh.AddTriangle(v0, v1, v2); }
-            if (result == DraftClassification.NEGATIVE) { negative_mesh.AddTriangle(v0, v1, v2); }
-            if (result == DraftClassification.NEUTRAL) { neutral_mesh.AddTriangle(v0, v1, v2); }
-        }
-
-        _draftAngleMeshPositive = positive_mesh.ToMeshGeometry3D();
-        _draftAngleMeshNegative = negative_mesh.ToMeshGeometry3D();
-        _draftAngleMeshNeutral = neutral_mesh.ToMeshGeometry3D();
-
-        // parting line
-        // find edges for parting line and smooth that path
-        var path_response = PartingLine(model, results);
-
-        if (path_response.IsFailure || path_response.Data is null)
-        {
-            var errors = path_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Parting Line Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        var path = path_response.Data.Select(v => new Vector3(v.X, v.Y, v.Z)); // converting System.Numerics.Vector3[] to SharpDX.Vector3 IEnumerable
-        _parting_curve = new Vector3Collection(path);
-
-        // creates the parting mesh to boolean subtract from the main mould
-        parting_response = PartingTools.EvenPartingMesh(_parting_curve.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)), 20, extrude_distance: 0.15);
-        if (parting_response.IsFailure || parting_response.Data is null) {
-            var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 

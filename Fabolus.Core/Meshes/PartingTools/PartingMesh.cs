@@ -1,6 +1,7 @@
 ﻿using Clipper2Lib;
 using Fabolus.Core.Extensions;
 using g3;
+using gs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,17 +13,22 @@ namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
 
     public static Result<MeshModel> JoinPolylines(Vector3[] inner, Vector3[] outer) {
-        int nA = inner.Length;
-        int nB = outer.Length;
         Vector3d[] polyA = inner.Select(v => v.ToVector3d()).ToArray();
         Vector3d[] polyB = outer.Select(v => v.ToVector3d()).ToArray();
+        var mesh = JoinPolylines(polyA, polyB);
+        return new MeshModel(mesh);
+    }
+
+    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer) {
+        int nA = inner.Length;
+        int nB = outer.Length;
 
         // align the two loops
         int closest = -1;
         double min_dist = double.MaxValue;
         double distance = 0.0;
         for (int i = 0; i < nB; i++) {
-            distance = (polyA[0] - polyB[i]).LengthSquared;
+            distance = (inner[0] - outer[i]).LengthSquared;
             if (distance > min_dist) { continue; }
 
             closest = i;
@@ -30,21 +36,21 @@ public static partial class PartingTools {
         }
 
         // 'rotate' polyB to align
-        List<Vector3d> new_poly = new(polyB.Count()); 
-        new_poly.AddRange(polyB.Skip(closest+1));
-        new_poly.AddRange(polyB.Take(closest));
-        polyB = new_poly.ToArray();
-        nB = polyB.Length;
+        List<Vector3d> new_poly = new(outer.Count());
+        new_poly.AddRange(outer.Skip(closest + 1));
+        new_poly.AddRange(outer.Take(closest));
+        outer = new_poly.ToArray();
+        nB = outer.Length;
 
         // add verts to mesh
         DMesh3 mesh = new();
         List<int> a_indices = new(nA); // pre-set size for efficiency
         List<int> b_indices = new(nB);
-        foreach (Vector3d v in polyA) {
+        foreach (Vector3d v in inner) {
             a_indices.Add(mesh.AppendVertex(v));
         }
 
-        foreach (Vector3d v in polyB) {
+        foreach (Vector3d v in outer) {
             b_indices.Add(mesh.AppendVertex(v));
         }
 
@@ -61,11 +67,37 @@ public static partial class PartingTools {
                 b++;
             }
         }
-        return new MeshModel(mesh);
+
+        return mesh;
     }
 
-    private static double TriangleArea(Vector3d a, Vector3d b, Vector3d c) =>
-        0.5 * Math.Abs((a - b).Length * (c-b).Length);
+    public record struct CuttingMeshParams(
+        MeshModel Model,
+        float InnerOffset = 0.1f,
+        float OuterOffset = 25.0f,
+        double MeshDepth = 0.1
+    );
+
+    public static Result<MeshModel> DualOffsetCuttingMesh(CuttingMeshParams parameters) {
+        var parting_line = GeneratePartingLine(parameters.Model);
+        
+        DMesh3 mesh = parameters.Model.Mesh;
+        var outer_path = PolyLineOffset(mesh, parting_line, parameters.OuterOffset);
+        var inner_path = PolyLineOffset(mesh, parting_line, -Math.Abs(parameters.InnerOffset)); // ensures offset goes inwards
+        DMesh3 result = JoinPolylines(inner_path.ToArray(), outer_path.ToArray());
+
+        // extrude the mesh face
+        MeshExtrudeMesh extrude = new(result) {
+            ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * parameters.MeshDepth,
+        };
+        extrude.Extrude();
+
+        // repair the mesh if needed
+        MeshAutoRepair repair = new(extrude.Mesh);
+        repair.Apply();
+
+        return new MeshModel(repair.Mesh);
+    }
 
     public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset, double extrude_distance = 0.1) {
         // create a consistent reference for the inner and outer loops to reference for the y offset

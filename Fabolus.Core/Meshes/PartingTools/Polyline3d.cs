@@ -34,24 +34,25 @@ public class Polyline3d {
 }
 
 public static partial class PartingTools {
-    public static IEnumerable<Vector3> OffsetPath(DMesh3 mesh, IEnumerable<int> path, float distance) {
-        var offset_path = OffsetBasic(mesh, path, distance);
-        var info = new CleanupResults() { RemovedCount = int.MaxValue };
-        while (!info.IsClean) {
-            offset_path = OffsetCleaup(offset_path, out info);
-        }
-        return offset_path.Select(v => v.ToVector3());
-    }
+    public static IEnumerable<Vector3> OffsetPath(MeshModel model, IEnumerable<int> path, float distance) =>
+        PolyLineOffset(model.Mesh, path, distance).Select(v => v.ToVector3());
 
-    internal static IEnumerable<Vector3d> OffsetBasic(DMesh3 mesh, IEnumerable<int> path, float distance) {
+    internal static Vector3d[] PolyLineOffset(DMesh3 mesh, IEnumerable<int> path, float distance) {
         Vector3f[] normals = path.Select(i => mesh.GetVertexNormal(i)).ToArray();
         Vector3d[] points = path.Select(i => mesh.GetVertex(i)).ToArray();
 
         Vector3d[] results = new Vector3d[points.Length]; // optmize by pre-setting the expected length
         for (int i = 0; i < points.Length; i++) {
             // remove y component to normal, normalize it, and multiply by desired distance to get vector offset
-            yield return results[i] = points[i] + new Vector3f(normals[i].x, 0.0, normals[i].z).Normalized * distance;
+            results[i] = points[i] + new Vector3f(normals[i].x, 0.0, normals[i].z).Normalized * distance;
         }
+
+        var info = new CleanupResults() { RemovedCount = int.MaxValue };
+        while (!info.IsClean) {
+            results = OffsetCleaup(results, out info);
+        }
+        
+        return results.ToArray();
     }
 
     internal static List<Vector3d> OffsetPathInXZPlane(List<Vector3d> path, double offsetDistance) {
