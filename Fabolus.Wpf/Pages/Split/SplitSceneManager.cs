@@ -30,46 +30,28 @@ using Fabolus.Wpf.Features.Mould;
 namespace Fabolus.Wpf.Pages.Split;
 
 public class SplitSceneManager : SceneManager {
-    private MeshGeometry3D? _previewMesh;
-    private Material _previewSkin = DiffuseMaterials.Turquoise;
-
-    private Guid? BolusId;
-
-    private Guid? PartingRegionId;
-    private float _model_thickness = 3.0f;
-    private MeshModel _partingMeshModel;
-    private MeshModel _partPositiveModel;
-    private MeshModel _partNegativeModel;
     private MeshGeometry3D _partingRegion;
-    private Material _partingMaterial = DiffuseMaterials.Green;
 
     private int _smoothnessDegree = 10;
+    private float _model_thickness = 0.15f;
     private Vector3Collection _path = [];
 
-    private MeshGeometry3D? _draftAngleMeshPositive;
-    private MeshGeometry3D? _draftAngleMeshNegative;
-    private MeshGeometry3D? _draftAngleMeshNeutral;
-    private const double DRAFT_ANGLE_THRESHOLD_DEGREES = 10.0;
-    private double[] _draftPullDirection = new double[3] { 0, 1, 0 }; // pulling in the positive Y direction
-
     // parting
-    private Vector3Collection _parting_curve = [];
-    private Vector3Collection _contour_curve = [];
     private MeshModel _partingMesh;
     private MeshGeometry3D _partingPathMesh;
     private MeshGeometry3D _offsetMesh;
     private MeshGeometry3D _innerMesh;
     private MeshGeometry3D _mouldMesh;
+    private MeshGeometry3D _positivePullMesh;
+    private MeshGeometry3D _negativePullMesh;
 
     // view options
     private SplitViewOptions _view_options;
 
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
-        BolusId = bolus?.Geometry?.GUID;
 
         // request messages
-        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitRequestModelsMessage>(this, (r,m) => m.Reply([r._partNegativeModel, r._partPositiveModel]));
         WeakReferenceMessenger.Default.Register<SplitSceneManager, UpdateSplitViewOptionsMessage>(this, (r, m) => {
             _view_options = m.Options;
             UpdateDisplay();
@@ -97,31 +79,6 @@ public class SplitSceneManager : SceneManager {
                 Geometry = bolus.Geometry,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.LightGray,
-            });
-        }
-
-        // show draft angle results
-        if (_draftAngleMeshPositive is not null && _view_options.ShowPullRegions) {
-            models.Add(new DisplayModel3D {
-                Geometry = _draftAngleMeshPositive,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Green,
-            });
-        }
-        
-        if (_draftAngleMeshNegative is not null && _view_options.ShowPullRegions) {
-            models.Add(new DisplayModel3D {
-                Geometry = _draftAngleMeshNegative,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Red,
-            });
-        }
-        
-        if (_draftAngleMeshNeutral is not null && _view_options.ShowPullRegions) {
-            models.Add(new DisplayModel3D {
-                Geometry = _draftAngleMeshNeutral,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Gray,
             });
         }
 
@@ -166,17 +123,17 @@ public class SplitSceneManager : SceneManager {
         }
 
         double spacing = _view_options.ExplodePartingMeshes ? 15 : 0;
-        if (_partNegativeModel is not null && _view_options.ShowNegativeParting) {
+        if (_positivePullMesh is not null && _view_options.ShowNegativeParting) {
             models.Add(new DisplayModel3D {
-                Geometry = _partNegativeModel.ToGeometry(),
+                Geometry = _positivePullMesh,
                 Transform = MeshHelper.TranslationFromAxis(0, -spacing, 0),
                 Skin = DiffuseMaterials.Red,
             });
         }
         
-        if (_partPositiveModel is not null && _view_options.ShowPositiveParting) {
+        if (_negativePullMesh is not null && _view_options.ShowPositiveParting) {
             models.Add(new DisplayModel3D {
-                Geometry = _partPositiveModel.ToGeometry(),
+                Geometry = _negativePullMesh,
                 Transform = MeshHelper.TranslationFromAxis(0, spacing, 0),
                 Skin = DiffuseMaterials.Green,
             });
@@ -186,10 +143,6 @@ public class SplitSceneManager : SceneManager {
     }
 
     private void UpdateMesh(MeshModel model) {
-        _partingMeshModel = MeshTools.PartingRegion(model, _smoothnessDegree);
-        _partingRegion = _partingMeshModel.ToGeometry();
-        PartingRegionId = _partingRegion.GUID;
-
         // draft angle meshes
         SetDraftMeshes(model);
     }
@@ -240,19 +193,19 @@ public class SplitSceneManager : SceneManager {
                 MessageBox.Show("No models found after boolean subtraction.", "Split Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             case (1):
-                _partPositiveModel = models[0];
-                _partNegativeModel = null; // empty model for negative part
+                _positivePullMesh = models[0].ToGeometry();
+                _negativePullMesh = null; // empty model for negative part
                 break;
             case (2):
                 var bounds0 = models[0].BoundsLower();
                 var bounds1 = models[1].BoundsLower();
 
-                if (bounds0[1] > bounds1[1]) {
-                    _partPositiveModel = models[0]; // if the y coordinate of the first mesh is lower than the second, then it is the positive part
-                    _partNegativeModel = models[1];
+                if (bounds0[1] < bounds1[1]) {
+                    _positivePullMesh = models[0].ToGeometry(); // if the y coordinate of the first mesh is lower than the second, then it is the positive part
+                    _negativePullMesh = models[1].ToGeometry();
                 } else {
-                    _partPositiveModel = models[1]; // if the y coordinate of the first mesh is lower than the second, then it is the positive part
-                    _partNegativeModel = models[0];
+                    _positivePullMesh = models[1].ToGeometry(); // if the y coordinate of the first mesh is lower than the second, then it is the positive part
+                    _negativePullMesh = models[0].ToGeometry();
                 }
                 break;
             default:
