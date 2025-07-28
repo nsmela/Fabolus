@@ -49,7 +49,7 @@ public static partial class PartingTools {
 
         var info = new CleanupResults() { RemovedCount = int.MaxValue };
         while (!info.IsClean) {
-            results = OffsetCleaup(results, out info);
+            results = OffsetCleaup(results, out info, 0.5);
         }
         
         return results.ToArray();

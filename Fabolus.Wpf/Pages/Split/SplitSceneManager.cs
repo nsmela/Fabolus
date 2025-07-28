@@ -56,9 +56,10 @@ public class SplitSceneManager : SceneManager {
     private Vector3Collection _parting_curve = [];
     private Vector3Collection _contour_curve = [];
     private MeshModel _partingMesh;
+    private MeshGeometry3D _partingPathMesh;
     private MeshGeometry3D _offsetMesh;
     private MeshGeometry3D _innerMesh;
-    private MeshGeometry3D _segmentsMesh;
+    private MeshGeometry3D _mouldMesh;
 
     // view options
     private SplitViewOptions _view_options;
@@ -125,22 +126,11 @@ public class SplitSceneManager : SceneManager {
         }
 
         // parting curve
-        if (false && _parting_curve.Count > 0 && _view_options.ShowPartingLine) {
-            MeshBuilder builder = new();
-            builder.AddTube(_parting_curve, 0.3, 16, true);
+        if (_partingPathMesh.Positions.Count > 0 && _view_options.ShowPartingLine) {
             models.Add(new DisplayModel3D {
-                Geometry = builder.ToMeshGeometry3D(),
+                Geometry = _partingPathMesh,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Yellow,
-            });
-
-            builder = new();
-            builder.AddSphere(_parting_curve.First(), 0.5);
-            builder.AddSphere(_parting_curve.Last(), 0.5);
-            models.Add(new DisplayModel3D {
-                Geometry = builder.ToMeshGeometry3D(),
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Ruby,
             });
 
             // used to show the polylines generated from offsetting the parting curve
@@ -156,12 +146,6 @@ public class SplitSceneManager : SceneManager {
                 Skin = DiffuseMaterials.Ruby,
             });
 
-            // shows defective segments
-            models.Add(new DisplayModel3D {
-                Geometry = _segmentsMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Violet,
-            });
         }
 
         if (_partingMesh is not null && _view_options.ShowPartingMesh) {
@@ -169,6 +153,15 @@ public class SplitSceneManager : SceneManager {
                 Geometry = _partingMesh.ToGeometry(),
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Blue,
+            });
+        }
+
+        if (_mouldMesh.Positions.Count > 0 && _view_options.ShowPullRegions) {
+            models.Add(new DisplayModel3D {
+                Geometry = _mouldMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Ruby,
+                IsTransparent = true,
             });
         }
 
@@ -202,31 +195,6 @@ public class SplitSceneManager : SceneManager {
     }
 
     private void SetDraftMeshes(MeshModel model) {
-        var curve_response = PartingTools.OrientedPartingLine(model);
-        if (curve_response.IsFailure || curve_response.Data is null) {
-            var errors = curve_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Generate Oriented Parting Line Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        var curve = PartingTools.GeneratePartingLine(model);
-
-        _parting_curve = new Vector3Collection(PartingTools.OrientedPartingLine(model, curve).Data.Select(v => new Vector3(v.X, v.Y, v.Z)));
-
-        // calculate the offset polyline curve
-        var offset_response = PartingTools.OffsetPath(model, curve, 15.0f);
-
-        MeshBuilder builder = new();
-        builder.AddTube(new Vector3Collection(offset_response.Select(v => new Vector3(v.X, v.Y, v.Z))), 0.3, 16, true);
-        _offsetMesh = builder.ToMeshGeometry3D();
-
-        // calculate the offset polyline curve
-        var inner_response = PartingTools.OffsetPath(model, curve, -1.0f);
-
-        builder = new();
-        builder.AddTube(new Vector3Collection(inner_response.Select(v => new Vector3(v.X, v.Y, v.Z))), 0.3, 16, true);
-        _innerMesh = builder.ToMeshGeometry3D();
-
         // creates the parting mesh to boolean subtract from the main mould
         CuttingMeshParams settings = new() {
             Model = model,
@@ -234,22 +202,32 @@ public class SplitSceneManager : SceneManager {
             InnerOffset = 0.5f,
             MeshDepth = 0.2
         };
-        var parting_response = PartingTools.DualOffsetCuttingMesh(settings);
-        if (parting_response.IsFailure || parting_response.Data is null) {
-            var errors = parting_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Mesh Stiching Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
 
-        _partingMesh = parting_response.Data;
+        CuttingMeshResults results = PartingTools.DualOffsetCuttingMesh(settings);
+        MeshBuilder builder = new();
+        builder.AddTube(new Vector3Collection(results.PartingPath.Select(v => ToVector3(v))), 0.3, 16, true);
+        _partingPathMesh = builder.ToMeshGeometry3D();
+
+        builder = new();
+        builder.AddTube(new Vector3Collection(results.OuterPath.Select(v => ToVector3(v))), 0.3, 16, true);
+        _offsetMesh = builder.ToMeshGeometry3D();
+
+        // calculate the offset polyline curve
+
+        builder = new();
+        builder.AddTube(new Vector3Collection(results.InnerPath.Select(v => ToVector3(v))), 0.3, 16, true);
+        _innerMesh = builder.ToMeshGeometry3D();
+
+        _partingMesh = results.CuttingMesh;
 
         // create inflated mesh to boolean intersect with the parting mesh
-        var offset_mesh = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
+        var mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
+        _mouldMesh = mould.ToGeometry();
 
-        var boolean_response = MeshTools.BooleanSubtraction(offset_mesh, _partingMesh);
+        var boolean_response = MeshTools.BooleanSubtraction(mould, _partingMesh);
         if (boolean_response.IsFailure || boolean_response.Data is null) {
             var errors = boolean_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Offset mesh subtraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Mould Splitting Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 

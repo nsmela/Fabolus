@@ -55,11 +55,13 @@ public static partial class PartingTools {
         }
 
         int a = 0, b = 0;
+        double a_dist = 0.0, b_dist = 0.0;
         while (a < nA || b < nB) {
             int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
 
-            if (mesh.GetVertex(a1).DistanceSquared(mesh.GetVertex(b0)) <
-                    mesh.GetVertex(b1).DistanceSquared(mesh.GetVertex(a0))) {
+            a_dist = mesh.GetVertex(a1).DistanceSquared(mesh.GetVertex(b0));
+            b_dist = mesh.GetVertex(b1).DistanceSquared(mesh.GetVertex(a0));
+            if (a_dist < b_dist) { // b / 8 is to prevent infinate looping
                 mesh.AppendTriangle(a1, a0, b0);
                 a++;
             } else {
@@ -78,13 +80,39 @@ public static partial class PartingTools {
         double MeshDepth = 0.1
     );
 
-    public static Result<MeshModel> DualOffsetCuttingMesh(CuttingMeshParams parameters) {
+    public record struct CuttingMeshResults {
+        public Vector3[] PartingPath = [];
+        public Vector3[] InnerPath = [];
+        public Vector3[] OuterPath = [];
+        public MeshModel PolylineMesh;
+        public MeshModel CuttingMesh;
+        public MeshModel PositivePullMesh;
+        public MeshModel NegativePullMesh;
+        public MeshError[] Errors = [];
+
+        public CuttingMeshResults() { }
+    } 
+
+    /// <summary>
+    /// Generate a 3d mesh along another mesh's calculated parting line
+    /// </summary>
+    /// <param name="parameters"></param>
+    /// <returns></returns>
+    public static CuttingMeshResults DualOffsetCuttingMesh(CuttingMeshParams parameters) {
+        CuttingMeshResults results = new();
         var parting_line = GeneratePartingLine(parameters.Model);
+        results = results with { PartingPath = parting_line.Select(v => parameters.Model.Mesh.GetVertex(v).ToVector3()).ToArray() };
         
         DMesh3 mesh = parameters.Model.Mesh;
+
         var outer_path = PolyLineOffset(mesh, parting_line, parameters.OuterOffset);
+        results = results with { OuterPath = outer_path.Select(v => v.ToVector3()).ToArray() };
+
         var inner_path = PolyLineOffset(mesh, parting_line, -Math.Abs(parameters.InnerOffset)); // ensures offset goes inwards
+        results = results with { InnerPath = inner_path.Select(v => v.ToVector3()).ToArray() };
+
         DMesh3 result = JoinPolylines(inner_path.ToArray(), outer_path.ToArray());
+        results = results with { PolylineMesh = new MeshModel(result) };
 
         // extrude the mesh face
         MeshExtrudeMesh extrude = new(result) {
@@ -96,7 +124,7 @@ public static partial class PartingTools {
         MeshAutoRepair repair = new(extrude.Mesh);
         repair.Apply();
 
-        return new MeshModel(repair.Mesh);
+        return results with { CuttingMesh = new MeshModel(repair.Mesh) };
     }
 
     public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset, double extrude_distance = 0.1) {
