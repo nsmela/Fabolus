@@ -34,8 +34,14 @@ public class Polyline3d {
 }
 
 public static partial class PartingTools {
-    public static IEnumerable<Vector3> OffsetPath(DMesh3 mesh, IEnumerable<int> path, float distance) =>
-        OffsetBasic(mesh, path, distance).Select(v => v.ToVector3());
+    public static IEnumerable<Vector3> OffsetPath(DMesh3 mesh, IEnumerable<int> path, float distance) {
+        var offset_path = OffsetBasic(mesh, path, distance);
+        var info = new CleanupResults() { RemovedCount = int.MaxValue };
+        while (!info.IsClean) {
+            offset_path = OffsetCleaup(offset_path, out info);
+        }
+        return offset_path.Select(v => v.ToVector3());
+    }
 
     internal static IEnumerable<Vector3d> OffsetBasic(DMesh3 mesh, IEnumerable<int> path, float distance) {
         Vector3f[] normals = path.Select(i => mesh.GetVertexNormal(i)).ToArray();
@@ -111,5 +117,36 @@ public static partial class PartingTools {
         return offsetPoints;
     }
 
+    internal record struct CleanupResults(int RemovedCount) {
+        public bool IsClean => RemovedCount == 0;
+    }
+
+    internal static Vector3d[] OffsetCleaup(IEnumerable<Vector3d> path, out CleanupResults info, double twist_threshold = 0.0) {
+        int count = path.Count();
+        if (count < 2) {
+            info = new() { RemovedCount = 0 };
+            return path.ToArray(); // nothing to offset
+        }
+
+        Vector3d[] points = path.ToArray();
+        List<Vector3d> cleanedPoints = new List<Vector3d>();
+        int removed_count = 0;
+        for (int i = 0; i < count; i++) {
+            Vector3d p0 = points[(i - 1 + count) % count]; // previous point
+            Vector3d p1 = points[i]; // current point
+            Vector3d p2 = points[(i + 1) % count]; // next point
+
+            // check if the segment is twisted
+            if (IsTwisted(p0, p1, p2, twist_threshold)) {
+                removed_count++;
+                continue;
+            }
+
+            cleanedPoints.Add(p1); // keep the current point if it's not twisted
+        }
+
+        info = new() { RemovedCount = removed_count };
+        return cleanedPoints.ToArray();
+    }
 }
 

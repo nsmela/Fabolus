@@ -58,6 +58,7 @@ public class SplitSceneManager : SceneManager {
     private MeshModel _partingMesh;
     private MeshGeometry3D _offsetMesh;
     private MeshGeometry3D _innerMesh;
+    private MeshGeometry3D _segmentsMesh;
 
     // view options
     private SplitViewOptions _view_options;
@@ -154,6 +155,13 @@ public class SplitSceneManager : SceneManager {
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Ruby,
             });
+
+            // shows defective segments
+            models.Add(new DisplayModel3D {
+                Geometry = _segmentsMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Violet,
+            });
         }
 
         if(_partingMesh is not null && _view_options.ShowPartingMesh) {
@@ -219,6 +227,15 @@ public class SplitSceneManager : SceneManager {
         builder = new();
         builder.AddTube(new Vector3Collection(inner_response.Select(v => new Vector3(v.X, v.Y, v.Z))), 0.3, 16, true);
         _innerMesh = builder.ToMeshGeometry3D();
+
+        // show defective segments
+        var segments = PartingTools.SegmentIntersections(offset_response);
+        builder = new();
+        foreach (System.Numerics.Vector3[] segment in segments) {
+            
+            builder.AddCylinder(ToVector3(segment[0]), ToVector3(segment[1]), 0.5, 16, true);
+        }
+        _segmentsMesh = builder.ToMeshGeometry3D();
 
         return;
         // creates the parting mesh to boolean subtract from the main mould
@@ -323,6 +340,9 @@ public class SplitSceneManager : SceneManager {
         }
 
     }
+
+    private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
+    
 }
 
 

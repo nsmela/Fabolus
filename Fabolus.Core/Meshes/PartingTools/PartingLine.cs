@@ -92,6 +92,47 @@ public static partial class PartingTools {
         return path;
     }
 
+    // testing for pathing cleanup
+    /// <summary>
+    /// Checks for defective segments
+    /// </summary>
+    /// <param name="model"></param>
+    /// <param name="path_ids"></param>
+    /// <returns>A list of Vector3 [origin, end] for the defective segments</returns>
+    public static List<Vector3[]> SegmentIntersections(IEnumerable<Vector3> path) {
+        Vector3[] points = path.ToArray();
+
+        List<Vector3[]> result = new();
+        for(int i = 1; i < points.Count(); i++) {
+            Vector3 v0 = points[(i - 1) % points.Count()]; // previous segment's origin
+            Vector3 v1 = points[i];
+            Vector3 v2 = points[(i + 1) % points.Count()]; // current segment's end
+            // check if the segment is twisted
+            if (IsTwisted(v0.ToVector3d(), v1.ToVector3d(), v2.ToVector3d())) {
+                result.Add([v1, v2]); // add the middle point of the twisted segment
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Determines if a segment is classified as twisted
+    /// </summary>
+    /// <param name="p0">Previous segment's origin</param>
+    /// <param name="p1">Current segment's origin</param>
+    /// <param name="p2">Current segment's end</param>
+    /// <param name="threshold">value from 1.0 (aligned) to 0.0 (perpendicular) to -1.0 (reversed) </param>
+    /// <returns>True/False</returns>
+    private static bool IsTwisted(Vector3d p0, Vector3d p1, Vector3d p2, double threshold = 0.0) {
+        // check if the path is twisted by checking the cross product of the vectors
+        Vector3d v0 = (p1 - p0).Normalized;
+        Vector3d v1 = (p2 - p1).Normalized;
+
+        double dot = v0.Dot(v1);
+        return dot < threshold;
+    }
+
     public static Result<Vector3[]> OrientedPartingLine(MeshModel model) {
         var path = GeneratePartingLine(model);
         var value = path.Select(i => model.Mesh.GetVertex(i)).ToArray();
@@ -115,4 +156,5 @@ public static partial class PartingTools {
 
         return path_distance > mesh.GetVertex(v0).Distance(mesh.GetVertex(v2)); // skip if the path is longer than the direct distance
     }
+
 }
