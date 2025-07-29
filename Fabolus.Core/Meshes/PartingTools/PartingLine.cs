@@ -16,34 +16,6 @@ namespace Fabolus.Core.Meshes.PartingTools;
 
 public static partial class PartingTools {
 
-    /// <summary>
-    /// Calculates the parting line of a model
-    /// </summary>
-    /// <returns>An ordered array of indexes of the points along the mesh representing the parting line</returns>
-    public static Result<Vector3[]> PartingLine(MeshModel model, DraftCollection drafts) {
-        // get triangle ids of the negative pull direction region on the mesh
-        var region_ids = drafts.GetDraftRegion(DraftClassification.NEGATIVE).ToArray();
-
-        var path = model.GetBorderEdgeLoop(region_ids).ToArray(); // a list of vert IDs on the mesh
-        Smooth(model, ref path);
-
-        // ensure the contour points are evenly spaced
-        var result = EvenEdgeLoop.Generate(path.Select(vId => model.Mesh.GetVertex(vId)), 100); //.Generate(path.Select(vId => model.Mesh.GetVertex(vId)), 100);
-        //return path.Select(vId => model.Mesh.GetVertexf(vId))
-            //.Select(v => new Vector3(v.x, v.y, v.z))
-            //.ToArray();
-        return result.Select(v => new Vector3((float)v.x, (float)v.y, (float)v.z)).ToArray();
-    }
-
-    private static void Smooth(DMesh3 mesh, ref int[] path) {
-
-        // perform a geodisc pathing check
-        GeodiscPathing geodisc = new(mesh, path);
-        geodisc.Compute();
-
-        path = geodisc.Path().ToArray();
-    }
-
     public static IEnumerable<int> GeneratePartingLine(MeshModel model) {
         List<Vector3d> result = [];
 
@@ -90,30 +62,6 @@ public static partial class PartingTools {
         }
 
         return path;
-    }
-
-    // testing for pathing cleanup
-    /// <summary>
-    /// Checks for defective segments
-    /// </summary>
-    /// <param name="model"></param>
-    /// <param name="path_ids"></param>
-    /// <returns>A list of Vector3 [origin, end] for the defective segments</returns>
-    public static List<Vector3[]> SegmentIntersections(IEnumerable<Vector3> path) {
-        Vector3[] points = path.ToArray();
-
-        List<Vector3[]> result = new();
-        for(int i = 1; i < points.Count(); i++) {
-            Vector3 v0 = points[(i - 1) % points.Count()]; // previous segment's origin
-            Vector3 v1 = points[i];
-            Vector3 v2 = points[(i + 1) % points.Count()]; // current segment's end
-            // check if the segment is twisted
-            if (IsTwisted(v0.ToVector3d(), v1.ToVector3d(), v2.ToVector3d())) {
-                result.Add([v1, v2]); // add the middle point of the twisted segment
-            }
-        }
-
-        return result;
     }
 
     /// <summary>

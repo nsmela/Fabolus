@@ -9,35 +9,73 @@ using System.Threading.Tasks;
 
 namespace Fabolus.Core.Meshes.PartingTools;
 
-public class Polyline3d {
-    public Vector3[] Points => _points.Select(v => v.ToVector3()).ToArray();
-    private List<Vector3d> _points = [];
-
-    public Polyline3d(IEnumerable<Vector3> path) {
-        _points = path.Select(p => p.ToVector3d()).ToList();
-    }
-
-    internal Polyline3d(IEnumerable<Vector3d> vectors) {
-        _points = vectors.ToList();
-    }
-
-    public Polyline3d Offset(double distance) {
-        var result = PartingTools.OffsetPathInXZPlane(_points, distance);
-
-        // clean up
-        // smooth?
-
-        return new Polyline3d(result);
-    }
-
-    public bool IsEmpty() => _points.Count == 0;
-}
-
 public static partial class PartingTools {
-    public static IEnumerable<Vector3> OffsetPath(MeshModel model, IEnumerable<int> path, float distance) =>
+    public static Result<MeshModel> JoinPolylines(Vector3[] inner, Vector3[] outer) {
+        Vector3d[] polyA = inner.Select(v => v.ToVector3d()).ToArray();
+        Vector3d[] polyB = outer.Select(v => v.ToVector3d()).ToArray();
+        var mesh = JoinPolylines(polyA, polyB);
+        return new MeshModel(mesh);
+    }
+
+    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer) {
+        int nA = inner.Length;
+        int nB = outer.Length;
+
+        // align the two loops
+        int closest = -1;
+        double min_dist = double.MaxValue;
+        double distance = 0.0;
+        for (int i = 0; i < nB; i++) {
+            distance = (inner[0] - outer[i]).LengthSquared;
+            if (distance > min_dist) { continue; }
+
+            closest = i;
+            min_dist = distance;
+        }
+
+        // 'rotate' polyB to align
+        List<Vector3d> new_poly = new(outer.Count());
+        new_poly.AddRange(outer.Skip(closest + 1));
+        new_poly.AddRange(outer.Take(closest));
+        outer = new_poly.ToArray();
+        nB = outer.Length;
+
+        // add verts to mesh
+        DMesh3 mesh = new();
+        List<int> a_indices = new(nA); // pre-set size for efficiency
+        List<int> b_indices = new(nB);
+        foreach (Vector3d v in inner) {
+            a_indices.Add(mesh.AppendVertex(v));
+        }
+
+        foreach (Vector3d v in outer) {
+            b_indices.Add(mesh.AppendVertex(v));
+        }
+
+        int a = 0, b = 0;
+        double a_dist = 0.0, b_dist = 0.0;
+        while (a < nA || b < nB) {
+            int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
+
+            a_dist = mesh.GetVertex(a1).DistanceSquared(mesh.GetVertex(b0));
+            b_dist = mesh.GetVertex(b1).DistanceSquared(mesh.GetVertex(a0));
+            if (a_dist < b_dist) { // b / 8 is to prevent infinate looping
+                mesh.AppendTriangle(a1, a0, b0);
+                a++;
+            }
+            else {
+                mesh.AppendTriangle(a0, b0, b1);
+                b++;
+            }
+        }
+
+        return mesh;
+    }
+
+    public static IEnumerable<Vector3> OffsetPath3d(MeshModel model, IEnumerable<int> path, float distance) =>
         PolyLineOffset(model.Mesh, path, distance).Select(v => v.ToVector3());
 
-    internal static Vector3d[] PolyLineOffset(DMesh3 mesh, IEnumerable<int> path, float distance) {
+    internal static Vector3d[] PolyLineOffset(DMesh3 mesh, IEnumerable<int> path, float distance, double threshold = 0.5) {
         Vector3f[] normals = path.Select(i => mesh.GetVertexNormal(i)).ToArray();
         Vector3d[] points = path.Select(i => mesh.GetVertex(i)).ToArray();
 
@@ -49,73 +87,10 @@ public static partial class PartingTools {
 
         var info = new CleanupResults() { RemovedCount = int.MaxValue };
         while (!info.IsClean) {
-            results = OffsetCleaup(results, out info, 0.5);
+            results = OffsetCleaup(results, out info, threshold);
         }
         
         return results.ToArray();
-    }
-
-    internal static List<Vector3d> OffsetPathInXZPlane(List<Vector3d> path, double offsetDistance) {
-        int n = path.Count;
-        if (n < 2)
-            throw new ArgumentException("Path must contain at least 2 points.");
-
-        var offsetPoints = new List<Vector3d>();
-
-        // Compute tangents
-        List<Vector3d> tangents = new List<Vector3d>();
-        for (int i = 0; i < n - 1; i++)
-            tangents.Add((path[i + 1] - path[i]).Normalized);
-        tangents.Add(tangents[^1]);
-
-        // Choose initial normal that's not aligned with tangent
-        Vector3d t0 = tangents[0];
-        Vector3d arbitrary = Vector3d.AxisY;
-        if (Math.Abs(t0.Dot(arbitrary)) > 0.99)
-            arbitrary = Vector3d.AxisX;
-
-        Vector3d n0 = t0.Cross(arbitrary).Normalized;
-        Vector3d b0 = t0.Cross(n0).Normalized;
-
-        // Project binormal to XZ plane
-        Vector3d b0xz = new Vector3d(b0.x, 0, b0.z).Normalized;
-        Vector3d p0 = path[0] + b0xz * offsetDistance;
-        p0.y = path[0].y; // preserve Y
-        offsetPoints.Add(p0);
-
-        Vector3d currentNormal = n0;
-
-        for (int i = 1; i < n; i++) {
-            Vector3d prevT = tangents[i - 1];
-            Vector3d currT = tangents[i];
-
-            Vector3d v = currT + prevT;
-            if (v.LengthSquared == 0)
-                v = prevT;
-            v = v.Normalized;
-
-            Vector3d projection = currentNormal - v * currentNormal.Dot(v);
-            if (projection.LengthSquared < 1e-6) {
-                // fallback normal
-                projection = currT.Cross(Vector3d.AxisX);
-                if (projection.LengthSquared < 1e-6)
-                    projection = currT.Cross(Vector3d.AxisZ);
-            }
-
-            currentNormal = projection.Normalized;
-            Vector3d binormal = currT.Cross(currentNormal).Normalized;
-
-            // Project binormal to XZ and preserve Y
-            Vector3d binormalXZ = new Vector3d(binormal.x, 0, binormal.z);
-            if (binormalXZ.LengthSquared > MathUtil.ZeroTolerancef)
-                binormalXZ = binormalXZ.Normalized;
-
-            Vector3d offsetPoint = path[i] + binormalXZ * offsetDistance;
-            offsetPoint.y = path[i].y; // ensure Y doesn't change
-            offsetPoints.Add(offsetPoint);
-        }
-
-        return offsetPoints;
     }
 
     internal record struct CleanupResults(int RemovedCount) {

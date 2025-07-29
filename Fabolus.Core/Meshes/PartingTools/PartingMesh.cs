@@ -12,72 +12,14 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
 
-    public static Result<MeshModel> JoinPolylines(Vector3[] inner, Vector3[] outer) {
-        Vector3d[] polyA = inner.Select(v => v.ToVector3d()).ToArray();
-        Vector3d[] polyB = outer.Select(v => v.ToVector3d()).ToArray();
-        var mesh = JoinPolylines(polyA, polyB);
-        return new MeshModel(mesh);
-    }
 
-    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer) {
-        int nA = inner.Length;
-        int nB = outer.Length;
-
-        // align the two loops
-        int closest = -1;
-        double min_dist = double.MaxValue;
-        double distance = 0.0;
-        for (int i = 0; i < nB; i++) {
-            distance = (inner[0] - outer[i]).LengthSquared;
-            if (distance > min_dist) { continue; }
-
-            closest = i;
-            min_dist = distance;
-        }
-
-        // 'rotate' polyB to align
-        List<Vector3d> new_poly = new(outer.Count());
-        new_poly.AddRange(outer.Skip(closest + 1));
-        new_poly.AddRange(outer.Take(closest));
-        outer = new_poly.ToArray();
-        nB = outer.Length;
-
-        // add verts to mesh
-        DMesh3 mesh = new();
-        List<int> a_indices = new(nA); // pre-set size for efficiency
-        List<int> b_indices = new(nB);
-        foreach (Vector3d v in inner) {
-            a_indices.Add(mesh.AppendVertex(v));
-        }
-
-        foreach (Vector3d v in outer) {
-            b_indices.Add(mesh.AppendVertex(v));
-        }
-
-        int a = 0, b = 0;
-        double a_dist = 0.0, b_dist = 0.0;
-        while (a < nA || b < nB) {
-            int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
-
-            a_dist = mesh.GetVertex(a1).DistanceSquared(mesh.GetVertex(b0));
-            b_dist = mesh.GetVertex(b1).DistanceSquared(mesh.GetVertex(a0));
-            if (a_dist < b_dist) { // b / 8 is to prevent infinate looping
-                mesh.AppendTriangle(a1, a0, b0);
-                a++;
-            } else {
-                mesh.AppendTriangle(a0, b0, b1);
-                b++;
-            }
-        }
-
-        return mesh;
-    }
 
     public record struct CuttingMeshParams(
         MeshModel Model,
         float InnerOffset = 0.1f,
         float OuterOffset = 25.0f,
-        double MeshDepth = 0.1
+        double MeshDepth = 0.1,
+        double TwistThreshold = 0.0f
     );
 
     public record struct CuttingMeshResults {
@@ -105,7 +47,7 @@ public static partial class PartingTools {
         
         DMesh3 mesh = parameters.Model.Mesh;
 
-        var outer_path = PolyLineOffset(mesh, parting_line, parameters.OuterOffset);
+        var outer_path = PolyLineOffset(mesh, parting_line, parameters.OuterOffset, parameters.TwistThreshold);
         results = results with { OuterPath = outer_path.Select(v => v.ToVector3()).ToArray() };
 
         var inner_path = PolyLineOffset(mesh, parting_line, -Math.Abs(parameters.InnerOffset)); // ensures offset goes inwards
@@ -125,58 +67,6 @@ public static partial class PartingTools {
         repair.Apply();
 
         return results with { CuttingMesh = new MeshModel(repair.Mesh) };
-    }
-
-    public static Result<MeshModel> EvenPartingMesh(IEnumerable<Vector3> points, double offset, double extrude_distance = 0.1) {
-        // create a consistent reference for the inner and outer loops to reference for the y offset
-        var even_path = EvenEdgeLoop.Generate(points.Select(p => new Vector3d(p.X, p.Y, p.Z)), points.Count());
-
-        // create the contours used to make the mesh cutter
-        // inner contour first to ensure good penetration of the model
-        var inner_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), -0.2);
-        if (inner_contour.IsFailure) { return inner_contour.Errors; }
-        var inner_even_loop = EvenEdgeLoop.Generate(inner_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), even_path.Count);
-
-        var outer_contour = GenerateContour(even_path.Select(p => new Vector2d(p.x, p.z)), offset + 1.0);
-        if (outer_contour.IsFailure) { return outer_contour.Errors; }
-        var outer_even_loop = EvenEdgeLoop.Generate(outer_contour.Data.Select(v => new Vector3d(v.x, 0.0, v.y)), even_path.Count);
-
-        if (outer_even_loop.Count != inner_even_loop.Count || outer_even_loop.Count != even_path.Count) {
-            return new MeshError($"Outer and inner loops have different vertex counts: Path: {even_path.Count} Outer: {outer_even_loop.Count} != Inner: {inner_even_loop.Count}");
-        }
-
-        // add y offsets back to the loops
-        for (int i = 0; i < even_path.Count; i++) {
-            var v_y = Vector3d.AxisY * even_path[i].y;
-            var v0 = outer_even_loop[i] + v_y;
-            var v1 = inner_even_loop[i] + v_y;
-            outer_even_loop[i] = v0;
-            inner_even_loop[i] = v1;
-        }
-
-        // triangulate the space between the two loops
-        DMesh3 mesh = new();
-        
-        List<int> outer_indexes = [];
-        foreach(Vector3d v in outer_even_loop) {
-            outer_indexes.Add(mesh.AppendVertex(v));
-        }
-
-        List<int> inner_indexes = [];
-        foreach (Vector3d v in inner_even_loop) {
-            inner_indexes.Add(mesh.AppendVertex(v));
-        }
-
-        MeshEditor editor = new(mesh);
-        editor.StitchLoop(outer_indexes.ToArray(), inner_indexes.ToArray());
-
-        // extrude the mesh face
-        MeshExtrudeMesh extrude = new(editor.Mesh) {
-            ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * extrude_distance,
-        };
-        extrude.Extrude();
-
-        return new MeshModel(extrude.Mesh);
     }
 
     internal static Result<Vector2d[]> GenerateContour(IEnumerable<Vector2d> points, double offset) {

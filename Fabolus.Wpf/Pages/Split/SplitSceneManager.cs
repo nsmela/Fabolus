@@ -144,16 +144,17 @@ public class SplitSceneManager : SceneManager {
 
     private void UpdateMesh(MeshModel model) {
         // draft angle meshes
-        SetDraftMeshes(model);
+        SetPartingMesh(model);
     }
 
-    private void SetDraftMeshes(MeshModel model) {
+    private void SetPartingMesh(MeshModel model) {
         // creates the parting mesh to boolean subtract from the main mould
         CuttingMeshParams settings = new() {
             Model = model,
             OuterOffset = 90.0f,
             InnerOffset = 0.5f,
-            MeshDepth = 0.2
+            MeshDepth = 0.2,
+            TwistThreshold = 0.40f
         };
 
         CuttingMeshResults results = PartingTools.DualOffsetCuttingMesh(settings);
