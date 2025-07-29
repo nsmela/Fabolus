@@ -101,6 +101,7 @@ public class SplitSceneManager : SceneManager {
             distance += distance_per_segment;
             distance = distance < offset_distance ? distance : offset_distance;
             var offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, distance);
+            offset = PartingTools.LaplacianSmoothing(offset.ToArray());
             var collection = new Vector3Collection(offset.Select(v => ToVector3(v)));
 
             offset_paths.Add(collection);

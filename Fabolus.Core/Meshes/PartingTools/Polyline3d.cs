@@ -10,12 +10,6 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Meshes.PartingTools;
 
 public static partial class PartingTools {
-    public static Result<MeshModel> JoinPolylines(Vector3[] inner, Vector3[] outer) {
-        Vector3d[] polyA = inner.Select(v => v.ToVector3d()).ToArray();
-        Vector3d[] polyB = outer.Select(v => v.ToVector3d()).ToArray();
-        var mesh = JoinPolylines(polyA, polyB);
-        return new MeshModel(mesh);
-    }
 
     public static Result<MeshModel> JoinPolylines(Vector3[] start_path, IEnumerable<Vector3[]> paths) {
         Vector3d[] starting = start_path.Select(v => v.ToVector3d()).ToArray();
@@ -151,7 +145,7 @@ public static partial class PartingTools {
 
         bool was_cleaned = true;
         List<Vertex> cleaned = [];
-        double max_angle = 45.0;
+        double max_angle = 40.0;
         while (was_cleaned) {
             was_cleaned = false;
 
@@ -175,6 +169,23 @@ public static partial class PartingTools {
         }
 
         return loop.Select(l => l.Position).ToArray();
+    }
+
+    public static Vector3[] LaplacianSmoothing(Vector3[] points) {
+        Vector3d[] path = points.Select(v => v.ToVector3d()).ToArray();
+        List<Vector3d> results = [];
+
+        Vector3d v0, v1;
+
+        for(int i = 1; i < path.Length; i++) {
+            v0 = 0.5 * (path[i] + path[(i + 1) % path.Length]);
+            //v1 = path[i] + (path[i] * 0.25 + path[(i + 1) % path.Length]) * 0.75;
+
+            results.Add(v0);
+            //results.Add(v1);
+        }
+
+        return results.Select(v => v.ToVector3()).ToArray();
     }
 
     private record struct Vertex(int Id, Vector3d Position, Vector3d Direction);
