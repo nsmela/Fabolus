@@ -13,6 +13,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 
 
 namespace Fabolus.Wpf.Pages.Split;
@@ -50,6 +51,36 @@ public partial class SplitViewModel : BaseViewModel {
         WeakReferenceMessenger.Default.Send(new UpdateSplitViewOptionsMessage(ViewOptions));
     }
 
+    // split settings
+    [ObservableProperty] private int _outerDistance = 20;
+    [ObservableProperty] private float _innerDistance = 1.0f;
+    [ObservableProperty] private float _gapDistance = 0.1f;
+    [ObservableProperty] private float _twistThreshold = 90.0f;
+
+    partial void OnOuterDistanceChanged(int oldValue, int newValue) {
+        if (oldValue ==  newValue) { return; }
+        UpdateSettings();
+    }
+
+    partial void OnInnerDistanceChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        UpdateSettings();
+    }
+
+    partial void OnGapDistanceChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        UpdateSettings();
+    }
+
+    partial void OnTwistThresholdChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        UpdateSettings();
+    }
+
+    private void UpdateSettings() {
+        var settings = CuttingSettings;
+        WeakReferenceMessenger.Default.Send(new SplitSettingsMessage(settings));
+    }
 
     private SplitViewOptions ViewOptions => new SplitViewOptions(
             ShowBolus,
@@ -61,15 +92,24 @@ public partial class SplitViewModel : BaseViewModel {
             ExplodePartingMeshes
         );
 
+    private CuttingMeshParams CuttingSettings => new() {
+            OuterOffset = OuterDistance,
+            InnerOffset = InnerDistance,
+            MeshDepth = GapDistance,
+            TwistThreshold = 1 - (TwistThreshold / 90.0) // 180 = 2.0, 90 = 1.0, 0 = 0.0
+        };
+
     public SplitViewModel() {
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestViewOptionsMessage>(this, (r, m) => m.Reply(ViewOptions));
+        WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestSettingsMessage>(this, (r, m) => m.Reply(CuttingSettings));
     }
 
     // commands
 
     [RelayCommand]
     private async Task Generate() {
-
+        var settings = CuttingSettings;
+        WeakReferenceMessenger.Default.Send(new SplitSettingsMessage(settings));
     }
 
     [RelayCommand]

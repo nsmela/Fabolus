@@ -15,7 +15,49 @@
                 FontSize="12" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"/>
-        <mah:NumericUpDown Minimum="0.0" Value="{Binding SeperationDistance, Mode=TwoWay}"/>
+        <mah:NumericUpDown Minimum="0.0" Value="{Binding GapDistance, Mode=TwoWay}"/>
+
+        <Label Content="outer distance (mm)" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding OuterDistance, Mode=TwoWay}" 
+                Minimum="5.0"
+                Maximum="100.0"
+                SmallChange="5.0"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"
+                Margin="2"/>
+
+        <Label Content="inner distance (mm)" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding InnerDistance, Mode=TwoWay}" 
+                Minimum="0.0"
+                Maximum="5.0"
+                SmallChange="0.1"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"
+                Margin="2"/>
+
+        <Label Content="Twist Threshold (degrees)" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding TwistThreshold, Mode=TwoWay}" 
+                Minimum="0"
+                Maximum="180.0"
+                SmallChange="5.0"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"
+                Margin="2"/>
         
         <!-- Toggle view buttons -->
         <Separator Margin="0,8,0,8" />

@@ -23,9 +23,11 @@ public static partial class PartingTools {
     );
 
     public record struct CuttingMeshResults {
+        public int[] PartingIndices = [];
         public Vector3[] PartingPath = [];
         public Vector3[] InnerPath = [];
         public Vector3[] OuterPath = [];
+        public MeshModel Model;
         public MeshModel PolylineMesh;
         public MeshModel CuttingMesh;
         public MeshModel PositivePullMesh;
@@ -41,20 +43,14 @@ public static partial class PartingTools {
     /// <param name="parameters"></param>
     /// <returns></returns>
     public static CuttingMeshResults DualOffsetCuttingMesh(CuttingMeshParams parameters) {
-        CuttingMeshResults results = new();
         var parting_line = GeneratePartingLine(parameters.Model);
-        results = results with { PartingPath = parting_line.Select(v => parameters.Model.Mesh.GetVertex(v).ToVector3()).ToArray() };
         
-        DMesh3 mesh = parameters.Model.Mesh;
+        DMesh3 mesh = parameters.Model;
 
         var outer_path = PolyLineOffset(mesh, parting_line, parameters.OuterOffset, parameters.TwistThreshold);
-        results = results with { OuterPath = outer_path.Select(v => v.ToVector3()).ToArray() };
-
         var inner_path = PolyLineOffset(mesh, parting_line, -Math.Abs(parameters.InnerOffset)); // ensures offset goes inwards
-        results = results with { InnerPath = inner_path.Select(v => v.ToVector3()).ToArray() };
 
         DMesh3 result = JoinPolylines(inner_path.ToArray(), outer_path.ToArray());
-        results = results with { PolylineMesh = new MeshModel(result) };
 
         // extrude the mesh face
         MeshExtrudeMesh extrude = new(result) {
@@ -66,7 +62,15 @@ public static partial class PartingTools {
         MeshAutoRepair repair = new(extrude.Mesh);
         repair.Apply();
 
-        return results with { CuttingMesh = new MeshModel(repair.Mesh) };
+        return new() {
+            Model = parameters.Model,
+            PartingIndices = parting_line.ToArray(),
+            PartingPath = parting_line.Select(v => parameters.Model.Mesh.GetVertex(v).ToVector3()).ToArray(),
+            OuterPath = outer_path.Select(v => v.ToVector3()).ToArray(),
+            InnerPath = inner_path.Select(v => v.ToVector3()).ToArray(),
+            PolylineMesh = new MeshModel(result),
+            CuttingMesh = new MeshModel(repair.Mesh),
+        };
     }
 
     internal static Result<Vector2d[]> GenerateContour(IEnumerable<Vector2d> points, double offset) {

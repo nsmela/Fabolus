@@ -75,7 +75,7 @@ public static partial class PartingTools {
     public static IEnumerable<Vector3> OffsetPath3d(MeshModel model, IEnumerable<int> path, float distance) =>
         PolyLineOffset(model.Mesh, path, distance).Select(v => v.ToVector3());
 
-    internal static Vector3d[] PolyLineOffset(DMesh3 mesh, IEnumerable<int> path, float distance, double threshold = 0.5) {
+    internal static Vector3d[] PolyLineOffset(DMesh3 mesh, IEnumerable<int> path, float distance, double threshold = 0.2) {
         Vector3f[] normals = path.Select(i => mesh.GetVertexNormal(i)).ToArray();
         Vector3d[] points = path.Select(i => mesh.GetVertex(i)).ToArray();
 

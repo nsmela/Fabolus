@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Messaging.Messages;
 using Fabolus.Core.Meshes;
+using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -14,5 +15,7 @@ public record struct SplitViewOptions(
 
 public sealed record SplitSeperationDistanceMessage(float Distance);
 public sealed record UpdateSplitViewOptionsMessage(SplitViewOptions Options);
+public sealed record SplitSettingsMessage(CuttingMeshParams Settings);
+public sealed class SplitRequestSettingsMessage : RequestMessage<CuttingMeshParams>;
 public sealed class SplitRequestModelsMessage : RequestMessage<MeshModel[]>;
 public sealed class SplitRequestViewOptionsMessage : RequestMessage<SplitViewOptions>;

@@ -26,6 +26,7 @@ using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 using Fabolus.Core.Meshes.PartingTools;
 using g3;
 using Fabolus.Wpf.Features.Mould;
+using System.IO;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -35,11 +36,13 @@ public class SplitSceneManager : SceneManager {
     private int _smoothnessDegree = 10;
     private float _model_thickness = 0.15f;
     private Vector3Collection _path = [];
+    private int[] _path_indices = [];
 
     // parting
+    private CuttingMeshParams _settings = new();
     private MeshModel _partingMesh;
     private MeshGeometry3D _partingPathMesh;
-    private MeshGeometry3D _offsetMesh;
+    private MeshGeometry3D _outerMesh;
     private MeshGeometry3D _innerMesh;
     private MeshGeometry3D _mouldMesh;
     private MeshGeometry3D _positivePullMesh;
@@ -56,11 +59,35 @@ public class SplitSceneManager : SceneManager {
             _view_options = m.Options;
             UpdateDisplay();
         });
-        WeakReferenceMessenger.Default.Register<SplitSeperationDistanceMessage>(this, (r, m) => _model_thickness = m.Distance);
+        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitSettingsMessage>(this, (r, m) => UpdateSettings(m.Settings));
 
         // initial values
-        UpdateMesh(bolus.TransformedMesh());
+        _settings.Model = bolus.TransformedMesh();
         _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
+
+        _path_indices = PartingTools.GeneratePartingLine(_settings.Model).ToArray();
+        _path = new Vector3Collection(_settings.Model.GetVertices(_path_indices).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2])));
+        MeshBuilder builder = new();
+        builder.AddTube(_path, 0.3, 16, true);
+        _partingPathMesh = builder.ToMeshGeometry3D();
+
+        var settings = WeakReferenceMessenger.Default.Send<SplitRequestSettingsMessage>().Response;
+        UpdateSettings(settings);
+        UpdateDisplay();
+    }
+
+    private void UpdateSettings(CuttingMeshParams settings) {
+        _settings = settings with { Model = _settings.Model };
+
+        var offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, _settings.OuterOffset);
+        MeshBuilder builder = new();
+        builder.AddTube(new Vector3Collection(offset.Select(v => ToVector3(v))), 0.3, 16, true);
+        _outerMesh = builder.ToMeshGeometry3D();
+
+        var inner_offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, -_settings.InnerOffset);
+        builder = new();
+        builder.AddTube(new Vector3Collection(inner_offset.Select(v => ToVector3(v))), 0.3, 16, true);
+        _innerMesh = builder.ToMeshGeometry3D();
 
         UpdateDisplay();
     }
@@ -92,7 +119,7 @@ public class SplitSceneManager : SceneManager {
 
             // used to show the polylines generated from offsetting the parting curve
             models.Add(new DisplayModel3D {
-                Geometry = _offsetMesh,
+                Geometry = _outerMesh,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Ruby,
             });
@@ -100,7 +127,7 @@ public class SplitSceneManager : SceneManager {
             models.Add(new DisplayModel3D {
                 Geometry = _innerMesh,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Ruby,
+                Skin = DiffuseMaterials.Blue,
             });
 
         }
@@ -113,7 +140,7 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-        if (_mouldMesh.Positions.Count > 0 && _view_options.ShowPullRegions) {
+        if (_mouldMesh is not null && _mouldMesh.Positions is not null && _mouldMesh.Positions.Count > 0 && _view_options.ShowPullRegions) {
             models.Add(new DisplayModel3D {
                 Geometry = _mouldMesh,
                 Transform = MeshHelper.TransformEmpty,
@@ -143,28 +170,22 @@ public class SplitSceneManager : SceneManager {
     }
 
     private void UpdateMesh(MeshModel model) {
+        _settings = _settings with { Model = model };
         // draft angle meshes
         SetPartingMesh(model);
     }
 
     private void SetPartingMesh(MeshModel model) {
-        // creates the parting mesh to boolean subtract from the main mould
-        CuttingMeshParams settings = new() {
-            Model = model,
-            OuterOffset = 90.0f,
-            InnerOffset = 0.5f,
-            MeshDepth = 0.2,
-            TwistThreshold = 0.40f
-        };
-
-        CuttingMeshResults results = PartingTools.DualOffsetCuttingMesh(settings);
+        CuttingMeshResults results = PartingTools.DualOffsetCuttingMesh(_settings);
+        _path_indices = results.PartingIndices;
+        _path = new Vector3Collection(results.PartingPath.Select(v => ToVector3(v)));
         MeshBuilder builder = new();
-        builder.AddTube(new Vector3Collection(results.PartingPath.Select(v => ToVector3(v))), 0.3, 16, true);
+        builder.AddTube(_path, 0.3, 16, true);
         _partingPathMesh = builder.ToMeshGeometry3D();
 
         builder = new();
         builder.AddTube(new Vector3Collection(results.OuterPath.Select(v => ToVector3(v))), 0.3, 16, true);
-        _offsetMesh = builder.ToMeshGeometry3D();
+        _outerMesh = builder.ToMeshGeometry3D();
 
         // calculate the offset polyline curve
 
@@ -217,7 +238,7 @@ public class SplitSceneManager : SceneManager {
     }
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
-    
+    private static Vector3Collection ToVectorCollection(IEnumerable<System.Numerics.Vector3> vectors ) => new Vector3Collection(vectors.Select(ToVector3));
 }
 
 
