@@ -17,6 +17,27 @@ public static partial class PartingTools {
         return new MeshModel(mesh);
     }
 
+    public static Result<MeshModel> JoinPolylines(Vector3[] start_path, IEnumerable<Vector3[]> paths) {
+        Vector3d[] starting = start_path.Select(v => v.ToVector3d()).ToArray();
+
+        List<Vector3d[]> pathing = paths
+            .Select(v => v.Select(vv => vv.ToVector3d()).ToArray())
+            .ToList();
+
+        if (pathing.Count() == 0) { return new MeshError($" Joining polylines needs 1 or more paths. Submitted paths: {pathing.Count()}"); }
+
+        MeshEditor editor = new(new DMesh3());
+        DMesh3 mesh = JoinPolylines(starting, pathing[0]);
+        editor.AppendMesh(mesh);
+
+        for (int i = 1; i < pathing.Count(); i++) {
+            mesh = JoinPolylines(pathing[i - 1], pathing[i]);
+            editor.AppendMesh(mesh);
+        }
+
+        return new MeshModel(editor.Mesh);
+    }
+
     internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer) {
         int nA = inner.Length;
         int nB = outer.Length;
@@ -53,13 +74,17 @@ public static partial class PartingTools {
         }
 
         int a = 0, b = 0;
-        double a_dist = 0.0, b_dist = 0.0;
-        while (a < nA || b < nB) {
+        double a_dist = double.MaxValue, b_dist = double.MaxValue;
+        double a_angle = 0.0, b_angle = 0.0;
+        while (a < nA && b < nB) {
             int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
 
-            a_dist = mesh.GetVertex(a1).DistanceSquared(mesh.GetVertex(b0));
-            b_dist = mesh.GetVertex(b1).DistanceSquared(mesh.GetVertex(a0));
-            if (a_dist < b_dist) { // b / 8 is to prevent infinate looping
+            a_dist = mesh.GetVertex(a1).Distance(mesh.GetVertex(b0));
+            a_angle = (mesh.GetVertex(a1) - mesh.GetVertex(a0)).AngleD(mesh.GetVertex(b0) - mesh.GetVertex(a0));
+            b_dist = mesh.GetVertex(b1).Distance(mesh.GetVertex(a0));
+            b_angle = (mesh.GetVertex(a0) - mesh.GetVertex(b0)).AngleD(mesh.GetVertex(b1) - mesh.GetVertex(a0));
+
+            if (a_angle < b_angle) { 
                 mesh.AppendTriangle(a1, a0, b0);
                 a++;
             }
@@ -67,6 +92,18 @@ public static partial class PartingTools {
                 mesh.AppendTriangle(a0, b0, b1);
                 b++;
             }
+        }
+
+        while(a < nA) {
+            int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB];
+            mesh.AppendTriangle(a1, a0, b0);
+            a++;
+        }
+
+        while (b < nB) {
+            int a0 = a_indices[a % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
+            mesh.AppendTriangle(a0, b0, b1);
+            b++;
         }
 
         return mesh;

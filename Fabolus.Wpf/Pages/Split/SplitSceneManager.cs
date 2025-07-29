@@ -42,6 +42,8 @@ public class SplitSceneManager : SceneManager {
     private CuttingMeshParams _settings = new();
     private MeshModel _partingMesh;
     private MeshGeometry3D _partingPathMesh;
+    private MeshGeometry3D _boundryMesh;
+    private MeshGeometry3D _exteriorPartingMesh;
     private MeshGeometry3D _outerMesh;
     private MeshGeometry3D _innerMesh;
     private MeshGeometry3D _mouldMesh;
@@ -76,18 +78,55 @@ public class SplitSceneManager : SceneManager {
         UpdateDisplay();
     }
 
+    /// <summary>
+    /// Generate the parting mesh step-by-step for troubleshooting
+    /// </summary>
+    /// <param name="settings"></param>
     private void UpdateSettings(CuttingMeshParams settings) {
         _settings = settings with { Model = _settings.Model };
-
-        var offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, _settings.OuterOffset);
-        MeshBuilder builder = new();
-        builder.AddTube(new Vector3Collection(offset.Select(v => ToVector3(v))), 0.3, 16, true);
-        _outerMesh = builder.ToMeshGeometry3D();
-
+        float boundry_offset = _settings.OuterOffset + 10;
+        // create paths
         var inner_offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, -_settings.InnerOffset);
-        builder = new();
+        MeshBuilder builder = new();
         builder.AddTube(new Vector3Collection(inner_offset.Select(v => ToVector3(v))), 0.3, 16, true);
         _innerMesh = builder.ToMeshGeometry3D();
+
+        // outer path is broken into small paths to help limit triangulation errors
+        List<Vector3Collection> offset_paths = [];
+        float offset_distance = _settings.OuterOffset;
+        float distance_per_segment = 10.0f;
+        float distance = 0.0f;
+        builder = new();
+        while( distance < offset_distance) {
+            distance += distance_per_segment;
+            distance = distance < offset_distance ? distance : offset_distance;
+            var offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, distance);
+            var collection = new Vector3Collection(offset.Select(v => ToVector3(v)));
+
+            offset_paths.Add(collection);
+            builder.AddTube(collection, 0.3, 16, true);
+
+        }
+
+        _outerMesh = builder.ToMeshGeometry3D();
+
+        // create triangulations
+        builder = new();
+        var response = PartingTools.JoinPolylines(inner_offset.ToArray(), offset_paths.Select(v =>  ToGenericVectorArray(v).ToArray()));
+        if (response.IsFailure || response.Data is null) {
+            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Parting Mesh generation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        _partingMesh = response.Data;
+        //
+        //response = PartingTools.JoinPolylines(offset.ToArray(), boundry.ToArray());
+        //if (response.IsFailure || response.Data is null) {
+        //    var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
+        //    MessageBox.Show(string.Join(Environment.NewLine, errors), "Boundry Parting Mesh generation Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        //    return;
+        //}
+        //_exteriorPartingMesh = response.Data.ToGeometry();
 
         UpdateDisplay();
     }
@@ -138,6 +177,12 @@ public class SplitSceneManager : SceneManager {
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Blue,
             });
+
+            //models.Add(new DisplayModel3D {
+            //    Geometry = _exteriorPartingMesh,
+            //    Transform = MeshHelper.TransformEmpty,
+            //    Skin = DiffuseMaterials.Violet,
+            //});
         }
 
         if (_mouldMesh is not null && _mouldMesh.Positions is not null && _mouldMesh.Positions.Count > 0 && _view_options.ShowPullRegions) {
@@ -239,6 +284,8 @@ public class SplitSceneManager : SceneManager {
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
     private static Vector3Collection ToVectorCollection(IEnumerable<System.Numerics.Vector3> vectors ) => new Vector3Collection(vectors.Select(ToVector3));
+    private static System.Numerics.Vector3[] ToGenericVectorArray(IEnumerable<Vector3> vectors) =>
+        vectors.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)).ToArray();
 }
 
 
