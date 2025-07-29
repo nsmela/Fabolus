@@ -47,7 +47,7 @@ public static partial class PartingTools {
         
         DMesh3 mesh = parameters.Model;
 
-        var outer_path = PolyLineOffset(mesh, parting_line, parameters.OuterOffset, parameters.TwistThreshold);
+        var outer_path = PolyLineOffset(mesh, parting_line, parameters.OuterOffset);
         var inner_path = PolyLineOffset(mesh, parting_line, -Math.Abs(parameters.InnerOffset)); // ensures offset goes inwards
 
         DMesh3 result = JoinPolylines(inner_path.ToArray(), outer_path.ToArray());

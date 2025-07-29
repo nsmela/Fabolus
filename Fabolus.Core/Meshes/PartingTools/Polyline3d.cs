@@ -75,7 +75,7 @@ public static partial class PartingTools {
     public static IEnumerable<Vector3> OffsetPath3d(MeshModel model, IEnumerable<int> path, float distance) =>
         PolyLineOffset(model.Mesh, path, distance).Select(v => v.ToVector3());
 
-    internal static Vector3d[] PolyLineOffset(DMesh3 mesh, IEnumerable<int> path, float distance, double threshold = 0.2) {
+    internal static Vector3d[] PolyLineOffset(DMesh3 mesh, IEnumerable<int> path, float distance) {
         Vector3f[] normals = path.Select(i => mesh.GetVertexNormal(i)).ToArray();
         Vector3d[] points = path.Select(i => mesh.GetVertex(i)).ToArray();
 
@@ -85,44 +85,62 @@ public static partial class PartingTools {
             results[i] = points[i] + new Vector3f(normals[i].x, 0.0, normals[i].z).Normalized * distance;
         }
 
-        var info = new CleanupResults() { RemovedCount = int.MaxValue };
-        while (!info.IsClean) {
-            results = OffsetCleaup(results, out info, threshold);
-        }
-        
-        return results.ToArray();
-    }
+        // create edge loop
+        List<Vertex> loop = [];
+        Vector3d position = results.Last();
+        Vector3d direction = (points.First() - points.Last()).Normalized;
+        loop.Add(new Vertex() {
+            Id = 0,
+            Position = position,
+            Direction = direction,
+        });
 
-    internal record struct CleanupResults(int RemovedCount) {
-        public bool IsClean => RemovedCount == 0;
-    }
+        double min_position_distance = 0.1;
+        for (int i = 1; i < points.Length; i++) {
 
-    internal static Vector3d[] OffsetCleaup(IEnumerable<Vector3d> path, out CleanupResults info, double twist_threshold = 0.0) {
-        int count = path.Count();
-        if (count < 2) {
-            info = new() { RemovedCount = 0 };
-            return path.ToArray(); // nothing to offset
-        }
-
-        Vector3d[] points = path.ToArray();
-        List<Vector3d> cleanedPoints = new List<Vector3d>();
-        int removed_count = 0;
-        for (int i = 0; i < count; i++) {
-            Vector3d p0 = points[(i - 1 + count) % count]; // previous point
-            Vector3d p1 = points[i]; // current point
-            Vector3d p2 = points[(i + 1) % count]; // next point
-
-            // check if the segment is twisted
-            if (IsTwisted(p0, p1, p2, twist_threshold)) {
-                removed_count++;
-                continue;
+            position = results[i];
+            if (position.DistanceSquared(results[i - 1]) < min_position_distance) {
+                continue; // positions are too close
             }
 
-            cleanedPoints.Add(p1); // keep the current point if it's not twisted
+            direction = (points[i] - points[i - 1]).Normalized;
+
+            loop.Add(new Vertex() {
+                Id = i,
+                Position = position,
+                Direction = direction,
+            });
         }
 
-        info = new() { RemovedCount = removed_count };
-        return cleanedPoints.ToArray();
+        bool was_cleaned = true;
+        List<Vertex> cleaned = [];
+        double max_angle = 45.0;
+        while (was_cleaned) {
+            was_cleaned = false;
+
+            Vertex v0, v1;
+            Vector3d dir;
+            for (int i = 1; i <= loop.Count; i++) {
+                v0 = loop[i - 1];
+                v1 = loop[i % loop.Count];
+
+                dir = (v1.Position - v0.Position).Normalized;
+                double angle = dir.AngleD(v1.Direction);
+                if (angle > max_angle) { // good position
+                    was_cleaned = true;
+                    continue;
+                }
+
+                cleaned.Add(v1);
+            }
+            loop = cleaned;
+            cleaned = [];
+        }
+
+        return loop.Select(l => l.Position).ToArray();
     }
+
+    private record struct Vertex(int Id, Vector3d Position, Vector3d Direction);
+
 }
 
