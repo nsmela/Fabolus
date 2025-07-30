@@ -1,11 +1,15 @@
 ﻿using Fabolus.Core.Extensions;
+using Fabolus.Core.Smoothing;
 using g3;
+using NetTopologySuite.Operation.Distance;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using static Fabolus.Core.Meshes.MeshTools.MeshTools.Contouring;
+using static MR.DotNet;
 
 namespace Fabolus.Core.Meshes.PartingTools;
 
@@ -35,6 +39,8 @@ public static partial class PartingTools {
     internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer) {
         int nA = inner.Length;
         int nB = outer.Length;
+
+        if (nA == 0 || nB == 0) { return new(); }
 
         // align the two loops
         int closest = -1;
@@ -107,88 +113,198 @@ public static partial class PartingTools {
         PolyLineOffset(model.Mesh, path, distance).Select(v => v.ToVector3());
 
     internal static Vector3d[] PolyLineOffset(DMesh3 mesh, IEnumerable<int> path, float distance) {
-        Vector3f[] normals = path.Select(i => mesh.GetVertexNormal(i)).ToArray();
-        Vector3d[] points = path.Select(i => mesh.GetVertex(i)).ToArray();
+        Vertex[] vertices = GenerateVertices(mesh, path.ToArray());
 
-        Vector3d[] results = new Vector3d[points.Length]; // optmize by pre-setting the expected length
-        for (int i = 0; i < points.Length; i++) {
-            // remove y component to normal, normalize it, and multiply by desired distance to get vector offset
-            results[i] = points[i] + new Vector3f(normals[i].x, 0.0, normals[i].z).Normalized * distance;
+        List<Vertex> loop = [];
+        for( int i = 0; i < vertices.Length; i++) {
+            Vector3d offset = vertices[i].Normal;
+            offset.y = 0;
+            offset.Normalize();
+
+            loop.Add(vertices[i] with { Position = vertices[i].Position + offset * distance });
         }
 
-        // create edge loop
-        List<Vertex> loop = [];
-        Vector3d position = results.Last();
-        Vector3d direction = (points.First() - points.Last()).Normalized;
-        loop.Add(new Vertex() {
-            Id = 0,
-            Position = position,
-            Direction = direction,
-        });
+        loop = RemoveReversedSegments(loop).ToList();
+        Vector3d[] vectors = RemoveSharpCorners(loop).Select(v => v.Position).ToArray();
+        int iterations = 1;
+        for (int i = 0; i < iterations; i++) { vectors = LaplacianSmoothing(vectors).ToArray(); }
+        return vectors;
+    }
 
-        double min_position_distance = 0.1;
-        for (int i = 1; i < points.Length; i++) {
+    /// <summary>
+    /// Generates consecutive path offsets seperated by the seg_distance
+    /// </summary>
+    /// <param name="model"></param>
+    /// <param name="path"></param>
+    /// <param name="distance"></param>
+    /// <param name="seg_distance"></param>
+    /// <returns></returns>
+    public static IEnumerable<Vector3[]> OffsetPath3dSegmented(MeshModel model, IEnumerable<int> path, float distance, float seg_distance) {
+        // if only one calculation is needed
+        // TODO: should this return an error instead?
+        if (distance < seg_distance) {
+            return [OffsetPath3d(model, path, distance).ToArray()];
+        }
 
-            position = results[i];
-            if (position.DistanceSquared(results[i - 1]) < min_position_distance) {
-                continue; // positions are too close
+        List<Vertex> original = GenerateVertices(model.Mesh, path.ToArray()).ToList();
+        List<Vertex[]> results = [];
+        List<Vertex> loop = original.ToList();
+        List<Vertex> cleaned = [];
+
+        int iterations = (int)(distance / seg_distance);
+        double segment_distance = (double)(distance / iterations);
+        for(int i = 1; i <= iterations; i++) {
+            loop = OffsetVerts(loop, segment_distance);
+            results.Add(loop.ToArray());
+        }
+
+        return results.Select(v => v.Select(vv => vv.Position.ToVector3()).ToArray());
+    }
+
+    internal static List<Vertex> OffsetVerts(List<Vertex> verts, double distance) {
+        List<Vertex> results = [];
+        foreach (Vertex v in verts) {
+            Vector3d offset = new Vector3d(v.Normal);
+            offset.y = 0;
+            offset.Normalize();
+
+            results.Add(v with { Position = v + offset * distance });
+        }
+
+        results = RemoveReversedSegments(results).ToList();
+        results = RemoveSharpCorners(results).ToList();
+
+        return results;
+    }
+
+    internal static Vertex[] GenerateVertices(DMesh3 mesh, int[] path) {
+        List<Vertex> vertices = new(path.Length); // to optimize by not needing to resize while adding
+
+        for (int i = 0; i < path.Length; i++) {
+            // remove y component to normal, normalize it, and multiply by desired distance to get vector offset
+            int vId = path[i];
+            Vector3d position = mesh.GetVertex(vId);
+            int prev_vId = path[(i - 1 + path.Length) % path.Length]; // allows wrapping around a closed loop
+            Vector3d prev_pos = mesh.GetVertex(prev_vId);
+
+            if (position.DistanceSquared(prev_pos) < 0.01) {
+                continue; // too close, skip it
             }
 
-            direction = (points[i] - points[i - 1]).Normalized;
-
-            loop.Add(new Vertex() {
-                Id = i,
-                Position = position,
-                Direction = direction,
-            });
+            Vector3d normal = mesh.GetVertexNormal(vId);
+            Vector3d direction = position - prev_pos; // the direction from the previous point to this one
+            vertices.Add(new Vertex { Id = vId, Position = position, Direction = direction, Normal = normal });
         }
 
+        return vertices.ToArray();
+    }
+
+    internal static IEnumerable<Vertex> RemoveReversedSegments(IEnumerable<Vertex> vertices) {
+        Vertex[] loop = vertices.ToArray();
         bool was_cleaned = true;
         List<Vertex> cleaned = [];
-        double max_angle = 40.0;
+        double max_angle = 60.0;
         while (was_cleaned) {
             was_cleaned = false;
 
             Vertex v0, v1;
             Vector3d dir;
-            for (int i = 1; i <= loop.Count; i++) {
-                v0 = loop[i - 1];
-                v1 = loop[i % loop.Count];
+            int count = loop.Length;
+            for (int i = 0; i < count; i++) {
+                v0 = loop[(i - 1 + count) % count];
+                v1 = loop[i % count];
 
                 dir = (v1.Position - v0.Position).Normalized;
                 double angle = dir.AngleD(v1.Direction);
                 if (angle > max_angle) { // good position
                     was_cleaned = true;
+                    //cleaned.Add(v1 with { Position = v0.Position + (v1.Position - v0.Position) * 0.5 }); // move the point slightly back
                     continue;
                 }
 
                 cleaned.Add(v1);
             }
-            loop = cleaned;
+            loop = cleaned.ToArray();
             cleaned = [];
         }
 
-        return loop.Select(l => l.Position).ToArray();
+        return loop;
     }
 
-    public static Vector3[] LaplacianSmoothing(Vector3[] points) {
-        Vector3d[] path = points.Select(v => v.ToVector3d()).ToArray();
-        List<Vector3d> results = [];
+    internal static IEnumerable<Vertex> RemoveSharpCorners(IEnumerable<Vertex> vertices) {
+        const double min_angle = 100.0;
 
-        Vector3d v0, v1;
+        Vertex[] loop = vertices.ToArray();
+        List<Vertex> cleaned = [];
 
-        for(int i = 1; i < path.Length; i++) {
-            v0 = 0.5 * (path[i] + path[(i + 1) % path.Length]);
-            //v1 = path[i] + (path[i] * 0.25 + path[(i + 1) % path.Length]) * 0.75;
+        bool was_cleaned = true;
+        while (was_cleaned) {
+            was_cleaned = false;
 
-            results.Add(v0);
-            //results.Add(v1);
+            Vertex v0, v1, v2;
+            Vector3d dir0, dir2;
+            double angle = 0.0;
+            int count = loop.Length;
+            for (int i = 0; i < count; i++) {
+                v0 = loop[(i - 1 + count) % count];
+                v1 = loop[i % count];
+                v2 = loop[(i + 1) % count];
+
+                dir0 = (v0 - v1).Normalized;
+                dir2 = (v2 - v0).Normalized;
+
+                angle = dir0.AngleD(dir2);
+
+                if (angle > min_angle) { // good position
+                    cleaned.Add(v1);
+                    continue;
+                }
+
+                was_cleaned = true;
+            }
+
+            loop = cleaned.ToArray();
+            cleaned = [];
         }
 
-        return results.Select(v => v.ToVector3()).ToArray();
+        return loop;
     }
 
-    private record struct Vertex(int Id, Vector3d Position, Vector3d Direction);
+    public static Vector3[] LaplacianSmoothing(Vector3[] points, int iterations = 1) {
+        Vector3d[] path = points.Select(v => v.ToVector3d()).ToArray();
+
+        for (int i = 0; i < iterations; i++) {
+            path = LaplacianSmoothing(path).ToArray();
+        }
+
+        return path.Select(v => v.ToVector3()).ToArray();
+    }
+
+    internal static IEnumerable<Vector3d> LaplacianSmoothing(Vector3d[] path) {
+        List<Vector3d> results = [];
+
+        Vector3d v, vN, vP, dir;
+
+        for (int i = 0; i < path.Length; i++) {
+            v = path[i];
+            vN = path[(i - 1 + path.Count()) % path.Count()];
+            vP = path[(i + 1) % path.Count()];
+            dir = (vN - v) * 0.25;
+            results.Add(v + dir);
+            dir = (vP - v) * 0.25;
+            results.Add(v + dir);
+
+        }
+
+        return results;
+    }
+
+    internal record struct Vertex(int Id, Vector3d Position, Vector3d Direction, Vector3d Normal) {
+        public static implicit operator Vector3d(Vertex v) => v.Position;
+
+        public static Vector3d operator +(Vertex v0, Vertex v1) => v0.Position + v1.Position;
+        public static Vector3d operator -(Vertex v0, Vertex v1) => v0.Position + (-v1.Position);
+    }
 
 }
 

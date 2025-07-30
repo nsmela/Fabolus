@@ -93,20 +93,13 @@ public class SplitSceneManager : SceneManager {
 
         // outer path is broken into small paths to help limit triangulation errors
         List<Vector3Collection> offset_paths = [];
-        float offset_distance = _settings.OuterOffset;
-        float distance_per_segment = 10.0f;
-        float distance = 0.0f;
-        builder = new();
-        while( distance < offset_distance) {
-            distance += distance_per_segment;
-            distance = distance < offset_distance ? distance : offset_distance;
-            var offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, distance);
-            offset = PartingTools.LaplacianSmoothing(offset.ToArray());
-            var collection = new Vector3Collection(offset.Select(v => ToVector3(v)));
 
+        var results = OffsetPath3dSegmented(_settings.Model, _path_indices, _settings.OuterOffset, 8.0f);
+        foreach (var path in results) {
+            builder = new();
+            var collection = new Vector3Collection(path.Select(v => ToVector3(v)));
             offset_paths.Add(collection);
             builder.AddTube(collection, 0.3, 16, true);
-
         }
 
         _outerMesh = builder.ToMeshGeometry3D();
