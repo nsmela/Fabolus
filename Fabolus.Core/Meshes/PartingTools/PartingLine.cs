@@ -61,7 +61,9 @@ public static partial class PartingTools {
             }
         }
 
-        return path;
+        GeodiscPathing geodisc = new(model, path);
+        geodisc.Compute();
+        return geodisc.Path();
     }
 
 
