@@ -10,11 +10,46 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using static Fabolus.Core.Meshes.MeshTools.MeshTools.Contouring;
-using static MR.DotNet;
+
 
 namespace Fabolus.Core.Meshes.PartingTools;
 
 public static partial class PartingTools {
+
+    internal class PartingMesh {
+        public DMesh3 Mesh { get; private set; }
+        public List<EdgeLoop> Loops { get; private set; }
+
+        public static bool IsNullOrEmpty(PartingMesh mesh) =>
+            mesh is null || mesh.Mesh.VertexCount == 0;
+
+        public static PartingMesh Generate(DMesh3 mesh, IEnumerable<int> parting_line, double inner_offset, double outer_offset, double segment_distance)
+        {
+            inner_offset = -1 * Math.Abs(inner_offset);
+            outer_offset = Math.Abs(outer_offset);
+            Vector3d[] inner_curve = PolyLineOffset(mesh, parting_line, (float)inner_offset);
+            Vector3d[] outer_curve = PolyLineOffset(mesh, parting_line, (float)outer_offset);
+
+            int[] inner_indices = [];
+            int[] outer_indices = [];
+            DMesh3 parting_mesh = JoinPolylines(inner_curve, outer_curve, out inner_indices, out outer_indices);
+
+            return new PartingMesh
+            {
+                Mesh = parting_mesh,
+                Loops = [EdgeLoop.FromVertices(mesh, inner_indices), EdgeLoop.FromVertices(mesh, outer_indices)],
+            };
+        }
+
+    }
+
+    public static Result<MeshModel> CreateModelFromLines(MeshModel model, int[] path, float inner_offset, float outer_offset, float segment_distance)
+    {
+        DMesh3 mesh = model.Mesh;
+        PartingMesh parting = PartingMesh.Generate(mesh, path, inner_offset, outer_offset, segment_distance);
+
+        return new MeshModel(parting.Mesh);
+    }
 
     public static Result<MeshModel> JoinPolylines(Vector3[] start_path, IEnumerable<Vector3[]> paths) {
         Vector3d[] starting = start_path.Select(v => v.ToVector3d()).ToArray();
@@ -37,7 +72,18 @@ public static partial class PartingTools {
         return new MeshModel(editor.Mesh);
     }
 
-    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer) {
+    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer)
+    {
+        int[] inner_indices = [];
+        int[] outer_indices = [];
+
+        return JoinPolylines(inner, outer, out inner_indices, out outer_indices);
+    }
+
+    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer, out int[] inner_indices, out int[] outer_indices) {
+        inner_indices = []; 
+        outer_indices = [];
+
         int nA = inner.Length;
         int nB = outer.Length;
 
@@ -106,6 +152,9 @@ public static partial class PartingTools {
             mesh.AppendTriangle(a0, b0, b1);
             b++;
         }
+
+        inner_indices = a_indices.ToArray();
+        outer_indices = b_indices.ToArray();
 
         return mesh;
     }
@@ -307,5 +356,7 @@ public static partial class PartingTools {
         public static Vector3d operator -(Vertex v0, Vertex v1) => v0.Position + (-v1.Position);
     }
 
+    internal static IEnumerable<Vector3d> ToVector3d(this IEnumerable<Vector3> vectors) =>
+        vectors.Select(v => v.ToVector3d());
 }
 

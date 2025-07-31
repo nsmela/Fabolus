@@ -94,6 +94,15 @@ public class SplitSceneManager : SceneManager {
         // outer path is broken into small paths to help limit triangulation errors
         List<Vector3Collection> offset_paths = [];
 
+        var outer_offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, _settings.OuterOffset);
+
+        _partingMesh = PartingTools.CreateModelFromLines(
+            _settings.Model,
+            _path_indices,
+            _settings.InnerOffset,
+            _settings.OuterOffset,
+            8.0f).Data;
+
         var results = OffsetPath3dSegmented(_settings.Model, _path_indices, _settings.OuterOffset, 8.0f);
         foreach (var path in results) {
             builder = new();
@@ -105,14 +114,14 @@ public class SplitSceneManager : SceneManager {
         _outerMesh = builder.ToMeshGeometry3D();
 
         // create triangulations
-        builder = new();
         var response = PartingTools.JoinPolylines(inner_offset.ToArray(), offset_paths.Select(v =>  ToGenericVectorArray(v).ToArray()));
         if (response.IsFailure || response.Data is null) {
             var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Parting Mesh generation Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
-        _partingMesh = response.Data;
+        //var triangluated_offsets = MeshTools.GetHoles(response.Data);
+        //_partingMesh = response.Data;
         //
         //response = PartingTools.JoinPolylines(offset.ToArray(), boundry.ToArray());
         //if (response.IsFailure || response.Data is null) {
