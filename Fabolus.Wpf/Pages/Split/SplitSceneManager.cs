@@ -105,13 +105,13 @@ public class SplitSceneManager : SceneManager {
         _outerMesh = builder.ToMeshGeometry3D();
 
         // create triangulations
-        builder = new();
         var response = PartingTools.JoinPolylines(inner_offset.ToArray(), offset_paths.Select(v =>  ToGenericVectorArray(v).ToArray()));
         if (response.IsFailure || response.Data is null) {
             var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Parting Mesh generation Error", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
+        var triangluated_offsets = MeshTools.GetHoles(response.Data);
         _partingMesh = response.Data;
         //
         //response = PartingTools.JoinPolylines(offset.ToArray(), boundry.ToArray());

@@ -10,11 +10,29 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using static Fabolus.Core.Meshes.MeshTools.MeshTools.Contouring;
-using static MR.DotNet;
+
 
 namespace Fabolus.Core.Meshes.PartingTools;
 
 public static partial class PartingTools {
+
+    public class PartingMesh {
+        internal DMesh3 Mesh { get; private set; }
+        internal List<EdgeLoop> Loops { get; private set; }
+
+        internal static PartingMesh FromCurves(IEnumerable<Vector3d> inner_curve, IEnumerable<Vector3d> outer_curve)
+        {
+            int[] inner_indices = [];
+            int[] outer_indices = [];
+            DMesh3 mesh = JoinPolylines(inner_curve.ToArray(), outer_curve.ToArray(), out inner_indices, out outer_indices);
+
+            return new PartingMesh
+            {
+                Mesh = mesh,
+                Loops = [EdgeLoop.FromVertices(mesh, inner_indices), EdgeLoop.FromVertices(mesh, outer_indices)]
+            };
+        }
+    }
 
     public static Result<MeshModel> JoinPolylines(Vector3[] start_path, IEnumerable<Vector3[]> paths) {
         Vector3d[] starting = start_path.Select(v => v.ToVector3d()).ToArray();
@@ -37,7 +55,18 @@ public static partial class PartingTools {
         return new MeshModel(editor.Mesh);
     }
 
-    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer) {
+    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer)
+    {
+        int[] inner_indices = [];
+        int[] outer_indices = [];
+
+        return JoinPolylines(inner, outer, out inner_indices, out outer_indices);
+    }
+
+    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer, out int[] inner_indices, out int[] outer_indices) {
+        inner_indices = []; 
+        outer_indices = [];
+
         int nA = inner.Length;
         int nB = outer.Length;
 
@@ -106,6 +135,9 @@ public static partial class PartingTools {
             mesh.AppendTriangle(a0, b0, b1);
             b++;
         }
+
+        inner_indices = a_indices.ToArray();
+        outer_indices = b_indices.ToArray();
 
         return mesh;
     }
