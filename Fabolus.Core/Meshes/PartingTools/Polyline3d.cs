@@ -19,6 +19,97 @@ public static partial class PartingTools {
     internal class PartingMesh {
         public DMesh3 Mesh { get; private set; }
         public List<EdgeLoop> Loops { get; private set; }
+        public int InnerIndex { get; set; } = -1;
+        public int OuterIndex { get; set; } = -1;
+        public EdgeLoop InnerEdge => Loops[InnerIndex];
+        public EdgeLoop OuterEdge => Loops[OuterIndex];
+
+        public MeshError AddOffset(double offset_distance)
+        {
+
+            Vector3d[] vectors = PolyLineOffset(Mesh, OuterEdge.Vertices, (float)offset_distance);
+            Vector3d[] old_vectors = OuterEdge.Vertices.Select(i => Mesh.GetVertex(i)).ToArray();
+
+            int nA = OuterEdge.VertexCount;
+            int nB = vectors.Length;
+
+            if (nA == 0 || nB < 5)
+            { return new MeshError("Parting Mesh Generation error: the resulting offset generated no points"); }
+
+            // align the two loops
+            int closest = -1;
+            double min_dist = double.MaxValue;
+            double distance = 0.0;
+            Vector3d v0, v1;
+            for (int i = 0; i < nB; i++)
+            {
+                v0 = old_vectors[0];
+                v1 = vectors[i];
+                distance = (v1 - v0).LengthSquared;
+                if (distance > min_dist)
+                { continue; }
+
+                closest = i;
+                min_dist = distance;
+            }
+
+            // 'rotate' polyB to align
+            List<Vector3d> new_poly = new(vectors.Length);
+            new_poly.AddRange(vectors.Skip(closest + 1));
+            new_poly.AddRange(vectors.Take(closest));
+            var outer = new_poly.ToArray();
+            nB = outer.Length;
+
+            // add verts to mesh
+            List<int> a_indices = OuterEdge.Vertices.ToList();
+            List<int> b_indices = new(nB); // pre-set size for efficiency
+
+            foreach (Vector3d v in outer)
+            {
+                b_indices.Add(Mesh.AppendVertex(v));
+            }
+
+            int a = 0, b = 0;
+            double a_dist = double.MaxValue, b_dist = double.MaxValue;
+            double a_angle = 0.0, b_angle = 0.0;
+            while (a < nA && b < nB)
+            {
+                int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
+
+                a_dist = Mesh.GetVertex(a1).Distance(Mesh.GetVertex(b0));
+                a_angle = (Mesh.GetVertex(a1) - Mesh.GetVertex(a0)).AngleD(Mesh.GetVertex(b0) - Mesh.GetVertex(a0));
+                b_dist = Mesh.GetVertex(b1).Distance(Mesh.GetVertex(a0));
+                b_angle = (Mesh.GetVertex(a0) - Mesh.GetVertex(b0)).AngleD(Mesh.GetVertex(b1) - Mesh.GetVertex(a0));
+
+                if (a_angle < b_angle)
+                {
+                    Mesh.AppendTriangle(a1, a0, b0);
+                    a++;
+                } else
+                {
+                    Mesh.AppendTriangle(a0, b0, b1);
+                    b++;
+                }
+            }
+
+            while (a < nA)
+            {
+                int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB];
+                Mesh.AppendTriangle(a1, a0, b0);
+                a++;
+            }
+
+            while (b < nB)
+            {
+                int a0 = a_indices[a % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
+                Mesh.AppendTriangle(a0, b0, b1);
+                b++;
+            }
+
+            OuterIndex++;
+
+            return MeshError.NONE;
+        }
 
         public static bool IsNullOrEmpty(PartingMesh mesh) =>
             mesh is null || mesh.Mesh.VertexCount == 0;
@@ -34,10 +125,38 @@ public static partial class PartingTools {
             int[] outer_indices = [];
             DMesh3 parting_mesh = JoinPolylines(inner_curve, outer_curve, out inner_indices, out outer_indices);
 
+            var loops = new MeshBoundaryLoops(parting_mesh);
+
+            if (loops.Count != 2)
+            {
+                throw new Exception($"Parting mesh expected two edge loops, and instead got {loops.Count}");
+            }
+
+            double distance0 = 0.0, distance1 = 0.0;
+            Vector3d v0, v1;
+            for (int i = 1; i < loops[0].VertexCount; i++)
+            {
+                v0 = loops[0].GetVertex(i - 1);
+                v1 = loops[0].GetVertex(i);
+                distance0 += v0.Distance(v1);
+            }
+
+            for (int i = 1; i < loops[1].VertexCount; i++)
+            {
+                v0 = loops[1].GetVertex(i - 1);
+                v1 = loops[1].GetVertex(i);
+                distance1 += v0.Distance(v1);
+            }
+
+            int outer_index = distance0 > distance1 ? 1 : 0;
+            int inner_index = distance0 < distance1 ? 1 : 0;
+
             return new PartingMesh
             {
                 Mesh = parting_mesh,
-                Loops = [EdgeLoop.FromVertices(mesh, inner_indices), EdgeLoop.FromVertices(mesh, outer_indices)],
+                Loops = [..loops],
+                InnerIndex = inner_index,
+                OuterIndex = outer_index,
             };
         }
 
@@ -47,6 +166,7 @@ public static partial class PartingTools {
     {
         DMesh3 mesh = model.Mesh;
         PartingMesh parting = PartingMesh.Generate(mesh, path, inner_offset, outer_offset, segment_distance);
+        parting.AddOffset(8.0f);
 
         return new MeshModel(parting.Mesh);
     }
@@ -61,23 +181,15 @@ public static partial class PartingTools {
         if (pathing.Count() == 0) { return new MeshError($" Joining polylines needs 1 or more paths. Submitted paths: {pathing.Count()}"); }
 
         MeshEditor editor = new(new DMesh3());
-        DMesh3 mesh = JoinPolylines(starting, pathing[0]);
+        DMesh3 mesh = new();//        JoinPolylines(starting, pathing[0]);
         editor.AppendMesh(mesh);
 
         for (int i = 1; i < pathing.Count(); i++) {
-            mesh = JoinPolylines(pathing[i - 1], pathing[i]);
+            mesh = new(); //            JoinPolylines(pathing[i - 1], pathing[i]);
             editor.AppendMesh(mesh);
         }
 
         return new MeshModel(editor.Mesh);
-    }
-
-    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer)
-    {
-        int[] inner_indices = [];
-        int[] outer_indices = [];
-
-        return JoinPolylines(inner, outer, out inner_indices, out outer_indices);
     }
 
     internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer)
