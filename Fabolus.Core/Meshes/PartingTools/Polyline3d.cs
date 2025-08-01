@@ -80,6 +80,14 @@ public static partial class PartingTools {
         return JoinPolylines(inner, outer, out inner_indices, out outer_indices);
     }
 
+    internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer)
+    {
+        int[] inner_indices = [];
+        int[] outer_indices = [];
+
+        return JoinPolylines(inner, outer, out inner_indices, out outer_indices);
+    }
+
     internal static DMesh3 JoinPolylines(Vector3d[] inner, Vector3d[] outer, out int[] inner_indices, out int[] outer_indices) {
         inner_indices = []; 
         outer_indices = [];
