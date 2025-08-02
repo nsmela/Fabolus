@@ -18,23 +18,74 @@ public static partial class PartingTools {
 
     internal class PartingMesh {
         public DMesh3 Mesh { get; private set; }
-        public List<EdgeLoop> Loops { get; private set; }
-        public int InnerIndex { get; set; } = -1;
-        public int OuterIndex { get; set; } = -1;
-        public EdgeLoop InnerEdge => Loops[InnerIndex];
-        public EdgeLoop OuterEdge => Loops[OuterIndex];
+        public Vertex[] Vertices { get; private set; }
 
-        public MeshError AddOffset(double offset_distance)
+        public static bool IsNullOrEmpty(PartingMesh mesh) =>
+            mesh is null || mesh.Mesh.VertexCount == 0;
+
+        public MeshError AddOffset(double distance = 8.0)
         {
+            Vertex[] offset = Offset(Vertices, distance);
+            Vertex[] new_vertices;
+            DMesh3 mesh = Mesh;
+            JoinVertices(ref mesh, Vertices, offset, out new_vertices);
 
-            Vector3d[] vectors = PolyLineOffset(Mesh, OuterEdge.Vertices, (float)offset_distance);
-            Vector3d[] old_vectors = OuterEdge.Vertices.Select(i => Mesh.GetVertex(i)).ToArray();
+            Mesh = mesh;
+            Vertices = new_vertices;
 
-            int nA = OuterEdge.VertexCount;
-            int nB = vectors.Length;
+            return MeshError.NONE;
+        }
 
-            if (nA == 0 || nB < 5)
-            { return new MeshError("Parting Mesh Generation error: the resulting offset generated no points"); }
+        public static PartingMesh Generate(DMesh3 mesh, IEnumerable<int> parting_line, double inner_offset, double outer_offset, double segment_distance)
+        {
+            inner_offset = -1 * Math.Abs(inner_offset);
+            outer_offset = Math.Abs(outer_offset);
+            Vertex[] vertices = GenerateVertices(mesh, parting_line.ToArray());
+            Vertex[] inner_curve = Offset(vertices, inner_offset);
+            Vertex[] outer_curve = Offset(vertices, outer_offset);
+
+            Vertex[] new_vertices = [];
+            DMesh3 parting_mesh = new();
+            JoinVertices(ref parting_mesh, inner_curve, outer_curve, out new_vertices);
+
+            return new PartingMesh
+            {
+                Mesh = parting_mesh,
+                Vertices = new_vertices,
+            };
+        }
+
+        internal static Vertex[] Offset(Vertex[] vertices, double distance)
+        {
+            List<Vertex> loop = [];
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                Vector3d offset = vertices[i].Normal;
+                offset.y = 0;
+                offset.Normalize();
+
+                loop.Add(vertices[i] with { Position = vertices[i].Position + offset * distance });
+            }
+
+            loop = RemoveReversedSegments(loop).ToList();
+            Vertex[] vectors = RemoveSharpCorners(loop).ToArray();
+            int iterations = 1;
+            for (int i = 0; i < iterations; i++){
+               // vectors = LaplacianSmoothing(vectors.Select(v =>).ToArray(); 
+            }
+            return vectors;
+        }
+
+        private static MeshError JoinVertices(ref DMesh3 mesh, Vertex[] inner_curve, Vertex[] outer_curve, out Vertex[] new_vertices)
+        {
+            new_vertices = [];
+            int nA = inner_curve.Length;
+            int nB = outer_curve.Length;
+
+            const int min_vertices = 5;
+            if (nA < min_vertices || nB < min_vertices) { 
+                return new MeshError($"Parting Mesh Generation error: the resulting offset generated doesn't have the minimum points: {min_vertices}"); 
+            }
 
             // align the two loops
             int closest = -1;
@@ -43,8 +94,8 @@ public static partial class PartingTools {
             Vector3d v0, v1;
             for (int i = 0; i < nB; i++)
             {
-                v0 = old_vectors[0];
-                v1 = vectors[i];
+                v0 = inner_curve[0].Position;
+                v1 = outer_curve[i].Position;
                 distance = (v1 - v0).LengthSquared;
                 if (distance > min_dist)
                 { continue; }
@@ -54,20 +105,23 @@ public static partial class PartingTools {
             }
 
             // 'rotate' polyB to align
-            List<Vector3d> new_poly = new(vectors.Length);
-            new_poly.AddRange(vectors.Skip(closest + 1));
-            new_poly.AddRange(vectors.Take(closest));
-            var outer = new_poly.ToArray();
-            nB = outer.Length;
+            List<Vertex> new_poly = new(outer_curve.Length);
+            new_poly.AddRange(outer_curve.Skip(closest + 1));
+            new_poly.AddRange(outer_curve.Take(closest));
+            new_vertices = new_poly.ToArray();
+            nB = new_vertices.Length;
 
             // add verts to mesh
-            List<int> a_indices = OuterEdge.Vertices.ToList();
-            List<int> b_indices = new(nB); // pre-set size for efficiency
-
-            foreach (Vector3d v in outer)
-            {
-                b_indices.Add(Mesh.AppendVertex(v));
+            int index;
+            Vertex vert;
+            for (int i = 0; i < new_vertices.Length; i++){
+                vert = new_vertices[i];
+                index = mesh.AppendVertex(vert.Position);
+                new_vertices[i] = vert with { Id =  index };
             }
+
+            List<int> a_indices = inner_curve.Select(v => v.Id).ToList();
+            List<int> b_indices = outer_curve.Select(v => v.Id).ToList();
 
             int a = 0, b = 0;
             double a_dist = double.MaxValue, b_dist = double.MaxValue;
@@ -76,18 +130,18 @@ public static partial class PartingTools {
             {
                 int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
 
-                a_dist = Mesh.GetVertex(a1).Distance(Mesh.GetVertex(b0));
-                a_angle = (Mesh.GetVertex(a1) - Mesh.GetVertex(a0)).AngleD(Mesh.GetVertex(b0) - Mesh.GetVertex(a0));
-                b_dist = Mesh.GetVertex(b1).Distance(Mesh.GetVertex(a0));
-                b_angle = (Mesh.GetVertex(a0) - Mesh.GetVertex(b0)).AngleD(Mesh.GetVertex(b1) - Mesh.GetVertex(a0));
+                a_dist = mesh.GetVertex(a1).Distance(mesh.GetVertex(b0));
+                a_angle = (mesh.GetVertex(a1) - mesh.GetVertex(a0)).AngleD(mesh.GetVertex(b0) - mesh.GetVertex(a0));
+                b_dist = mesh.GetVertex(b1).Distance(mesh.GetVertex(a0));
+                b_angle = (mesh.GetVertex(a0) - mesh.GetVertex(b0)).AngleD(mesh.GetVertex(b1) - mesh.GetVertex(a0));
 
                 if (a_angle < b_angle)
                 {
-                    Mesh.AppendTriangle(a1, a0, b0);
+                    mesh.AppendTriangle(a1, a0, b0);
                     a++;
                 } else
                 {
-                    Mesh.AppendTriangle(a0, b0, b1);
+                    mesh.AppendTriangle(a0, b0, b1);
                     b++;
                 }
             }
@@ -95,71 +149,19 @@ public static partial class PartingTools {
             while (a < nA)
             {
                 int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB];
-                Mesh.AppendTriangle(a1, a0, b0);
+                mesh.AppendTriangle(a1, a0, b0);
                 a++;
             }
 
             while (b < nB)
             {
                 int a0 = a_indices[a % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
-                Mesh.AppendTriangle(a0, b0, b1);
+                mesh.AppendTriangle(a0, b0, b1);
                 b++;
             }
 
-            OuterIndex++;
-
             return MeshError.NONE;
         }
-
-        public static bool IsNullOrEmpty(PartingMesh mesh) =>
-            mesh is null || mesh.Mesh.VertexCount == 0;
-
-        public static PartingMesh Generate(DMesh3 mesh, IEnumerable<int> parting_line, double inner_offset, double outer_offset, double segment_distance)
-        {
-            inner_offset = -1 * Math.Abs(inner_offset);
-            outer_offset = Math.Abs(outer_offset);
-            Vector3d[] inner_curve = PolyLineOffset(mesh, parting_line, (float)inner_offset);
-            Vector3d[] outer_curve = PolyLineOffset(mesh, parting_line, (float)outer_offset);
-
-            int[] inner_indices = [];
-            int[] outer_indices = [];
-            DMesh3 parting_mesh = JoinPolylines(inner_curve, outer_curve, out inner_indices, out outer_indices);
-
-            var loops = new MeshBoundaryLoops(parting_mesh);
-
-            if (loops.Count != 2)
-            {
-                throw new Exception($"Parting mesh expected two edge loops, and instead got {loops.Count}");
-            }
-
-            double distance0 = 0.0, distance1 = 0.0;
-            Vector3d v0, v1;
-            for (int i = 1; i < loops[0].VertexCount; i++)
-            {
-                v0 = loops[0].GetVertex(i - 1);
-                v1 = loops[0].GetVertex(i);
-                distance0 += v0.Distance(v1);
-            }
-
-            for (int i = 1; i < loops[1].VertexCount; i++)
-            {
-                v0 = loops[1].GetVertex(i - 1);
-                v1 = loops[1].GetVertex(i);
-                distance1 += v0.Distance(v1);
-            }
-
-            int outer_index = distance0 > distance1 ? 1 : 0;
-            int inner_index = distance0 < distance1 ? 1 : 0;
-
-            return new PartingMesh
-            {
-                Mesh = parting_mesh,
-                Loops = [..loops],
-                InnerIndex = inner_index,
-                OuterIndex = outer_index,
-            };
-        }
-
     }
 
     public static Result<MeshModel> CreateModelFromLines(MeshModel model, int[] path, float inner_offset, float outer_offset, float segment_distance)
