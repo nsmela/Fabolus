@@ -14,7 +14,7 @@ namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
     public static Result<MeshModel> GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset) {
         PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
-        parting.ExtrudeFaces(1.0);
+        parting.ExtrudeFaces(0.1);
         return new MeshModel(parting.Mesh);
     }
 
@@ -49,9 +49,8 @@ public static partial class PartingTools {
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
 
             PartingMesh parting = new(inner_vertices);
-            parting.Offset(inner_offset);
-            parting.Offset(outer_offset);
-            parting.Offset(outer_offset);
+            parting.Offset(inner_offset + outer_offset * 2);
+
 
             return parting;
         }
