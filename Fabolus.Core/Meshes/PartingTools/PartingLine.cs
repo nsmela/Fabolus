@@ -66,7 +66,6 @@ public static partial class PartingTools {
         return geodisc.Path();
     }
 
-
     private static bool SkipThisVertex(DMesh3 mesh, int v0, int v1, int v2) {
         var path_distance = mesh.GetVertex(v0).Distance(mesh.GetVertex(v1)) +
                             mesh.GetVertex(v1).Distance(mesh.GetVertex(v2));

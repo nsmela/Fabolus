@@ -84,54 +84,22 @@ public class SplitSceneManager : SceneManager {
     /// <param name="settings"></param>
     private void UpdateSettings(CuttingMeshParams settings) {
         _settings = settings with { Model = _settings.Model };
-        float boundry_offset = _settings.OuterOffset + 10;
-        // create paths
-        var inner_offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, -_settings.InnerOffset);
-        MeshBuilder builder = new();
-        builder.AddTube(new Vector3Collection(inner_offset.Select(v => ToVector3(v))), 0.3, 16, true);
-        _innerMesh = builder.ToMeshGeometry3D();
-
-        // outer path is broken into small paths to help limit triangulation errors
-        List<Vector3Collection> offset_paths = [];
-
-        //var outer_offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, _settings.OuterOffset);
-
-        //_partingMesh = PartingTools.CreateModelFromLines(
-        //    _settings.Model,
-        //    _path_indices,
-        //    _settings.InnerOffset,
-        //    _settings.OuterOffset,
-        //    8.0f).Data;
 
         var results = PartingTools.GeneratePartingMesh(_settings.Model, _path_indices, _settings.InnerOffset, _settings.OuterOffset);
         _partingMesh = results.Data;
-        //    OffsetPath3dSegmented(_settings.Model, _path_indices, _settings.OuterOffset, 8.0f);
-        //foreach (var path in results) {
-        //    builder = new();
-        //    var collection = new Vector3Collection(path.Select(v => ToVector3(v)));
-        //    offset_paths.Add(collection);
-        //    builder.AddTube(collection, 0.3, 16, true);
-        //}
 
-        //_outerMesh = builder.ToMeshGeometry3D();
+        var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
+        var response = MeshTools.BooleanSubtraction(mould, _partingMesh);
 
-        // create triangulations
-        //var response = PartingTools.JoinPolylines(inner_offset.ToArray(), offset_paths.Select(v =>  ToGenericVectorArray(v).ToArray()));
-        //if (response.IsFailure || response.Data is null) {
-        //    var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
-        //    MessageBox.Show(string.Join(Environment.NewLine, errors), "Parting Mesh generation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        //    return;
-        //}
-        //var triangluated_offsets = MeshTools.GetHoles(response.Data);
-        //_partingMesh = response.Data;
-        //
-        //response = PartingTools.JoinPolylines(offset.ToArray(), boundry.ToArray());
-        //if (response.IsFailure || response.Data is null) {
-        //    var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
-        //    MessageBox.Show(string.Join(Environment.NewLine, errors), "Boundry Parting Mesh generation Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        //    return;
-        //}
-        //_exteriorPartingMesh = response.Data.ToGeometry();
+        if (response.IsFailure || response.Data is null) {
+            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            UpdateDisplay();
+            return;
+        }
+
+        _mouldMesh = response.Data.ToGeometry();
 
         UpdateDisplay();
     }
@@ -154,7 +122,7 @@ public class SplitSceneManager : SceneManager {
         }
 
         // parting curve
-        if (_partingPathMesh.Positions.Count > 0 && _view_options.ShowPartingLine) {
+        if (false && _partingPathMesh.Positions.Count > 0 && _view_options.ShowPartingLine) {
             models.Add(new DisplayModel3D {
                 Geometry = _partingPathMesh,
                 Transform = MeshHelper.TransformEmpty,

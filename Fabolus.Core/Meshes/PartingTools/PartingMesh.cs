@@ -14,7 +14,15 @@ namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
     public static Result<MeshModel> GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset) {
         PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
+        parting.ExtrudeFaces(1.0);
         return new MeshModel(parting.Mesh);
+    }
+
+    internal record struct Vertex(int Id, Vector3d Position, Vector3d Direction, Vector3d Normal) {
+        public static implicit operator Vector3d(Vertex v) => v.Position;
+
+        public static Vector3d operator +(Vertex v0, Vertex v1) => v0.Position + v1.Position;
+        public static Vector3d operator -(Vertex v0, Vertex v1) => v0.Position + (-v1.Position);
     }
 
     internal record PartingMesh {
@@ -128,6 +136,20 @@ public static partial class PartingTools {
             Vertices = outer;
             Mesh = mesh;
         }
+
+        internal void ExtrudeFaces(double distance) {
+            // extrude the mesh face
+            MeshExtrudeMesh extrude = new(Mesh) {
+                ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * distance,
+            };
+            extrude.Extrude();
+
+            // repair the mesh if needed
+            MeshAutoRepair repair = new(extrude.Mesh);
+            repair.Apply();
+
+            Mesh = repair.Mesh;
+        }
     }
     
     internal static Vertex[] GenerateVertices(DMesh3 mesh, int[] path) {
@@ -152,6 +174,77 @@ public static partial class PartingTools {
         return vertices.ToArray();
     }
 
+    internal static IEnumerable<Vertex> RemoveReversedSegments(IEnumerable<Vertex> vertices) {
+        Vertex[] loop = vertices.ToArray();
+        bool was_cleaned = true;
+        List<Vertex> cleaned = [];
+        double max_angle = 60.0;
+        while (was_cleaned) {
+            was_cleaned = false;
+
+            Vertex v0, v1;
+            Vector3d dir;
+            int count = loop.Length;
+            for (int i = 0; i < count; i++) {
+                v0 = loop[(i - 1 + count) % count];
+                v1 = loop[i % count];
+
+                dir = (v1.Position - v0.Position).Normalized;
+                double angle = dir.AngleD(v1.Direction);
+                if (angle > max_angle) { // good position
+                    was_cleaned = true;
+                    //cleaned.Add(v1 with { Position = v0.Position + (v1.Position - v0.Position) * 0.5 }); // move the point slightly back
+                    continue;
+                }
+
+                cleaned.Add(v1);
+            }
+            loop = cleaned.ToArray();
+            cleaned = [];
+        }
+
+        return loop;
+    }
+
+    internal static IEnumerable<Vertex> RemoveSharpCorners(IEnumerable<Vertex> vertices) {
+        const double min_angle = 100.0;
+
+        Vertex[] loop = vertices.ToArray();
+        List<Vertex> cleaned = [];
+
+        bool was_cleaned = true;
+        while (was_cleaned) {
+            was_cleaned = false;
+
+            Vertex v0, v1, v2;
+            Vector3d dir0, dir2;
+            double angle = 0.0;
+            int count = loop.Length;
+            for (int i = 0; i < count; i++) {
+                v0 = loop[(i - 1 + count) % count];
+                v1 = loop[i % count];
+                v2 = loop[(i + 1) % count];
+
+                dir0 = (v0 - v1).Normalized;
+                dir2 = (v2 - v0).Normalized;
+
+                angle = dir0.AngleD(dir2);
+
+                if (angle > min_angle) { // good position
+                    cleaned.Add(v1);
+                    continue;
+                }
+
+                was_cleaned = true;
+            }
+
+            loop = cleaned.ToArray();
+            cleaned = [];
+        }
+
+        return loop;
+    }
+
     internal static Vertex[] OffsetVerts(Vertex[] verts, double distance) {
         Vertex[] results = new Vertex[verts.Length];
         for (int i = 0; i < verts.Length; i++) {
@@ -159,7 +252,14 @@ public static partial class PartingTools {
             offset.y = 0;
             offset.Normalize();
 
-            results[i] = verts[i] with { Position = verts[i] + offset * distance };
+            var position = verts[i].Position + offset * distance;
+
+            if (verts[i].Position.y != position.y) {
+                throw new Exception();
+            }
+
+            results[i] = verts[i] with { Position = position };
+
         }
 
         results = RemoveReversedSegments(results).ToArray();
