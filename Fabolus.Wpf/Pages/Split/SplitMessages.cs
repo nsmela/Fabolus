@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.Messaging.Messages;
 using Fabolus.Core.Meshes;
+using Fabolus.Core.Meshes.PartingTools;
 using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 
 namespace Fabolus.Wpf.Pages.Split;

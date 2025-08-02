@@ -94,24 +94,26 @@ public class SplitSceneManager : SceneManager {
         // outer path is broken into small paths to help limit triangulation errors
         List<Vector3Collection> offset_paths = [];
 
-        var outer_offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, _settings.OuterOffset);
+        //var outer_offset = PartingTools.OffsetPath3d(_settings.Model, _path_indices, _settings.OuterOffset);
 
-        _partingMesh = PartingTools.CreateModelFromLines(
-            _settings.Model,
-            _path_indices,
-            _settings.InnerOffset,
-            _settings.OuterOffset,
-            8.0f).Data;
+        //_partingMesh = PartingTools.CreateModelFromLines(
+        //    _settings.Model,
+        //    _path_indices,
+        //    _settings.InnerOffset,
+        //    _settings.OuterOffset,
+        //    8.0f).Data;
 
-        var results = OffsetPath3dSegmented(_settings.Model, _path_indices, _settings.OuterOffset, 8.0f);
-        foreach (var path in results) {
-            builder = new();
-            var collection = new Vector3Collection(path.Select(v => ToVector3(v)));
-            offset_paths.Add(collection);
-            builder.AddTube(collection, 0.3, 16, true);
-        }
+        var results = PartingTools.GeneratePartingMesh(_settings.Model, _path_indices, _settings.InnerOffset, _settings.OuterOffset);
+        _partingMesh = results.Data;
+        //    OffsetPath3dSegmented(_settings.Model, _path_indices, _settings.OuterOffset, 8.0f);
+        //foreach (var path in results) {
+        //    builder = new();
+        //    var collection = new Vector3Collection(path.Select(v => ToVector3(v)));
+        //    offset_paths.Add(collection);
+        //    builder.AddTube(collection, 0.3, 16, true);
+        //}
 
-        _outerMesh = builder.ToMeshGeometry3D();
+        //_outerMesh = builder.ToMeshGeometry3D();
 
         // create triangulations
         //var response = PartingTools.JoinPolylines(inner_offset.ToArray(), offset_paths.Select(v =>  ToGenericVectorArray(v).ToArray()));
@@ -160,11 +162,11 @@ public class SplitSceneManager : SceneManager {
             });
 
             // used to show the polylines generated from offsetting the parting curve
-            models.Add(new DisplayModel3D {
-                Geometry = _outerMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Ruby,
-            });
+            //models.Add(new DisplayModel3D {
+            //    Geometry = _outerMesh,
+            //    Transform = MeshHelper.TransformEmpty,
+            //    Skin = DiffuseMaterials.Ruby,
+            //});
 
             models.Add(new DisplayModel3D {
                 Geometry = _innerMesh,
@@ -215,74 +217,6 @@ public class SplitSceneManager : SceneManager {
         }
 
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
-    }
-
-    private void UpdateMesh(MeshModel model) {
-        _settings = _settings with { Model = model };
-        // draft angle meshes
-        SetPartingMesh(model);
-    }
-
-    private void SetPartingMesh(MeshModel model) {
-        CuttingMeshResults results = PartingTools.DualOffsetCuttingMesh(_settings);
-        _path_indices = results.PartingIndices;
-        _path = new Vector3Collection(results.PartingPath.Select(v => ToVector3(v)));
-        MeshBuilder builder = new();
-        builder.AddTube(_path, 0.3, 16, true);
-        _partingPathMesh = builder.ToMeshGeometry3D();
-
-        builder = new();
-        builder.AddTube(new Vector3Collection(results.OuterPath.Select(v => ToVector3(v))), 0.3, 16, true);
-        _outerMesh = builder.ToMeshGeometry3D();
-
-        // calculate the offset polyline curve
-
-        builder = new();
-        builder.AddTube(new Vector3Collection(results.InnerPath.Select(v => ToVector3(v))), 0.3, 16, true);
-        _innerMesh = builder.ToMeshGeometry3D();
-
-        _partingMesh = results.CuttingMesh;
-
-        // create inflated mesh to boolean intersect with the parting mesh
-        var mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
-        _mouldMesh = mould.ToGeometry();
-
-        var boolean_response = MeshTools.BooleanSubtraction(mould, _partingMesh);
-        if (boolean_response.IsFailure || boolean_response.Data is null) {
-            var errors = boolean_response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Mould Splitting Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        // break the models up into connected components
-        var models = MeshTools.SeperateModels(boolean_response.Data);
-
-        // check if the models are valid after split
-        switch (models.Length) {
-            case (< 1):
-                MessageBox.Show("No models found after boolean subtraction.", "Split Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            case (1):
-                _positivePullMesh = models[0].ToGeometry();
-                _negativePullMesh = null; // empty model for negative part
-                break;
-            case (2):
-                var bounds0 = models[0].BoundsLower();
-                var bounds1 = models[1].BoundsLower();
-
-                if (bounds0[1] < bounds1[1]) {
-                    _positivePullMesh = models[0].ToGeometry(); // if the y coordinate of the first mesh is lower than the second, then it is the positive part
-                    _negativePullMesh = models[1].ToGeometry();
-                } else {
-                    _positivePullMesh = models[1].ToGeometry(); // if the y coordinate of the first mesh is lower than the second, then it is the positive part
-                    _negativePullMesh = models[0].ToGeometry();
-                }
-                break;
-            default:
-                MessageBox.Show("More than two models found after boolean subtraction. Please check the model.", "Split Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-        }
-
     }
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);

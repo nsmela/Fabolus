@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Meshes;
+using Fabolus.Core.Meshes.PartingTools;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features.Mould;
