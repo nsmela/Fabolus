@@ -89,13 +89,6 @@ public class SplitSceneManager : SceneManager {
         var results = PartingTools.GeneratePartingMesh(_settings.Model, _path_indices, _settings.InnerOffset, _settings.OuterOffset);
         _partingMesh = results.Data;
 
-        var points = PartingTools.GetConcavePoints(_settings, _path_indices);
-        MeshBuilder builder = new();
-        foreach (var point in points.Select(v => new Vector3(v.X, v.Y, v.Z))) {
-            builder.AddSphere(point, 0.3);
-        }
-        _concaveMesh = builder.ToMeshGeometry3D();
-
         UpdateDisplay();
         return; //TODO: remove early return
 

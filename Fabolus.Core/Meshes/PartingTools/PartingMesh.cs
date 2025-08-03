@@ -17,7 +17,7 @@ public static partial class PartingTools {
     public static Result<MeshModel> GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset) {
         PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
         // TODO: issue with added triangles not on a boundry return new MeshModel(MeshTools.MeshTools.ExtrudeMesh(parting.Mesh, Vector3d.AxisY, 2.0));
-        parting.ExtrudeFaces(2.0);
+        //parting.ExtrudeFaces(2.0);
         return new MeshModel(parting.Mesh);
     }
 
@@ -127,7 +127,7 @@ public static partial class PartingTools {
             // add verts to mesh
             int index;
             Vertex vert;
-            DMesh3 mesh = Mesh;
+            DMesh3 mesh = new();
 
             for (int i = 0; i < nA; i++) {
                 vert = Vertices[i];
@@ -148,14 +148,20 @@ public static partial class PartingTools {
             double a_dist = double.MaxValue, b_dist = double.MaxValue;
             double a_angle = 0.0, b_angle = 0.0;
             while (a < nA && b < nB) {
-                int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
+                int a0 = a_indices[a % nA];
+                int a1 = a_indices[(a + 1) % nA];
+                int b0 = b_indices[b % nB];
+                int b1 = b_indices[(b + 1) % nB];
 
-                // TODO: detect concave sections and fill in with triangles
+                Vector3d vA0 = mesh.GetVertex(a0);
+                Vector3d vA1 = mesh.GetVertex(a1);
+                Vector3d vB0 = mesh.GetVertex(b0);
+                Vector3d vB1 = mesh.GetVertex(b1);
 
                 a_dist = mesh.GetVertex(a1).Distance(mesh.GetVertex(b0));
-                a_angle = (mesh.GetVertex(a1) - mesh.GetVertex(a0)).AngleD(mesh.GetVertex(b0) - mesh.GetVertex(a0));
+                a_angle = (vA1 - vA0).AngleD(vB0 - vA0);
                 b_dist = mesh.GetVertex(b1).Distance(mesh.GetVertex(a0));
-                b_angle = (mesh.GetVertex(a0) - mesh.GetVertex(b0)).AngleD(mesh.GetVertex(b1) - mesh.GetVertex(a0));
+                b_angle = (vA0 - vB0).AngleD(vB1 - vB0);
 
                 if (a_angle < b_angle) {
                     mesh.AppendTriangle(a1, a0, b0);
