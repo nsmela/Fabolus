@@ -28,6 +28,7 @@ public static partial class PartingTools {
     internal record PartingMesh {
         public DMesh3 Mesh;
         public Vertex[] Vertices { get; private set; }
+        public Vertex[] InnerVertices { get; private set; }
 
         public PartingMesh(Vertex[] vertices) {
             // populate mesh with starting vertices
@@ -37,6 +38,7 @@ public static partial class PartingTools {
             }
 
             Vertices = vertices;
+            InnerVertices = vertices;
         }
 
         public void Offset(double distance) {
@@ -49,10 +51,20 @@ public static partial class PartingTools {
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
 
             PartingMesh parting = new(inner_vertices);
-            parting.Offset(inner_offset + outer_offset * 2);
-
+            parting.StitchInner(vertices);
+            parting.Offset(inner_offset);
+            parting.Offset(outer_offset);
 
             return parting;
+        }
+
+        private void StitchInner(Vertex[] vertices) {
+            // first stitch concave sections
+
+            // change vertices to skip concave verts
+
+            // use regulare stitching
+            //StitchVerts(vertices);
         }
 
         private void StitchVerts(Vertex[] outer) {
@@ -105,6 +117,8 @@ public static partial class PartingTools {
             while (a < nA && b < nB) {
                 int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
 
+                // TODO: detect concave sections and fill in with triangles
+
                 a_dist = mesh.GetVertex(a1).Distance(mesh.GetVertex(b0));
                 a_angle = (mesh.GetVertex(a1) - mesh.GetVertex(a0)).AngleD(mesh.GetVertex(b0) - mesh.GetVertex(a0));
                 b_dist = mesh.GetVertex(b1).Distance(mesh.GetVertex(a0));
@@ -149,8 +163,34 @@ public static partial class PartingTools {
 
             Mesh = repair.Mesh;
         }
+
+        // TODO: testing concave sections detection on the inner vertices
+        public Vector3[] GetConcavePoints(double angle) {
+            List<Vector3d> results = [];
+            List<double> dots = [];
+
+            Vertex v0, v1, v2;
+            double angle_between = 0.0;
+            int count = InnerVertices.Length;
+            for(int i = 0; i < count; i++) {
+                v0 = InnerVertices[(i - 1 + count) % count]; // prev
+                v1 = InnerVertices[i]; // current
+                v2 = InnerVertices[(i + 1) % count]; // next
+
+                angle_between = v0.Normal.AngleR(v2.Normal);
+                dots.Add(angle_between);
+                if (angle_between > angle) { results.Add(v1); }
+            }
+
+            return results.Select(v => v.ToVector3()).ToArray();
+        }
     }
     
+    public static Vector3[] GetConcavePoints(CuttingMeshParams settings, int[] path) {
+        var parting = PartingMesh.Create(settings.Model.Mesh, path, settings.InnerOffset, settings.OuterOffset);
+        return parting.GetConcavePoints(settings.TwistThreshold);
+    }
+
     internal static Vertex[] GenerateVertices(DMesh3 mesh, int[] path) {
         List<Vertex> vertices = new(path.Length); // to optimize by not needing to resize while adding
 

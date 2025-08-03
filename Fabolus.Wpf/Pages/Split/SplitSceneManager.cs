@@ -45,6 +45,7 @@ public class SplitSceneManager : SceneManager {
     private MeshGeometry3D _boundryMesh;
     private MeshGeometry3D _exteriorPartingMesh;
     private MeshGeometry3D _outerMesh;
+    private MeshGeometry3D _concaveMesh = new();
     private MeshGeometry3D _innerMesh;
     private MeshGeometry3D _mouldMesh;
     private MeshGeometry3D _positivePullMesh;
@@ -88,7 +89,24 @@ public class SplitSceneManager : SceneManager {
         var results = PartingTools.GeneratePartingMesh(_settings.Model, _path_indices, _settings.InnerOffset, _settings.OuterOffset);
         _partingMesh = results.Data;
 
+        var points = PartingTools.GetConcavePoints(_settings, _path_indices);
+        MeshBuilder builder = new();
+        foreach (var point in points.Select(v => new Vector3(v.X, v.Y, v.Z))) {
+            builder.AddSphere(point, 0.3);
+        }
+        _concaveMesh = builder.ToMeshGeometry3D();
+
+        UpdateDisplay();
+        return; //TODO: remove early return
+
         var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
+        if (mould.Mesh is null || mould.IsEmpty()) {
+            MessageBox.Show( "A valid mould is required to split", "Triangulate error", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            UpdateDisplay();
+            return;
+        }
+
         var response = MeshTools.BooleanSubtraction(mould, _partingMesh);
 
         if (response.IsFailure || response.Data is null) {
@@ -121,6 +139,15 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
+        // testing concave detection
+        if (_concaveMesh is not null && _concaveMesh.Positions is not null) {
+            models.Add(new DisplayModel3D {
+                Geometry = _concaveMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Emerald,
+            });
+        }
+
         // parting curve
         if (false && _partingPathMesh.Positions.Count > 0 && _view_options.ShowPartingLine) {
             models.Add(new DisplayModel3D {
@@ -129,12 +156,7 @@ public class SplitSceneManager : SceneManager {
                 Skin = DiffuseMaterials.Yellow,
             });
 
-            // used to show the polylines generated from offsetting the parting curve
-            //models.Add(new DisplayModel3D {
-            //    Geometry = _outerMesh,
-            //    Transform = MeshHelper.TransformEmpty,
-            //    Skin = DiffuseMaterials.Ruby,
-            //});
+
 
             models.Add(new DisplayModel3D {
                 Geometry = _innerMesh,
