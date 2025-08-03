@@ -1,5 +1,6 @@
 ﻿using Clipper2Lib;
 using Fabolus.Core.Extensions;
+using Fabolus.Core.Meshes.MeshTools;
 using g3;
 using gs;
 using System;
@@ -15,7 +16,8 @@ namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
     public static Result<MeshModel> GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset) {
         PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
-        parting.ExtrudeFaces(0.1);
+        // TODO: issue with added triangles not on a boundry return new MeshModel(MeshTools.MeshTools.ExtrudeMesh(parting.Mesh, Vector3d.AxisY, 2.0));
+        parting.ExtrudeFaces(2.0);
         return new MeshModel(parting.Mesh);
     }
 
@@ -38,10 +40,12 @@ public static partial class PartingTools {
                 vertices[i] = vertices[i] with { Id = Mesh.AppendVertex(vertices[i]) };
             }
 
-            Vertices = vertices;
             InnerVertices = vertices;
 
-            StitchInner();
+            for (int i = 0; i < 3; i++) { 
+                Vertices = vertices;
+                //vertices = StitchInner(vertices);
+            } 
         }
 
         public void Offset(double distance) {
@@ -51,35 +55,45 @@ public static partial class PartingTools {
         }
 
         public static PartingMesh Create(DMesh3 mesh, int[] path_indices, double inner_offset, double outer_offset) {
+            // convert the selected mesh vectors into a vertex array
             Vertex[] vertices = GenerateVertices(mesh, path_indices);
+
+            // smooth the path
+            vertices = AverageVertices(vertices);
+            vertices = LaplacianSmoothing(vertices);
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
 
             PartingMesh parting = new(inner_vertices);
-            parting.Offset(inner_offset);
             parting.Offset(outer_offset);
 
             return parting;
         }
 
-        private void StitchInner() {
+        private Vertex[] StitchInner(Vertex[] vertices) {
             // first stitch concave sections
             List<Vertex> results = [];
+            List<double> normals = [];
 
             Vertex v0, v1, v2;
             double angle_between = 0.0;
-            int count = InnerVertices.Length;
+            int count = vertices.Length;
             for (int i = 0; i < count; i++) {
-                v0 = InnerVertices[(i - 1 + count) % count]; // prev
-                v1 = InnerVertices[i]; // current
-                v2 = InnerVertices[(i + 1) % count]; // next
 
-                angle_between = v0.Normal.AngleR(v2.Normal);
-                if (angle_between > 0.0) { continue; }
+                v0 = vertices[(i - 1 + count) % count]; // prev
+                v1 = vertices[i]; // current
+                v2 = vertices[(i + 1) % count]; // next
 
+                if (results.Contains(v0) || results.Contains(v2)) { continue; }
+
+                angle_between = v0.Normal.AngleR(v2.Normal) / MathUtil.HalfPI; // between 0 to 1.0 and 0.5+ is 90 degrees or more
+                normals.Add(angle_between);
+                if (angle_between < 0.50) { continue; }
+
+                Mesh.AppendTriangle(v0.Id, v1.Id, v2.Id);
                 results.Add(v1);
             }
 
-            Vertices = InnerVertices.Where(v => !results.Contains(v)).ToArray(); // remove the results
+            return vertices.Where(v => !results.Contains(v)).ToArray(); // remove the results
 
             // change vertices to skip concave verts
 
@@ -342,6 +356,34 @@ public static partial class PartingTools {
         return result.ToArray();
     }
 
+    internal static Vertex[] LaplacianSmoothing(Vertex[] vertices) {
+        List<Vertex> results = [];
+
+        int count = vertices.Length;
+        Vertex v0, v1, v2, vA, vB;
+        for (int i = 0; i < count; i++) {
+            v0 = vertices[(i - 1 + count) % count]; // previous, looping
+            v1 = vertices[i]; // current
+            v2 = vertices[(i + 1) % count]; // next, looping
+
+            vA = vertices[i] with { 
+                Position = (v1 - v0) * 0.25 + v1,
+                Normal = ((v0.Normal + v1.Normal + v2.Normal) / 3).Normalized
+            };
+            vA.Normal = new Vector3d(vA.Normal.x, 0, vA.Normal.z);
+
+            vB = vertices[i] with {
+                Position = (v1 - v2) * 0.25 + v1,
+                Normal = ((v0.Normal + v1.Normal + v2.Normal) / 3).Normalized
+            };
+            vB.Normal = new Vector3d(vB.Normal.x, 0, vB.Normal.z);
+
+            results.Add(vA);
+            results.Add(vB);
+        }
+
+        return results.ToArray();
+    }
 }
 
 public record struct CuttingMeshParams(
