@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using static MR.DotNet;
@@ -39,10 +40,13 @@ public static partial class PartingTools {
 
             Vertices = vertices;
             InnerVertices = vertices;
+
+            StitchInner();
         }
 
         public void Offset(double distance) {
             Vertex[] vertices = OffsetVerts(Vertices, distance);
+            vertices = AverageVertices(vertices);
             StitchVerts(vertices);
         }
 
@@ -51,20 +55,35 @@ public static partial class PartingTools {
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
 
             PartingMesh parting = new(inner_vertices);
-            parting.StitchInner(vertices);
             parting.Offset(inner_offset);
             parting.Offset(outer_offset);
 
             return parting;
         }
 
-        private void StitchInner(Vertex[] vertices) {
+        private void StitchInner() {
             // first stitch concave sections
+            List<Vertex> results = [];
+
+            Vertex v0, v1, v2;
+            double angle_between = 0.0;
+            int count = InnerVertices.Length;
+            for (int i = 0; i < count; i++) {
+                v0 = InnerVertices[(i - 1 + count) % count]; // prev
+                v1 = InnerVertices[i]; // current
+                v2 = InnerVertices[(i + 1) % count]; // next
+
+                angle_between = v0.Normal.AngleR(v2.Normal);
+                if (angle_between > 0.0) { continue; }
+
+                results.Add(v1);
+            }
+
+            Vertices = InnerVertices.Where(v => !results.Contains(v)).ToArray(); // remove the results
 
             // change vertices to skip concave verts
 
-            // use regulare stitching
-            //StitchVerts(vertices);
+
         }
 
         private void StitchVerts(Vertex[] outer) {
@@ -305,6 +324,22 @@ public static partial class PartingTools {
         results = RemoveSharpCorners(results).ToArray();
 
         return results.ToArray();
+    }
+
+    internal static Vertex[] AverageVertices(Vertex[] vertices) {
+        List<Vertex> result = [];
+
+        Vector3d v0, v1, v2;
+        int count = vertices.Length;
+        for (int i = 0; i < count; i++) {
+            v0 = vertices[(i - 1 + count) % count].Position;
+            v1 = vertices[i];
+            v2 = vertices[(i + 1) % count];
+
+            Vector3d v = (v0 + v1 + v2) / 3;
+            result.Add(vertices[i] with { Position = v });
+        }
+        return result.ToArray();
     }
 
 }
