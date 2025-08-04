@@ -10,6 +10,7 @@ using System.Numerics;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
+using static MR.DotNet;
 
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
@@ -196,7 +197,7 @@ public static partial class PartingTools {
         }
 
         internal void ExtrudeFaces(double distance) {
-            var offsetF = (Vector3d v, Vector3f n, int vId) => v - Vector3d.AxisY * distance;
+            var offsetF = (Vector3d v, g3.Vector3f n, int vId) => v - Vector3d.AxisY * distance;
 
             DMesh3 mesh = new();
             mesh.Copy(Mesh);
@@ -214,21 +215,17 @@ public static partial class PartingTools {
             MeshExtrudeLoop extrude_loops = new(Mesh, loops[0]);
             extrude_loops.PositionF = offsetF;
             extrude_loops.Extrude();
-            
+
             extrude_loops = new(Mesh, loops[1]);
             extrude_loops.PositionF = offsetF;
             extrude_loops.Extrude();
 
-            // normals
-            //MeshNormals.QuickCompute(Mesh);
-
-            //MeshAutoRepair repair = new(Mesh) {
-            //    RemoveMode = MeshAutoRepair.RemoveModes.Interior,
-            //    RepairTolerance = 0.1,
-            //    MinEdgeLengthTol = 0.5,
-            //};
-            //repair.Apply();
-
+            FixMeshDegeneraciesParams settings = new() {
+                mode = FixMeshDegeneraciesParams.Mode.RemeshPatch,
+            };
+            Mesh new_mesh = Mesh.ToMesh();
+            FixMeshDegeneracies(ref new_mesh, settings);
+            Mesh = new_mesh.ToDMesh();
         }
 
         // TODO: testing concave sections detection on the inner vertices

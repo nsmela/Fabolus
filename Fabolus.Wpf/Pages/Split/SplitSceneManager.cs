@@ -83,8 +83,8 @@ public class SplitSceneManager : SceneManager {
         }
         _concaveMesh = builder.ToMeshGeometry3D();
 
-        UpdateDisplay();
-        return; //TODO: remove early return
+        // UpdateDisplay();
+        // return; //TODO: remove early return
 
         var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
         if (mould.Mesh is null || mould.IsEmpty()) {
