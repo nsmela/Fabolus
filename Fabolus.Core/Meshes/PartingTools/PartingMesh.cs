@@ -21,8 +21,10 @@ public static partial class PartingTools {
         var loops = new MeshBoundaryLoops(parting.Mesh);
         return new CuttingMeshResults {
             PartingPath = parting_indices.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray(),
+            PartingIndices = parting_indices,
             CuttingMesh = new MeshModel(parting.Mesh),
-            //InnerPath = loops[0].Vertices.Select(i => loops[0].Mesh.GetVertex(i).ToVector3()).ToArray()
+            InnerPath = loops[0].Vertices.Select(i => loops[0].Mesh.GetVertex(i).ToVector3()).ToArray(),
+
         };
         //return new MeshModel(MeshTools.MeshTools.ExtrudeMesh(parting.Mesh, Vector3d.AxisY, 2.0));
         //return new MeshModel(parting.Mesh);
@@ -418,6 +420,8 @@ public static partial class PartingTools {
 }
 
 public record struct CuttingMeshParams(
+    MeshModel Bolus,
+    MeshModel Mould,
     MeshModel Model,
     float InnerOffset = 0.1f,
     float OuterOffset = 25.0f,
@@ -431,7 +435,7 @@ public record struct CuttingMeshResults {
     public Vector3[] InnerPath = [];
     public Vector3[] OuterPath = [];
     public MeshModel Model;
-    public MeshModel PolylineMesh;
+    public MeshModel Mould;
     public MeshModel CuttingMesh;
     public MeshModel PositivePullMesh;
     public MeshModel NegativePullMesh;

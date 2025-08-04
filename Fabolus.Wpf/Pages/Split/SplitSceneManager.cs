@@ -28,14 +28,14 @@ public class SplitSceneManager : SceneManager {
 
     // parting
     private CuttingMeshParams _settings = new();
-    private MeshModel _partingMesh;
-    private MeshGeometry3D _partingPathMesh;
+    private MeshGeometry3D _partingMesh = new();
+    private MeshGeometry3D _partingPathMesh = new();
     private MeshGeometry3D _boundryMesh;
     private MeshGeometry3D _exteriorPartingMesh;
     private MeshGeometry3D _outerMesh;
     private MeshGeometry3D _concaveMesh = new();
     private MeshGeometry3D _innerMesh;
-    private MeshGeometry3D _mouldMesh;
+    private MeshGeometry3D _mouldMesh = new();
     private MeshGeometry3D _positivePullMesh;
     private MeshGeometry3D _negativePullMesh;
 
@@ -50,61 +50,24 @@ public class SplitSceneManager : SceneManager {
             _view_options = m.Options;
             UpdateDisplay();
         });
-        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitSettingsMessage>(this, (r, m) => UpdateSettings(m.Settings));
+        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitResultsMessage>(this, (r,m) => {
+            UpdateResults(m.Results);
+        });
 
         // initial values
         _settings.Model = bolus.TransformedMesh();
         _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
 
-        _path_indices = PartingTools.GeneratePartingLine(_settings.Model).ToArray();
-        _path = new Vector3Collection(_settings.Model.GetVertices(_path_indices).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2])));
-        MeshBuilder builder = new();
-        builder.AddTube(_path, 0.3, 16, true);
-        _partingPathMesh = builder.ToMeshGeometry3D();
+        var results = WeakReferenceMessenger.Default.Send(new SplitRequestResultsMessage()).Response;
+        UpdateResults(results);
 
-        var settings = WeakReferenceMessenger.Default.Send<SplitRequestSettingsMessage>().Response;
-        UpdateSettings(settings);
         UpdateDisplay();
     }
 
-    /// <summary>
-    /// Generate the parting mesh step-by-step for troubleshooting
-    /// </summary>
-    /// <param name="settings"></param>
-    private void UpdateSettings(CuttingMeshParams settings) {
-        _settings = settings with { Model = _settings.Model };
-
-        var results = PartingTools.GeneratePartingMesh(_settings.Model, _path_indices, _settings.InnerOffset, _settings.OuterOffset);
-        _partingMesh = results.CuttingMesh;
-
-        MeshBuilder builder = new();
-        foreach (var point in results.InnerPath) {
-            builder.AddSphere(new Vector3(point.X, point.Y, point.Z), 0.2);
-        }
-        _concaveMesh = builder.ToMeshGeometry3D();
-
-        // UpdateDisplay();
-        // return; //TODO: remove early return
-
-        var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
-        if (mould.Mesh is null || mould.IsEmpty()) {
-            MessageBox.Show("A valid mould is required to split", "Triangulate error", MessageBoxButton.OK, MessageBoxImage.Error);
-
-            UpdateDisplay();
-            return;
-        }
-
-        var response = MeshTools.BooleanSubtraction(mould, _partingMesh);
-
-        if (response.IsFailure || response.Data is null) {
-            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
-
-            UpdateDisplay();
-            return;
-        }
-
-        _mouldMesh = response.Data.ToGeometry();
+    private void UpdateResults(CuttingMeshResults results) {
+        _path_indices = results.PartingIndices;
+        _partingMesh = results.CuttingMesh.ToGeometry();
+        _mouldMesh = results.Mould is not null ? results.Mould.ToGeometry() : new();
 
         UpdateDisplay();
     }
@@ -126,17 +89,8 @@ public class SplitSceneManager : SceneManager {
             });
         }
 
-        // testing concave detection
-        if (_concaveMesh is not null && _concaveMesh.Positions is not null) {
-            models.Add(new DisplayModel3D {
-                Geometry = _concaveMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Emerald,
-            });
-        }
-
         // parting curve
-        if (false && _partingPathMesh.Positions.Count > 0 && _view_options.ShowPartingLine) {
+        if (_view_options.ShowPartingLine) {
             models.Add(new DisplayModel3D {
                 Geometry = _partingPathMesh,
                 Transform = MeshHelper.TransformEmpty,
@@ -146,17 +100,10 @@ public class SplitSceneManager : SceneManager {
 
         if (_partingMesh is not null && _view_options.ShowPartingMesh) {
             models.Add(new DisplayModel3D {
-                Geometry = _partingMesh.ToGeometry(),
+                Geometry = _partingMesh,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Blue,
             });
-
-            //models.Add(new DisplayModel3D {
-            //    Geometry = _exteriorPartingMesh,
-            //    Transform = MeshHelper.TransformEmpty,
-            //    Skin = DiffuseMaterials.Violet,
-            //});
-
 
             if (_mouldMesh is not null && _mouldMesh.Positions is not null && _mouldMesh.Positions.Count > 0 && _view_options.ShowPullRegions) {
                 models.Add(new DisplayModel3D {

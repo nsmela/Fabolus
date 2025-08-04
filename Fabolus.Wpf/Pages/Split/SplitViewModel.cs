@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Meshes;
+using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Core.Meshes.PartingTools;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Scene;
@@ -15,6 +16,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using static Fabolus.Core.Meshes.PartingTools.PartingTools;
+using static Fabolus.Wpf.Bolus.BolusStore;
+using static MR.DotNet.SelfIntersections;
 
 
 namespace Fabolus.Wpf.Pages.Split;
@@ -81,6 +84,9 @@ public partial class SplitViewModel : BaseViewModel {
     private void UpdateSettings() {
         var settings = CuttingSettings;
         WeakReferenceMessenger.Default.Send(new SplitSettingsMessage(settings));
+
+        var results = GeneratePreview();
+        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(results));
     }
 
     private SplitViewOptions ViewOptions => new SplitViewOptions(
@@ -100,17 +106,49 @@ public partial class SplitViewModel : BaseViewModel {
             TwistThreshold = 1 - (TwistThreshold / 90.0) // 180 = 2.0, 90 = 1.0, 0 = 0.0
         };
 
+    private MeshModel _bolus;
+    private MeshModel _mould;
+    private int[] _path_indices = [];
+
     public SplitViewModel() {
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestViewOptionsMessage>(this, (r, m) => m.Reply(ViewOptions));
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestSettingsMessage>(this, (r, m) => m.Reply(CuttingSettings));
+        WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestResultsMessage>(this, (r, m) => m.Reply(GeneratePreview()));
+
+        //WeakReferenceMessenger.Default.Send(new SplitResultsMessage(GeneratePreview()));
+    }
+
+    private CuttingMeshResults GeneratePreview() {
+        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+        _bolus = bolus.TransformedMesh();
+        _path_indices = PartingTools.GeneratePartingLine(_bolus).ToArray();
+
+        var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
+        _mould = mould;
+
+        return PartingTools.GeneratePartingMesh(
+            _bolus,
+            _path_indices,
+            InnerDistance,
+            OuterDistance);
     }
 
     // commands
 
     [RelayCommand]
     private async Task Generate() {
-        var settings = CuttingSettings;
-        WeakReferenceMessenger.Default.Send(new SplitSettingsMessage(settings));
+        var results = GeneratePreview();
+
+        results.Mould = _mould;
+        var response = MeshTools.BooleanSubtraction(_mould, results.CuttingMesh);
+
+        if (response.IsFailure || response.Data is null) {
+            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(results));
     }
 
     [RelayCommand]
