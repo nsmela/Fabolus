@@ -11,22 +11,10 @@ using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Input;
-using static Fabolus.Core.Meshes.MeshTools.MeshTools;
 using static Fabolus.Wpf.Bolus.BolusStore;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 using Fabolus.Core.Meshes.PartingTools;
-using g3;
 using Fabolus.Wpf.Features.Mould;
-using System.IO;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -87,14 +75,20 @@ public class SplitSceneManager : SceneManager {
         _settings = settings with { Model = _settings.Model };
 
         var results = PartingTools.GeneratePartingMesh(_settings.Model, _path_indices, _settings.InnerOffset, _settings.OuterOffset);
-        _partingMesh = results.Data;
+        _partingMesh = results.CuttingMesh;
+
+        MeshBuilder builder = new();
+        foreach (var point in results.InnerPath) {
+            builder.AddSphere(new Vector3(point.X, point.Y, point.Z), 0.2);
+        }
+        _concaveMesh = builder.ToMeshGeometry3D();
 
         UpdateDisplay();
         return; //TODO: remove early return
 
         var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
         if (mould.Mesh is null || mould.IsEmpty()) {
-            MessageBox.Show( "A valid mould is required to split", "Triangulate error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("A valid mould is required to split", "Triangulate error", MessageBoxButton.OK, MessageBoxImage.Error);
 
             UpdateDisplay();
             return;
@@ -148,15 +142,6 @@ public class SplitSceneManager : SceneManager {
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Yellow,
             });
-
-
-
-            models.Add(new DisplayModel3D {
-                Geometry = _innerMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Blue,
-            });
-
         }
 
         if (_partingMesh is not null && _view_options.ShowPartingMesh) {
@@ -171,39 +156,40 @@ public class SplitSceneManager : SceneManager {
             //    Transform = MeshHelper.TransformEmpty,
             //    Skin = DiffuseMaterials.Violet,
             //});
-        }
 
-        if (_mouldMesh is not null && _mouldMesh.Positions is not null && _mouldMesh.Positions.Count > 0 && _view_options.ShowPullRegions) {
-            models.Add(new DisplayModel3D {
-                Geometry = _mouldMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Ruby,
-                IsTransparent = true,
-            });
-        }
 
-        double spacing = _view_options.ExplodePartingMeshes ? 15 : 0;
-        if (_positivePullMesh is not null && _view_options.ShowNegativeParting) {
-            models.Add(new DisplayModel3D {
-                Geometry = _positivePullMesh,
-                Transform = MeshHelper.TranslationFromAxis(0, -spacing, 0),
-                Skin = DiffuseMaterials.Red,
-            });
-        }
-        
-        if (_negativePullMesh is not null && _view_options.ShowPositiveParting) {
-            models.Add(new DisplayModel3D {
-                Geometry = _negativePullMesh,
-                Transform = MeshHelper.TranslationFromAxis(0, spacing, 0),
-                Skin = DiffuseMaterials.Green,
-            });
-        }
+            if (_mouldMesh is not null && _mouldMesh.Positions is not null && _mouldMesh.Positions.Count > 0 && _view_options.ShowPullRegions) {
+                models.Add(new DisplayModel3D {
+                    Geometry = _mouldMesh,
+                    Transform = MeshHelper.TransformEmpty,
+                    Skin = DiffuseMaterials.Ruby,
+                    IsTransparent = true,
+                });
+            }
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+            double spacing = _view_options.ExplodePartingMeshes ? 15 : 0;
+            if (_positivePullMesh is not null && _view_options.ShowNegativeParting) {
+                models.Add(new DisplayModel3D {
+                    Geometry = _positivePullMesh,
+                    Transform = MeshHelper.TranslationFromAxis(0, -spacing, 0),
+                    Skin = DiffuseMaterials.Red,
+                });
+            }
+
+            if (_negativePullMesh is not null && _view_options.ShowPositiveParting) {
+                models.Add(new DisplayModel3D {
+                    Geometry = _negativePullMesh,
+                    Transform = MeshHelper.TranslationFromAxis(0, spacing, 0),
+                    Skin = DiffuseMaterials.Green,
+                });
+            }
+
+            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+        }
     }
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
-    private static Vector3Collection ToVectorCollection(IEnumerable<System.Numerics.Vector3> vectors ) => new Vector3Collection(vectors.Select(ToVector3));
+    private static Vector3Collection ToVectorCollection(IEnumerable<System.Numerics.Vector3> vectors) => new Vector3Collection(vectors.Select(ToVector3));
     private static System.Numerics.Vector3[] ToGenericVectorArray(IEnumerable<Vector3> vectors) =>
         vectors.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)).ToArray();
 }

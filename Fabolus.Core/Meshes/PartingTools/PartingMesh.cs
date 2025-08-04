@@ -10,15 +10,21 @@ using System.Numerics;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
-using static MR.DotNet;
 
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
-    public static Result<MeshModel> GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset) {
+    public static CuttingMeshResults GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset) {
         PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
-        // TODO: issue with added triangles not on a boundry return new MeshModel(MeshTools.MeshTools.ExtrudeMesh(parting.Mesh, Vector3d.AxisY, 2.0));
-        //parting.ExtrudeFaces(2.0);
-        return new MeshModel(parting.Mesh);
+        // TODO: issue with added triangles not on a boundry
+        parting.ExtrudeFaces(2.0);
+        var loops = new MeshBoundaryLoops(parting.Mesh);
+        return new CuttingMeshResults {
+            PartingPath = parting_indices.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray(),
+            CuttingMesh = new MeshModel(parting.Mesh),
+            //InnerPath = loops[0].Vertices.Select(i => loops[0].Mesh.GetVertex(i).ToVector3()).ToArray()
+        };
+        //return new MeshModel(MeshTools.MeshTools.ExtrudeMesh(parting.Mesh, Vector3d.AxisY, 2.0));
+        //return new MeshModel(parting.Mesh);
     }
 
     internal record struct Vertex(int Id, Vector3d Position, Vector3d Direction, Vector3d Normal) {
@@ -190,17 +196,39 @@ public static partial class PartingTools {
         }
 
         internal void ExtrudeFaces(double distance) {
-            // extrude the mesh face
-            MeshExtrudeMesh extrude = new(Mesh) {
-                ExtrudedPositionF = (v, n, vId) => v + Vector3d.AxisY * distance,
-            };
-            extrude.Extrude();
+            var offsetF = (Vector3d v, Vector3f n, int vId) => v - Vector3d.AxisY * distance;
 
-            // repair the mesh if needed
-            MeshAutoRepair repair = new(extrude.Mesh);
-            repair.Apply();
+            DMesh3 mesh = new();
+            mesh.Copy(Mesh);
+            MeshExtrudeFaces extrude = new(mesh, mesh.TriangleIndices().ToArray());
+            extrude.ExtrudedPositionF = offsetF;
+            var success = extrude.Extrude();
+            MeshEditor editor = new(Mesh);
+            int[] old_faces = editor.Mesh.TriangleIndices().ToArray();
+            editor.AppendMesh(mesh);
+            editor.ReverseTriangles(Mesh.TriangleIndices().Where(t => !old_faces.Contains(t)).ToArray());
+            Mesh = editor.Mesh;
 
-            Mesh = repair.Mesh;
+            // extrude loops
+            MeshBoundaryLoops loops = new(Mesh);
+            MeshExtrudeLoop extrude_loops = new(Mesh, loops[0]);
+            extrude_loops.PositionF = offsetF;
+            extrude_loops.Extrude();
+            
+            extrude_loops = new(Mesh, loops[1]);
+            extrude_loops.PositionF = offsetF;
+            extrude_loops.Extrude();
+
+            // normals
+            //MeshNormals.QuickCompute(Mesh);
+
+            //MeshAutoRepair repair = new(Mesh) {
+            //    RemoveMode = MeshAutoRepair.RemoveModes.Interior,
+            //    RepairTolerance = 0.1,
+            //    MinEdgeLengthTol = 0.5,
+            //};
+            //repair.Apply();
+
         }
 
         // TODO: testing concave sections detection on the inner vertices

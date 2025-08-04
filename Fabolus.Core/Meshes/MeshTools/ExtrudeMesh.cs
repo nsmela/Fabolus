@@ -45,7 +45,7 @@ public static partial class MeshTools {
         }
 
         // TODO: figure out why this is returning -2, which means the appended triangle was not appended to a boundry edge
-        int[] new_tris = StitchLoop(editor.Mesh, loopA.Vertices, loopB.Vertices);
+        //int[] new_tris = StitchLoop(editor.Mesh, loopA.Vertices, loopB.Vertices);
         
         // TODO: cleanup and repair
 
