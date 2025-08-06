@@ -14,20 +14,23 @@ using static MR.DotNet;
 
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
-    public static CuttingMeshResults GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset) {
+    public static CuttingMeshResults GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset, double seperation_distance) {
         PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
         // TODO: issue with added triangles not on a boundry
-        parting.ExtrudeFaces(2.0);
+        parting.ExtrudeFaces(seperation_distance);
+
+        // checking for errors
+        var result = MeshTools.MeshTools.EvaluateMesh((MeshModel)parting.Mesh);
+
         var loops = new MeshBoundaryLoops(parting.Mesh);
         return new CuttingMeshResults {
             PartingPath = parting_indices.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray(),
             PartingIndices = parting_indices,
             CuttingMesh = new MeshModel(parting.Mesh),
             InnerPath = loops[0].Vertices.Select(i => loops[0].Mesh.GetVertex(i).ToVector3()).ToArray(),
-
+            Model = model,
+            OuterPath = parting.Vertices.Select(v => v.Position.ToVector3()).ToArray(),
         };
-        //return new MeshModel(MeshTools.MeshTools.ExtrudeMesh(parting.Mesh, Vector3d.AxisY, 2.0));
-        //return new MeshModel(parting.Mesh);
     }
 
     internal record struct Vertex(int Id, Vector3d Position, Vector3d Direction, Vector3d Normal) {
@@ -53,7 +56,6 @@ public static partial class PartingTools {
 
             for (int i = 0; i < 3; i++) { 
                 Vertices = vertices;
-                //vertices = StitchInner(vertices);
             } 
         }
 
@@ -182,13 +184,13 @@ public static partial class PartingTools {
                 }
             }
 
-            while (a <= nA) {
+            while (a < nA) {
                 int a0 = a_indices[a % nA], a1 = a_indices[(a + 1) % nA], b0 = b_indices[b % nB];
                 mesh.AppendTriangle(a1, a0, b0);
                 a++;
             }
 
-            while (b <= nB) {
+            while (b < nB) {
                 int a0 = a_indices[a % nA], b0 = b_indices[b % nB], b1 = b_indices[(b + 1) % nB];
                 mesh.AppendTriangle(a0, b0, b1);
                 b++;

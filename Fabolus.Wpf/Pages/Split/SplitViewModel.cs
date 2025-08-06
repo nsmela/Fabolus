@@ -18,6 +18,7 @@ using System.Windows;
 using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using static MR.DotNet.SelfIntersections;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace Fabolus.Wpf.Pages.Split;
@@ -85,8 +86,8 @@ public partial class SplitViewModel : BaseViewModel {
         var settings = CuttingSettings;
         WeakReferenceMessenger.Default.Send(new SplitSettingsMessage(settings));
 
-        var results = GeneratePreview();
-        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(results));
+        _results = GeneratePreview();
+        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
     }
 
     private SplitViewOptions ViewOptions => new SplitViewOptions(
@@ -108,6 +109,7 @@ public partial class SplitViewModel : BaseViewModel {
 
     private MeshModel _bolus;
     private MeshModel _mould;
+    private CuttingMeshResults _results;
     private int[] _path_indices = [];
 
     public SplitViewModel() {
@@ -115,46 +117,89 @@ public partial class SplitViewModel : BaseViewModel {
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestSettingsMessage>(this, (r, m) => m.Reply(CuttingSettings));
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestResultsMessage>(this, (r, m) => m.Reply(GeneratePreview()));
 
-        //WeakReferenceMessenger.Default.Send(new SplitResultsMessage(GeneratePreview()));
-    }
-
-    private CuttingMeshResults GeneratePreview() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         _bolus = bolus.TransformedMesh();
-        _path_indices = PartingTools.GeneratePartingLine(_bolus).ToArray();
 
         var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
         _mould = mould;
+    }
 
-        return PartingTools.GeneratePartingMesh(
+    private CuttingMeshResults GeneratePreview() {
+        _path_indices = PartingTools.GeneratePartingLine(_bolus).ToArray();
+
+        _results = PartingTools.GeneratePartingMesh(
             _bolus,
             _path_indices,
             InnerDistance,
-            OuterDistance);
+            OuterDistance,
+            GapDistance);
+
+        _results.Mould = _mould;
+
+        return _results;
     }
 
     // commands
 
     [RelayCommand]
     private async Task Generate() {
-        var results = GeneratePreview();
-
-        results.Mould = _mould;
-        var response = MeshTools.BooleanSubtraction(_mould, results.CuttingMesh);
+        // Try joining up tools and remove as one from the mould
+        var response = MeshTools.BooleanUnion(_bolus, _results.CuttingMesh);
 
         if (response.IsFailure || response.Data is null) {
             var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
             MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            _results.CuttingMesh = new();
+            WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
+            return;
+        }
+        _results.CuttingMesh = response.Data;
+        response = MeshTools.BooleanSubtraction(_mould, response.Data);
+
+        if (response.IsFailure || response.Data is null) {
+            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
+            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
             return;
         }
 
-        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(results));
+        MeshModel[] meshes = MeshTools.SeperateModels(response.Data);
+
+        if (meshes.Length < 1) {
+            MessageBox.Show("Mould failed to seperate into two meshes", "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
+            return;
+        }
+
+        _results.PositivePullMesh = meshes[0];
+        _results.NegativePullMesh = meshes[1];
+
+        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
+    }
+
+    [RelayCommand]
+    private async Task ExportCuttingMesh() {
+        
+        if (MeshModel.IsNullOrEmpty(_results.CuttingMesh)) { return; }
+
+        SaveFileDialog saveFile = new() {
+            Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*"
+        };
+
+        //if successful, create mesh
+        if (saveFile.ShowDialog() != true) { return; }
+
+        var folder = Path.GetDirectoryName(saveFile.FileName);
+        var filename = Path.GetFileNameWithoutExtension(saveFile.FileName);
+        var filetype = Path.GetExtension(saveFile.FileName);
+
+        string path = Path.Combine(folder, $"{filename}{filetype}");
+        await MeshModel.ToFile(path, _results.CuttingMesh);
+        
     }
 
     [RelayCommand]
     private async Task ExportSeperate() {
-        var models = WeakReferenceMessenger.Default.Send(new SplitRequestModelsMessage()).Response;
-        if (models is null || models.Length == 0) { return; }
 
         SaveFileDialog saveFile = new() {
             Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*"
@@ -168,6 +213,9 @@ public partial class SplitViewModel : BaseViewModel {
         var filetype = Path.GetExtension(saveFile.FileName);
 
         string path = string.Empty;
+
+        MeshModel[] models = [_results.NegativePullMesh, _results.PositivePullMesh];
+
         for (int i = 0; i < models.Length; i++) {
             if (MeshModel.IsNullOrEmpty(models[i])) { continue; } // skip empty models
             path = Path.Combine(folder, $"{filename}0{i}{filetype}");
@@ -177,9 +225,6 @@ public partial class SplitViewModel : BaseViewModel {
 
     [RelayCommand]
     private async Task ExportJoined() {
-        var models = WeakReferenceMessenger.Default.Send(new SplitRequestModelsMessage()).Response;
-        if (models is null || models.Length == 0) { return; }
-
         SaveFileDialog saveFile = new() {
             Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*"
         };
@@ -189,8 +234,8 @@ public partial class SplitViewModel : BaseViewModel {
 
         // saving both models in a single STL file with a small gap between them
         // copying the meshes to ensure they dont modify the originals
-        MeshModel negative_parting_model = MeshModel.Copy(models[0]);
-        MeshModel positive_parting_model = MeshModel.Copy(models[1]);
+        MeshModel negative_parting_model = MeshModel.Copy(_results.NegativePullMesh);
+        MeshModel positive_parting_model = MeshModel.Copy(_results.PositivePullMesh);
         positive_parting_model.ApplyTranslation(0, SeperationDistance, 0); // move to create gap
 
         MeshModel combinedModel = MeshModel.Combine([

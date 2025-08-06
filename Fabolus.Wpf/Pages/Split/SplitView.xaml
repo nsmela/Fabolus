@@ -15,8 +15,14 @@
                 FontSize="12" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"/>
-        <mah:NumericUpDown Minimum="0.0" Value="{Binding GapDistance, Mode=TwoWay}"/>
-
+        <Slider Value="{Binding GapDistance, Mode=TwoWay}" 
+                Minimum="0.05"
+                Maximum="2.0"
+                TickFrequency="0.05"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="2"
+                Margin="2"/>
+        
         <Label Content="outer distance (mm)" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
@@ -175,6 +181,15 @@
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
                 Command="{Binding GenerateCommand}" />
+
+        <Button Content="export cutting mesh" 
+                Style="{DynamicResource MahApps.Styles.Button.Square}"
+                Height="30"
+                HorizontalAlignment="Stretch"
+                FontSize="14" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                Command="{Binding ExportCuttingMeshCommand}" />
         
         <Button Content="export models" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"

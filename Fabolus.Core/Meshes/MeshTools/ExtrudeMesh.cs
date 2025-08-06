@@ -9,6 +9,12 @@ namespace Fabolus.Core.Meshes.MeshTools;
 
 public static partial class MeshTools {
     public static DMesh3 ExtrudeMesh(DMesh3 mesh, Vector3d direction, double distance) {
+        return mesh;
+        direction = direction.Normalized;
+        MeshExtrudeMesh extrusion = new(mesh);
+        extrusion.ExtrudedPositionF = ( (Vector3d v, Vector3f n, int i) => v - direction * distance);
+        extrusion.Extrude();
+        return mesh;
         // copy to ensure we don't change the original mesh
         DMesh3 mA = new();
         mA.Copy(mesh);
