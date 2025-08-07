@@ -17,20 +17,20 @@ public static partial class PartingTools {
     public static CuttingMeshResults GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset, double seperation_distance) {
         PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
         // TODO: issue with added triangles not on a boundry
-        parting.ExtrudeFaces(seperation_distance);
+        //parting.ExtrudeFaces(seperation_distance);
 
         // checking for errors
-        var result = MeshTools.MeshTools.EvaluateMesh((MeshModel)parting.Mesh);
+        //var result = MeshTools.MeshTools.EvaluateMesh((MeshModel)parting.Mesh);
 
         var loops = new MeshBoundaryLoops(parting.Mesh);
         return new CuttingMeshResults {
             PartingPath = parting_indices.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray(),
             PartingIndices = parting_indices,
             CuttingMesh = new MeshModel(parting.Mesh),
-            InnerPath = loops[0].Vertices.Select(i => loops[0].Mesh.GetVertex(i).ToVector3()).ToArray(),
+            InnerPath = [],//loops[0].Vertices.Select(i => loops[0].Mesh.GetVertex(i).ToVector3()).ToArray(),
             Model = model,
             OuterPath = parting.Vertices.Select(v => v.Position.ToVector3()).ToArray(),
-        };
+        }; 
     }
 
     internal record struct Vertex(int Id, Vector3d Position, Vector3d Direction, Vector3d Normal) {
@@ -201,7 +201,12 @@ public static partial class PartingTools {
         }
 
         internal void ExtrudeFaces(double distance) {
-            var offsetF = (Vector3d v, g3.Vector3f n, int vId) => v - Vector3d.AxisY * distance;
+            Mesh = MeshTools.MeshTools.ExtrudeMesh(Mesh, -Vector3d.AxisY, 0.4);
+            var new_mesh = MeshTools.MeshTools.OffsetMesh(Mesh.ToMesh(), (float)distance);
+            Mesh = new_mesh.ToDMesh();
+            return;
+
+            var offsetF = (Vector3d v, g3.Vector3f n, int vId) => v - Vector3d.AxisY * 1.0;
 
             DMesh3 mesh = new();
             mesh.Copy(Mesh);
@@ -224,12 +229,12 @@ public static partial class PartingTools {
             extrude_loops.PositionF = offsetF;
             extrude_loops.Extrude();
 
-            FixMeshDegeneraciesParams settings = new() {
-                mode = FixMeshDegeneraciesParams.Mode.RemeshPatch,
-            };
-            Mesh new_mesh = Mesh.ToMesh();
-            FixMeshDegeneracies(ref new_mesh, settings);
-            Mesh = new_mesh.ToDMesh();
+            //FixMeshDegeneraciesParams settings = new() {
+            //    mode = FixMeshDegeneraciesParams.Mode.RemeshPatch,
+            //};
+            //Mesh new_mesh = Mesh.ToMesh();
+            //FixMeshDegeneracies(ref new_mesh, settings);
+            //Mesh = new_mesh.ToDMesh();
         }
 
         // TODO: testing concave sections detection on the inner vertices
@@ -433,6 +438,7 @@ public record struct CuttingMeshParams(
 
 public record struct CuttingMeshResults {
     public int[] PartingIndices = [];
+    public float GapDistance = 0.1f;
     public Vector3[] PartingPath = [];
     public Vector3[] InnerPath = [];
     public Vector3[] OuterPath = [];

@@ -143,38 +143,17 @@ public partial class SplitViewModel : BaseViewModel {
 
     [RelayCommand]
     private async Task Generate() {
-        // Try joining up tools and remove as one from the mould
-        var response = MeshTools.BooleanUnion(_bolus, _results.CuttingMesh);
+        // trying to keep all boolean operations within MR.Dotnet framework
+        var response = PartingTools.PartModel(_results);
 
-        if (response.IsFailure || response.Data is null) {
+        if (response.IsFailure) {
             var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            _results.CuttingMesh = new();
-            WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
-            return;
-        }
-        _results.CuttingMesh = response.Data;
-        response = MeshTools.BooleanSubtraction(_mould, response.Data);
-
-        if (response.IsFailure || response.Data is null) {
-            var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(string.Join(Environment.NewLine, errors), $"Generate failed: {errors}", MessageBoxButton.OK, MessageBoxImage.Error);
             WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
             return;
         }
 
-        MeshModel[] meshes = MeshTools.SeperateModels(response.Data);
-
-        if (meshes.Length < 1) {
-            MessageBox.Show("Mould failed to seperate into two meshes", "Triangulate Split Mesh Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
-            return;
-        }
-
-        _results.PositivePullMesh = meshes[0];
-        _results.NegativePullMesh = meshes[1];
-
-        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
+        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(response.Data));
     }
 
     [RelayCommand]
