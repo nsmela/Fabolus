@@ -2,23 +2,14 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Meshes;
-using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Core.Meshes.PartingTools;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features.Mould;
 using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using static Fabolus.Core.Meshes.PartingTools.PartingTools;
 using static Fabolus.Wpf.Bolus.BolusStore;
-using static MR.DotNet.SelfIntersections;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace Fabolus.Wpf.Pages.Split;
@@ -27,13 +18,6 @@ public partial class SplitViewModel : BaseViewModel {
     public override string TitleText => "split";
 
     public override SceneManager GetSceneManager => new SplitSceneManager();
-
-    [ObservableProperty] private float _seperationDistance = 0.3f;
-    partial void OnSeperationDistanceChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        WeakReferenceMessenger.Default.Send(new SplitSeperationDistanceMessage(newValue));
-    }
 
     // view meshes
     [ObservableProperty] private bool _showBolus = true;
@@ -60,7 +44,6 @@ public partial class SplitViewModel : BaseViewModel {
     [ObservableProperty] private int _outerDistance = 20;
     [ObservableProperty] private float _innerDistance = 1.0f;
     [ObservableProperty] private float _gapDistance = 0.1f;
-    [ObservableProperty] private float _twistThreshold = 90.0f;
 
     partial void OnOuterDistanceChanged(int oldValue, int newValue) {
         if (oldValue ==  newValue) { return; }
@@ -73,11 +56,6 @@ public partial class SplitViewModel : BaseViewModel {
     }
 
     partial void OnGapDistanceChanged(float oldValue, float newValue) {
-        if (oldValue == newValue) { return; }
-        UpdateSettings();
-    }
-
-    partial void OnTwistThresholdChanged(float oldValue, float newValue) {
         if (oldValue == newValue) { return; }
         UpdateSettings();
     }
@@ -104,7 +82,6 @@ public partial class SplitViewModel : BaseViewModel {
             OuterOffset = OuterDistance,
             InnerOffset = InnerDistance,
             MeshDepth = GapDistance,
-            TwistThreshold = 1 - (TwistThreshold / 90.0) // 180 = 2.0, 90 = 1.0, 0 = 0.0
         };
 
     private MeshModel _bolus;
@@ -157,27 +134,6 @@ public partial class SplitViewModel : BaseViewModel {
     }
 
     [RelayCommand]
-    private async Task ExportCuttingMesh() {
-        
-        if (MeshModel.IsNullOrEmpty(_results.CuttingMesh)) { return; }
-
-        SaveFileDialog saveFile = new() {
-            Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*"
-        };
-
-        //if successful, create mesh
-        if (saveFile.ShowDialog() != true) { return; }
-
-        var folder = Path.GetDirectoryName(saveFile.FileName);
-        var filename = Path.GetFileNameWithoutExtension(saveFile.FileName);
-        var filetype = Path.GetExtension(saveFile.FileName);
-
-        string path = Path.Combine(folder, $"{filename}{filetype}");
-        await MeshModel.ToFile(path, _results.CuttingMesh);
-        
-    }
-
-    [RelayCommand]
     private async Task ExportSeperate() {
 
         SaveFileDialog saveFile = new() {
@@ -215,7 +171,7 @@ public partial class SplitViewModel : BaseViewModel {
         // copying the meshes to ensure they dont modify the originals
         MeshModel negative_parting_model = MeshModel.Copy(_results.NegativePullMesh);
         MeshModel positive_parting_model = MeshModel.Copy(_results.PositivePullMesh);
-        positive_parting_model.ApplyTranslation(0, SeperationDistance, 0); // move to create gap
+        positive_parting_model.ApplyTranslation(0, GapDistance, 0); // move to create gap
 
         MeshModel combinedModel = MeshModel.Combine([
             negative_parting_model,

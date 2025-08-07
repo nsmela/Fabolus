@@ -16,18 +16,20 @@ namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
     public static CuttingMeshResults GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset, double seperation_distance) {
         PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
-        // TODO: issue with added triangles not on a boundry
-        //parting.ExtrudeFaces(seperation_distance);
-
-        // checking for errors
-        //var result = MeshTools.MeshTools.EvaluateMesh((MeshModel)parting.Mesh);
+        // TODO: use MeshLib instead for this
+        // c++ code:
+        //Mesh mesh;
+        //mesh.addSeparateContours( { initContour} ); // add edge loop in mesh representing initial ring
+        //auto newLoop = makeDegenerateBandAroundHole(mesh, EdgeId(0)); // create degenerate triangle fan around initial ring
+        //for (int i = 0; i < newLoop.size(); ++i)
+        //    mesh.points[mesh.topology.org(newLoop[i])] = initContour[i] + initContourNormal[i] * extensionAmount; // extend degenerated fan to desired size
 
         var loops = new MeshBoundaryLoops(parting.Mesh);
         return new CuttingMeshResults {
             PartingPath = parting_indices.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray(),
             PartingIndices = parting_indices,
             CuttingMesh = new MeshModel(parting.Mesh),
-            InnerPath = [],//loops[0].Vertices.Select(i => loops[0].Mesh.GetVertex(i).ToVector3()).ToArray(),
+            InnerPath = [],
             Model = model,
             OuterPath = parting.Vertices.Select(v => v.Position.ToVector3()).ToArray(),
         }; 
@@ -78,37 +80,6 @@ public static partial class PartingTools {
             parting.Offset(outer_offset);
 
             return parting;
-        }
-
-        private Vertex[] StitchInner(Vertex[] vertices) {
-            // first stitch concave sections
-            List<Vertex> results = [];
-            List<double> normals = [];
-
-            Vertex v0, v1, v2;
-            double angle_between = 0.0;
-            int count = vertices.Length;
-            for (int i = 0; i < count; i++) {
-
-                v0 = vertices[(i - 1 + count) % count]; // prev
-                v1 = vertices[i]; // current
-                v2 = vertices[(i + 1) % count]; // next
-
-                if (results.Contains(v0) || results.Contains(v2)) { continue; }
-
-                angle_between = v0.Normal.AngleR(v2.Normal) / MathUtil.HalfPI; // between 0 to 1.0 and 0.5+ is 90 degrees or more
-                normals.Add(angle_between);
-                if (angle_between < 0.50) { continue; }
-
-                Mesh.AppendTriangle(v0.Id, v1.Id, v2.Id);
-                results.Add(v1);
-            }
-
-            return vertices.Where(v => !results.Contains(v)).ToArray(); // remove the results
-
-            // change vertices to skip concave verts
-
-
         }
 
         private void StitchVerts(Vertex[] outer) {
@@ -200,68 +171,6 @@ public static partial class PartingTools {
             Mesh = mesh;
         }
 
-        internal void ExtrudeFaces(double distance) {
-            Mesh = MeshTools.MeshTools.ExtrudeMesh(Mesh, -Vector3d.AxisY, 0.4);
-            var new_mesh = MeshTools.MeshTools.OffsetMesh(Mesh.ToMesh(), (float)distance);
-            Mesh = new_mesh.ToDMesh();
-            return;
-
-            var offsetF = (Vector3d v, g3.Vector3f n, int vId) => v - Vector3d.AxisY * 1.0;
-
-            DMesh3 mesh = new();
-            mesh.Copy(Mesh);
-            MeshExtrudeFaces extrude = new(mesh, mesh.TriangleIndices().ToArray());
-            extrude.ExtrudedPositionF = offsetF;
-            var success = extrude.Extrude();
-            MeshEditor editor = new(Mesh);
-            int[] old_faces = editor.Mesh.TriangleIndices().ToArray();
-            editor.AppendMesh(mesh);
-            editor.ReverseTriangles(Mesh.TriangleIndices().Where(t => !old_faces.Contains(t)).ToArray());
-            Mesh = editor.Mesh;
-
-            // extrude loops
-            MeshBoundaryLoops loops = new(Mesh);
-            MeshExtrudeLoop extrude_loops = new(Mesh, loops[0]);
-            extrude_loops.PositionF = offsetF;
-            extrude_loops.Extrude();
-
-            extrude_loops = new(Mesh, loops[1]);
-            extrude_loops.PositionF = offsetF;
-            extrude_loops.Extrude();
-
-            //FixMeshDegeneraciesParams settings = new() {
-            //    mode = FixMeshDegeneraciesParams.Mode.RemeshPatch,
-            //};
-            //Mesh new_mesh = Mesh.ToMesh();
-            //FixMeshDegeneracies(ref new_mesh, settings);
-            //Mesh = new_mesh.ToDMesh();
-        }
-
-        // TODO: testing concave sections detection on the inner vertices
-        public Vector3[] GetConcavePoints(double angle) {
-            List<Vector3d> results = [];
-            List<double> dots = [];
-
-            Vertex v0, v1, v2;
-            double angle_between = 0.0;
-            int count = InnerVertices.Length;
-            for(int i = 0; i < count; i++) {
-                v0 = InnerVertices[(i - 1 + count) % count]; // prev
-                v1 = InnerVertices[i]; // current
-                v2 = InnerVertices[(i + 1) % count]; // next
-
-                angle_between = v0.Normal.AngleR(v2.Normal);
-                dots.Add(angle_between);
-                if (angle_between > angle) { results.Add(v1); }
-            }
-
-            return results.Select(v => v.ToVector3()).ToArray();
-        }
-    }
-    
-    public static Vector3[] GetConcavePoints(CuttingMeshParams settings, int[] path) {
-        var parting = PartingMesh.Create(settings.Model.Mesh, path, settings.InnerOffset, settings.OuterOffset);
-        return parting.GetConcavePoints(settings.TwistThreshold);
     }
 
     internal static Vertex[] GenerateVertices(DMesh3 mesh, int[] path) {
@@ -305,7 +214,6 @@ public static partial class PartingTools {
                 double angle = dir.AngleD(v1.Direction);
                 if (angle > max_angle) { // good position
                     was_cleaned = true;
-                    //cleaned.Add(v1 with { Position = v0.Position + (v1.Position - v0.Position) * 0.5 }); // move the point slightly back
                     continue;
                 }
 

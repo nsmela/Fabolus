@@ -19,15 +19,16 @@ public static partial class PartingTools {
             var meshes = MeshTools.MeshTools.BooleanSplit(mould, cutting, results.GapDistance);
 
             if (meshes.IsFailure) { return meshes.Errors; }
+            if (meshes.Data.Length == 0) { return new MeshError($"Boolean Split produced no meshes!"); }
+            if (meshes.Data.Length == 1) { return new MeshError($"Boolean Split produced only one mesh!"); }
                
             results.PositivePullMesh = new MeshModel((Mesh)meshes.Data[0]);
             results.NegativePullMesh = new MeshModel((Mesh)meshes.Data[1]);
-            
+
+            return results;
         }
         catch (Exception e) {
             return new MeshError($"Part Model failed: {e.Message}");
         }
-
-        return results;
     }
 }

@@ -9,7 +9,6 @@ using SharpDX;
 using System.Windows;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Core.Meshes.PartingTools;
-using Fabolus.Wpf.Features.Mould;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -100,7 +99,7 @@ public class SplitSceneManager : SceneManager {
         }
 
         // mould mesh
-        if (_mouldMesh is not null && _mouldMesh.Positions is not null && _mouldMesh.Positions.Count > 0 && _view_options.ShowPullRegions) {
+        if (_view_options.ShowPullRegions && _mouldMesh is not null && !_mouldMesh.IsEmpty()) {
             models.Add(new DisplayModel3D {
                 Geometry = _mouldMesh,
                 Transform = MeshHelper.TransformEmpty,
@@ -132,9 +131,7 @@ public class SplitSceneManager : SceneManager {
     
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
-    private static Vector3Collection ToVectorCollection(IEnumerable<System.Numerics.Vector3> vectors) => new Vector3Collection(vectors.Select(ToVector3));
-    private static System.Numerics.Vector3[] ToGenericVectorArray(IEnumerable<Vector3> vectors) =>
-        vectors.Select(v => new System.Numerics.Vector3(v.X, v.Y, v.Z)).ToArray();
+
 }
 
 

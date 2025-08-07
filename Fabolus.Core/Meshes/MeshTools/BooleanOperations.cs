@@ -15,6 +15,9 @@ public static partial class MeshTools {
         return BooleanSubtraction(bodyMesh, toolMesh);
     }
 
+    internal static Result<MeshModel> BooleanSubtraction(DMesh3 body, DMesh3 tool) =>
+        BooleanSubtraction(body, tool);
+
     internal static Result<MeshModel> BooleanSubtraction(Mesh body, Mesh tool) {
         try {
             var result = Boolean(body, tool, BooleanOperation.DifferenceAB);
