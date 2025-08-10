@@ -56,7 +56,7 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
 
         if (ToolMeshes is null || ToolMeshes.Count() == 0) { return mould.Data; }
 
-        var result = MeshTools.BooleanSubtraction(mould.Data.Mesh, tools);
+        var result = MeshTools.BooleanSubtraction(mould.Data.Mesh.ToMesh(), tools.ToMesh());
         return new Result<MeshModel> { Data = result.Data, IsSuccess = result.IsSuccess, Errors = result.Errors };
     }
 
@@ -101,7 +101,7 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
                 return errors; 
             }
 
-            var mesh_result = MeshTools.BooleanSubtraction(extruded, trough.Data);
+            var mesh_result = MeshTools.BooleanSubtraction(extruded.ToMesh(), trough.Data.ToMesh());
             if (mesh_result.IsFailure) {
                 List<MeshError> errors = [.. result.Errors, new MeshError("Failed to subtract trough")];
                 return errors; 
