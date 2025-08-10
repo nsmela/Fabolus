@@ -73,16 +73,37 @@ public static partial class PartingTools {
         return path_distance > mesh.GetVertex(v0).Distance(mesh.GetVertex(v2)); // skip if the path is longer than the direct distance
     }
 
-    public static Vector3[] PartingPath(MeshModel model) {
+    public static List<Vector3[]> PartingPath(MeshModel model) {
         DMesh3 mesh = model.Mesh;
 
         MeshRegionBoundaryLoops loops = new(mesh, mesh.TriangleIndices().ToArray());
 
-        List<g3.Vector3f> points = [];
+        List<Vector3[]> points = [];
         foreach (g3.EdgeLoop loop in loops) {
-            points.AddRange(loop.Vertices.Select(vId => (g3.Vector3f)mesh.GetVertex(vId)));
+            if (loop.EdgeCount < 10) { continue; }
+
+            List<g3.Vector3f> p = [];
+            p.AddRange(loop.Vertices.Select(vId => (g3.Vector3f)mesh.GetVertex(vId)));
+            points.Add(p.Select(p => new Vector3(p.x, p.y, p.z)).ToArray());
         }
 
-        return points.Select(p => new Vector3(p.x, p.y, p.z)).ToArray();
+        return points;
+    }
+
+    public static List<int[]> PartingPathIndices(MeshModel model) {
+        DMesh3 mesh = model.Mesh;
+
+        MeshRegionBoundaryLoops loops = new(mesh, mesh.TriangleIndices().ToArray());
+
+        List<int[]> points = [];
+        foreach (g3.EdgeLoop loop in loops) {
+            if (loop.EdgeCount < 10) { continue; }
+
+            List<int> p = [];
+            p.AddRange(loop.Vertices);
+            points.Add(p.ToArray());
+        }
+
+        return points;
     }
 }

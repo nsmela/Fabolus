@@ -14,8 +14,12 @@ using static MR.DotNet;
 
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
-    public static CuttingMeshResults GeneratePartingMesh(MeshModel model, int[] parting_indices, double inner_offset, double outer_offset, double seperation_distance) {
-        PartingMesh parting = PartingMesh.Create(model.Mesh, parting_indices, inner_offset, outer_offset);
+    public static CuttingMeshResults GeneratePartingMesh(MeshModel model, List<int[]> parting_indices, double inner_offset, double outer_offset, double seperation_distance) {
+        List<PartingMesh> partings = [];
+        foreach (int[] path in parting_indices) {
+            partings.Add(PartingMesh.Create(model.Mesh, path, inner_offset, outer_offset));
+        }
+
         // TODO: use MeshLib instead for this
         // c++ code:
         //Mesh mesh;
@@ -24,14 +28,20 @@ public static partial class PartingTools {
         //for (int i = 0; i < newLoop.size(); ++i)
         //    mesh.points[mesh.topology.org(newLoop[i])] = initContour[i] + initContourNormal[i] * extensionAmount; // extend degenerated fan to desired size
 
-        var loops = new MeshBoundaryLoops(parting.Mesh);
+        //var loops = new MeshBoundaryLoops(parting.Mesh);
+        // merging mutliple cutting meshes
+        MeshEditor editor = new(new DMesh3());
+        foreach (PartingMesh parting in partings) {
+            editor.AppendMesh(parting.Mesh);
+        }
+
         return new CuttingMeshResults {
-            PartingPath = parting_indices.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray(),
+            PartingPaths = parting_indices.Select(p => p.Select(i => model.Mesh.GetVertex(i).ToVector3()).ToArray()).ToList(),
             PartingIndices = parting_indices,
-            CuttingMesh = new MeshModel(parting.Mesh),
+            CuttingMesh = new MeshModel(editor.Mesh),
             InnerPath = [],
             Model = model,
-            OuterPath = parting.Vertices.Select(v => v.Position.ToVector3()).ToArray(),
+            OuterPath = partings[0].Vertices.Select(v => v.Position.ToVector3()).ToArray(),
         }; 
     }
 
@@ -74,6 +84,20 @@ public static partial class PartingTools {
             // smooth the path
             vertices = AverageVertices(vertices);
             vertices = LaplacianSmoothing(vertices);
+
+            // determine if the offsets need to expand or shrink
+            Vector3d centre = Vector3d.Zero;
+            foreach(Vertex v in vertices) {
+                centre += v.Position;
+            }
+
+            bool[] facing_centre = new bool[vertices.Length];
+            for (int i = 0; i < vertices.Length; i++) {
+                facing_centre[i] = vertices[i].Position.AngleD(centre - vertices[i]) > 90.0;
+            }
+
+            bool inwards = facing_centre.Where(b => b == true).Count() > (int)(facing_centre.Length / 2);
+
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
 
             PartingMesh parting = new(inner_vertices);
@@ -345,9 +369,9 @@ public record struct CuttingMeshParams(
 );
 
 public record struct CuttingMeshResults {
-    public int[] PartingIndices = [];
+    public List<int[]> PartingIndices = [];
     public float GapDistance = 0.1f;
-    public Vector3[] PartingPath = [];
+    public List<Vector3[]> PartingPaths = [];
     public Vector3[] InnerPath = [];
     public Vector3[] OuterPath = [];
     public MeshModel Model;

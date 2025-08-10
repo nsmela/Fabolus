@@ -2,12 +2,14 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Meshes;
+using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Core.Meshes.PartingTools;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features.Mould;
 using Microsoft.Win32;
 using System.IO;
+using System.Numerics;
 using System.Windows;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
@@ -87,7 +89,7 @@ public partial class SplitViewModel : BaseViewModel {
     private MeshModel _bolus;
     private MeshModel _mould;
     private CuttingMeshResults _results;
-    private int[] _path_indices = [];
+    private List<int[]> _path_indices = [];
 
     public SplitViewModel() {
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestViewOptionsMessage>(this, (r, m) => m.Reply(ViewOptions));
@@ -102,7 +104,9 @@ public partial class SplitViewModel : BaseViewModel {
     }
 
     private CuttingMeshResults GeneratePreview() {
-        _path_indices = PartingTools.GeneratePartingLine(_bolus).ToArray();
+        //_path_indices = PartingTools.GeneratePartingLine(_bolus).ToArray();
+        var paths = DraftRegions.GenerateDraftMeshes(_bolus, Vector3.UnitY, 5.0);
+        _path_indices = PartingTools.PartingPathIndices(paths[DraftRegions.DraftRegionClassification.Positive]);
 
         _results = PartingTools.GeneratePartingMesh(
             _bolus,

@@ -60,17 +60,20 @@ public class SplitSceneManager : SceneManager {
         _negativeRegion = results[DraftRegions.DraftRegionClassification.Negative].ToGeometry();
         _neutralRegion = results[DraftRegions.DraftRegionClassification.Neutral].ToGeometry();
 
+    }
 
-        var path = PartingTools.PartingPath(results[DraftRegions.DraftRegionClassification.Positive]);
+    private void UpdateResults(CuttingMeshResults results) {
+        _bolus = results.Model.ToGeometry();
+
+        List<Vector3> path = [];
+        foreach(var p in results.PartingPaths) {
+            path.AddRange(p.Select(pp => new Vector3(pp.X, pp.Y, pp.Z)));
+        }
         MeshBuilder builder = new();
         foreach (Vector3 v in path.Select(v => new Vector3(v.X, v.Y, v.Z))) {
             builder.AddSphere(v, 0.25);
         }
         _partingPathMesh = builder.ToMeshGeometry3D();
-    }
-
-    private void UpdateResults(CuttingMeshResults results) {
-        _bolus = results.Model.ToGeometry();
 
         _partingMesh = results.CuttingMesh.ToGeometry();
         _mouldMesh = results.Mould is not null ? results.Mould.ToGeometry() : new();
