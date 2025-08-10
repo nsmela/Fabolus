@@ -73,4 +73,16 @@ public static partial class PartingTools {
         return path_distance > mesh.GetVertex(v0).Distance(mesh.GetVertex(v2)); // skip if the path is longer than the direct distance
     }
 
+    public static Vector3[] PartingPath(MeshModel model) {
+        DMesh3 mesh = model.Mesh;
+
+        MeshRegionBoundaryLoops loops = new(mesh, mesh.TriangleIndices().ToArray());
+
+        List<g3.Vector3f> points = [];
+        foreach (g3.EdgeLoop loop in loops) {
+            points.AddRange(loop.Vertices.Select(vId => (g3.Vector3f)mesh.GetVertex(vId)));
+        }
+
+        return points.Select(p => new Vector3(p.x, p.y, p.z)).ToArray();
+    }
 }

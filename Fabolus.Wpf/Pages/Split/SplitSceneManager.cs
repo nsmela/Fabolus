@@ -9,6 +9,7 @@ using SharpDX;
 using System.Windows;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Core.Meshes.PartingTools;
+using Fabolus.Core.Meshes.MeshTools;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -22,6 +23,10 @@ public class SplitSceneManager : SceneManager {
     private MeshGeometry3D _mouldMesh = new();
     private MeshGeometry3D _positivePullMesh;
     private MeshGeometry3D _negativePullMesh;
+
+    private MeshGeometry3D _positiveRegion = new();
+    private MeshGeometry3D _negativeRegion = new();
+    private MeshGeometry3D _neutralRegion = new();
 
     // view options
     private SplitViewOptions _view_options;
@@ -39,6 +44,8 @@ public class SplitSceneManager : SceneManager {
         });
 
         // initial values
+        UpdateRegions(bolus.TransformedMesh());
+
         _settings.Model = bolus.TransformedMesh();
         _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
 
@@ -46,14 +53,24 @@ public class SplitSceneManager : SceneManager {
         UpdateResults(results);
     }
 
-    private void UpdateResults(CuttingMeshResults results) {
-        _bolus = results.Model.ToGeometry();
+    private void UpdateRegions(MeshModel bolus) {
+        var results = DraftRegions.GenerateDraftMeshes(bolus, System.Numerics.Vector3.UnitY, 5.0);
 
+        _positiveRegion = results[DraftRegions.DraftRegionClassification.Positive].ToGeometry();
+        _negativeRegion = results[DraftRegions.DraftRegionClassification.Negative].ToGeometry();
+        _neutralRegion = results[DraftRegions.DraftRegionClassification.Neutral].ToGeometry();
+
+
+        var path = PartingTools.PartingPath(results[DraftRegions.DraftRegionClassification.Positive]);
         MeshBuilder builder = new();
-        foreach(Vector3 v in results.PartingPath.Select(v => new Vector3(v.X, v.Y, v.Z))) {
+        foreach (Vector3 v in path.Select(v => new Vector3(v.X, v.Y, v.Z))) {
             builder.AddSphere(v, 0.25);
         }
         _partingPathMesh = builder.ToMeshGeometry3D();
+    }
+
+    private void UpdateResults(CuttingMeshResults results) {
+        _bolus = results.Model.ToGeometry();
 
         _partingMesh = results.CuttingMesh.ToGeometry();
         _mouldMesh = results.Mould is not null ? results.Mould.ToGeometry() : new();
@@ -74,7 +91,19 @@ public class SplitSceneManager : SceneManager {
         // show bolus
         if (_view_options.ShowBolus) {
             models.Add(new DisplayModel3D {
-                Geometry = _bolus,
+                Geometry = _positiveRegion,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Red,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _negativeRegion,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Green,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _neutralRegion,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.LightGray,
             });
