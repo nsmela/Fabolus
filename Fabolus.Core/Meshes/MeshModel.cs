@@ -21,14 +21,11 @@ public class MeshModel {
     }
 
     public static async Task<MeshModel> FromFile(string filepath) {
-        //var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true);
         var mesh = MeshLoad.FromAnySupportedFormat(filepath);
         return new MeshModel(mesh);
     }
 
     public static async Task ToFile(string filepath, MeshModel model) {
-        //var mesh = model.Mesh;
-        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
         MeshSave.ToAnySupportedFormat(model, filepath);
     }
 
@@ -58,23 +55,14 @@ public class MeshModel {
         };
     }
 
-    public int[] GetTriangleNeighbours(int tId) => Mesh.GetTriNeighbourTris(tId).array;
-
-    public double[] GetVector(int vId) =>
-        new double[] {
-            Mesh.GetVertex(vId).x,
-            Mesh.GetVertex(vId).y,
-            Mesh.GetVertex(vId).z
-        };
-
     public IEnumerable<int> GetBorderEdgeLoop(int[] region_ids) {
         //select the region
         var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);
-        var loops = region.Loops;
+        var loop = region.Loops.OrderByDescending(x => x.EdgeCount).First();
 
         int last_id = -1;
         Index4i edge;
-        foreach (var eId in loops[0].Edges) {
+        foreach (var eId in loop.Edges) {
             edge = Mesh.GetEdge(eId);
             if (edge.a == last_id){ last_id = edge.b; }
             else { last_id = edge.a; }
@@ -142,14 +130,26 @@ public class MeshModel {
         return Enumerable.Range(0, Mesh.VertexCount).Select(i => Mesh.GetVertexNormal(i).ToArray());
     }
 
+    /// <summary>
+    /// Returns a [x,y,z] array of the lower bounds of the mesh.
+    /// </summary>
+    /// <returns></returns>
+    public double[] BoundsLower() {
+        var bounds = Mesh.CachedBounds;
+        return new double[] { bounds.Min.x, bounds.Min.y, bounds.Min.z };
+    }
+
     // Constructors
 
     public MeshModel() { }
 
     public MeshModel(DMesh3 mesh) {
-        Mesh = mesh;
+        Mesh = new DMesh3(mesh, true);
     }
 
+    /// <summary>
+    /// Joins two seperate meshes togther that have no overlapping triangles
+    /// </summary>
     public static MeshModel Combine(MeshModel[] models) {
         MeshEditor editor = new(new DMesh3());
 
@@ -165,7 +165,7 @@ public class MeshModel {
     }
 
     public MeshModel(Mesh mesh) {
-        Mesh = mesh.ToDMesh();
+        Mesh = new DMesh3(mesh.ToDMesh());
         _mesh = mesh; // Store the original Mesh for further operations if needed
     }
 
@@ -198,7 +198,6 @@ public class MeshModel {
 
         Mesh = new DMesh3(editor.Mesh);
     }
-
 
     // Operators
 

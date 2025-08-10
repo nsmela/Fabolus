@@ -3,26 +3,163 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Split"
              mc:Ignorable="d" 
              d:DesignWidth="200">
     <StackPanel Orientation="Vertical">
+        
         <Label Content="seperate distance (mm)" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"/>
-
-        <Slider Value="{Binding SeperationDistance, Mode=TwoWay}"
-                Minimum="0.02" Maximum="1.0" 
-                TickFrequency="0.02" 
-                TickPlacement="TopLeft" 
+        <Slider Value="{Binding GapDistance, Mode=TwoWay}" 
+                Minimum="0.05"
+                Maximum="2.0"
+                TickFrequency="0.1"
+                IsSnapToTickEnabled="True"
                 AutoToolTipPlacement="TopLeft"
-                AutoToolTipPrecision="2"
-                IsSnapToTickEnabled="True" 
-                Height="30"/>
+                AutoToolTipPrecision="1"
+                Margin="2"/>
+        
+        <Label Content="outer distance (mm)" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding OuterDistance, Mode=TwoWay}" 
+                Minimum="5.0"
+                Maximum="100.0"
+                SmallChange="5.0"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"
+                Margin="2"/>
 
+        <Label Content="inner distance (mm)" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding InnerDistance, Mode=TwoWay}" 
+                Minimum="0.0"
+                Maximum="5.0"
+                SmallChange="0.1"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"
+                Margin="2"/>
+
+        <!-- Toggle view buttons -->
+        <Separator Margin="0,8,0,8" />
+        <Label Content="show models" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Label Content="show bolus" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+            
+            <mah:ToggleSwitch 
+                    IsOn="{Binding ShowBolus, Mode=TwoWay}"
+                    HorizontalContentAlignment="Right" />
+            
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Label Content="show pull regions" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+            <mah:ToggleSwitch 
+                    IsOn="{Binding ShowPullRegions, Mode=TwoWay}"
+                    HorizontalContentAlignment="Right" />
+
+        </StackPanel>
+        
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Label Content="show parting line" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+            <mah:ToggleSwitch 
+                    IsOn="{Binding ShowPartingLine, Mode=TwoWay}"
+                    HorizontalContentAlignment="Right" />
+
+        </StackPanel>
+        
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Label Content="show parting mesh" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+            <mah:ToggleSwitch 
+                    IsOn="{Binding ShowPartingMesh, Mode=TwoWay}"
+                    HorizontalContentAlignment="Right" />
+
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Label Content="show negative parting" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+            <mah:ToggleSwitch 
+                    IsOn="{Binding ShowNegativeParting, Mode=TwoWay}"
+                    HorizontalContentAlignment="Right" />
+
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Label Content="show positive parting " 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+            <mah:ToggleSwitch 
+                    IsOn="{Binding ShowPositiveParting, Mode=TwoWay}" 
+                    HorizontalContentAlignment="Right" />
+
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Label Content="spread out parts" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+            <mah:ToggleSwitch 
+                    IsOn="{Binding ExplodePartingMeshes, Mode=TwoWay}" 
+                    HorizontalContentAlignment="Right" />
+
+        </StackPanel>
+
+        <!-- Export buttons -->
         <Button Content="generate models" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
@@ -31,7 +168,7 @@
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
                 Command="{Binding GenerateCommand}" />
-        
+
         <Button Content="export models" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"

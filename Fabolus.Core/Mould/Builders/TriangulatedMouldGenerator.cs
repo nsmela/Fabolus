@@ -13,6 +13,9 @@ using System.Threading.Tasks;
 namespace Fabolus.Core.Mould.Builders;
 
 public sealed record TriangulatedMouldGenerator : MouldGenerator {
+    public double OffsetXY { get; private set; } = 3.0;
+    public double OffsetTop { get; private set; } = 2.0;
+    public double OffsetBottom { get; private set; } = 2.0;
     public bool IsTight { get; private set; } = true;
     public bool HasTrough { get; private set; } = false; // whether to create a trough for excess silicone
     public double MaxHeight { get; private set; } = 10.0;
@@ -25,27 +28,25 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
     public TriangulatedMouldGenerator WithContour(Polygon2d contour) => this with { Contour = contour };
     public TriangulatedMouldGenerator WithTightContour(bool isTight = true) => this with { IsTight = isTight, Contour = new() }; //resets the contour to empty to ensure recalculation
     public TriangulatedMouldGenerator WithTrough(bool hasTrough = true) => this with { HasTrough = hasTrough}; 
-    public TriangulatedMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes.Select(tm => tm.Mesh).ToArray() };
+    public TriangulatedMouldGenerator WithToolMeshes(IEnumerable<MeshModel> toolMeshes) => this with { ToolMeshes = toolMeshes.ToArray() };
     public TriangulatedMouldGenerator WithTopOffset(double offset) => this with { OffsetTop = offset };
     public TriangulatedMouldGenerator WithXYOffsets(double offset) => this with { OffsetXY = offset };
 
     public override Result<MeshModel> Build() {
         var preview = Preview();
 
-        if (preview.IsFailure) {
-            return Result<MeshModel>.Fail(preview.Errors);
-        }
+        if (preview.IsFailure) { return preview.Errors; }
 
         //create the mould
-        var mould = BooleanOperators.Subtraction(preview.Data, BolusReference);
-        if (mould.IsFailure) { return Result<MeshModel>.Fail(mould.Errors); }
+        var mould = MeshTools.BooleanSubtraction(preview.Data, BolusReference);
+        if (mould.IsFailure) { return mould.Errors; }
 
         //convert the mesh tools
         DMesh3 tools = new();
         MeshEditor editor = new(new DMesh3());
         if (ToolMeshes.Count() > 0) {
             foreach (var mesh in ToolMeshes) {
-                editor.AppendMesh(mesh);
+                editor.AppendMesh(mesh.Mesh);
             }
 
             MeshAutoRepair repair = new(editor.Mesh);
@@ -53,58 +54,64 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
             tools = new(repair.Mesh);
         }
 
-        if (ToolMeshes is null || ToolMeshes.Count() == 0) { return Result<MeshModel>.Pass(new MeshModel(mould.Data)); }
+        if (ToolMeshes is null || ToolMeshes.Count() == 0) { return mould.Data; }
 
-        var result = BooleanOperators.Subtraction(mould.Data, tools);
-        return new Result<MeshModel> { Data = new MeshModel(result.Data), IsSuccess = result.IsSuccess, Errors = result.Errors };
+        var result = MeshTools.BooleanSubtraction(mould.Data.Mesh.ToMesh(), tools.ToMesh());
+        return new Result<MeshModel> { Data = result.Data, IsSuccess = result.IsSuccess, Errors = result.Errors };
     }
 
     public override Result<MeshModel> Preview() {
         if (BolusReference is null) { throw new NullReferenceException("Build: Bolus mesh is null"); }
 
-        MaxHeight = BolusReference.CachedBounds.Max.z + OffsetTop;
-        MinHeight = BolusReference.CachedBounds.Min.z - OffsetBottom;
+        MaxHeight = BolusReference.Mesh.CachedBounds.Max.z + OffsetTop;
+        MinHeight = BolusReference.Mesh.CachedBounds.Min.z - OffsetBottom;
 
         // if done before, we can skip this step to save time
         if (Contour.IsEmpty()) {
             MeshEditor editor = new(new DMesh3());
             if (ToolMeshes.Count() > 0) {
                 foreach (var m in ToolMeshes) {
-                    editor.AppendMesh(m);
+                    editor.AppendMesh(m.Mesh);
                 }
             }
-            editor.AppendMesh(BolusReference);
+            editor.AppendMesh(BolusReference.Mesh);
 
             if (IsTight) { Contour = MeshTools.ConcaveContour(editor.Mesh); }
             else { Contour = MeshTools.ConvexContour(editor.Mesh); }
         }
 
-        if (Contour.IsEmpty()) {  return Result<MeshModel>.Fail(new MeshError("Contouring failed.")); }
+        if (Contour.IsEmpty()) {  return new MeshError("Contouring failed."); }
 
         // apply offset
         Polygon2d contour = new(Contour);
         contour.PolyOffset(OffsetXY);
-        if (contour.IsEmpty()) { return Result<MeshModel>.Fail(new MeshError("Contour offset failed.")); }
+        if (contour.IsEmpty()) { return new MeshError("Contour offset failed."); }
 
         // extrude mesh
         Result<DMesh3> result = PolygonTools.ExtrudePolygon(contour, MinHeight, MaxHeight);
-        if (result.IsFailure) { return Result<MeshModel>.Fail(result.Errors); }
+        if (result.IsFailure) { return result.Errors; }
         DMesh3 extruded = result.Data;
         MeshAutoRepair repair = new(extruded);
         repair.Apply();
 
         if (HasTrough) {
             Result<DMesh3> trough = TroughtMesh();
-            if (result.IsFailure) { return Result<MeshModel>.Fail([.. result.Errors, new MeshError("Failed to create trough")]); }
+            if (result.IsFailure) {
+                List<MeshError> errors = [.. result.Errors, new MeshError("Failed to subtract trough")];
+                return errors; 
+            }
 
-            result = BooleanOperators.Subtraction(extruded, trough.Data);
-            if (result.IsFailure) { return Result<MeshModel>.Fail([.. result.Errors, new MeshError("Failed to subtract trough")]); }
+            var mesh_result = MeshTools.BooleanSubtraction(extruded.ToMesh(), trough.Data.ToMesh());
+            if (mesh_result.IsFailure) {
+                List<MeshError> errors = [.. result.Errors, new MeshError("Failed to subtract trough")];
+                return errors; 
+            }
 
-            return Result<MeshModel>.Pass(new MeshModel(result.Data));
+            return mesh_result.Data!;
         }
 
         // return the mesh
-        return Result<MeshModel>.Pass(new MeshModel(repair.Mesh));
+        return new MeshModel(repair.Mesh);
     }
 
     /// <summary>
@@ -118,15 +125,18 @@ public sealed record TriangulatedMouldGenerator : MouldGenerator {
         Polygon2d contour = new(Contour);
         contour.PolyOffset(offset);
         var result = PolygonTools.ExtrudePolygon(Contour, MaxHeight - height, MaxHeight + 0.1f);
-        if (result.IsFailure) { return Result<DMesh3>.Fail([.. result.Errors, new MeshError("Failed to extrude polygon")]); }
+        if (result.IsFailure) {
+            List<MeshError> errors = [.. result.Errors, new MeshError("Failed to extrude polygon")];
+            return errors;
+        }
 
-        DMesh3 mesh = result.Data;
+        DMesh3 mesh = result.Data!;
 
         MeshAutoRepair repair = new(mesh);
         repair.Apply();
 
         // move mould to min height
-        return Result<DMesh3>.Pass(mesh);
+        return mesh;
     }
 }
 
