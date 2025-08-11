@@ -15,9 +15,13 @@ using static MR.DotNet;
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
     public static CuttingMeshResults GeneratePartingMesh(MeshModel model, List<int[]> parting_indices, double inner_offset, double outer_offset, double seperation_distance) {
+        if (parting_indices.Count == 0) { throw new Exception("No indices for Generating Parting Mesh!"); }
+        
         List<PartingMesh> partings = [];
-        foreach (int[] path in parting_indices) {
-            partings.Add(PartingMesh.Create(model.Mesh, path, inner_offset, outer_offset));
+        partings.Add(PartingMesh.Create(model.Mesh, parting_indices[0], inner_offset, outer_offset));
+        
+        if (parting_indices.Count > 1) {
+            partings.Add(PartingMesh.CreateClosed(model.Mesh, parting_indices[1], inner_offset));
         }
 
         // TODO: use MeshLib instead for this
@@ -77,6 +81,35 @@ public static partial class PartingTools {
             StitchVerts(vertices);
         }
 
+        public static PartingMesh CreateClosed(DMesh3 mesh, int[] path_indices, double inner_offset) {
+            // convert the selected mesh vectors into a vertex array
+            Vertex[] vertices = GenerateVertices(mesh, path_indices);
+
+            // smooth the path
+            vertices = AverageVertices(vertices);
+            vertices = LaplacianSmoothing(vertices);
+
+            Vertex[] inner_vertices = OffsetVertNormals(vertices, -4 * Math.Abs(inner_offset));
+            PartingMesh parting = new(inner_vertices);
+            //var offset = OffsetVertNormals(inner_vertices, 6.0);
+            //parting.StitchVerts(offset);
+            //offset = OffsetVertNormals(offset, 3.0);
+            //parting.StitchVerts(offset);
+            //offset = OffsetVertNormals(offset, 3.0);
+            //parting.StitchVerts(offset);
+
+            Vector3d origin = Vector3d.Zero;
+            foreach (Vertex v in parting.Vertices) {
+                origin += v.Position;
+            }
+            origin /= vertices.Length; //average them out
+            int origin_id = parting.Mesh.AppendVertex(origin);
+
+            MeshEditor editor = new(parting.Mesh);
+            editor.AddTriangleFan_OrderedVertexLoop(origin_id, parting.Vertices.Select(v => v.Id).ToArray());
+            return parting;
+        }
+
         public static PartingMesh Create(DMesh3 mesh, int[] path_indices, double inner_offset, double outer_offset) {
             // convert the selected mesh vectors into a vertex array
             Vertex[] vertices = GenerateVertices(mesh, path_indices);
@@ -85,22 +118,9 @@ public static partial class PartingTools {
             vertices = AverageVertices(vertices);
             vertices = LaplacianSmoothing(vertices);
 
-            // determine if the offsets need to expand or shrink
-            Vector3d centre = Vector3d.Zero;
-            foreach(Vertex v in vertices) {
-                centre += v.Position;
-            }
-
-            bool[] facing_centre = new bool[vertices.Length];
-            for (int i = 0; i < vertices.Length; i++) {
-                facing_centre[i] = vertices[i].Position.AngleD(centre - vertices[i]) > 90.0;
-            }
-
-            bool inwards = facing_centre.Where(b => b == true).Count() > (int)(facing_centre.Length / 2);
-
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
-
             PartingMesh parting = new(inner_vertices);
+            //parting.Offset(5.0);
             parting.Offset(outer_offset);
 
             return parting;
@@ -133,7 +153,7 @@ public static partial class PartingTools {
             // add verts to mesh
             int index;
             Vertex vert;
-            DMesh3 mesh = new();
+            DMesh3 mesh = new(Mesh);
 
             for (int i = 0; i < nA; i++) {
                 vert = Vertices[i];
@@ -312,6 +332,26 @@ public static partial class PartingTools {
         return results.ToArray();
     }
 
+    internal static Vertex[] OffsetVertNormals(Vertex[] verts, double distance) {
+        Vertex[] results = new Vertex[verts.Length];
+        for (int i = 0; i < verts.Length; i++) {
+            Vector3d offset = new Vector3d(verts[i].Normal);
+            var position = verts[i].Position + offset * distance;
+
+            if (verts[i].Position.y != position.y) {
+                throw new Exception();
+            }
+
+            results[i] = verts[i] with { Position = position };
+
+        }
+
+        results = RemoveReversedSegments(results).ToArray();
+        results = RemoveSharpCorners(results).ToArray();
+
+        return results.ToArray();
+    }
+
     internal static Vertex[] AverageVertices(Vertex[] vertices) {
         List<Vertex> result = [];
 
@@ -355,6 +395,16 @@ public static partial class PartingTools {
         }
 
         return results.ToArray();
+    }
+
+    internal static double PathLength(Vertex[] vertices) {
+        double length = vertices.Last().Position.Distance(vertices.First().Position);
+        int count = vertices.Count() - 1;
+        for (int i = 1; i < count; i++) {
+            length += vertices[i].Position.Distance(vertices[i - 1]);
+        }
+
+        return length;
     }
 }
 
