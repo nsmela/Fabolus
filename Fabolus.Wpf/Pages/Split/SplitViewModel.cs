@@ -134,7 +134,8 @@ public partial class SplitViewModel : BaseViewModel {
             return;
         }
 
-        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(response.Data));
+        _results = response.Data;
+        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
     }
 
     [RelayCommand]
