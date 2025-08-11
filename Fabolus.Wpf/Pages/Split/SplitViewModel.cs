@@ -100,6 +100,12 @@ public partial class SplitViewModel : BaseViewModel {
         _bolus = bolus.TransformedMesh();
 
         var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
+
+        if (mould is null || mould.Geometry is null) {
+            MessageBox.Show("Need a mould generated to split!", $"Mould requred", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
         _mould = mould;
     }
 
