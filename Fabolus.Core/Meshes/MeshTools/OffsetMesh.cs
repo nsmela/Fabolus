@@ -73,4 +73,10 @@ public static partial class MeshTools {
         };
         return Offset.DoubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
     }
+
+    public static MeshModel OffsetModel(MeshModel model, double distance) {
+        Mesh mesh = model.Mesh.ToMesh();
+        var offset = OffsetMesh(mesh, (float)distance);
+        return new MeshModel(offset);
+    }
 }

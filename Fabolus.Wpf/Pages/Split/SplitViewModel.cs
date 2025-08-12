@@ -100,6 +100,7 @@ public partial class SplitViewModel : BaseViewModel {
         _bolus = bolus.TransformedMesh();
 
         var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
+        //MeshModel mould = MeshTools.OffsetModel(_bolus, 3.0);
 
         if (mould is null || mould.Geometry is null) {
             MessageBox.Show("Need a mould generated to split!", $"Mould requred", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -110,8 +111,7 @@ public partial class SplitViewModel : BaseViewModel {
     }
 
     private CuttingMeshResults GeneratePreview() {
-        //_path_indices = [PartingTools.GeneratePartingLine(_bolus).ToArray()];
-        var paths = DraftRegions.GenerateDraftMeshes(_bolus, Vector3.UnitY, 5.0);
+        var paths = DraftRegions.GenerateDraftMeshes(_bolus, Vector3.UnitY, 10.0);
         _path_indices = PartingTools.PartingPathIndices(paths[DraftRegions.DraftRegionClassification.Positive]);
 
         _results = PartingTools.GeneratePartingMesh(

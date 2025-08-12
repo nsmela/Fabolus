@@ -27,6 +27,7 @@ public class SplitSceneManager : SceneManager {
     private MeshGeometry3D _positiveRegion = new();
     private MeshGeometry3D _negativeRegion = new();
     private MeshGeometry3D _neutralRegion = new();
+    private MeshGeometry3D _occludedRegion = new();
 
     // view options
     private SplitViewOptions _view_options;
@@ -59,7 +60,7 @@ public class SplitSceneManager : SceneManager {
         _positiveRegion = results[DraftRegions.DraftRegionClassification.Positive].ToGeometry();
         _negativeRegion = results[DraftRegions.DraftRegionClassification.Negative].ToGeometry();
         _neutralRegion = results[DraftRegions.DraftRegionClassification.Neutral].ToGeometry();
-
+        _occludedRegion = results[DraftRegions.DraftRegionClassification.Occluded].ToGeometry();
     }
 
     private void UpdateResults(CuttingMeshResults results) {
@@ -109,6 +110,12 @@ public class SplitSceneManager : SceneManager {
                 Geometry = _neutralRegion,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.LightGray,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _occludedRegion,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Yellow,
             });
         }
 
