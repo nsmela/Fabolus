@@ -133,10 +133,6 @@ public static partial class PartingTools {
             }
             parting.Offset(distance);
 
-            // results in a manifold mesh that sealed in the internal hole
-            //MeshAutoRepair repair = new(parting.Mesh);
-            //repair.Apply();
-
             var boundraries = new MeshBoundaryLoops(parting.Mesh);
 
             return parting;
@@ -171,11 +167,11 @@ public static partial class PartingTools {
             Vertex vert;
             DMesh3 mesh = new(Mesh);
 
-            for (int i = 0; i < nA; i++) {
-                vert = Vertices[i];
-                index = mesh.AppendVertex(vert.Position);
-                Vertices[i] = vert with { Id = index };
-            }
+            //for (int i = 0; i < nA; i++) {
+            //    vert = Vertices[i];
+            //    index = mesh.AppendVertex(vert.Position);
+            //    Vertices[i] = vert with { Id = index };
+            //}
 
             for (int i = 0; i < nB; i++) {
                 vert = new_vertices[i];
@@ -227,7 +223,7 @@ public static partial class PartingTools {
                 b++;
             }
 
-            Vertices = outer;
+            Vertices = new_vertices;
             Mesh = mesh;
         }
 
