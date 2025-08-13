@@ -167,12 +167,6 @@ public static partial class PartingTools {
             Vertex vert;
             DMesh3 mesh = new(Mesh);
 
-            //for (int i = 0; i < nA; i++) {
-            //    vert = Vertices[i];
-            //    index = mesh.AppendVertex(vert.Position);
-            //    Vertices[i] = vert with { Id = index };
-            //}
-
             for (int i = 0; i < nB; i++) {
                 vert = new_vertices[i];
                 index = mesh.AppendVertex(vert.Position);
