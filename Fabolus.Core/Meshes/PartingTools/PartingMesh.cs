@@ -4,6 +4,7 @@ using Fabolus.Core.Meshes.MeshTools;
 using g3;
 using gs;
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -75,18 +76,22 @@ public static partial class PartingTools {
             } 
         }
 
-        public void Offset(double distance) {
+        public void Offset(double distance, int iterations = 5) {
             Vertex[] vertices = OffsetVerts(Vertices, distance);
-            vertices = AverageVertices(vertices);
+            for (int i = 0; i < iterations; i++) {
+                vertices = AverageVertices(vertices);
+            }
             StitchVerts(vertices);
         }
 
-        public static PartingMesh CreateClosed(DMesh3 mesh, int[] path_indices, double inner_offset) {
+        public static PartingMesh CreateClosed(DMesh3 mesh, int[] path_indices, double inner_offset, int iterations = 5) {
             // convert the selected mesh vectors into a vertex array
             Vertex[] vertices = GenerateVertices(mesh, path_indices);
 
             // smooth the path
-            vertices = AverageVertices(vertices);
+            for (int i = 0; i < iterations; i++) {
+                vertices = AverageVertices(vertices);
+            }
             vertices = LaplacianSmoothing(vertices);
 
             Vertex[] inner_vertices = OffsetVertNormals(vertices, -4 * Math.Abs(inner_offset));
@@ -121,8 +126,12 @@ public static partial class PartingTools {
 
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
             PartingMesh parting = new(inner_vertices);
-            //parting.Offset(5.0);
-            parting.Offset(outer_offset);
+            double distance = outer_offset;
+            while (distance > 5.0) {
+                parting.Offset(5.0);
+                distance -= 5.0;
+            }
+            parting.Offset(distance);
 
             return parting;
         }
@@ -221,18 +230,24 @@ public static partial class PartingTools {
     internal static Vertex[] GenerateVertices(DMesh3 mesh, int[] path) {
         List<Vertex> vertices = new(path.Length); // to optimize by not needing to resize while adding
 
-        for (int i = 0; i < path.Length; i++) {
+        int count = path.Length;
+        for (int i = 0; i < count; i++) {
             // remove y component to normal, normalize it, and multiply by desired distance to get vector offset
             int vId = path[i];
             Vector3d position = mesh.GetVertex(vId);
-            int prev_vId = path[(i - 1 + path.Length) % path.Length]; // allows wrapping around a closed loop
+            int prev_vId = path[(i - 1 + count) % count]; // allows wrapping around a closed loop
             Vector3d prev_pos = mesh.GetVertex(prev_vId);
 
             if (position.Distance(prev_pos) < 0.1) {
                 continue; // too close, skip it
             }
 
-            Vector3d normal = mesh.GetVertexNormal(vId);
+            // get the averaged normal
+            int next_vId = path[(i + 1) % count];
+            Vector3d normal = mesh.GetVertexNormal(prev_vId) + mesh.GetVertexNormal(vId) + mesh.GetVertexNormal(next_vId);
+            normal /= 3;
+            normal = normal.Normalized;
+
             Vector3d direction = position - prev_pos; // the direction from the previous point to this one
             vertices.Add(new Vertex { Id = vId, Position = position, Direction = direction, Normal = normal });
         }
@@ -431,7 +446,18 @@ public record struct CuttingMeshResults {
     public MeshModel PositivePullMesh;
     public MeshModel NegativePullMesh;
     public MeshError[] Errors = [];
+    public CuttingIntersection[] Intersections = [];
 
     public CuttingMeshResults() { }
 } 
+
+public record struct CuttingIntersection {
+    public bool IsClosed;
+    public Vector3[] Points;
+
+    public CuttingIntersection() {
+        IsClosed = false;
+        Points = [];
+    }
+}
 

@@ -29,6 +29,10 @@ public class SplitSceneManager : SceneManager {
     private MeshGeometry3D _neutralRegion = new();
     private MeshGeometry3D _occludedRegion = new();
 
+    // intersections
+    private MeshGeometry3D _intersectionsOpenMesh = new();
+    private MeshGeometry3D _intersectionsClosedMesh = new();
+
     // view options
     private SplitViewOptions _view_options;
 
@@ -66,6 +70,7 @@ public class SplitSceneManager : SceneManager {
     private void UpdateResults(CuttingMeshResults results) {
         _bolus = results.Model.ToGeometry();
 
+        // path for the parting line
         List<Vector3> path = [];
         foreach(var p in results.PartingPaths) {
             path.AddRange(p.Select(pp => new Vector3(pp.X, pp.Y, pp.Z)));
@@ -79,12 +84,42 @@ public class SplitSceneManager : SceneManager {
         _partingMesh = results.CuttingMesh.ToGeometry();
         _mouldMesh = results.Mould is not null ? results.Mould.ToGeometry() : new();
 
+        // final parted meshes
         _negativePullMesh = MeshModel.IsNullOrEmpty(results.NegativePullMesh)
             ? new()
             : results.NegativePullMesh.ToGeometry();
         _positivePullMesh = MeshModel.IsNullOrEmpty(results.PositivePullMesh) 
             ? new() 
             : results.PositivePullMesh.ToGeometry();
+
+        // intersections
+        MeshBuilder open = new();
+        MeshBuilder closed = new();
+        foreach (var intersections in results.Intersections) {
+            int count = intersections.Points.Length;
+
+            // initial parsing
+            if (intersections.IsClosed) {
+                closed.AddCylinder(ToVector3(intersections.Points.Last()), ToVector3(intersections.Points.First()), 0.1);
+            } else {
+                open.AddCylinder(ToVector3(intersections.Points.Last()), ToVector3(intersections.Points.First()), 0.1);
+            }
+
+            for (int i = 0; i < count; i++) {
+                var v0 = ToVector3(intersections.Points[(i - 1 + count) % count]);
+                var v1 = ToVector3(intersections.Points[i]);
+
+                if (intersections.IsClosed) {
+                    closed.AddCylinder(v0, v1, 0.1);
+                } else {
+                    open.AddCylinder(v0, v1, 0.1);
+                }
+            }
+
+        }
+        
+        _intersectionsClosedMesh = closed.ToMeshGeometry3D();
+        _intersectionsOpenMesh = open.ToMeshGeometry3D();
 
         UpdateDisplay();
     }
@@ -134,6 +169,18 @@ public class SplitSceneManager : SceneManager {
                 Geometry = _partingMesh,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Blue,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _intersectionsClosedMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Emerald,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _intersectionsOpenMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Ruby,
             });
         }
 

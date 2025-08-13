@@ -29,7 +29,8 @@ public static class DraftRegions {
             triangles[tId] = angle_d switch {
                 _ when angle_d > upper_angle => DraftRegionClassification.Positive,
                 _ when angle_d < lower_angle => DraftRegionClassification.Negative,
-                _ => DraftRegionClassification.Neutral
+                //_ => DraftRegionClassification.Neutral
+                _ => DraftRegionClassification.Positive
             };
 
         }

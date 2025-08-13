@@ -123,6 +123,12 @@ public partial class SplitViewModel : BaseViewModel {
 
         _results.Mould = _mould;
 
+        var intersection_response = MeshTools.Intersections(_mould, _results.CuttingMesh);
+
+        if (intersection_response.IsSuccess) {
+            _results.Intersections = intersection_response.Data;
+        }
+
         return _results;
     }
 
@@ -141,7 +147,37 @@ public partial class SplitViewModel : BaseViewModel {
         }
 
         _results = response.Data;
+
+        // change view
+        ShowBolus = false;
+        ShowNegativeParting = true;
+        ShowPositiveParting = true;
+        ShowPartingLine = false;
+        ShowPartingMesh = false;
+        ShowPullRegions = false;
+        ExplodePartingMeshes = true;
+
         WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
+    }
+
+    [RelayCommand]
+    private async Task ExportCuttingMesh() {
+        // trying to keep all boolean operations within MR.Dotnet framework
+        MeshModel mesh = _results.CuttingMesh;
+
+        if (mesh.IsEmpty()) {
+            MessageBox.Show("Cutting mesh is empty!", $"Export Cutting Mesh", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        SaveFileDialog saveFile = new() {
+            Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*"
+        };
+
+        //if successful, create mesh
+        if (saveFile.ShowDialog() != true) { return; }
+
+        await MeshModel.ToFile(saveFile.FileName, mesh);
     }
 
     [RelayCommand]
