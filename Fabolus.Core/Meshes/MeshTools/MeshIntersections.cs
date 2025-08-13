@@ -11,6 +11,8 @@ namespace Fabolus.Core.Meshes.MeshTools;
 public static partial class MeshTools {
 
     public static Result<CuttingIntersection[]> Intersections(MeshModel model_A, MeshModel model_B) {
+        if (model_A is null || model_B is null) { return new MeshError($"Mesh supplied for intersection check is null!"); }
+
         MeshPart meshA = new MeshPart(model_A.Mesh.ToMesh());
         MeshPart meshB = new MeshPart(model_B.Mesh.ToMesh());
 

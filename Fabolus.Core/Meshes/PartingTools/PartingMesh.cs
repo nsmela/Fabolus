@@ -94,7 +94,7 @@ public static partial class PartingTools {
             }
             vertices = LaplacianSmoothing(vertices);
 
-            Vertex[] inner_vertices = OffsetVertNormals(vertices, -4 * Math.Abs(inner_offset));
+            Vertex[] inner_vertices = OffsetVertNormals(vertices, -4 * Math.Abs(0.3)); // above this sometimes leads to contouring issues
             PartingMesh parting = new(inner_vertices);
 
             Vector3d min = new Vector3d(double.MaxValue, double.MaxValue, double.MaxValue);
@@ -127,11 +127,15 @@ public static partial class PartingTools {
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
             PartingMesh parting = new(inner_vertices);
             double distance = outer_offset;
-            while (distance > 5.0) {
-                parting.Offset(5.0);
-                distance -= 5.0;
-            }
+            //while (distance > 5.0) {
+            //    parting.Offset(5.0);
+            //    distance -= 5.0;
+            //}
             parting.Offset(distance);
+
+            // results in a manifold mesh that sealed in the internal hole
+            //MeshAutoRepair repair = new(parting.Mesh);
+            //repair.Apply();
 
             return parting;
         }
