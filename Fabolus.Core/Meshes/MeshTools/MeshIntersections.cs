@@ -10,7 +10,7 @@ using static MR.DotNet;
 namespace Fabolus.Core.Meshes.MeshTools;
 public static partial class MeshTools {
 
-    public static Result<CuttingIntersection[]> Intersections(MeshModel model_A, MeshModel model_B) {
+    public static Result<Contour[]> Intersections(MeshModel model_A, MeshModel model_B) {
         if (model_A is null || model_B is null) { return new MeshError($"Mesh supplied for intersection check is null!"); }
 
         MeshPart meshA = new MeshPart(model_A.Mesh.ToMesh());
@@ -21,9 +21,9 @@ public static partial class MeshTools {
         var ordered_intersections = IntersectionContour.OrderIntersectionContours(meshA.mesh, meshB.mesh, intersections);
         var contours = GetOneMeshIntersectionContours(meshA.mesh, meshB.mesh, ordered_intersections, true, converters);
 
-        List<CuttingIntersection> results = [];
+        List<Contour> results = [];
         foreach (var contour in contours) {
-            results.Add(new CuttingIntersection { 
+            results.Add(new Contour { 
                 IsClosed = contour.closed, 
                 Points = contour
                     .intersections

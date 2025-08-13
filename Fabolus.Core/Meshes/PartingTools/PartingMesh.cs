@@ -127,15 +127,17 @@ public static partial class PartingTools {
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
             PartingMesh parting = new(inner_vertices);
             double distance = outer_offset;
-            //while (distance > 5.0) {
-            //    parting.Offset(5.0);
-            //    distance -= 5.0;
-            //}
+            while (distance > 5.0) {
+                parting.Offset(5.0);
+                distance -= 5.0;
+            }
             parting.Offset(distance);
 
             // results in a manifold mesh that sealed in the internal hole
             //MeshAutoRepair repair = new(parting.Mesh);
             //repair.Apply();
+
+            var boundraries = new MeshBoundaryLoops(parting.Mesh);
 
             return parting;
         }
@@ -450,16 +452,16 @@ public record struct CuttingMeshResults {
     public MeshModel PositivePullMesh;
     public MeshModel NegativePullMesh;
     public MeshError[] Errors = [];
-    public CuttingIntersection[] Intersections = [];
+    public Contour[] Intersections = [];
 
     public CuttingMeshResults() { }
 } 
 
-public record struct CuttingIntersection {
+public record struct Contour {
     public bool IsClosed;
     public Vector3[] Points;
 
-    public CuttingIntersection() {
+    public Contour() {
         IsClosed = false;
         Points = [];
     }

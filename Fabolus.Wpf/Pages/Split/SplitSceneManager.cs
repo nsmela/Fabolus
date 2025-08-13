@@ -10,6 +10,8 @@ using System.Windows;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Core.Meshes.PartingTools;
 using Fabolus.Core.Meshes.MeshTools;
+using System.Printing;
+using Fabolus.Core.Extensions;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -32,6 +34,9 @@ public class SplitSceneManager : SceneManager {
     // intersections
     private MeshGeometry3D _intersectionsOpenMesh = new();
     private MeshGeometry3D _intersectionsClosedMesh = new();
+
+    // boundaries
+    private MeshGeometry3D _boundariesMesh = new();
 
     // view options
     private SplitViewOptions _view_options;
@@ -121,6 +126,26 @@ public class SplitSceneManager : SceneManager {
         _intersectionsClosedMesh = closed.ToMeshGeometry3D();
         _intersectionsOpenMesh = open.ToMeshGeometry3D();
 
+        // boundaries
+        builder = new();
+        Contour[] boundaries = MeshTools.GetHoles(results.CuttingMesh).Data;
+        foreach(Contour contour in boundaries) {
+            int count = contour.Points.Length;
+            if (contour.IsClosed) {
+                builder.AddCylinder(ToVector3(contour.Points.Last()), ToVector3(contour.Points.First()), 0.1);
+            }
+            
+            for (int i = 0; i < count - 1; i++) {
+                var v0 = ToVector3(contour.Points[i]);
+                var v1 = ToVector3(contour.Points[i + 1]);
+
+                builder.AddCylinder(v0, v1, 0.1);
+            }
+
+        }
+
+        _boundariesMesh = builder.ToMeshGeometry3D();
+
         UpdateDisplay();
     }
 
@@ -181,6 +206,12 @@ public class SplitSceneManager : SceneManager {
                 Geometry = _intersectionsOpenMesh,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Ruby,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _boundariesMesh,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Brass,
             });
         }
 
