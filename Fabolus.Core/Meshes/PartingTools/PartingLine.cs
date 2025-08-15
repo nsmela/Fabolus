@@ -152,6 +152,29 @@ public static partial class PartingTools {
         return verts.Select(i => mesh.GetVertex(i).ToVector3()).ToArray();
     }
 
+    public static int[] GeneratePartingLine(MeshModel model, int[] anchors) {
+        List<int> path = [];
+        Graph graph = new(model);
+
+        int count = anchors.Count();
+        for (int i = 0; i < count; i++) {
+            var indices = graph.FindPath(anchors[i], anchors[(i + 1) % count]);
+            path.AddRange(indices);
+        }
+
+        // remove paths that could skip a triangle
+        for (int i = path.Count; i < 1; i--) { // going in reverse to allow active removal from list
+            int v0 = path[i - 1];
+            int v1 = path[i];
+            int v2 = path[(i + 1) % path.Count];
+            if (SkipThisVertex(model.Mesh, v0, v1, v2)) {
+                path.RemoveAt(i);
+            }
+        }
+
+        return path.ToArray();
+    }
+
     private static bool IsPartingEdge(DMesh3 mesh, int eId, Vector3d dir) {
         // check if each triangle is on opposite sides of being perpendicular to pull direction
         Index2i edgeT = mesh.GetEdgeT(eId);

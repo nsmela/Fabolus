@@ -21,6 +21,8 @@ public static class g3Extensions {
     // these are the values used to as a sommon value between Fabolus.Core and Fabolus.Wpf
     // to seperate Wpf from using g3 or MeshLib, only standard libraries
     public static Vector3 ToVector3(this Vector3d v) => new Vector3((float)v.x, (float)v.y, (float)v.z);
+    public static Vector3 ToVector3(this g3.Vector3f v) => new Vector3(v.x, v.y, v.z);
+
     public static Vector3d ToVector3d(this Vector3 vector) => new Vector3d(vector.X, vector.Y, vector.Z);
 
 }

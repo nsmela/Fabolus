@@ -6,12 +6,12 @@ using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
-using System.Windows;
 using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Core.Meshes.PartingTools;
 using Fabolus.Core.Meshes.MeshTools;
-using System.Printing;
 using Fabolus.Core.Extensions;
+using System.Windows.Input;
+using Fabolus.Core.BolusModel;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -44,11 +44,27 @@ public class SplitSceneManager : SceneManager {
     private MeshGeometry3D _curveValleyRegion = new();
     private MeshGeometry3D _curveRidgeRegion = new();
 
+    // parting line tool
+    private PartingTool _partingTool;
+    private DisplayModel3D? _partingToolPreview = new();
+    private DisplayModel3D _partingToolDisplay = new();
+    private DisplayModel3D[] _partingToolAnchors = [];
+    private Guid[] _validIds = [];
+
     // view options
     private SplitViewOptions _view_options;
 
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+
+        // PartingTool
+        _partingTool = new(bolus.TransformedMesh(), []);
+        _partingTool.Compute();
+        _partingToolDisplay = new DisplayModel3D {
+            Geometry = _partingTool.Geometry,
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Bisque
+        };
 
         // request messages
         WeakReferenceMessenger.Default.Register<SplitSceneManager, UpdateSplitViewOptionsMessage>(this, (r, m) => {
@@ -64,6 +80,99 @@ public class SplitSceneManager : SceneManager {
 
         var results = WeakReferenceMessenger.Default.Send(new SplitRequestResultsMessage()).Response;
         UpdateResults(results);
+    }
+
+    protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
+        if (hits is null || hits.Count() == 0) { return; }
+
+        //catch and ignored mouse buttons and exit
+        var mouse = args as MouseButtonEventArgs;
+        if (mouse.RightButton == MouseButtonState.Pressed
+                || mouse.MiddleButton == MouseButtonState.Pressed) {
+            return;
+        }
+
+        // check if the bolus is hit
+        // show path
+        var modelHit = hits.FirstOrDefault(x => _validIds.Contains(x.Geometry.GUID));
+        if (modelHit is null) { return; }
+
+        var point = modelHit.PointHit;
+        var normal = modelHit.NormalAtHit;
+
+        _partingTool.AddAnchor(point);
+        _partingTool.Compute();
+        _partingToolDisplay = new DisplayModel3D {
+            Geometry = _partingTool.Geometry,
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Obsidian
+        };
+
+        // show anchors
+        List<DisplayModel3D> meshes = [];
+        var anchors = _partingTool.Model.GetVertices(_partingTool.AnchorIndexes.ToArray()).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2])).ToArray();
+        var normals = _partingTool.Model.GetVtxNormals(_partingTool.AnchorIndexes).Select(v => new Vector3(v.X, v.Y, v.Z)).ToArray();
+        for(int i = 0; i < anchors.Length; i++) {
+            MeshBuilder builder = new();
+            builder.AddCylinder(anchors[i], anchors[i] + normals[i] * 4.0f, 1.0, 32, true, true);
+
+            var model = new DisplayModel3D {
+                Geometry = builder.ToMeshGeometry3D(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Obsidian
+            };
+
+            meshes.Add(model);
+        }
+
+        _partingToolAnchors = meshes.ToArray();
+
+        UpdateDisplay();
+    }
+
+    protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
+        // reset parting tool
+        _partingToolPreview = null;
+        if (hits is null || hits.Count() == 0) {
+            UpdateDisplay();
+            return;
+        }
+
+        // convert mouse arguments
+        var mouse = args as MouseEventArgs;
+        if (mouse is null) {
+            UpdateDisplay();
+            return;
+        }
+
+        // process if any mouse button is down
+        if (mouse.RightButton == MouseButtonState.Pressed
+                || mouse.MiddleButton == MouseButtonState.Pressed
+                || mouse.LeftButton == MouseButtonState.Pressed) {
+            UpdateDisplay();
+            return;
+        }
+
+        // check if the parting line setup is hit
+        // TODO
+
+        // check if the bolus is hit
+        var modelHit = hits.FirstOrDefault(x => _validIds.Contains(x.Geometry.GUID));
+        if (modelHit is null) {
+            UpdateDisplay();
+            return;
+        }
+
+        var point = modelHit.PointHit;
+        //var normal = modelHit.NormalAtHit;
+
+        _partingToolPreview = new DisplayModel3D {
+            Geometry = _partingTool.PreviewAnchor(point),
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Bisque
+        };
+
+        UpdateDisplay();
     }
 
     private void UpdateResults(CuttingMeshResults results) {
@@ -85,7 +194,13 @@ public class SplitSceneManager : SceneManager {
         _positiveRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Positive].ToGeometry();
         _negativeRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Negative].ToGeometry();
         _neutralRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Neutral].ToGeometry();
-        _occludedRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Occluded].ToGeometry();
+
+        // used for hit detection
+        _validIds = [
+            _positiveRegion.GUID,
+            _negativeRegion.GUID,
+            _neutralRegion.GUID,
+        ];
 
         // final parted meshes
         _negativePullMesh = MeshModel.IsNullOrEmpty(results.NegativePullMesh)
@@ -177,11 +292,6 @@ public class SplitSceneManager : SceneManager {
                 Skin = DiffuseMaterials.LightGray,
             });
 
-            models.Add(new DisplayModel3D {
-                Geometry = _occludedRegion,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Yellow,
-            });
         }
 
         // show curves
@@ -218,6 +328,18 @@ public class SplitSceneManager : SceneManager {
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Yellow,
             });
+
+            if (DisplayModel3D.IsValid(_partingToolPreview)) {
+                models.Add(_partingToolPreview.Value);
+            }
+
+            if (DisplayModel3D.IsValid(_partingToolDisplay)) {
+                models.Add(_partingToolDisplay);
+            }
+
+            foreach (DisplayModel3D anchors in _partingToolAnchors) {
+                models.Add(anchors);
+            }
         }
 
         // parting mesh

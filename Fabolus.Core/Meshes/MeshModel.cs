@@ -2,6 +2,7 @@
 using g3;
 using gs;
 using System.CodeDom;
+using System.Numerics;
 using System.Windows.Media.Media3D;
 using static MR.DotNet;
 using MeshNormals = g3.MeshNormals;
@@ -11,6 +12,7 @@ namespace Fabolus.Core.Meshes;
 public class MeshModel {
     public DMesh3 Mesh { get; set; } = new DMesh3();
     internal Mesh _mesh { get; set; }
+    internal DMeshAABBTree3 _spatial;
 
     // Public Static Functions
 
@@ -79,6 +81,9 @@ public class MeshModel {
         }
     }
 
+    public IEnumerable<Vector3> GetVtxNormals(IEnumerable<int> indexes) =>
+        indexes.Select(i => Mesh.GetVertexNormal(i).ToVector3()) ;
+
     public IEnumerable<double[]> GetBorderVerts(int[] region_ids) {
         //select the region
         var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);
@@ -137,6 +142,13 @@ public class MeshModel {
     public double[] BoundsLower() {
         var bounds = Mesh.CachedBounds;
         return new double[] { bounds.Min.x, bounds.Min.y, bounds.Min.z };
+    }
+
+    public int GetClosestVertex(Vector3 point) {
+        if (_spatial is null) { _spatial = new(Mesh, autoBuild: true); }
+
+        Vector3d vector = point.ToVector3d();
+        return _spatial.FindNearestVertex(vector);
     }
 
     // Constructors
