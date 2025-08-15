@@ -18,7 +18,22 @@
         <Slider Value="{Binding GapDistance, Mode=TwoWay}" 
                 Minimum="0.05"
                 Maximum="2.0"
-                TickFrequency="0.1"
+                TickFrequency="0.05"
+                IsSnapToTickEnabled="True"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="2"
+                Margin="2"/>
+
+        <Label Content="draft tolerance (degrees)" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+        <Slider Value="{Binding DraftTolerance, Mode=TwoWay}" 
+                Minimum="0.0"
+                Maximum="45.0"
+                TickFrequency="5.0"
                 IsSnapToTickEnabled="True"
                 AutoToolTipPlacement="TopLeft"
                 AutoToolTipPrecision="1"
@@ -75,6 +90,20 @@
             
         </StackPanel>
 
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Label Content="show curvature regions" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+            <mah:ToggleSwitch 
+                    IsOn="{Binding ShowCurves, Mode=TwoWay}"
+                    HorizontalContentAlignment="Right" />
+
+        </StackPanel>
+        
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
             <Label Content="show pull regions" 
                 HorizontalAlignment="Center" 

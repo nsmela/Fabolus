@@ -106,4 +106,59 @@ public static partial class PartingTools {
 
         return points;
     }
+
+    public static Vector3[] GeneratePartingLine(MeshModel model, Vector3 pull_direction) {
+        DMesh3 mesh = model.Mesh;
+        Vector3d dir = pull_direction.ToVector3d();
+
+        HashSet<int> verts = [];
+        HashSet<int> visited = [];
+
+        Queue<int> queue = [];
+        for(int i = 0; i < mesh.EdgeCount; i++) {
+            // check if each triangle is on opposite sides of being perpendicular to pull direction
+
+            if (!IsPartingEdge(mesh, i, dir)) { continue; }
+
+            Index2i edgeV = mesh.GetEdgeV(i);
+            verts.Add(edgeV.a);
+            visited.Add(edgeV.a);
+            queue.Enqueue(edgeV.b);
+            break;
+        }
+
+        while (queue.Count > 0) {
+            int current = queue.Dequeue();
+            verts.Add(current);
+
+            foreach (int vId in mesh.VtxVerticesItr(current)) {
+                // check for invalid vId
+                if (vId == DMesh3.InvalidID) { continue; }
+                if (vId == current) { continue; }
+                if (visited.Contains(vId)) { continue; }
+
+                int eId = mesh.FindEdge(current, vId);
+                if (eId == DMesh3.InvalidID) { continue; }
+
+                if (!IsPartingEdge(mesh, eId, dir)) { continue; }
+
+                // this is a valid vId, process it
+                visited.Add(current);
+                queue.Enqueue(vId);
+                break;
+            }
+        }
+
+        return verts.Select(i => mesh.GetVertex(i).ToVector3()).ToArray();
+    }
+
+    private static bool IsPartingEdge(DMesh3 mesh, int eId, Vector3d dir) {
+        // check if each triangle is on opposite sides of being perpendicular to pull direction
+        Index2i edgeT = mesh.GetEdgeT(eId);
+
+        bool is_a_pos = mesh.GetTriNormal(edgeT.a).AngleD(dir) < 90.0;
+        bool is_b_pos = mesh.GetTriNormal(edgeT.b).AngleD(dir) < 90.0;
+
+        return (is_a_pos != is_b_pos);
+    }
 }

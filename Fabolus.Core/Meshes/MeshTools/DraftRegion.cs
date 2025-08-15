@@ -25,17 +25,22 @@ public static class DraftRegions {
         // classify each triangle
         DraftRegionClassification[] triangles = new DraftRegionClassification[mesh.TriangleCount];
         foreach (int tId in mesh.TriangleIndices()) {
+            //if (IsFlat(mesh, tId, 8.0)) {
+            //    triangles[tId] = DraftRegionClassification.Neutral;
+            //    continue;
+            //}
+
             double angle_d = mesh.GetTriNormal(tId).AngleD(dir);
             triangles[tId] = angle_d switch {
-                _ when angle_d > upper_angle => DraftRegionClassification.Positive,
-                _ when angle_d < lower_angle => DraftRegionClassification.Negative,
-                //_ => DraftRegionClassification.Neutral
-                _ => DraftRegionClassification.Positive
+                _ when angle_d > upper_angle => DraftRegionClassification.Negative,
+                _ when angle_d < lower_angle => DraftRegionClassification.Positive,
+                _ => DraftRegionClassification.Neutral
             };
 
         }
 
         // post processing
+        //ConvertRegions(ref triangles);
         CleanupRegions(ref triangles, mesh);
         CleanupRegions(ref triangles, mesh);
         bool[] occluded = OccludedTriangles(mesh, dir);
@@ -82,6 +87,16 @@ public static class DraftRegions {
         results[DraftRegionClassification.Occluded] = new MeshModel(occluded_mesh);
 
         return results;
+    }
+
+    internal static void ConvertRegions(ref DraftRegionClassification[] regions) {
+        for (int i = 0; i < regions.Length; i++) {
+            if (regions[i] == DraftRegionClassification.Positive || regions[i] == DraftRegionClassification.Negative) {
+                continue; 
+            }
+
+            regions[i] = DraftRegionClassification.Negative;
+        }
     }
 
     internal static void CleanupRegions(ref DraftRegionClassification[] regions, DMesh3 mesh) {
@@ -164,5 +179,22 @@ public static class DraftRegions {
         }
 
         return false;
+    }
+
+    internal static bool IsFlat(DMesh3 mesh, int tId, double tolerance) {
+        // compare triangle normal to its neighbours
+        Vector3d normal = mesh.GetTriNormal(tId);
+
+        double max_angle = double.MinValue;
+        foreach (int t in mesh.GetTriNeighbourTris(tId).array) {
+            double angle = normal.AngleD(mesh.GetTriNormal(t));
+
+            if (angle < max_angle) { continue; }
+
+            max_angle = angle;
+                
+        }
+
+        return max_angle < tolerance;
     }
 }

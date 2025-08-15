@@ -23,6 +23,7 @@ public partial class SplitViewModel : BaseViewModel {
 
     // view meshes
     [ObservableProperty] private bool _showBolus = true;
+    [ObservableProperty] private bool _showCurves = false;
     [ObservableProperty] private bool _showNegativeParting = false;
     [ObservableProperty] private bool _showPositiveParting = false;
     [ObservableProperty] private bool _showPullRegions = true;
@@ -30,7 +31,16 @@ public partial class SplitViewModel : BaseViewModel {
     [ObservableProperty] private bool _showPartingMesh;
     [ObservableProperty] private bool _explodePartingMeshes = true;
 
-    partial void OnShowBolusChanged(bool value) { UpdateViewOptions(); }
+    partial void OnShowBolusChanged(bool value) {
+        if (value) { _showCurves = false; }
+        UpdateViewOptions(); 
+    }
+
+    partial void OnShowCurvesChanged(bool value) {
+        if (value) { _showBolus = false; }
+        UpdateViewOptions();
+    }
+
     partial void OnShowNegativePartingChanged(bool value) { UpdateViewOptions(); }
     partial void OnShowPositivePartingChanged(bool value) { UpdateViewOptions(); }
     partial void OnShowPullRegionsChanged(bool value) { UpdateViewOptions(); }
@@ -43,9 +53,15 @@ public partial class SplitViewModel : BaseViewModel {
     }
 
     // split settings
+    [ObservableProperty] private float _draftTolerance = 10.0f;
     [ObservableProperty] private int _outerDistance = 20;
     [ObservableProperty] private float _innerDistance = 1.0f;
     [ObservableProperty] private float _gapDistance = 0.1f;
+
+    partial void OnDraftToleranceChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        UpdateSettings();
+    }
 
     partial void OnOuterDistanceChanged(int oldValue, int newValue) {
         if (oldValue ==  newValue) { return; }
@@ -72,6 +88,7 @@ public partial class SplitViewModel : BaseViewModel {
 
     private SplitViewOptions ViewOptions => new SplitViewOptions(
             ShowBolus,
+            ShowCurves,
             ShowNegativeParting,
             ShowPositiveParting,
             ShowPullRegions,
@@ -100,7 +117,6 @@ public partial class SplitViewModel : BaseViewModel {
         _bolus = bolus.TransformedMesh();
 
         var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
-        //MeshModel mould = MeshTools.OffsetModel(_bolus, 3.0);
 
         if (mould is null || mould.Geometry is null) {
             MessageBox.Show("Need a mould generated to split!", $"Mould requred", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -111,8 +127,8 @@ public partial class SplitViewModel : BaseViewModel {
     }
 
     private CuttingMeshResults GeneratePreview() {
-        var paths = DraftRegions.GenerateDraftMeshes(_bolus, Vector3.UnitY, 10.0);
-        _path_indices = PartingTools.PartingPathIndices(paths[DraftRegions.DraftRegionClassification.Positive]);
+        var draft_regions = DraftRegions.GenerateDraftMeshes(_bolus, Vector3.UnitY, DraftTolerance);
+        _path_indices = PartingTools.PartingPathIndices(draft_regions[DraftRegions.DraftRegionClassification.Positive]);
 
         _results = PartingTools.GeneratePartingMesh(
             _bolus,
@@ -122,6 +138,7 @@ public partial class SplitViewModel : BaseViewModel {
             GapDistance);
 
         _results.Mould = _mould;
+        _results.DraftRegions = draft_regions;
 
         var intersection_response = MeshTools.Intersections(_mould, _results.CuttingMesh);
 

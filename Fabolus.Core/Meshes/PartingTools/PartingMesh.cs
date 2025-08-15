@@ -11,6 +11,7 @@ using System.Numerics;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
+using static Fabolus.Core.Meshes.MeshTools.DraftRegions;
 using static MR.DotNet;
 
 namespace Fabolus.Core.Meshes.PartingTools;
@@ -443,6 +444,7 @@ public record struct CuttingMeshResults {
     public MeshModel NegativePullMesh;
     public MeshError[] Errors = [];
     public Contour[] Intersections = [];
+    public Dictionary<DraftRegionClassification, MeshModel> DraftRegions = [];
 
     public CuttingMeshResults() { }
 } 

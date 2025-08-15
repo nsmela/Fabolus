@@ -38,6 +38,12 @@ public class SplitSceneManager : SceneManager {
     // boundaries
     private MeshGeometry3D _boundariesMesh = new();
 
+    // curves
+    private MeshGeometry3D _curveNoneRegion = new();
+    private MeshGeometry3D _curveFlatRegion = new();
+    private MeshGeometry3D _curveValleyRegion = new();
+    private MeshGeometry3D _curveRidgeRegion = new();
+
     // view options
     private SplitViewOptions _view_options;
 
@@ -53,9 +59,6 @@ public class SplitSceneManager : SceneManager {
             UpdateResults(m.Results);
         });
 
-        // initial values
-        UpdateRegions(bolus.TransformedMesh());
-
         _settings.Model = bolus.TransformedMesh();
         _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
 
@@ -63,23 +66,12 @@ public class SplitSceneManager : SceneManager {
         UpdateResults(results);
     }
 
-    private void UpdateRegions(MeshModel bolus) {
-        var results = DraftRegions.GenerateDraftMeshes(bolus, System.Numerics.Vector3.UnitY, 5.0);
-
-        _positiveRegion = results[DraftRegions.DraftRegionClassification.Positive].ToGeometry();
-        _negativeRegion = results[DraftRegions.DraftRegionClassification.Negative].ToGeometry();
-        _neutralRegion = results[DraftRegions.DraftRegionClassification.Neutral].ToGeometry();
-        _occludedRegion = results[DraftRegions.DraftRegionClassification.Occluded].ToGeometry();
-    }
-
     private void UpdateResults(CuttingMeshResults results) {
         _bolus = results.Model.ToGeometry();
 
         // path for the parting line
-        List<Vector3> path = [];
-        foreach(var p in results.PartingPaths) {
-            path.AddRange(p.Select(pp => new Vector3(pp.X, pp.Y, pp.Z)));
-        }
+        // testing
+        Vector3[] path = PartingTools.GeneratePartingLine(results.Model, new System.Numerics.Vector3(0, 1, 0)).Select(v => ToVector3(v)).ToArray();
         MeshBuilder builder = new();
         foreach (Vector3 v in path.Select(v => new Vector3(v.X, v.Y, v.Z))) {
             builder.AddSphere(v, 0.25);
@@ -88,6 +80,12 @@ public class SplitSceneManager : SceneManager {
 
         _partingMesh = results.CuttingMesh.ToGeometry();
         _mouldMesh = results.Mould is not null ? results.Mould.ToGeometry() : new();
+
+        // draft regions
+        _positiveRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Positive].ToGeometry();
+        _negativeRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Negative].ToGeometry();
+        _neutralRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Neutral].ToGeometry();
+        _occludedRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Occluded].ToGeometry();
 
         // final parted meshes
         _negativePullMesh = MeshModel.IsNullOrEmpty(results.NegativePullMesh)
@@ -146,6 +144,13 @@ public class SplitSceneManager : SceneManager {
 
         _boundariesMesh = builder.ToMeshGeometry3D();
 
+        // curves
+        var curves = MeshTools.GenerateCurveRegions(results.Model);
+        _curveNoneRegion = curves[MeshTools.CurveRegionClassification.None].ToGeometry();
+        _curveFlatRegion = curves[MeshTools.CurveRegionClassification.Flat].ToGeometry();
+        _curveValleyRegion = curves[MeshTools.CurveRegionClassification.Valley].ToGeometry();
+        _curveRidgeRegion = curves[MeshTools.CurveRegionClassification.Ridge].ToGeometry();
+
         UpdateDisplay();
     }
 
@@ -176,6 +181,33 @@ public class SplitSceneManager : SceneManager {
                 Geometry = _occludedRegion,
                 Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Yellow,
+            });
+        }
+
+        // show curves
+        if (_view_options.ShowCurves) {
+            models.Add(new DisplayModel3D {
+                Geometry = _curveNoneRegion,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.White,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _curveFlatRegion,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Green,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _curveValleyRegion,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Yellow,
+            });
+
+            models.Add(new DisplayModel3D {
+                Geometry = _curveRidgeRegion,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Red,
             });
         }
 
