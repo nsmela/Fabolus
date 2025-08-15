@@ -12,6 +12,7 @@ using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Core.Extensions;
 using System.Windows.Input;
 using Fabolus.Core.BolusModel;
+using SharpDX.DirectWrite;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -48,8 +49,11 @@ public class SplitSceneManager : SceneManager {
     private PartingTool _partingTool;
     private DisplayModel3D? _partingToolPreview = new();
     private DisplayModel3D _partingToolDisplay = new();
-    private DisplayModel3D[] _partingToolAnchors = [];
+    private List<DisplayModel3D> _partingToolAnchors = [];
     private Guid[] _validIds = [];
+
+    private bool _isDragging = false;
+    private int _selectedAnchorIndex = -1;
 
     // view options
     private SplitViewOptions _view_options;
@@ -63,7 +67,7 @@ public class SplitSceneManager : SceneManager {
         _partingToolDisplay = new DisplayModel3D {
             Geometry = _partingTool.Geometry,
             Transform = MeshHelper.TransformEmpty,
-            Skin = DiffuseMaterials.Bisque
+            Skin = DiffuseMaterials.Obsidian
         };
 
         // request messages
@@ -83,12 +87,31 @@ public class SplitSceneManager : SceneManager {
     }
 
     protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
-        if (hits is null || hits.Count() == 0) { return; }
+        var firstHit = hits.FirstOrDefault();
+        if (firstHit is null) { return; }
 
         //catch and ignored mouse buttons and exit
         var mouse = args as MouseButtonEventArgs;
         if (mouse.RightButton == MouseButtonState.Pressed
                 || mouse.MiddleButton == MouseButtonState.Pressed) {
+            return;
+        }
+
+        // check if anchor is hit
+        // obsidian for normal, black for highlight, bronze for selected
+        int index = _partingToolAnchors.FindIndex(x => x.Geometry.GUID ==  firstHit.Geometry.GUID);
+        if (index != -1) {
+            // hit an anchor
+            _selectedAnchorIndex = index;
+            _isDragging = true;
+            _partingToolAnchors[index] = _partingToolAnchors[index] with { Skin = DiffuseMaterials.Bronze };
+
+            for (int i = 0; i < _partingToolAnchors.Count; i++) {
+                if (i == _selectedAnchorIndex) { continue; }
+                _partingToolAnchors[i] = _partingToolAnchors[i] with { Skin = DiffuseMaterials.Obsidian };
+            }
+
+            UpdateDisplay();
             return;
         }
 
@@ -100,7 +123,7 @@ public class SplitSceneManager : SceneManager {
         var point = modelHit.PointHit;
         var normal = modelHit.NormalAtHit;
 
-        _partingTool.AddAnchor(point);
+        _selectedAnchorIndex = _partingTool.AddAnchor(point);
         _partingTool.Compute();
         _partingToolDisplay = new DisplayModel3D {
             Geometry = _partingTool.Geometry,
@@ -116,16 +139,20 @@ public class SplitSceneManager : SceneManager {
             MeshBuilder builder = new();
             builder.AddCylinder(anchors[i], anchors[i] + normals[i] * 4.0f, 1.0, 32, true, true);
 
+            var skin = i == _selectedAnchorIndex
+                ? DiffuseMaterials.Bronze
+                : DiffuseMaterials.Obsidian;
+
             var model = new DisplayModel3D {
                 Geometry = builder.ToMeshGeometry3D(),
                 Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Obsidian
+                Skin = skin
             };
 
             meshes.Add(model);
         }
 
-        _partingToolAnchors = meshes.ToArray();
+        _partingToolAnchors = meshes;
 
         UpdateDisplay();
     }
@@ -133,6 +160,12 @@ public class SplitSceneManager : SceneManager {
     protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
         // reset parting tool
         _partingToolPreview = null;
+
+        for (int i = 0; i < _partingToolAnchors.Count; i++) {
+            if (i == _selectedAnchorIndex) { continue; }
+            _partingToolAnchors[i] = _partingToolAnchors[i] with { Skin = DiffuseMaterials.Obsidian };
+        }
+
         if (hits is null || hits.Count() == 0) {
             UpdateDisplay();
             return;
@@ -154,7 +187,20 @@ public class SplitSceneManager : SceneManager {
         }
 
         // check if the parting line setup is hit
-        // TODO
+        // over anchor
+        var anchorHit = hits.FirstOrDefault(x => _partingToolAnchors.Where(a => a.Geometry.GUID == x.Geometry.GUID).Any());
+        if (anchorHit is not null) {
+            for(int i = 0; i < _partingToolAnchors.Count; i++) {
+                if (i == _selectedAnchorIndex) { continue; }
+
+                if (_partingToolAnchors[i].Geometry.GUID == anchorHit.Geometry.GUID) {
+                    _partingToolAnchors[i] = _partingToolAnchors[i] with { Skin = DiffuseMaterials.Black };
+
+                    UpdateDisplay();
+                    return;
+                } 
+            }
+        }
 
         // check if the bolus is hit
         var modelHit = hits.FirstOrDefault(x => _validIds.Contains(x.Geometry.GUID));
@@ -169,7 +215,7 @@ public class SplitSceneManager : SceneManager {
         _partingToolPreview = new DisplayModel3D {
             Geometry = _partingTool.PreviewAnchor(point),
             Transform = MeshHelper.TransformEmpty,
-            Skin = DiffuseMaterials.Bisque
+            Skin = DiffuseMaterials.Obsidian
         };
 
         UpdateDisplay();

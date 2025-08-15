@@ -73,7 +73,7 @@ internal class PartingTool {
 
     // public methods
 
-    public void AddAnchor(Vector3 point) {
+    public int AddAnchor(Vector3 point) {
         // find closest vertex
         var index = Model.GetClosestVertex(new System.Numerics.Vector3(point.X, point.Y, point.Z));
         Vector3 vector = Model
@@ -83,7 +83,7 @@ internal class PartingTool {
 
         if (AnchorIndexes.Count < 3) {
             AnchorIndexes.Add(index);
-            return;
+            return AnchorIndexes.Count - 1;
         }
 
         // adding to the closest point on the path
@@ -115,10 +115,14 @@ internal class PartingTool {
             throw new Exception("Add Anchor: Unable to find an anchor!");
         }
 
+        last_anchor++; // since all future references would require adding one
+
         if (last_anchor >= AnchorIndexes.Count) {
             AnchorIndexes.Add(index);
+            return AnchorIndexes.Count - 1;
         } else {
             AnchorIndexes.Insert(last_anchor, index);
+            return last_anchor;
         }
 
     }

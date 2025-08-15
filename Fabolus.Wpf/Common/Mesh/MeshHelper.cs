@@ -21,6 +21,9 @@ public static class MeshHelper {
         return new Transform3DGroup { Children = [translate] };
     }
 
+    public static Transform3D ScaleTransform(double scaleX, double scaleY, double scaleZ) =>
+        new Transform3DGroup { Children = [new ScaleTransform3D(scaleX, scaleY, scaleZ)] };
+
     public static Transform3D TransformEmpty => TransformFromAxis(VectorZero, 0.0f);
 
 

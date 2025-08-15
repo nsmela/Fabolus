@@ -74,6 +74,9 @@ public class MeshModel {
 
     }
 
+    public Vector3 GetVertex(int vId) => Mesh.GetVertex(vId).ToVector3();
+    public Vector3 GetVtxNormal(int vId) => Mesh.GetVertexNormal(vId).ToVector3();
+
     public IEnumerable<double[]> GetVertices(int[] vert_ids) {
         foreach(int vId in vert_ids) {
             var vertex = Mesh.GetVertex(vId);
