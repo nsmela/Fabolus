@@ -23,12 +23,13 @@
             MouseUp="view1_MouseUp"
             UseDefaultGestures="False">
             <hx:Viewport3DX.InputBindings>
-                <KeyBinding Key="B" Command="hx:ViewportCommands.BackView" />
-                <KeyBinding Key="F" Command="hx:ViewportCommands.FrontView" />
-                <KeyBinding Key="U" Command="hx:ViewportCommands.TopView" />
-                <KeyBinding Key="D" Command="hx:ViewportCommands.BottomView" />
-                <KeyBinding Key="L" Command="hx:ViewportCommands.LeftView" />
-                <KeyBinding Key="R" Command="hx:ViewportCommands.RightView" />
+                <KeyBinding Key="B" Command="{Binding KeyBCommand}" />
+                <KeyBinding Key="F" Command="{Binding KeyFCommand}" />
+                <KeyBinding Key="U" Command="{Binding KeyUCommand}" />
+                <KeyBinding Key="D" Command="{Binding KeyDCommand}" />
+                <KeyBinding Key="L" Command="{Binding KeyLCommand}" />
+                <KeyBinding Key="R" Command="{Binding KeyRCommand}" />
+                <KeyBinding Key="Delete" Command="{Binding KeyDeleteCommand}" />
                 <KeyBinding Command="hx:ViewportCommands.ZoomExtents" Gesture="Control+E" />
                 <MouseBinding Command="{Binding RightMouseCommand}" Gesture="RightClick" />
                 <MouseBinding Command="{Binding MiddleMouseCommand}" Gesture="MiddleClick" />

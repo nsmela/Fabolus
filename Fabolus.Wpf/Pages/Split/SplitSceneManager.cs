@@ -17,6 +17,7 @@ using System.Windows.Media;
 
 // aliases
 using HitTestResult = HelixToolkit.Wpf.SharpDX.HitTestResult;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -67,6 +68,8 @@ public class SplitSceneManager : SceneManager {
     public SplitSceneManager() {
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
 
+        SetDefaultInputBindings();
+
         // PartingTool
         _partingTool = new(bolus.TransformedMesh(), []);
         _partingTool.Compute();
@@ -92,6 +95,14 @@ public class SplitSceneManager : SceneManager {
         UpdateResults(results);
     }
 
+    protected virtual void SetDefaultInputBindings() {
+        var delete_command = new RelayCommand(RemoveAnchor);
+        WeakReferenceMessenger.Default.Send(
+        new MeshDisplayInputsMessage(new InputBindingCollection {
+            new KeyBinding(delete_command, Key.Delete, ModifierKeys.None),
+        }));
+    }
+        
     protected override void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
         // end dragging
         _isDragging = false;
@@ -315,6 +326,10 @@ public class SplitSceneManager : SceneManager {
         };
 
         UpdateDisplay();
+    }
+
+    private void RemoveAnchor() {
+
     }
 
     private void UpdateResults(CuttingMeshResults results) {
