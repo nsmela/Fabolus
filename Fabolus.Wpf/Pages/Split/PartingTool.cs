@@ -1,5 +1,6 @@
 ﻿using Fabolus.Core.Meshes;
 using Fabolus.Core.Meshes.PartingTools;
+using Fabolus.Wpf.Common.Extensions;
 using g3;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
@@ -81,6 +82,7 @@ internal class PartingTool {
             .Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2]))
             .First();
 
+        // add and abort if there's not enough points to link
         if (AnchorIndexes.Count < 3) {
             AnchorIndexes.Add(index);
             return AnchorIndexes.Count - 1;
@@ -142,5 +144,12 @@ internal class PartingTool {
         MeshBuilder builder = new();
         builder.AddCylinder(point, point + normal * 4.0f, 1, 32);
         return builder.ToMeshGeometry3D();
+    }
+
+    public void MoveAnchor(int anchorIndex, Vector3 point) {
+        // find closest vertex
+        var index = Model.GetClosestVertex( point.ToNumericsVector3());
+        AnchorIndexes[anchorIndex] = index;
+
     }
 }

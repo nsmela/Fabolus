@@ -13,6 +13,10 @@ using Fabolus.Core.Extensions;
 using System.Windows.Input;
 using Fabolus.Core.BolusModel;
 using SharpDX.DirectWrite;
+using System.Windows.Media;
+
+// aliases
+using HitTestResult = HelixToolkit.Wpf.SharpDX.HitTestResult;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -52,8 +56,10 @@ public class SplitSceneManager : SceneManager {
     private List<DisplayModel3D> _partingToolAnchors = [];
     private Guid[] _validIds = [];
 
+    private Point? _dragStartPosition;
     private bool _isDragging = false;
     private int _selectedAnchorIndex = -1;
+    private int _payloadIndex = -1;
 
     // view options
     private SplitViewOptions _view_options;
@@ -86,10 +92,15 @@ public class SplitSceneManager : SceneManager {
         UpdateResults(results);
     }
 
-    protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
-        var firstHit = hits.FirstOrDefault();
-        if (firstHit is null) { return; }
+    protected override void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
+        // end dragging
+        _isDragging = false;
+        _dragStartPosition = null;
+        _payloadIndex = -1;
+        
+    }
 
+    protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
         //catch and ignored mouse buttons and exit
         var mouse = args as MouseButtonEventArgs;
         if (mouse.RightButton == MouseButtonState.Pressed
@@ -97,14 +108,21 @@ public class SplitSceneManager : SceneManager {
             return;
         }
 
+        var firstHit = hits.FirstOrDefault();
+        if (firstHit is null) {
+            // clear anchor selection
+            _selectedAnchorIndex = -1; 
+            return; 
+        }
+
         // check if anchor is hit
         // obsidian for normal, black for highlight, bronze for selected
         int index = _partingToolAnchors.FindIndex(x => x.Geometry.GUID ==  firstHit.Geometry.GUID);
-        if (index != -1) {
-            // hit an anchor
-            _selectedAnchorIndex = index;
-            _isDragging = true;
-            _partingToolAnchors[index] = _partingToolAnchors[index] with { Skin = DiffuseMaterials.Bronze };
+
+        // no anchors hit
+        if (index < 0 && _selectedAnchorIndex > -1) {
+            // clear anchor selection
+            _selectedAnchorIndex = -1;
 
             for (int i = 0; i < _partingToolAnchors.Count; i++) {
                 if (i == _selectedAnchorIndex) { continue; }
@@ -114,6 +132,27 @@ public class SplitSceneManager : SceneManager {
             UpdateDisplay();
             return;
         }
+
+        if (index != -1) {
+            // hit an anchor
+            _selectedAnchorIndex = index;
+            _partingToolAnchors[index] = _partingToolAnchors[index] with { Skin = DiffuseMaterials.Bronze };
+
+            for (int i = 0; i < _partingToolAnchors.Count; i++) {
+                if (i == _selectedAnchorIndex) { continue; }
+                _partingToolAnchors[i] = _partingToolAnchors[i] with { Skin = DiffuseMaterials.Obsidian };
+            }
+
+            // preparing to drag if not already dragging
+            if (_dragStartPosition is null) {
+                _dragStartPosition = ToSharpPoint(mouse.GetPosition(null));
+                _payloadIndex = _selectedAnchorIndex;
+            }
+
+            UpdateDisplay();
+            return;
+        }
+
 
         // check if the bolus is hit
         // show path
@@ -180,8 +219,63 @@ public class SplitSceneManager : SceneManager {
 
         // process if any mouse button is down
         if (mouse.RightButton == MouseButtonState.Pressed
-                || mouse.MiddleButton == MouseButtonState.Pressed
-                || mouse.LeftButton == MouseButtonState.Pressed) {
+                || mouse.MiddleButton == MouseButtonState.Pressed) {
+            UpdateDisplay();
+            return;
+        }
+
+        // check if the mouse is far enough to begin dragging
+        if (!_isDragging && _dragStartPosition != null) {
+            const int dist = 25; // distance in pixels to start dragging
+            var currentPosition = ToSharpPoint(mouse.GetPosition(null));
+            var current_distance = currentPosition.DistanceTo(_dragStartPosition.Value);
+
+            // not far enough to start dragging
+            if (current_distance < dist) { return; }
+
+            // start dragging
+            _isDragging = true;
+        }
+
+        if (_isDragging) {
+            // is the bolus hit?
+            var bolusHit = hits.FirstOrDefault(x => _validIds.Contains(x.Geometry.GUID));
+            if (bolusHit is null) {
+                UpdateDisplay();
+                return;
+            }
+
+            // update position of the selected channel
+            _partingTool.MoveAnchor(_payloadIndex, bolusHit.PointHit);
+            _partingTool.Compute();
+            // show anchors
+            List<DisplayModel3D> meshes = [];
+            var anchors = _partingTool.Model.GetVertices(_partingTool.AnchorIndexes.ToArray()).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2])).ToArray();
+            var normals = _partingTool.Model.GetVtxNormals(_partingTool.AnchorIndexes).Select(v => new Vector3(v.X, v.Y, v.Z)).ToArray();
+            for (int i = 0; i < anchors.Length; i++) {
+                MeshBuilder builder = new();
+                builder.AddCylinder(anchors[i], anchors[i] + normals[i] * 4.0f, 1.0, 32, true, true);
+
+                var skin = i == _selectedAnchorIndex
+                    ? DiffuseMaterials.Bronze
+                    : DiffuseMaterials.Obsidian;
+
+                var model = new DisplayModel3D {
+                    Geometry = builder.ToMeshGeometry3D(),
+                    Transform = MeshHelper.TransformEmpty,
+                    Skin = skin
+                };
+
+                meshes.Add(model);
+            }
+
+            _partingToolAnchors = meshes;
+            _partingToolDisplay = new DisplayModel3D {
+                Geometry = _partingTool.Geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Obsidian
+            };
+
             UpdateDisplay();
             return;
         }
@@ -448,7 +542,7 @@ public class SplitSceneManager : SceneManager {
     
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
-
+    private static Point ToSharpPoint(System.Windows.Point point) => new Point((int)point.X, (int)point.Y);
 }
 
 

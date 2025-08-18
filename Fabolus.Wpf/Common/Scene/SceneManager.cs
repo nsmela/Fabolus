@@ -49,8 +49,8 @@ public class SceneManager : IDisposable   {
     }
 
     protected virtual void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
-        LeftMouseButton: ViewportCommands.Pan,
-        MiddleMouseButton: ViewportCommands.Zoom,
+        LeftMouseButton: new(),
+        MiddleMouseButton: ViewportCommands.Pan,
         RightMouseButton: ViewportCommands.Rotate));
 
     protected virtual void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {

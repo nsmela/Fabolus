@@ -43,13 +43,11 @@ public static class DraftRegions {
         //ConvertRegions(ref triangles);
         CleanupRegions(ref triangles, mesh);
         CleanupRegions(ref triangles, mesh);
-        bool[] occluded = OccludedTriangles(mesh, dir);
 
         // create a mesh for each classification
         DMesh3 positive_mesh = new DMesh3();
         DMesh3 negative_mesh = new DMesh3();
         DMesh3 neutral_mesh = new DMesh3();
-        DMesh3 occluded_mesh = new DMesh3();
 
         // easier to ensure the mesh has all the vertices than to feed only the required ones
         // keeps triangle indices references consistent
@@ -57,15 +55,10 @@ public static class DraftRegions {
             positive_mesh.AppendVertex(v);
             negative_mesh.AppendVertex(v);
             neutral_mesh.AppendVertex(v);
-            occluded_mesh.AppendVertex(v);
         }
 
         // generate meshes for each draft region type
         for(int i =0; i < triangles.Length; i++) {
-            if (occluded[i]) {
-                occluded_mesh.AppendTriangle(mesh.GetTriangle(i));
-                continue;
-            }
 
             switch (triangles[i]) {
                 case DraftRegionClassification.Positive:
@@ -84,7 +77,6 @@ public static class DraftRegions {
         results[DraftRegionClassification.Positive] = new MeshModel(positive_mesh);
         results[DraftRegionClassification.Negative] = new MeshModel(negative_mesh);
         results[DraftRegionClassification.Neutral] = new MeshModel(neutral_mesh);
-        results[DraftRegionClassification.Occluded] = new MeshModel(occluded_mesh);
 
         return results;
     }

@@ -32,8 +32,8 @@ public partial class MeshViewModel : ObservableObject {
     private IList<DisplayModel3D> _models = [];
 
     //mouse commands
-    [ObservableProperty] private ICommand _leftMouseCommand = ViewportCommands.Pan;
-    [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
+    [ObservableProperty] private ICommand _leftMouseCommand;
+    [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Pan;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
 
     // cross section
