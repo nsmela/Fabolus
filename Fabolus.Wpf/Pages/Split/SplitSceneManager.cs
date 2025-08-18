@@ -192,6 +192,7 @@ public class SplitSceneManager : SceneManager {
         }
 
         _partingToolAnchors = meshes;
+        WeakReferenceMessenger.Default.Send(new SplitPartingToolUpdatedMessage(_partingTool));
 
         UpdateDisplay();
     }
@@ -277,6 +278,7 @@ public class SplitSceneManager : SceneManager {
             };
 
             UpdateDisplay();
+            WeakReferenceMessenger.Default.Send(new SplitPartingToolUpdatedMessage(_partingTool));
             return;
         }
 

@@ -16,7 +16,7 @@ using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 
 namespace Fabolus.Wpf.Pages.Split;
 
-internal class PartingTool {
+public class PartingTool {
     // User-modifiable
     public List<int> AnchorIndexes { get; private set; } = [];
     public Vector3[] AnchorPoints => 
@@ -26,7 +26,7 @@ internal class PartingTool {
         .ToArray();
 
     // generated between anchor points
-    private int[] PathIndexes { get; set; } = [];
+    public int[] PathIndexes { get; private set; } = [];
     public Vector3[] PathPoints { get; private set; } = [];
 
     // to show

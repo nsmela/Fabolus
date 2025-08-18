@@ -107,11 +107,13 @@ public partial class SplitViewModel : BaseViewModel {
     private MeshModel _mould;
     private CuttingMeshResults _results;
     private List<int[]> _path_indices = [];
+    private PartingTool _partingTool;
 
     public SplitViewModel() {
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestViewOptionsMessage>(this, (r, m) => m.Reply(ViewOptions));
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestSettingsMessage>(this, (r, m) => m.Reply(CuttingSettings));
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestResultsMessage>(this, (r, m) => m.Reply(GeneratePreview()));
+        WeakReferenceMessenger.Default.Register<SplitViewModel, SplitPartingToolUpdatedMessage>(this, (r, m) => PartingToolUpdated(m.tool));
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         _bolus = bolus.TransformedMesh();
@@ -124,11 +126,15 @@ public partial class SplitViewModel : BaseViewModel {
         }
 
         _mould = mould;
+
+        _partingTool = new PartingTool(_bolus, [1]);
     }
 
     private CuttingMeshResults GeneratePreview() {
         var draft_regions = DraftRegions.GenerateDraftMeshes(_bolus, Vector3.UnitY, DraftTolerance);
-        _path_indices = PartingTools.PartingPathIndices(draft_regions[DraftRegions.DraftRegionClassification.Positive]);
+        //_path_indices = PartingTools.PartingPathIndices(draft_regions[DraftRegions.DraftRegionClassification.Positive]);
+        _path_indices = new();
+        _path_indices.Add(_partingTool.PathIndexes);
 
         _results = PartingTools.GeneratePartingMesh(
             _bolus,
@@ -147,6 +153,11 @@ public partial class SplitViewModel : BaseViewModel {
         }
 
         return _results;
+    }
+
+    private void PartingToolUpdated(PartingTool tool) {
+        _partingTool = tool;
+        UpdateSettings();
     }
 
     // commands

@@ -18,6 +18,7 @@ public sealed record SplitSeperationDistanceMessage(float Distance);
 public sealed record UpdateSplitViewOptionsMessage(SplitViewOptions Options);
 public sealed record SplitSettingsMessage(CuttingMeshParams Settings);
 public sealed record SplitResultsMessage(CuttingMeshResults Results);
+public sealed record SplitPartingToolUpdatedMessage(PartingTool tool);
 public sealed class SplitRequestSettingsMessage : RequestMessage<CuttingMeshParams>;
 public sealed class SplitRequestViewOptionsMessage : RequestMessage<SplitViewOptions>;
 public sealed class SplitRequestResultsMessage : RequestMessage<CuttingMeshResults>;

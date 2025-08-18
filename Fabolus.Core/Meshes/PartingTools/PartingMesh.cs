@@ -17,7 +17,9 @@ using static MR.DotNet;
 namespace Fabolus.Core.Meshes.PartingTools;
 public static partial class PartingTools {
     public static CuttingMeshResults GeneratePartingMesh(MeshModel model, List<int[]> parting_indices, double inner_offset, double outer_offset, double seperation_distance) {
-        if (parting_indices.Count == 0) { throw new Exception("No indices for Generating Parting Mesh!"); }
+        if (parting_indices.Count == 0 || parting_indices[0].Length < 3) {
+            return new() { CuttingMesh = new(), Model = model};
+        }
         
         List<PartingMesh> partings = [];
         partings.Add(PartingMesh.Create(model.Mesh, parting_indices[0], inner_offset, outer_offset));
