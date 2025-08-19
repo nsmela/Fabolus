@@ -1,4 +1,5 @@
-﻿using Fabolus.Wpf.Common.Mesh;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using Fabolus.Wpf.Common.Mesh;
 using HelixToolkit.Wpf.SharpDX;
 using System;
 using System.Collections.Generic;
@@ -7,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Navigation;
 
 namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 //messages
@@ -30,9 +32,14 @@ public static class MeshDisplay {
         new MouseBinding(ViewportCommands.Pan, new MouseGesture(MouseAction.MiddleClick, ModifierKeys.None)),
 
         // key commands
-        new KeyBinding(ViewportCommands.BackView, Key.B, ModifierKeys.None),
+        new KeyBinding(){ Command = ViewportCommands.BackView, Key = Key.B },
+        new KeyBinding(){ Command = ViewportCommands.BottomView, Key = Key.D },
+        new KeyBinding(){ Command = ViewportCommands.FrontView, Key = Key.F },
+        new KeyBinding(){ Command = ViewportCommands.Reset, Key = Key.H },
+        new KeyBinding(){ Command = ViewportCommands.LeftView, Key = Key.L },
+        new KeyBinding(){ Command = ViewportCommands.RightView, Key = Key.R },
+        new KeyBinding(){ Command = ViewportCommands.TopView, Key = Key.T },
+        new KeyBinding(){ Command = new RoutedCommand(), Key = Key.Delete },
     };
-
-        
 
 }

@@ -144,6 +144,8 @@ public partial class MeshViewModel : ObservableObject {
                 } else if (mouse.MouseAction == MouseAction.RightClick) {
                     RightMouseCommand = mouse.Command;
                 }
+
+                continue;
             }
 
             if (binding is KeyBinding kb) {
