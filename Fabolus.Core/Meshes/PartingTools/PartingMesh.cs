@@ -24,9 +24,9 @@ public static partial class PartingTools {
         List<PartingMesh> partings = [];
         partings.Add(PartingMesh.Create(model.Mesh, parting_indices[0], inner_offset, outer_offset));
         
-        if (parting_indices.Count > 1) {
-            partings.Add(PartingMesh.CreateClosed(model.Mesh, parting_indices[1], inner_offset));
-        }
+        //if (parting_indices.Count > 1) {
+        //    partings.Add(PartingMesh.CreateClosed(model.Mesh, parting_indices[1], inner_offset));
+        //}
 
         // TODO: use MeshLib instead for this
         // c++ code:
@@ -127,16 +127,23 @@ public static partial class PartingTools {
             vertices = AverageVertices(vertices);
             vertices = LaplacianSmoothing(vertices);
 
+            // create offset mesh staggered to help remove anomolies
             Vertex[] inner_vertices = OffsetVerts(vertices, -1 * Math.Abs(inner_offset));
             PartingMesh parting = new(inner_vertices);
             double distance = outer_offset;
-            while (distance > 5.0) {
+            bool _vertices_within_boundary = true;
+            while (_vertices_within_boundary) {
                 parting.Offset(5.0);
-                distance -= 5.0;
+
+                _vertices_within_boundary = false;
+                foreach (var v in parting.Vertices) {
+                    if (mesh.CachedBounds.Contains(v.Position)) {
+                        _vertices_within_boundary = true;
+                        break;
+                    }
+                }
             }
             parting.Offset(distance);
-
-            var boundraries = new MeshBoundaryLoops(parting.Mesh);
 
             return parting;
         }
@@ -337,6 +344,13 @@ public static partial class PartingTools {
                 throw new Exception();
             }
 
+            //// if new position is outside the bounds, clamp it to +1.0 mm 
+            //if (!bounds.Contains(position)) {
+            //    // recalculate the position
+            //    double dist = 1.0 +  IntersectBoundary(bounds, verts[i].Position, offset);
+            //    position = verts[i].Position + offset * dist;
+            //}
+
             results[i] = verts[i] with { Position = position };
 
         }
@@ -345,6 +359,35 @@ public static partial class PartingTools {
         results = RemoveSharpCorners(results).ToArray();
 
         return results.ToArray();
+    }
+
+    private static double IntersectBoundary(AxisAlignedBox3d bounds, Vector3d position, Vector3d offset) {
+        Vector3d p0 = position;
+        Vector3d p1 = offset.Normalized;
+
+        double min_t = double.MaxValue;
+        double x_denom = Vector3d.AxisX.Dot(p1);
+        double max_x_t = Vector3d.AxisX.Dot(new Vector3d(bounds.Max.x, 0, 0) - p0) / x_denom;
+        if (max_x_t > 0 && max_x_t < min_t) {
+            min_t = max_x_t;
+        }
+        double min_x_t = Vector3d.AxisX.Dot(new Vector3d(bounds.Min.x, 0, 0) - p0) / x_denom;
+        if (min_x_t > 0 && min_x_t < min_t) {
+            min_t = min_x_t;
+        }
+
+        double z_denom = Vector3d.AxisZ.Dot(p1);
+        double max_z_t = Vector3d.AxisZ.Dot(new Vector3d(0, 0, bounds.Max.z) - p0) / z_denom;
+        if (max_z_t > 0 && max_z_t < min_t) {
+            min_t = max_z_t;
+        }
+        double min_z_t = Vector3d.AxisZ.Dot(new Vector3d(0, 0, bounds.Min.z) - p0) / z_denom;
+        if (min_z_t > 0 && min_z_t < min_t) {
+            min_t = min_z_t;
+        }
+
+
+        return min_t;
     }
 
     internal static Vertex[] OffsetVertNormals(Vertex[] verts, double distance) {
