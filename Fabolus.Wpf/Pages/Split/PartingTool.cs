@@ -150,6 +150,14 @@ public class PartingTool {
         // find closest vertex
         var index = Model.GetClosestVertex( point.ToNumericsVector3());
         AnchorIndexes[anchorIndex] = index;
+        Compute();
+    }
 
+    public void RemoveAnchor(int anchorIndex) {
+        if (anchorIndex < 0 || anchorIndex >= AnchorIndexes.Count) {
+            throw new ArgumentOutOfRangeException(nameof(anchorIndex), "Anchor index is out of range.");
+        }
+        AnchorIndexes.RemoveAt(anchorIndex);
+        Compute(); // Recompute the path after removing an anchor
     }
 }

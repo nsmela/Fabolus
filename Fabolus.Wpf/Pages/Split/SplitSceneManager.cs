@@ -259,7 +259,7 @@ public class SplitSceneManager : SceneManager {
 
             // update position of the selected channel
             _partingTool.MoveAnchor(_payloadIndex, bolusHit.PointHit);
-            _partingTool.Compute();
+
             // show anchors
             List<DisplayModel3D> meshes = [];
             var anchors = _partingTool.Model.GetVertices(_partingTool.AnchorIndexes.ToArray()).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2])).ToArray();
@@ -329,7 +329,37 @@ public class SplitSceneManager : SceneManager {
     }
 
     private void RemoveAnchor() {
+        if (_selectedAnchorIndex == -1) {
+            return; // no anchor selected
+        }
+        
+        _partingTool.RemoveAnchor(_selectedAnchorIndex);
 
+        // show anchors
+        List<DisplayModel3D> meshes = [];
+        var anchors = _partingTool.Model.GetVertices(_partingTool.AnchorIndexes.ToArray()).Select(v => new Vector3((float)v[0], (float)v[1], (float)v[2])).ToArray();
+        var normals = _partingTool.Model.GetVtxNormals(_partingTool.AnchorIndexes).Select(v => new Vector3(v.X, v.Y, v.Z)).ToArray();
+        for (int i = 0; i < anchors.Length; i++) {
+            MeshBuilder builder = new();
+            builder.AddCylinder(anchors[i], anchors[i] + normals[i] * 4.0f, 1.0, 32, true, true);
+
+            var model = new DisplayModel3D {
+                Geometry = builder.ToMeshGeometry3D(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Obsidian,
+            };
+
+            meshes.Add(model);
+        }
+
+        _partingToolAnchors = meshes;
+
+        // parting tool line
+        _partingToolDisplay = new DisplayModel3D {
+            Geometry = _partingTool.Geometry,
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Obsidian
+        };
     }
 
     private void UpdateResults(CuttingMeshResults results) {
