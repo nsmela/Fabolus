@@ -48,6 +48,9 @@ public class PartingTool {
         // insufficient anchors to use for pathing
         if (AnchorIndexes.Count < 3) { return; }
 
+        // reorganize anchor points
+        ReorderAnchors();
+
         // grab the path
         PathIndexes = PartingTools.GeneratePartingLine(Model, AnchorIndexes.ToArray());
         PathPoints = Model
@@ -159,5 +162,20 @@ public class PartingTool {
         }
         AnchorIndexes.RemoveAt(anchorIndex);
         Compute(); // Recompute the path after removing an anchor
+    }
+
+    private void ReorderAnchors() {
+        List<int> new_anchor_ids = [AnchorIndexes[0]]; // start with the first one
+        List<int> anchor_queue = AnchorIndexes.Skip(1).ToList(); // remaining anchors
+        Graph graph = new(Model);
+
+        while (anchor_queue.Count > 0) {
+            int last_id = new_anchor_ids.Last();
+            var index = graph.FindClosest(last_id, anchor_queue);
+            new_anchor_ids.Add(index);
+            anchor_queue.Remove(index);
+        }
+
+        AnchorIndexes = new_anchor_ids;
     }
 }

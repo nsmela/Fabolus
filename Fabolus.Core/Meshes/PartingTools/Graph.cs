@@ -97,6 +97,33 @@ public class Graph {
         return []; // no path found
     }
 
+    public int FindClosest(int start_index, IEnumerable<int> indexes) {
+        if (indexes.Count() == 0) { return -1; }
+        double min_distance = double.MaxValue;
+        int closest_index = -1;
+        foreach (int index in indexes) {
+            if (start_index == index) { continue; } // skip if it's the same vertex
+
+            double distance = FindDistance(start_index, index);
+            if (distance < min_distance) {
+                min_distance = distance;
+                closest_index = index;
+            }
+        }
+        return closest_index;
+    }
+
+    public double FindDistance(int start_index, int end_index) {
+        if (start_index == end_index) { return 0.0; }
+
+        int[] path = FindPath(start_index, end_index, true);
+        double distance = 0.0;
+        for (int i = 0; i < path.Length - 1; i++) {
+            distance += GetVertexDistance(path[i], path[i + 1]);
+        }
+        return distance;
+    }
+
     private int[] RetracePath(PathNode node, bool exclude_start_and_end) {
         List<int> path = [];
         PathNode current_node = node;
