@@ -92,7 +92,8 @@ public class BolusStore {
             return;
         }
 
-        _boli[BolusType.Raw] = new(mesh);
+        _boli[BolusType.Raw] = new(mesh) { Filepath = filepath };
+        _boli[BolusType.Raw].Mesh = MeshTools.OrientationCentre(_boli[BolusType.Raw].Mesh); //orient the mesh to the centre of the bounding box
         _boli[BolusType.Raw].Mesh = MeshTools.OrientationCentre(_boli[BolusType.Raw].Mesh); //orient the mesh to the centre of the bounding box
         _transform = new();
 

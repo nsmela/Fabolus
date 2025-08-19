@@ -12,7 +12,7 @@ public partial class MarchingCubesViewModel : BaseSmoothingToolViewModel {
     [ObservableProperty] private double _cellSize;
 
     private static Dictionary<string, MarchingCubesSettings> _defaultSmoothSettings = new Dictionary<string, MarchingCubesSettings> {
-        { "standard", new MarchingCubesSettings { DeflateDistance = 5.0f, InflateDistance = 0.1f, Iterations=1, CellSize = 1.0f } },
+        { "standard", new MarchingCubesSettings { DeflateDistance = 1.0f, InflateDistance = 0.1f, Iterations=1, CellSize = 1.0f } },
     };
 
     private MarchingCubesSettings Settings => new MarchingCubesSettings {

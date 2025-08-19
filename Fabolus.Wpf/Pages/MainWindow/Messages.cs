@@ -9,6 +9,7 @@ using System.Windows.Controls;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 
-public sealed class WireframeToggleMessage();
+public sealed record WireframeToggleMessage();
+public sealed record MeshInfoSetMessage(string Text);
 public sealed class ViewportRequestMessage : RequestMessage<Viewport3DX>;
 public sealed class MeshInfoRequestMessage : RequestMessage<GroupBox>;

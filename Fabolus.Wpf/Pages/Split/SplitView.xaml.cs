@@ -13,12 +13,16 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace Fabolus.Wpf.Pages.Smooth.Laplacian;
-/// <summary>
-/// Interaction logic for LaplacianView.xaml
-/// </summary>
-public partial class LaplacianView : UserControl {
-    public LaplacianView() {
-        InitializeComponent();
+namespace Fabolus.Wpf.Pages.Split
+{
+    /// <summary>
+    /// Interaction logic for SplitView.xaml
+    /// </summary>
+    public partial class SplitView : UserControl
+    {
+        public SplitView()
+        {
+            InitializeComponent();
+        }
     }
 }

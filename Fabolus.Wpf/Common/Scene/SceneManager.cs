@@ -1,13 +1,12 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
-using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
-using static Fabolus.Wpf.Bolus.BolusStore;
-using HelixToolkit.Wpf.SharpDX;
-using Material = HelixToolkit.Wpf.SharpDX.Material;
-using System.Windows;
-using Fabolus.Wpf.Common.Mouse;
 using System.Windows.Input;
+using HelixToolkit.Wpf.SharpDX;
+using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
+
+using static Fabolus.Wpf.Bolus.BolusStore;
+using Material = HelixToolkit.Wpf.SharpDX.Material;
 
 namespace Fabolus.Wpf.Common.Scene;
 
@@ -17,7 +16,7 @@ public class SceneManager : IDisposable   {
 
     public SceneManager() {
         SetMessaging();
-        SetDefaultInputBindings();
+        SetInputBindings();
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         UpdateDisplay(bolus);
@@ -49,9 +48,13 @@ public class SceneManager : IDisposable   {
     }
 
     protected virtual void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
-        LeftMouseButton: ViewportCommands.Pan,
-        MiddleMouseButton: ViewportCommands.Zoom,
+        LeftMouseButton: new(),
+        MiddleMouseButton: ViewportCommands.Pan,
         RightMouseButton: ViewportCommands.Rotate));
+
+    protected virtual void SetInputBindings() =>
+        WeakReferenceMessenger.Default.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
+    
 
     protected virtual void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
     }
@@ -62,8 +65,9 @@ public class SceneManager : IDisposable   {
     protected virtual void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
     }
 
-    public void Dispose() {
+    public virtual void Dispose() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
+        WeakReferenceMessenger.Default.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
     }
 }
 

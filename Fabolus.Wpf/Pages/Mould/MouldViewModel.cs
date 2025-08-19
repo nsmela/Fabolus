@@ -9,6 +9,7 @@ using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Mould;
+using Fabolus.Wpf.Pages.MainWindow;
 using Fabolus.Wpf.Pages.Mould.Views;
 using static Fabolus.Wpf.Bolus.BolusStore;
 
@@ -24,7 +25,6 @@ public partial class MouldViewModel : BaseViewModel {
     private BolusModel? Bolus { get; set; }
 
     public MouldViewModel() {
-        Bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         CurrentMouldViewModel = new SimpleMouldViewModel();
     }
 

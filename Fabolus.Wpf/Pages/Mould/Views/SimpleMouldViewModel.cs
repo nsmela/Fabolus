@@ -7,6 +7,7 @@ using Fabolus.Wpf.Common.Extensions;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Features.Mould;
+using Fabolus.Wpf.Pages.MainWindow;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -62,6 +63,14 @@ public partial class SimpleMouldViewModel : BaseMouldView {
         _isBusy = false;
     }
 
+    private void UpdateMeshInfo() {
+        // bolus volume calculation
+        BolusModel bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+
+        MouldModel mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage());
+        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage($"Bolus Volume:\r\n {bolus.Mesh.VolumeString()}\r\nMould Volume:\r\n {mould.VolumeString()}"));
+    }
+
     public SimpleMouldViewModel() {
         _generator = WeakReferenceMessenger.Default.Send<MouldGeneratorRequest>().Response as TriangulatedMouldGenerator;
         if (_generator is null) { _generator = TriangulatedMouldGenerator.New(); }
@@ -83,11 +92,14 @@ public partial class SimpleMouldViewModel : BaseMouldView {
 
         WeakReferenceMessenger.Default.Send(new MouldGeneratorUpdatedMessage(_generator));
         _isBusy = false;
+
+        UpdateMeshInfo();
     }
 
     [RelayCommand]
     private async Task GenerateMould() {
         var mould = new MouldModel(_generator, false);
         WeakReferenceMessenger.Default.Send(new MouldUpdatedMessage(mould));
+        UpdateMeshInfo();
     }
 }

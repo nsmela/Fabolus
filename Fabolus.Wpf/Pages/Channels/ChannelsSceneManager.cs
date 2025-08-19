@@ -15,10 +15,13 @@ using SharpDX;
 using ControlzEx.Standard;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Channels.Straight;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
 public class ChannelsSceneManager : SceneManager {
+
+    private const double MAX_HEIGHT_OFFSET = 20.0;
 
     private BolusModel _bolus;
     private AirChannelsCollection _channels = [];
@@ -29,7 +32,7 @@ public class ChannelsSceneManager : SceneManager {
     private Material _selectedSkin = DiffuseMaterials.Turquoise;
 
     private Guid? BolusId => _bolus?.Geometry?.GUID;
-    private float MaxHeight => (float)_bolus.Mesh.Height;
+    private float MaxHeight => (float)(_bolus.TransformedMesh().Height + MAX_HEIGHT_OFFSET);
 
     private MeshGeometry3D _airPockets;
 
@@ -49,6 +52,8 @@ public class ChannelsSceneManager : SceneManager {
     protected override void SetMessaging() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
 
+        SetDefaultInputBindings();
+
         //bolus
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, async (r, m) => await BolusUpdated(m.Bolus));
 
@@ -67,6 +72,25 @@ public class ChannelsSceneManager : SceneManager {
  
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         BolusUpdated(bolus);
+    }
+
+    protected override void SetDefaultInputBindings() {
+        var delete_command = new RelayCommand(DeleteChannel);
+        WeakReferenceMessenger.Default.Send(
+        new MeshDisplayInputsMessage(new InputBindingCollection {
+            new KeyBinding(delete_command, Key.Delete, ModifierKeys.None),
+        }));
+    }
+
+    private void DeleteChannel() {
+        if (_activeChannel is null) { return; }
+        if (!_channels.ContainsKey(_activeChannel.GUID)) { return; }
+        _channels.Remove(_activeChannel);
+
+        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+
+        var activeChannel = _settings[_activeChannel.ChannelType];
+        WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(activeChannel));
     }
 
     private void SetAirPockets() {

@@ -12,11 +12,12 @@
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins" />
+            FontFamily="\Fonts\#Poppins" 
+            ToolTip="Distance model is inflated and then deflated"/>
         <Slider Value="{Binding DeflateDistance, Mode=TwoWay}"
-            Minimum="0.0" 
-            Maximum="10" 
-            TickFrequency="1.0" 
+            Minimum="0.2" 
+            Maximum="2.0" 
+            TickFrequency="0.2" 
             TickPlacement="TopLeft" 
             IsSnapToTickEnabled="True" 
             Height="30"            
@@ -28,7 +29,8 @@
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins"/>
+            FontFamily="\Fonts\#Poppins"
+            ToolTip="Distance model is inflated after inflated and deflated"/>
         <Slider Value="{Binding InflateDistance, Mode=TwoWay}"
             Minimum="0.0" 
             Maximum="1" 
@@ -44,7 +46,8 @@
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins"/>
+            FontFamily="\Fonts\#Poppins"
+            ToolTip="Number of times model is inflated and deflated"/>
         <Slider Value="{Binding Iterations, Mode=TwoWay}"
             Minimum="1" 
             Maximum="5" 
@@ -60,7 +63,8 @@
             VerticalAlignment="Center"
             FontSize="12" 
             FontWeight="Bold"
-            FontFamily="\Fonts\#Poppins"/>
+            FontFamily="\Fonts\#Poppins"
+            ToolTip="Resolution (in mm) of the smoothing"/>
         <Slider Value="{Binding CellSize, Mode=TwoWay}" 
             Minimum="0.5" 
             Maximum="3.0" 
@@ -69,7 +73,7 @@
             IsSnapToTickEnabled="True" 
             Height="30"
             AutoToolTipPlacement="TopLeft"
-            AutoToolTipPrecision="1"/>
+            AutoToolTipPrecision="1" />
         
     </StackPanel>
 </UserControl>

@@ -19,4 +19,7 @@ public static class MRMeshExtensions {
 
         return result;
     }
+
+    public static System.Numerics.Vector3 ToVector3(this MR.DotNet.Vector3f v) => new System.Numerics.Vector3(v.X, v.Y, v.Z);
+    public static IEnumerable<System.Numerics.Vector3> ToVector3(this IEnumerable<MR.DotNet.Vector3f> vectors) => vectors.Select(v => v.ToVector3());
 }

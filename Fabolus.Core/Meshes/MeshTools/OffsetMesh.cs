@@ -7,14 +7,14 @@ namespace Fabolus.Core.Meshes.MeshTools;
 
 public static partial class MeshTools {
 
-    public static DMesh3 OffsetMesh(DMesh3 mesh, double offset, double cell_size) {
+    internal static DMesh3 OffsetMesh(DMesh3 mesh, double offset, double cell_size) {
         BoundedImplicitFunction3d meshImplicit = meshToImplicitF(mesh, cell_size, offset);
         return generatMeshF(new ImplicitOffset3d() { A = meshImplicit, Offset = offset }, cell_size);
     }
 
     // meshToImplicitF() generates a narrow-band distance-field and
     // returns it as an implicit surface, that can be combined with other implicits                       
-    private static Func<DMesh3, double, double, BoundedImplicitFunction3d> meshToImplicitF = (meshIn, cell_size, max_offset) => {
+    internal static Func<DMesh3, double, double, BoundedImplicitFunction3d> meshToImplicitF = (meshIn, cell_size, max_offset) => {
         MeshSignedDistanceGrid levelSet = new MeshSignedDistanceGrid(meshIn, cell_size);
         levelSet.ExactBandWidth = (int)(max_offset / cell_size) + 25;
         levelSet.Compute();
@@ -45,10 +45,11 @@ public static partial class MeshTools {
     }
 
 
-    public static Mesh OffsetMesh(Mesh mesh, float offsetDistance) {
+    internal static Mesh OffsetMesh(Mesh mesh, float offsetDistance, float cellSize = 0.0f) {
         MeshPart mp = new(mesh);
+
         OffsetParameters parms = new() {
-            voxelSize = Offset.SuggestVoxelSize(mp, 1e6f),
+            voxelSize = cellSize > 0 ? cellSize : Offset.SuggestVoxelSize(mp, 1e6f),
         };
 
         var result = Offset.OffsetMesh(mp, offsetDistance, parms);
@@ -56,12 +57,26 @@ public static partial class MeshTools {
         return result;
     }
 
-    public static Mesh OffsetDouble(Mesh mesh, float offsetDistance) {
+    internal static Mesh OffsetDouble(Mesh mesh, float offsetDistance) {
         MeshPart mp = new(mesh);
         OffsetParameters parms = new() {
             voxelSize = Offset.SuggestVoxelSize(mp, 1e6f),
         };
 
         return Offset.DoubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
+    }
+
+    internal static Mesh OffsetDouble(Mesh mesh, float offsetDistance, float voxelSize) {
+        MeshPart mp = new(mesh);
+        OffsetParameters parms = new() {
+            voxelSize = voxelSize,
+        };
+        return Offset.DoubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
+    }
+
+    public static MeshModel OffsetModel(MeshModel model, double distance) {
+        Mesh mesh = model.Mesh.ToMesh();
+        var offset = OffsetMesh(mesh, (float)distance);
+        return new MeshModel(offset);
     }
 }

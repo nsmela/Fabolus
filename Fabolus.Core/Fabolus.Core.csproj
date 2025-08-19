@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 	  <UseWPF>true</UseWPF>
+	  <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Clipper2" Version="1.5.4" />
     <PackageReference Include="geometry3Sharp" Version="1.0.324" />
     <PackageReference Include="MeshLib" Version="3.0.6.229" />
     <PackageReference Include="NetTopologySuite" Version="2.6.0" />

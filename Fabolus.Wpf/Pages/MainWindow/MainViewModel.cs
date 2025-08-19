@@ -26,6 +26,7 @@ using System.Windows.Controls;
 using System.Configuration;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Pages.Preferences;
+using Fabolus.Wpf.Pages.Split;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
@@ -47,6 +48,9 @@ public partial class MainViewModel : ObservableObject {
 
     //debug info
     [ObservableProperty] private string _debugText = NoFileText;
+
+    // display views
+    [ObservableProperty] private bool _showSplitView;
 
     private SceneManager _sceneModel;
 
@@ -76,6 +80,9 @@ public partial class MainViewModel : ObservableObject {
         CurrentMeshInfo = new();
         _sceneModel = new();
         WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
+        WeakReferenceMessenger.Default.Register<PreferencesSetSplitViewMessage>(this, (r,m) => ShowSplitView = m.SplitViewEnabled);
+
+        ShowSplitView = WeakReferenceMessenger.Default.Send(new PreferencesSplitViewRequest()).Response;
 
         NavigateTo(new ImportViewModel());
     }
@@ -93,6 +100,12 @@ public partial class MainViewModel : ObservableObject {
     [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new ChannelsViewModel());
     [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MouldViewModel());
     [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());
+
+    [RelayCommand]
+    public async Task SwitchToSplitView() {
+        if (!ShowSplitView) { return; }
+        NavigateTo(new SplitViewModel());
+    }
 
     [RelayCommand] public async Task ToggleWireframe() =>
         WeakReferenceMessenger.Default.Send(new WireframeToggleMessage());

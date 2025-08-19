@@ -32,9 +32,25 @@ public partial class MeshViewModel : ObservableObject {
     private IList<DisplayModel3D> _models = [];
 
     //mouse commands
-    [ObservableProperty] private ICommand _leftMouseCommand = ViewportCommands.Pan;
-    [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Zoom;
+    [ObservableProperty] private ICommand _leftMouseCommand;
+    [ObservableProperty] private ICommand _middleMouseCommand = ViewportCommands.Pan;
     [ObservableProperty] private ICommand _rightMouseCommand = ViewportCommands.Rotate;
+
+    // key bindings
+    [ObservableProperty] private ICommand _keyBCommand = ViewportCommands.BackView;
+    [ObservableProperty] private ICommand _keyFCommand = ViewportCommands.FrontView;
+    [ObservableProperty] private ICommand _keyTCommand = ViewportCommands.TopView;
+    [ObservableProperty] private ICommand _keyLCommand = ViewportCommands.LeftView;
+    [ObservableProperty] private ICommand _keyRCommand = ViewportCommands.RightView;
+    [ObservableProperty] private ICommand _keyDCommand = ViewportCommands.BottomView;
+    [ObservableProperty] private ICommand _keyHCommand = ViewportCommands.Reset;
+    [ObservableProperty] private ICommand _keyDeleteCommand;
+
+
+    // cross section
+    [ObservableProperty] private Plane _plane1 = new Plane(new Vector3(0, 0, 1), 0.0f);
+    [ObservableProperty] private MeshGeometryModel3D _cuttingModel;
+    [ObservableProperty] private HelixToolkit.Wpf.SharpDX.Material _cuttingMaterial = PhongMaterials.White;
 
     //meshing testing
     private SynchronizationContext context = SynchronizationContext.Current;
@@ -51,6 +67,7 @@ public partial class MeshViewModel : ObservableObject {
         // Register messages
         WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, async (r, m) => await UpdateModels(m.models));
         WeakReferenceMessenger.Default.Register<MeshSetInputBindingsMessage>(this, (r, m) => UpdateInputBindings(m.LeftMouseButton, m.MiddleMouseButton, m.RightMouseButton));
+        WeakReferenceMessenger.Default.Register<MeshDisplayInputsMessage>(this, (r, m) => UpdateInputs(m.inputs));
         WeakReferenceMessenger.Default.Register<WireframeToggleMessage>(this, async (r, m) => await ToggleWireframe());
 
         WeakReferenceMessenger.Default.Register<PreferencesSetPrintbedDepthMessage>(this, (r, m) => {
@@ -80,6 +97,14 @@ public partial class MeshViewModel : ObservableObject {
     private async Task UpdateDisplay() {
 
         context.Post((o) => {
+            if (_models.Count != 0) {
+                _models[0].Geometry.UpdateOctree();
+                _models[0].Geometry.UpdateBounds();
+                CuttingModel = new MeshGeometryModel3D {
+                    Geometry = _models[0].Geometry,
+                };
+            }
+
             CurrentModel.Clear();
 
             foreach (var model in _models) {
@@ -97,14 +122,43 @@ public partial class MeshViewModel : ObservableObject {
                 };
                 CurrentModel.Add(geometry);
             }
-        }, null);
 
+
+        }, null);
     }
 
     private void UpdateInputBindings(RoutedCommand left, RoutedCommand middle, RoutedCommand right) {
         LeftMouseCommand = left;
         MiddleMouseCommand = middle;
         RightMouseCommand = right;
+    }
+
+    private void UpdateInputs(InputBindingCollection inputs) {
+
+        foreach (var binding in inputs) {
+            if (binding is MouseBinding mouse) {
+                if (mouse.MouseAction == MouseAction.LeftClick) {
+                    LeftMouseCommand = mouse.Command;
+                } else if (mouse.MouseAction == MouseAction.MiddleClick) {
+                    MiddleMouseCommand = mouse.Command;
+                } else if (mouse.MouseAction == MouseAction.RightClick) {
+                    RightMouseCommand = mouse.Command;
+                }
+
+                continue;
+            }
+
+            if (binding is KeyBinding kb) {
+                if(kb.Key == Key.D) { KeyDCommand = kb.Command; } 
+                else if (kb.Key == Key.F) { KeyFCommand = kb.Command; } 
+                else if (kb.Key == Key.B) { KeyBCommand = kb.Command; } 
+                else if (kb.Key == Key.T) { KeyTCommand = kb.Command; } 
+                else if (kb.Key == Key.L) { KeyLCommand = kb.Command; } 
+                else if (kb.Key == Key.R) { KeyRCommand = kb.Command; } 
+                else if (kb.Key == Key.H) { KeyHCommand = kb.Command; } 
+                else if (kb.Key == Key.Delete) { KeyDeleteCommand = kb.Command; }
+            }
+        }
     }
 
     private async Task UpdateModels(IList<DisplayModel3D> models) {

@@ -13,10 +13,10 @@ public record struct MarchingCubesSettings(float DeflateDistance, float InflateD
 public class MarchingCubesSmoothing {
 
     public static Bolus Smooth(Bolus bolus, MarchingCubesSettings settings) {
-        var deflateDistance = settings.DeflateDistance;
-        var inflateDistance = settings.InflateDistance;
-        var iterations = settings.Iterations;
-        var cell_size = settings.CellSize;
+        float deflateDistance = settings.DeflateDistance;
+        float inflateDistance = settings.InflateDistance;
+        int iterations = settings.Iterations;
+        float cell_size = (float)settings.CellSize;
 
         //shrink mesh to lose sharp details and inflate back to original size
         Mesh model = bolus.Mesh;
@@ -24,7 +24,9 @@ public class MarchingCubesSmoothing {
 
         if (deflateDistance > 0) {
             for (int i = 0; i < iterations; i++) {
-                model = MeshTools.OffsetDouble(model, deflateDistance);
+                //model = MeshTools.OffsetDouble(model, deflateDistance, cell_size);
+                model = MeshTools.OffsetMesh(model, deflateDistance, cell_size);
+                model = MeshTools.OffsetMesh(model, -deflateDistance, cell_size);
             }
         }
 

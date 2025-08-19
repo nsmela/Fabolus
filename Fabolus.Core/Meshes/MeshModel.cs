@@ -1,5 +1,8 @@
 ﻿using Fabolus.Core.Extensions;
 using g3;
+using gs;
+using System.CodeDom;
+using System.Numerics;
 using System.Windows.Media.Media3D;
 using static MR.DotNet;
 using MeshNormals = g3.MeshNormals;
@@ -9,6 +12,7 @@ namespace Fabolus.Core.Meshes;
 public class MeshModel {
     public DMesh3 Mesh { get; set; } = new DMesh3();
     internal Mesh _mesh { get; set; }
+    internal DMeshAABBTree3 _spatial;
 
     // Public Static Functions
 
@@ -19,14 +23,11 @@ public class MeshModel {
     }
 
     public static async Task<MeshModel> FromFile(string filepath) {
-        //var mesh = new DMesh3(await Task.Factory.StartNew(() => StandardMeshReader.ReadMesh(filepath)), false, true);
         var mesh = MeshLoad.FromAnySupportedFormat(filepath);
         return new MeshModel(mesh);
     }
 
     public static async Task ToFile(string filepath, MeshModel model) {
-        //var mesh = model.Mesh;
-        //StandardMeshWriter.WriteMesh(filepath, mesh, WriteOptions.Defaults);
         MeshSave.ToAnySupportedFormat(model, filepath);
     }
 
@@ -38,10 +39,64 @@ public class MeshModel {
     public void ApplyTranslation(double x, double y, double z) =>
         MeshTransforms.Translate(Mesh, new Vector3d(x, y, z));
 
-
     public bool IsEmpty() => Mesh is null || Mesh.TriangleCount == 0;
 
-    public double Height => Mesh.CachedBounds.Height + 10.0;
+    public double Height => Mesh.CachedBounds.Max.z;
+
+    /// <summary>
+    /// Returns the vertices of a triangle as an array of doubles. 
+    /// </summary>
+    /// <param name="tId"></param>
+    /// <returns>3x3 double array as a simple 9 double array</returns>
+    public double[] GetTriangleAsDoubles(int tId) {
+        Index3i triangle = Mesh.GetTriangle(tId);
+        return new double[] {
+            Mesh.GetVertex(triangle.a).x, Mesh.GetVertex(triangle.a).y, Mesh.GetVertex(triangle.a).z,
+            Mesh.GetVertex(triangle.b).x, Mesh.GetVertex(triangle.b).y, Mesh.GetVertex(triangle.b).z,
+            Mesh.GetVertex(triangle.c).x, Mesh.GetVertex(triangle.c).y, Mesh.GetVertex(triangle.c).z
+        };
+    }
+
+    public IEnumerable<int> GetBorderEdgeLoop(int[] region_ids) {
+        //select the region
+        var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);
+        var loop = region.Loops.OrderByDescending(x => x.EdgeCount).First();
+
+        int last_id = -1;
+        Index4i edge;
+        foreach (var eId in loop.Edges) {
+            edge = Mesh.GetEdge(eId);
+            if (edge.a == last_id){ last_id = edge.b; }
+            else { last_id = edge.a; }
+
+            yield return last_id;
+        }
+
+    }
+
+    public Vector3 GetVertex(int vId) => Mesh.GetVertex(vId).ToVector3();
+    public Vector3 GetVtxNormal(int vId) => Mesh.GetVertexNormal(vId).ToVector3();
+
+    public IEnumerable<double[]> GetVertices(int[] vert_ids) {
+        foreach(int vId in vert_ids) {
+            var vertex = Mesh.GetVertex(vId);
+            yield return new double[] { vertex.x, vertex.y, vertex.z };
+        }
+    }
+
+    public IEnumerable<Vector3> GetVtxNormals(IEnumerable<int> indexes) =>
+        indexes.Select(i => Mesh.GetVertexNormal(i).ToVector3()) ;
+
+    public IEnumerable<double[]> GetBorderVerts(int[] region_ids) {
+        //select the region
+        var region = new MeshRegionBoundaryLoops(Mesh, region_ids, true);
+        var loops = region.Loops;
+
+        foreach(var id in loops[0].Vertices) {
+            var vertex = Mesh.GetVertex(id);
+            yield return new double[] { vertex.x, vertex.y, vertex.z };
+        }
+    }
 
     public IEnumerable<(double, double, double)> NormalVectors() {
         for (int i = 0; i < Mesh.VertexCount; i++) {
@@ -83,16 +138,49 @@ public class MeshModel {
         return Enumerable.Range(0, Mesh.VertexCount).Select(i => Mesh.GetVertexNormal(i).ToArray());
     }
 
+    /// <summary>
+    /// Returns a [x,y,z] array of the lower bounds of the mesh.
+    /// </summary>
+    /// <returns></returns>
+    public double[] BoundsLower() {
+        var bounds = Mesh.CachedBounds;
+        return new double[] { bounds.Min.x, bounds.Min.y, bounds.Min.z };
+    }
+
+    public int GetClosestVertex(Vector3 point) {
+        if (_spatial is null) { _spatial = new(Mesh, autoBuild: true); }
+
+        Vector3d vector = point.ToVector3d();
+        return _spatial.FindNearestVertex(vector);
+    }
+
     // Constructors
 
     public MeshModel() { }
 
     public MeshModel(DMesh3 mesh) {
-        Mesh = mesh;
+        Mesh = new DMesh3(mesh, true);
+    }
+
+    /// <summary>
+    /// Joins two seperate meshes togther that have no overlapping triangles
+    /// </summary>
+    public static MeshModel Combine(MeshModel[] models) {
+        MeshEditor editor = new(new DMesh3());
+
+        // assume meshes do not overlap and can be appended directly
+        foreach (DMesh3 model in models.Select(m => m.Mesh)) {
+            editor.AppendMesh(model);
+        }
+
+        MeshAutoRepair repair = new(editor.Mesh);
+        repair.Apply();
+
+        return new(repair.Mesh);
     }
 
     public MeshModel(Mesh mesh) {
-        Mesh = mesh.ToDMesh();
+        Mesh = new DMesh3(mesh.ToDMesh());
         _mesh = mesh; // Store the original Mesh for further operations if needed
     }
 
@@ -108,7 +196,24 @@ public class MeshModel {
         }
 
     }
-    
+
+    // combine two MeshModels into one
+    public MeshModel(IEnumerable<MeshModel> models, float distance = 0.1f) {
+        DMesh3[] meshes = models.Select(m => m.Mesh).ToArray();
+        if (meshes.Length < 2) {
+            throw new ArgumentException("At least two MeshModels are required to combine them.");
+        }
+
+        distance = Math.Abs(distance); // Ensure distance is non-negative
+
+        MeshEditor editor = new(meshes[0]);
+        DMesh3 mesh2 = new(meshes[1]);
+        MeshTransforms.Translate(mesh2, new Vector3d(0, distance, 0));
+        editor.AppendMesh(mesh2);
+
+        Mesh = new DMesh3(editor.Mesh);
+    }
+
     // Operators
 
     public static implicit operator DMesh3(MeshModel model) => model.Mesh;
