@@ -12,6 +12,9 @@
         Title="FABOLUS" Height="550" Width="800" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterScreen">
+    <mah:MetroWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </mah:MetroWindow.Resources>
     <Grid>
         <!-- Grid Sizing Definitions-->
         <Grid.ColumnDefinitions>
@@ -55,6 +58,7 @@
                     Command="{Binding SwitchToMoldViewCommand}"
                     Width="72" Margin="1"/>
             <Button Content="split" IsEnabled="{Binding MeshLoaded}"
+                    Visibility="{Binding ShowSplitView, Converter={StaticResource BoolToVis} }"
                     Command="{Binding SwitchToSplitViewCommand}"
                     Width="72" Margin="1"/>
             <Button Content="export" IsEnabled="{Binding MeshLoaded}"

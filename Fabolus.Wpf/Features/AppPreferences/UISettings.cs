@@ -15,6 +15,7 @@ internal class UISettings : ConfigurationSection {
     public const string PrintBedWidthLabel = "print_bed_width";
     public const string PrintBedDepthLabel = "print_bed_depth";
     public const string AutodetectChannelsLabel = "autodetect_channels";
+    public const string SplitViewEnabledLabel = "split_view_enabled";
 
     [ConfigurationProperty(DefaultImportFolderLabel)]
     public string DefaultImportFolder {
@@ -44,5 +45,11 @@ internal class UISettings : ConfigurationSection {
     public bool AutodetectChannels {
         get => (bool)this[AutodetectChannelsLabel];
         set => this[AutodetectChannelsLabel] = value;
+    }
+
+    [ConfigurationProperty(SplitViewEnabledLabel, DefaultValue = false)]
+    public bool SplitViewEnabled {
+        get => (bool)this[SplitViewEnabledLabel];
+        set => this[SplitViewEnabledLabel] = value;
     }
 }

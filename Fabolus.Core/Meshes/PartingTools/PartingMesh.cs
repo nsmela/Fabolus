@@ -24,9 +24,28 @@ public static partial class PartingTools {
         List<PartingMesh> partings = [];
         partings.Add(PartingMesh.Create(model.Mesh, parting_indices[0], inner_offset, outer_offset));
         
-        //if (parting_indices.Count > 1) {
-        //    partings.Add(PartingMesh.CreateClosed(model.Mesh, parting_indices[1], inner_offset));
-        //}
+        if (parting_indices.Count > 1) {
+            partings.Add(PartingMesh.CreateClosed(model.Mesh, parting_indices[1], inner_offset));
+
+            Vector3d normal = new();
+            foreach(var n in partings[0].Mesh.VertexIndices().Select(v => partings[0].Mesh.GetVertexNormal(v))) {
+                normal += n;
+            }
+            normal /= partings[0].Mesh.VertexCount;
+            normal.Normalize();
+
+            Vector3d interior_normal = new();
+            foreach (var n in partings[1].Mesh.VertexIndices().Select(v => partings[1].Mesh.GetVertexNormal(v))) {
+                interior_normal += n;
+            }
+            interior_normal /= partings[1].Mesh.VertexCount;
+            interior_normal.Normalize();
+
+            if (normal.AngleD(interior_normal) > 90.0) {
+                // flip the normals of the second parting mesh
+                partings[1].Mesh.ReverseOrientation();
+            }
+        }
 
         // TODO: use MeshLib instead for this
         // c++ code:
@@ -87,6 +106,14 @@ public static partial class PartingTools {
             StitchVerts(vertices);
         }
 
+        public void OffsetWithAveraging(double distance, int iterations = 20) {
+            Vertex[] vertices = OffsetVertsWithAveraging(Vertices, distance);
+            for (int i = 0; i < iterations; i++) {
+                vertices = AverageVertices(vertices);
+            }
+            StitchVerts(vertices);
+        }
+
         public static PartingMesh CreateClosed(DMesh3 mesh, int[] path_indices, double inner_offset, int iterations = 5) {
             // convert the selected mesh vectors into a vertex array
             Vertex[] vertices = GenerateVertices(mesh, path_indices);
@@ -133,7 +160,7 @@ public static partial class PartingTools {
             double distance = outer_offset;
             bool _vertices_within_boundary = true;
             while (_vertices_within_boundary) {
-                parting.Offset(5.0);
+                parting.OffsetWithAveraging(5.0);
 
                 _vertices_within_boundary = false;
                 foreach (var v in parting.Vertices) {
@@ -331,6 +358,31 @@ public static partial class PartingTools {
         return loop;
     }
 
+    internal static Vertex[] OffsetVertsWithAveraging(Vertex[] verts, double distance) {
+        Vertex[] results = new Vertex[verts.Length];
+        for (int i = 0; i < verts.Length; i++) {
+            Vector3d offset = new Vector3d();
+            for (int j = -2; j < 3; j++) {
+                offset += new Vector3d(verts[(i + j + verts.Length) % verts.Length].Normal);
+            }
+            offset /= 5;
+            offset.Normalize();
+
+            var position = verts[i].Position + offset * distance;
+
+            if (verts[i].Position.y != position.y) {
+                throw new Exception();
+            }
+
+            results[i] = verts[i] with { Position = position };
+        }
+
+        results = RemoveReversedSegments(results).ToArray();
+        results = RemoveSharpCorners(results).ToArray();
+
+        return results.ToArray();
+    }
+
     internal static Vertex[] OffsetVerts(Vertex[] verts, double distance) {
         Vertex[] results = new Vertex[verts.Length];
         for (int i = 0; i < verts.Length; i++) {
@@ -343,13 +395,6 @@ public static partial class PartingTools {
             if (verts[i].Position.y != position.y) {
                 throw new Exception();
             }
-
-            //// if new position is outside the bounds, clamp it to +1.0 mm 
-            //if (!bounds.Contains(position)) {
-            //    // recalculate the position
-            //    double dist = 1.0 +  IntersectBoundary(bounds, verts[i].Position, offset);
-            //    position = verts[i].Position + offset * dist;
-            //}
 
             results[i] = verts[i] with { Position = position };
 

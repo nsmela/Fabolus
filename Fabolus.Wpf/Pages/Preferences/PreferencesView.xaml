@@ -10,12 +10,12 @@
         ResizeMode="CanResizeWithGrip"
         WindowStyle="ToolWindow"
         WindowStartupLocation="CenterScreen"
-        Title="App Preferences" MinHeight="340" MaxHeight="340" MinWidth="260" Width="260">
+        Title="App Preferences" MinHeight="370" MaxHeight="370" MinWidth="260" Width="260">
     <Window.DataContext>
         <local:PreferencesViewModel />
     </Window.DataContext>
-    
-    <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch">
+
+    <StackPanel Orientation="Vertical" >
 
         <!-- Import Folder Path Selection -->
         <Label Content="Default Import Folder Path" FontWeight="Bold" FontSize="14"/>
@@ -78,7 +78,14 @@
             <CheckBox Margin="16, 0, 4, 2" IsChecked="{Binding AutodetectChannels}" FlowDirection="RightToLeft" />
 
         </StackPanel>
-        
+
+        <Label Content="EXPERIMENTAL OPTIONS" FontWeight="Bold" FontSize="14"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0, 0, 8, 0">
+            <Label Content="Enable Split View"/>
+            <CheckBox Margin="16, 0, 4, 2" IsChecked="{Binding EnableSplitView}" FlowDirection="RightToLeft" />
+
+        </StackPanel>
+
         <!-- Close Button -->
         <Button Content="Close" HorizontalAlignment="Right" Margin="6">
             <i:Interaction.Triggers>

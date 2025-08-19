@@ -132,9 +132,8 @@ public partial class SplitViewModel : BaseViewModel {
 
     private CuttingMeshResults GeneratePreview() {
         var draft_regions = DraftRegions.GenerateDraftMeshes(_bolus, Vector3.UnitY, DraftTolerance);
-        //_path_indices = PartingTools.PartingPathIndices(draft_regions[DraftRegions.DraftRegionClassification.Positive]);
-        _path_indices = new();
-        _path_indices.Add(_partingTool.PathIndexes);
+        _path_indices = PartingTools.PartingPathIndices(draft_regions[DraftRegions.DraftRegionClassification.Positive]);
+        _path_indices[0] = _partingTool.PathIndexes;
 
         _results = PartingTools.GeneratePartingMesh(
             _bolus,

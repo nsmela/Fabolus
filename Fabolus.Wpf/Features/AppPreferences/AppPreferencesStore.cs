@@ -9,7 +9,8 @@ public sealed record PreferencesSetImportFolderMessage(string ImportFolder);
 public sealed record PreferencesSetExportFolderMessage(string ExportFolder);
 public sealed record PreferencesSetPrintbedWidthMessage(float Width);
 public sealed record PreferencesSetPrintbedDepthMessage(float Depth);
-public sealed record class PreferencesSetAutodetectChannelsMessage(bool AutodetectChannels);
+public sealed record PreferencesSetAutodetectChannelsMessage(bool AutodetectChannels);
+public sealed record PreferencesSetSplitViewMessage(bool SplitViewEnabled);
 
 // requests
 public class PreferencesImportFolderRequest : RequestMessage<string> { }
@@ -17,6 +18,7 @@ public class PreferencesExportFolderRequest : RequestMessage<string> { }
 public class PreferencesPrintbedWidthRequest : RequestMessage<float> { }
 public class PreferencesPrintbedDepthRequest : RequestMessage<float> { }
 public class PreferencesAutodetectChannelsRequest : RequestMessage<bool> { }
+public class PreferencesSplitViewRequest : RequestMessage<bool> { }
 
 public class AppPreferencesStore {
     // App Preferences Configuration
@@ -32,7 +34,8 @@ public class AppPreferencesStore {
                 DefaultExportFolder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 PrintBedWidth = 250.0f, // Default print bed width
                 PrintBedDepth = 250.0f, // Default print bed depth
-                AutodetectChannels = true // Default autodetect channels setting
+                AutodetectChannels = true, // Default autodetect channels setting
+                SplitViewEnabled = false, // show the splitting view
             });
         }
 
@@ -69,11 +72,17 @@ public class AppPreferencesStore {
             _appConfig.Save();
         });
 
+        WeakReferenceMessenger.Default.Register<PreferencesSetSplitViewMessage>(this, (r, m) => {
+            _settings.SplitViewEnabled = m.SplitViewEnabled;
+            _appConfig.Save();
+        });
+
         // requests
         WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesImportFolderRequest>(this, (r, m) => m.Reply(_settings.DefaultImportFolder));
         WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesExportFolderRequest>(this, (r, m) => m.Reply(_settings.DefaultExportFolder));
         WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesPrintbedWidthRequest>(this, (r, m) => m.Reply(_settings.PrintBedWidth));
         WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesPrintbedDepthRequest>(this, (r, m) => m.Reply(_settings.PrintBedDepth));
         WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesAutodetectChannelsRequest>(this, (r, m) => m.Reply(_settings.AutodetectChannels));
+        WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferencesSplitViewRequest>(this, (r, m) => m.Reply(_settings.SplitViewEnabled));
     }
 }
