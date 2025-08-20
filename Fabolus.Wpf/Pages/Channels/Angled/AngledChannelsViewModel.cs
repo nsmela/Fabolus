@@ -13,16 +13,27 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
     [ObservableProperty] private float _channelDiameter;
     [ObservableProperty] private float _channelDepth;
 
-    partial void OnChannelConeDiameterChanged(float value) => SetSettings();
-    partial void OnChannelConeLengthChanged(float value) => SetSettings();
-    partial void OnChannelDiameterChanged(float value) => SetSettings();
-    partial void OnChannelDepthChanged(float value) => SetSettings();
+    partial void OnChannelConeDiameterChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        SetSettings();
+    }
 
-    private bool _isBusy = false;
+    partial void OnChannelConeLengthChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        SetSettings();
+    }
 
-    public AngledChannelsViewModel() : base() { }
+    partial void OnChannelDiameterChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        SetSettings();
+    }
 
-    private async Task ApplySettings() {
+    partial void OnChannelDepthChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        SetSettings();
+    }
+
+    private void ApplySettings() {
         var channel = new AngledAirChannel {
             Depth = ChannelDepth,
             Diameter = ChannelDiameter,
@@ -39,7 +50,7 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
     }
 
 
-    private async Task ApplySettingsToChannel() {
+    private void ApplySettingsToChannel() {
         if (!IsActiveChannelSelected) { return; }
 
         //there is an active channel
@@ -58,17 +69,17 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
     }
 
-    private async Task SetSettings() {
+    private void SetSettings() {
         if (_isBusy) { return; }
         _isBusy = true;
 
-        await ApplySettingsToChannel();
-        await ApplySettings();
+        ApplySettingsToChannel();
+        ApplySettings();
 
         _isBusy = false;
     }
 
-    protected override async Task SettingsUpdated(AirChannelSettings settings) {
+    protected override void SettingsUpdated(AirChannelSettings settings) {
         if (_isBusy) { return; }
         _settings = settings;
         var channel = _settings[ChannelTypes.AngledHead] as AngledAirChannel;

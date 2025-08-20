@@ -15,14 +15,24 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
     [ObservableProperty] private float _channelNozzleDiameter;
     [ObservableProperty] private float _channelNozzleLength;
 
-    partial void OnChannelDepthChanged(float value) => SetSettings();
-    partial void OnChannelDiameterChanged(float value) => SetSettings();
-    partial void OnChannelNozzleDiameterChanged(float value) => SetSettings();
-    partial void OnChannelNozzleLengthChanged(float value) => SetSettings();
+    partial void OnChannelDepthChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        SetSettings();
+    }
+    partial void OnChannelDiameterChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        SetSettings();
+    }
+    partial void OnChannelNozzleDiameterChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        SetSettings();
+    }
+    partial void OnChannelNozzleLengthChanged(float oldValue, float newValue) {
+        if (oldValue == newValue) { return; }
+        SetSettings();
+    }
 
-    public StraightChannelsViewModel() : base(){ }
-
-    private async Task ApplySettings() {
+    private void ApplySettings() {
         var channel = new StraightAirChannel {
             Depth = ChannelDepth,
             UpperDiameter = ChannelDiameter,
@@ -34,38 +44,39 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
         _settings[ChannelTypes.Straight] = channel;
 
         _isBusy = true;
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
+        _messenger.Send(new ChannelSettingsUpdatedMessage(_settings));
         _isBusy = false;
     }
 
-    private async Task ApplySettingsToChannel() {
+    private void ApplySettingsToChannel() {
         if (!IsActiveChannelSelected) { return; }
         //there is an active channel
 
-        var channel = _channels[_activeChannel.GUID] as StraightAirChannel;
-        channel = channel with {
-            Depth = ChannelDepth,
-            UpperDiameter = ChannelDiameter,
-            LowerDiameter = ChannelNozzleDiameter,
-            TipLength = ChannelNozzleLength
-        };
+        if (_channels[_activeChannel.GUID] is StraightAirChannel channel) {
+            channel = channel with {
+                Depth = ChannelDepth,
+                UpperDiameter = ChannelDiameter,
+                LowerDiameter = ChannelNozzleDiameter,
+                TipLength = ChannelNozzleLength
+            };
 
-        channel.Build();
-        _channels[channel.GUID] = channel;
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+            channel.Build();
+            _channels[channel.GUID] = channel;
+            _messenger.Send(new AirChannelsUpdatedMessage(_channels));
+        }
     }
 
-    private async Task SetSettings() {
+    private void SetSettings() {
         if (_isBusy) { return; }
         _isBusy = true;
 
-        await ApplySettingsToChannel();
-        await ApplySettings();
+        ApplySettingsToChannel();
+        ApplySettings();
 
         _isBusy = false;
     }
 
-    protected override async Task SettingsUpdated(AirChannelSettings settings) {
+    protected override void SettingsUpdated(AirChannelSettings settings) {
         if (_isBusy) { return; }
         _settings = settings;
         var channel = _settings[ChannelTypes.Straight] as StraightAirChannel;

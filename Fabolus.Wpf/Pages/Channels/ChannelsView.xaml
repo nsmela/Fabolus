@@ -8,6 +8,10 @@
              common:DataContextDisposal.AutoDispose="True"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="200">
+    <UserControl.DataContext>
+        <local:ChannelsViewModel />
+    </UserControl.DataContext>
+    
     <StackPanel HorizontalAlignment="Stretch" 
                 VerticalAlignment="Top" 
                 Margin="4,0,4,0">

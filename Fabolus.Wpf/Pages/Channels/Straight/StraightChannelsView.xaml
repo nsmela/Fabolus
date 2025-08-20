@@ -6,6 +6,11 @@
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Channels.Straight"
              mc:Ignorable="d" 
              d:DesignWidth="200">
+
+    <UserControl.DataContext>
+        <local:StraightChannelsViewModel />
+    </UserControl.DataContext>
+
     <StackPanel>
         <Label Content="penetration depth" 
                             HorizontalAlignment="Center" 

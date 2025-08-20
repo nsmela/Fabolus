@@ -44,41 +44,49 @@ public class ChannelsSceneManager : SceneManagerBase {
         return _channels.FirstOrDefault(c => c.Value.Geometry.GUID == id).Value;
     }
 
-    public ChannelsSceneManager() {
-        RegisterMessages();
-        SetAirPockets();
-    }
-
     protected override void RegisterMessages() {
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-
-        SetDefaultInputBindings();
-
         //bolus
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, async (r, m) => await BolusUpdated(m.Bolus));
+        _messenger.Register<BolusUpdatedMessage>(this, async (r, m) => await BolusUpdated(m.Bolus));
 
         //mouse actions
-        WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.Hits, m.OriginalEventArgs));
-        WeakReferenceMessenger.Default.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
+        _messenger.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.Hits, m.OriginalEventArgs));
+        _messenger.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
 
-        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
-        WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
-        WeakReferenceMessenger.Default.Register<ActiveChannelUpdatedMessage>(this, async (r, m) => await ActiveAirChannelUpdated(m.Channel));
+        _messenger.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
+        _messenger.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
+        _messenger.Register<ActiveChannelUpdatedMessage>(this, async (r, m) => await ActiveAirChannelUpdated(m.Channel));
 
-        _settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
-        _activeChannel = WeakReferenceMessenger.Default.Send(new ActiveChannelRequestMessage()).Response;
-        _channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
+        _settings = _messenger.Send(new ChannelsSettingsRequestMessage()).Response;
+        _activeChannel = _messenger.Send(new ActiveChannelRequestMessage()).Response;
+        _channels = _messenger.Send(new AirChannelsRequestMessage()).Response;
  
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+        var bolus = _messenger.Send(new BolusRequestMessage()).Response;
         BolusUpdated(bolus);
     }
 
-    void SetDefaultInputBindings() {
-        var delete_command = new RelayCommand(DeleteChannel);
-        WeakReferenceMessenger.Default.Send(
-        new MeshDisplayInputsMessage(new InputBindingCollection {
-            new KeyBinding(delete_command, Key.Delete, ModifierKeys.None),
-        }));
+    protected override void RegisterInputBindings() {
+        InputBindingCollection bindings = new InputBindingCollection { 
+            // mouse controls
+            new MouseBinding(ViewportCommands.Rotate, new MouseGesture(MouseAction.RightClick, ModifierKeys.None)),
+            new MouseBinding(ViewportCommands.Pan, new MouseGesture(MouseAction.MiddleClick, ModifierKeys.None)),
+
+            // key commands
+            new KeyBinding(){ Command = ViewportCommands.BackView, Key = Key.B },
+            new KeyBinding(){ Command = ViewportCommands.BottomView, Key = Key.D },
+            new KeyBinding(){ Command = ViewportCommands.FrontView, Key = Key.F },
+            new KeyBinding(){ Command = ViewportCommands.Reset, Key = Key.H },
+            new KeyBinding(){ Command = ViewportCommands.LeftView, Key = Key.L },
+            new KeyBinding(){ Command = ViewportCommands.RightView, Key = Key.R },
+            new KeyBinding(){ Command = ViewportCommands.TopView, Key = Key.T },
+            new KeyBinding(){ Command = new RelayCommand(DeleteChannel), Key = Key.Delete },
+        };
+        _messenger.Send(new MeshDisplayInputsMessage(bindings));
+    }
+
+    public ChannelsSceneManager() {
+        RegisterMessages();
+        RegisterInputBindings();
+        SetAirPockets();
     }
 
     private void DeleteChannel() {
@@ -86,14 +94,14 @@ public class ChannelsSceneManager : SceneManagerBase {
         if (!_channels.ContainsKey(_activeChannel.GUID)) { return; }
         _channels.Remove(_activeChannel);
 
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+        _messenger.Send(new AirChannelsUpdatedMessage(_channels));
 
         var activeChannel = _settings[_activeChannel.ChannelType];
-        WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(activeChannel));
+        _messenger.Send(new ActiveChannelUpdatedMessage(activeChannel));
     }
 
     private void SetAirPockets() {
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+        var bolus = _messenger.Send(new BolusRequestMessage()).Response;
         var results = AirPockets.Detect(bolus.TransformedMesh());
         var points = results.Select(r => new Vector3((float)r[0], (float)r[1], (float)r[2])); // convert from double [x, y, z] to Vector3
 
@@ -107,7 +115,7 @@ public class ChannelsSceneManager : SceneManagerBase {
         if (_channels is null || _channels.Count > 0) { return; } // skip if channels already placed
 
         // check if preferences is set to allow autogenerating channels
-        if(!WeakReferenceMessenger.Default.Send<PreferencesAutodetectChannelsRequest>().Response) { return; }
+        if(!_messenger.Send<PreferencesAutodetectChannelsRequest>().Response) { return; }
 
         var _default_air_channel = new StraightAirChannel();
 
@@ -119,27 +127,27 @@ public class ChannelsSceneManager : SceneManagerBase {
             _channels.Add(channel);
         }
 
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
+        _messenger.Send(new AirChannelsUpdatedMessage(_channels));
     }
 
     private async Task ActiveAirChannelUpdated(IAirChannel channel) {
         _activeChannel = channel;
-        UpdateDisplay(null);
+        UpdateDisplay();
     }
     
     private async Task BolusUpdated(BolusModel? bolus) {
         _bolus = bolus;
-        UpdateDisplay(null);
+        UpdateDisplay();
     }
 
     private async Task ChannelsUpdated(AirChannelsCollection channels) {
         _channels = channels;
-        UpdateDisplay(null);
+        UpdateDisplay();
     }
 
     private async Task SettingsUpdated(AirChannelSettings settings) {
         _settings = settings;
-        UpdateDisplay(null);
+        UpdateDisplay();
     }
 
     void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
@@ -164,19 +172,20 @@ public class ChannelsSceneManager : SceneManagerBase {
 
         if (channelHit is not null) {
             UpdateSelectedChannel(channelHit);
+            args.Handled = true; // mark as handled to prevent further processing
             return;
         }
 
         //check if clicked on the bolus
         var bolusHit = hits.FirstOrDefault(x => x.Geometry.GUID == BolusId);
         AddChannel(bolusHit); // will also update display via response from messaging
-
+        args.Handled = true; // mark as handled to prevent further processing
     }
 
     void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
         _previewMesh = null;
         if (hits is null || hits.Count() == 0) {
-            UpdateDisplay(null);
+            UpdateDisplay();
             return; 
         }
 
@@ -184,7 +193,7 @@ public class ChannelsSceneManager : SceneManagerBase {
         if (mouse.RightButton == MouseButtonState.Pressed
             || mouse.MiddleButton == MouseButtonState.Pressed
             || mouse.LeftButton == MouseButtonState.Pressed) {
-            UpdateDisplay(null);
+            UpdateDisplay();
             return;
         }
 
@@ -193,7 +202,7 @@ public class ChannelsSceneManager : SceneManagerBase {
         var channelHit = GetChannelByGeometryId(id);
 
         if (channelHit is not null) {
-            UpdateDisplay(null);
+            UpdateDisplay();
             return;
         }
 
@@ -202,9 +211,9 @@ public class ChannelsSceneManager : SceneManagerBase {
         SetPreviewChannel(bolusHit);
     }
 
-    void UpdateDisplay(BolusModel? bolus) {
-        if (_bolus is null || _bolus.Geometry is null || _bolus.Geometry.Positions is null || _bolus.Geometry.Positions.Count == 0) {
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
+    void UpdateDisplay() {
+        if (BolusModel.IsNullOrEmpty(_bolus)) {
+            _messenger.Send(new MeshDisplayUpdatedMessage());
             return;
         }
 
@@ -247,30 +256,30 @@ public class ChannelsSceneManager : SceneManagerBase {
         WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
     }
 
-    private async Task UpdateSelectedChannel(IAirChannel? channel) {
+    private void UpdateSelectedChannel(IAirChannel? channel) {
         if (channel is null) {
             var newChannel = _settings[_activeChannel.ChannelType];
-            WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(newChannel));
+            _messenger.Send(new ActiveChannelUpdatedMessage(newChannel));
             return;
         }
 
         _settings[channel.ChannelType] = channel;
-        WeakReferenceMessenger.Default.Send(new ChannelSettingsUpdatedMessage(_settings));
-        WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(channel));
+        _messenger.Send(new ChannelSettingsUpdatedMessage(_settings));
+        _messenger.Send(new ActiveChannelUpdatedMessage(channel));
     }
 
-    private async Task AddChannel(HitTestResult? hit) {
+    private void AddChannel(HitTestResult? hit) {
         if (hit is null) { return; }
         var channel = _settings[_activeChannel.ChannelType].New();
         channel.Height = MaxHeight;
         channel = channel.WithHit(hit);
         _channels.Add(channel);
 
-        WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage(_channels));
-        WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(channel));
+        _messenger.Send(new AirChannelsUpdatedMessage(_channels));
+        _messenger.Send(new ActiveChannelUpdatedMessage(channel));
     }
 
-    private async Task SetPreviewChannel(HitTestResult? hit) {
+    private void SetPreviewChannel(HitTestResult? hit) {
         if (hit is null) { 
             _channels.PreviewChannel = null;
         }
@@ -282,6 +291,6 @@ public class ChannelsSceneManager : SceneManagerBase {
             _previewMesh = channel.Geometry;
         }
 
-        UpdateDisplay(null);
+        UpdateDisplay();
     }
 }

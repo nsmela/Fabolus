@@ -6,6 +6,11 @@
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Channels.Angled"
              mc:Ignorable="d" 
              d:DesignWidth="200">
+
+    <UserControl.DataContext>
+        <local:AngledChannelsViewModel />
+    </UserControl.DataContext>
+
     <StackPanel>
         <Label Content="penetration depth" 
                             HorizontalAlignment="Center" 
