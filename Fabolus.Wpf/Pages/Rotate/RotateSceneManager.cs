@@ -79,7 +79,7 @@ public sealed class RotateSceneManager : SceneManager {
         UpdateDisplay(bolus);
     }
 
-    protected override void UpdateDisplay(BolusModel? bolus) {
+    void UpdateDisplay(BolusModel? bolus) {
         if (BolusModel.IsNullOrEmpty(bolus)) {
             WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;

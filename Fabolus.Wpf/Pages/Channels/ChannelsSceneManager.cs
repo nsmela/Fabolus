@@ -45,11 +45,11 @@ public class ChannelsSceneManager : SceneManager {
     }
 
     public ChannelsSceneManager() {
-        SetMessaging();
+        RegisterMessages();
         SetAirPockets();
     }
 
-    protected override void SetMessaging() {
+    protected override void RegisterMessages() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
 
         SetDefaultInputBindings();
@@ -60,7 +60,6 @@ public class ChannelsSceneManager : SceneManager {
         //mouse actions
         WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.Hits, m.OriginalEventArgs));
         WeakReferenceMessenger.Default.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
-        WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.Hits, m.OriginalEventArgs));
 
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(m.Settings));
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
@@ -74,7 +73,7 @@ public class ChannelsSceneManager : SceneManager {
         BolusUpdated(bolus);
     }
 
-    protected override void SetDefaultInputBindings() {
+    void SetDefaultInputBindings() {
         var delete_command = new RelayCommand(DeleteChannel);
         WeakReferenceMessenger.Default.Send(
         new MeshDisplayInputsMessage(new InputBindingCollection {
@@ -143,7 +142,7 @@ public class ChannelsSceneManager : SceneManager {
         UpdateDisplay(null);
     }
 
-    protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
+    void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
         //catch and ignored mouse buttons and exit
         var mouse = args as MouseButtonEventArgs;
         if (mouse.RightButton == MouseButtonState.Pressed
@@ -174,7 +173,7 @@ public class ChannelsSceneManager : SceneManager {
 
     }
 
-    protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
+    void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
         _previewMesh = null;
         if (hits is null || hits.Count() == 0) {
             UpdateDisplay(null);
@@ -203,7 +202,7 @@ public class ChannelsSceneManager : SceneManager {
         SetPreviewChannel(bolusHit);
     }
 
-    protected override void UpdateDisplay(BolusModel? bolus) {
+    void UpdateDisplay(BolusModel? bolus) {
         if (_bolus is null || _bolus.Geometry is null || _bolus.Geometry.Positions is null || _bolus.Geometry.Positions.Count == 0) {
             WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;
@@ -214,7 +213,7 @@ public class ChannelsSceneManager : SceneManager {
         models.Add( new DisplayModel3D {
             Geometry = _bolus.Geometry,
             Transform = MeshHelper.TransformEmpty,
-            Skin = _skin
+            Skin = DiffuseMaterials.Gray,
         });
 
         foreach(var channel in _channels.Values) {

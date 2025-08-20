@@ -18,14 +18,16 @@ namespace Fabolus.Wpf.Pages.Mould;
 public partial class MouldViewModel : BaseViewModel {
     public override string TitleText => "mould";
 
-    public override SceneManager GetSceneManager => new MouldSceneManager();
 
     [ObservableProperty] private BaseMouldView? _currentMouldViewModel;
 
     private BolusModel? Bolus { get; set; }
 
-    public MouldViewModel() {
+    public MouldViewModel() : base(new MouldSceneManager()) {
         CurrentMouldViewModel = new SimpleMouldViewModel();
     }
 
+    protected override void RegisterMessages() {
+        
+    }
 }

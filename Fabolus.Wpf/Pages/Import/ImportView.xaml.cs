@@ -19,7 +19,6 @@ namespace Fabolus.Wpf.Pages.Import;
 /// </summary>
 public partial class ImportView : UserControl {
     public ImportView() {
-        DataContext = new ImportViewModel();
         InitializeComponent();
     }
 }

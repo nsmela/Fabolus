@@ -17,19 +17,19 @@ public class ExportSceneManager : SceneManager {
     private Material _mouldSkin = DiffuseMaterials.Ruby;
 
     public ExportSceneManager() {
-        SetMessaging();
+        RegisterMessages();
 
         UpdateDisplay(_bolus);
     }
 
-    protected override void SetMessaging() {
+    protected override void RegisterMessages() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
 
         _bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
         _mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>();
     }
 
-    protected override void UpdateDisplay(BolusModel? bolus) {
+    void UpdateDisplay(BolusModel? bolus) {
         if (BolusModel.IsNullOrEmpty(_bolus)) {
             WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;
@@ -42,7 +42,7 @@ public class ExportSceneManager : SceneManager {
             models.Add(new DisplayModel3D {
                 Geometry = _bolus.Geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = _skin
+                Skin = DiffuseMaterials.Gray,
             });
         } else { 
         //mould

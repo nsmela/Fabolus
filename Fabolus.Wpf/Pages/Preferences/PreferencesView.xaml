@@ -6,6 +6,8 @@
         xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro" 
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Preferences"
+        xmlns:common="clr-namespace:Fabolus.Wpf.Common"
+        common:DataContextDisposal.AutoDispose="True"
         mc:Ignorable="d"
         ResizeMode="CanResizeWithGrip"
         WindowStyle="ToolWindow"

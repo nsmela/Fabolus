@@ -15,31 +15,33 @@ namespace Fabolus.Wpf.Pages.Import;
 public partial class ImportViewModel : BaseViewModel {
     public override string TitleText => "Import";
 
-    public override SceneManager GetSceneManager => new SceneManager();
-
     private string _filepath = string.Empty;
 
-    public ImportViewModel() {
+    protected override void RegisterMessages() { } // no messages to register 
+
+    public ImportViewModel() : base(new SceneManager()) {
+        RegisterMessages();
         SetMeshText();
     }
 
     private void SetMeshText() {
-        BolusModel[] boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
-        if (boli is null || boli.Length == 0) {
-            WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage("No bolus loaded."));
+        BolusModel[] boli = Messenger.Send(new AllBolusRequestMessage()).Response;
+        if (BolusModel.IsNullOrEmpty(boli)) {
+            Messenger.Send(new MeshInfoSetMessage("No bolus loaded."));
             return;
         }
+
         var filepath = _filepath.Split(Path.DirectorySeparatorChar).LastOrDefault() ?? "Unknown Filepath";
         var text = $"Filepath:\r\n   {filepath}\r\nVolume:\r\n   {boli[0].Mesh.VolumeString()}";
-        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(text));
+        Messenger.Send(new MeshInfoSetMessage(text));
     }
 
-    //commands
-    #region Commands
+    // Commands
+
     [RelayCommand]
-    public async Task ImportFile() {
+    public void ImportFile() {
         // get app preference for import folder
-        string import_folder = WeakReferenceMessenger.Default.Send(new PreferencesImportFolderRequest()).Response;
+        string import_folder = Messenger.Send(new PreferencesImportFolderRequest()).Response;
 
         //open file dialog box
         OpenFileDialog openFile = new() {
@@ -56,9 +58,8 @@ public partial class ImportViewModel : BaseViewModel {
         if (string.IsNullOrEmpty(_filepath) ) { return; }
 
         //send filepath to bolus store to generate a bolus
-        WeakReferenceMessenger.Default.Send(new AddBolusFromFileMessage(_filepath));
+        Messenger.Send(new AddBolusFromFileMessage(_filepath));
         SetMeshText();
     }
 
-    #endregion
 }

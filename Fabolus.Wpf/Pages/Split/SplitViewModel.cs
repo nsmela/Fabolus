@@ -19,8 +19,6 @@ namespace Fabolus.Wpf.Pages.Split;
 public partial class SplitViewModel : BaseViewModel {
     public override string TitleText => "split";
 
-    public override SceneManager GetSceneManager => new SplitSceneManager();
-
     // view meshes
     [ObservableProperty] private bool _showBolus = true;
     [ObservableProperty] private bool _showCurves = false;
@@ -109,11 +107,15 @@ public partial class SplitViewModel : BaseViewModel {
     private List<int[]> _path_indices = [];
     private PartingTool _partingTool;
 
-    public SplitViewModel() {
+    protected override void RegisterMessages() {
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestViewOptionsMessage>(this, (r, m) => m.Reply(ViewOptions));
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestSettingsMessage>(this, (r, m) => m.Reply(CuttingSettings));
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestResultsMessage>(this, (r, m) => m.Reply(GeneratePreview()));
         WeakReferenceMessenger.Default.Register<SplitViewModel, SplitPartingToolUpdatedMessage>(this, (r, m) => PartingToolUpdated(m.tool));
+    }
+
+    public SplitViewModel() : base(new SplitSceneManager()) {
+        RegisterMessages();
 
         var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
         _bolus = bolus.TransformedMesh();
@@ -254,4 +256,6 @@ public partial class SplitViewModel : BaseViewModel {
 
         await MeshModel.ToFile(saveFile.FileName, combinedModel);
     }
+
+
 }

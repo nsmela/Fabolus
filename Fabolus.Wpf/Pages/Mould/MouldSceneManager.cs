@@ -25,10 +25,10 @@ public class MouldSceneManager : SceneManager {
     private bool _showChannels = true;
 
     public MouldSceneManager() {
-        SetMessaging();
+        RegisterMessages();
     }
 
-    protected override void SetMessaging() {
+    protected override void RegisterMessages() {
         WeakReferenceMessenger.Default.UnregisterAll(this);
 
         //listening
@@ -53,7 +53,7 @@ public class MouldSceneManager : SceneManager {
         UpdateDisplay(_bolus);
     }
 
-    protected override void UpdateDisplay(BolusModel? bolus) {
+    void UpdateDisplay(BolusModel? bolus) {
         if (BolusModel.IsNullOrEmpty(_bolus)) {
             WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
             return;
@@ -66,7 +66,7 @@ public class MouldSceneManager : SceneManager {
             models.Add(new DisplayModel3D {
                 Geometry = _bolus.Geometry,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = _skin
+                Skin = DiffuseMaterials.Gray,
             });
         }
 

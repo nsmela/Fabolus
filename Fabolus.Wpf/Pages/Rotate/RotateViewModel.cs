@@ -14,8 +14,6 @@ namespace Fabolus.Wpf.Pages.Rotate;
 public partial class RotateViewModel : BaseViewModel {
     public override string TitleText => "Rotation";
 
-    public override SceneManager GetSceneManager => new RotateSceneManager();
-
     private bool _isLocked = false;
 
     [ObservableProperty] private float _xAxisAngle;
@@ -36,7 +34,7 @@ public partial class RotateViewModel : BaseViewModel {
         _isLocked = false;
     }
 
-    public RotateViewModel() {
+    public RotateViewModel() : base(new RotateSceneManager()) {
         WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(string.Empty));
     }
 
@@ -109,6 +107,10 @@ public partial class RotateViewModel : BaseViewModel {
 
         WeakReferenceMessenger.Default.Send(new ApplyOverhangSettings(UpperOverhang, LowerOverhang));
         _isOverhangsFrozen = false;
+    }
+
+    protected override void RegisterMessages() {
+        throw new NotImplementedException();
     }
     #endregion
 }

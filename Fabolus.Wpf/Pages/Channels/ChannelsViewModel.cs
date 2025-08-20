@@ -15,8 +15,6 @@ namespace Fabolus.Wpf.Pages.Channels;
 public partial class ChannelsViewModel : BaseViewModel {
     public override string TitleText => "channels";
 
-    public override SceneManager GetSceneManager => new ChannelsSceneManager();
-
     [ObservableProperty] private BaseChannelsViewModel? _currentChannelViewModel;
     [ObservableProperty] private string[] _channelNames = [];
     [ObservableProperty] private int _activeToolIndex = 0;
@@ -43,28 +41,25 @@ public partial class ChannelsViewModel : BaseViewModel {
     private IAirChannel? _activeChannel;
     private bool _isBusy = false;
 
-    public ChannelsViewModel() {
-        ChannelNames = EnumHelper.GetEnumDescriptions<ChannelTypes>().ToArray();
-
-        WeakReferenceMessenger.Default.UnregisterAll(this);
+    protected override void RegisterMessages() {
         WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r, m) => await SettingsUpdated(r, m.Settings));
         WeakReferenceMessenger.Default.Register<ActiveChannelUpdatedMessage>(this, async (r, m) => await ActiveChannelChanged(m.Channel));
         WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, (r, m) => _channels = m.Channels);
+    }
+
+    public ChannelsViewModel() : base(new ChannelsSceneManager()) {
+        RegisterMessages();
+        
+        ChannelNames = EnumHelper.GetEnumDescriptions<ChannelTypes>().ToArray();
 
         _channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
-
         _settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
-
         _activeChannel = WeakReferenceMessenger.Default.Send(new ActiveChannelRequestMessage()).Response;
 
         CurrentType = _settings.SelectedType; //set active index and generates view model
         CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
 
         WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(string.Empty));
-    }
-
-    public override void Dispose() {
-        //WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(null));
     }
 
     private async Task ActiveChannelChanged(IAirChannel channel) {
@@ -88,8 +83,6 @@ public partial class ChannelsViewModel : BaseViewModel {
         _settings = settings;
     }
 
-    #region Commands
-
     [RelayCommand]
     private void ClearChannels() {
         WeakReferenceMessenger.Default.Send(new AirChannelsUpdatedMessage([]));
@@ -110,5 +103,6 @@ public partial class ChannelsViewModel : BaseViewModel {
         WeakReferenceMessenger.Default.Send(new ActiveChannelUpdatedMessage(activeChannel));
     }
 
-    #endregion
+
+
 }

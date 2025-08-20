@@ -103,7 +103,7 @@ public class SplitSceneManager : SceneManager {
         }));
     }
         
-    protected override void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
+    void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
         // end dragging
         _isDragging = false;
         _dragStartPosition = null;
@@ -111,7 +111,7 @@ public class SplitSceneManager : SceneManager {
         
     }
 
-    protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
+    void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
         //catch and ignored mouse buttons and exit
         var mouse = args as MouseButtonEventArgs;
         if (mouse.RightButton == MouseButtonState.Pressed
@@ -208,7 +208,7 @@ public class SplitSceneManager : SceneManager {
         UpdateDisplay();
     }
 
-    protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
+    void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
         // reset parting tool
         _partingToolPreview = null;
 

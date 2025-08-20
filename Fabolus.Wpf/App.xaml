@@ -6,7 +6,6 @@
              xmlns:import="clr-namespace:Fabolus.Wpf.Pages.Import"
              xmlns:rotate="clr-namespace:Fabolus.Wpf.Pages.Rotate"
              xmlns:smooth="clr-namespace:Fabolus.Wpf.Pages.Smooth"
-             xmlns:marching="clr-namespace:Fabolus.Wpf.Pages.Smooth.Marching_Cubes"
              xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
              xmlns:channels="clr-namespace:Fabolus.Wpf.Pages.Channels"
              xmlns:straight="clr-namespace:Fabolus.Wpf.Pages.Channels.Straight"
@@ -33,20 +32,8 @@
                 <mesh:MeshView />
             </DataTemplate>
 
-            <DataTemplate DataType="{x:Type import:ImportViewModel}">
-                <import:ImportView/>
-            </DataTemplate>
-
             <DataTemplate DataType="{x:Type rotate:RotateViewModel}">
                 <rotate:RotateToolsView/>
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type smooth:SmoothingViewModel }">
-                <smooth:SmoothingView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type marching:MarchingCubesViewModel}">
-                <marching:MarchingCubesView />
             </DataTemplate>
 
             <DataTemplate DataType="{x:Type meshinfo:MeshInfoViewModel}">

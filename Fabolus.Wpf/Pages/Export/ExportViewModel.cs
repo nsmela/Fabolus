@@ -17,12 +17,12 @@ namespace Fabolus.Wpf.Pages.Export;
 public partial class ExportViewModel : BaseViewModel {
     public override string TitleText => "Export";
 
-    public override SceneManager GetSceneManager => new ExportSceneManager();
-
     [ObservableProperty] private bool _showBolus = false;
     [ObservableProperty] private bool _showMould = false;
 
-    public ExportViewModel() {
+    protected override void RegisterMessages() { }
+
+    public ExportViewModel() : base(new ExportSceneManager()) {
         string mesh_info = string.Empty;
 
         var bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response;
