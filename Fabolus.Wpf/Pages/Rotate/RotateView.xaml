@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="Fabolus.Wpf.Pages.Rotate.RotateToolsView"
+﻿<UserControl x:Class="Fabolus.Wpf.Pages.Rotate.RotateView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -11,6 +11,10 @@
              common:DataContextDisposal.AutoDispose="True"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="200">
+    
+    <UserControl.DataContext>
+        <local:RotateViewModel />
+    </UserControl.DataContext>
     
     <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top" Margin="4,0,4,0">
  

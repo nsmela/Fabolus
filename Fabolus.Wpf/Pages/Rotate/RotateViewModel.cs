@@ -2,12 +2,10 @@
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
-using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Pages.MainWindow;
 using SharpDX;
 
 using static Fabolus.Wpf.Bolus.BolusStore;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 
@@ -34,24 +32,28 @@ public partial class RotateViewModel : BaseViewModel {
         _isLocked = false;
     }
 
+
+    protected override void RegisterMessages() {
+        throw new NotImplementedException();
+    }
+
     public RotateViewModel() : base(new RotateSceneManager()) {
-        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(string.Empty));
+        _messenger.Send(new MeshInfoSetMessage(string.Empty));
     }
 
     private void ShowAxisRotation(Vector3 axis) {
-        WeakReferenceMessenger.Default.Send(new ShowActiveRotationMessage(axis));
+        _messenger.Send(new ShowActiveRotationMessage(axis));
     }
 
     private void SendTempRotation(Vector3 axis, float angle) {
         if (_isLocked) { return; }
-        WeakReferenceMessenger.Default.Send(new ApplyTempRotationMessage(axis, angle));
+        _messenger.Send(new ApplyTempRotationMessage(axis, angle));
     }
 
-    #region Commands
     [RelayCommand]
     private void ClearRotation() {
         ResetValues();
-        WeakReferenceMessenger.Default.Send(new ClearRotationsMessage());
+        _messenger.Send(new ClearRotationsMessage());
     }
 
     [RelayCommand]
@@ -76,7 +78,7 @@ public partial class RotateViewModel : BaseViewModel {
         }
 
         ResetValues();
-        WeakReferenceMessenger.Default.Send(new ApplyRotationMessage(axis, angle));
+        _messenger.Send(new ApplyRotationMessage(axis, angle));
     }
 
     [RelayCommand]
@@ -91,9 +93,6 @@ public partial class RotateViewModel : BaseViewModel {
     [RelayCommand]
     private void HideAxisRotation() => ShowAxisRotation(Vector3.Zero);
 
-    #endregion
-
-    #region Overhangs
     [ObservableProperty] private float _lowerOverhang = RotateSceneManager.DEFAULT_OVERHANG_LOWER;
     [ObservableProperty] private float _upperOverhang = RotateSceneManager.DEFAULT_OVERHANG_UPPER;
     private bool _isOverhangsFrozen = false;
@@ -105,12 +104,8 @@ public partial class RotateViewModel : BaseViewModel {
         if (_isOverhangsFrozen) { return; }
         _isOverhangsFrozen = true;
 
-        WeakReferenceMessenger.Default.Send(new ApplyOverhangSettings(UpperOverhang, LowerOverhang));
+        _messenger.Send(new ApplyOverhangSettings(UpperOverhang, LowerOverhang));
         _isOverhangsFrozen = false;
     }
 
-    protected override void RegisterMessages() {
-        throw new NotImplementedException();
-    }
-    #endregion
 }

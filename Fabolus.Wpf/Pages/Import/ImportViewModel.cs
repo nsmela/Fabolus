@@ -25,15 +25,15 @@ public partial class ImportViewModel : BaseViewModel {
     }
 
     private void SetMeshText() {
-        BolusModel[] boli = Messenger.Send(new AllBolusRequestMessage()).Response;
+        BolusModel[] boli = _messenger.Send(new AllBolusRequestMessage()).Response;
         if (BolusModel.IsNullOrEmpty(boli)) {
-            Messenger.Send(new MeshInfoSetMessage("No bolus loaded."));
+            _messenger.Send(new MeshInfoSetMessage("No bolus loaded."));
             return;
         }
 
         var filepath = _filepath.Split(Path.DirectorySeparatorChar).LastOrDefault() ?? "Unknown Filepath";
         var text = $"Filepath:\r\n   {filepath}\r\nVolume:\r\n   {boli[0].Mesh.VolumeString()}";
-        Messenger.Send(new MeshInfoSetMessage(text));
+        _messenger.Send(new MeshInfoSetMessage(text));
     }
 
     // Commands
@@ -41,7 +41,7 @@ public partial class ImportViewModel : BaseViewModel {
     [RelayCommand]
     public void ImportFile() {
         // get app preference for import folder
-        string import_folder = Messenger.Send(new PreferencesImportFolderRequest()).Response;
+        string import_folder = _messenger.Send(new PreferencesImportFolderRequest()).Response;
 
         //open file dialog box
         OpenFileDialog openFile = new() {
@@ -58,7 +58,7 @@ public partial class ImportViewModel : BaseViewModel {
         if (string.IsNullOrEmpty(_filepath) ) { return; }
 
         //send filepath to bolus store to generate a bolus
-        Messenger.Send(new AddBolusFromFileMessage(_filepath));
+        _messenger.Send(new AddBolusFromFileMessage(_filepath));
         SetMeshText();
     }
 

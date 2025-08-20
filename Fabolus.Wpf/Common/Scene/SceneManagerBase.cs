@@ -6,14 +6,14 @@ using System.Windows;
 namespace Fabolus.Wpf.Common.Scene;
 
 public abstract class SceneManagerBase : ObservableObject, IDisposable {
-    protected IMessenger Messenger { get; } = WeakReferenceMessenger.Default;
+    protected readonly IMessenger _messenger = WeakReferenceMessenger.Default;
 
     protected abstract void RegisterMessages();
 
     protected virtual void RegisterInputBindings() =>
-        Messenger.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
+        _messenger.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
 
-    public virtual void Dispose() => Messenger.UnregisterAll(this);
+    public virtual void Dispose() => _messenger.UnregisterAll(this);
 
     protected static void ShowErrorMessage(string title, string message) => MessageBox.Show(message, title);
 

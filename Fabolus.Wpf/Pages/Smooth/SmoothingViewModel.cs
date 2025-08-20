@@ -27,10 +27,10 @@ public partial class SmoothingViewModel : BaseViewModel {
     };
 
     private MarchingCubesSettings Settings => new MarchingCubesSettings {
-        DeflateDistance = this._deflateDistance,
-        InflateDistance = this._inflateDistance,
-        Iterations = this._iterations,
-        CellSize = this._cellSize,
+        DeflateDistance = DeflateDistance,
+        InflateDistance = InflateDistance,
+        Iterations = Iterations,
+        CellSize = CellSize,
     };
 
     private void SetSettings(string label) {
@@ -51,11 +51,16 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     partial void OnCurrentHeightChanged(double value) {
         //Send message to set contour at the current height
-        Messenger.Send(new SmoothingContourMessage(value));
+        _messenger.Send(new SmoothingContourMessage(value));
     }
 
     private void UpdateSlider() {
-        var bolus = Messenger.Send(new BolusRequestMessage()).Response;
+        if (View != ViewModes.Contouring) {
+            ShowHeightSlider = false;
+            return;
+        }
+
+        var bolus = _messenger.Send(new BolusRequestMessage()).Response;
         if (BolusModel.IsNullOrEmpty(bolus)) {
             ShowHeightSlider = false;
             return;
@@ -69,19 +74,18 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     }
 
-
-
     //View control box
     [ObservableProperty] private IEnumerable<ViewModes> _views = Enum.GetValues(typeof(ViewModes)).Cast<ViewModes>();
     [ObservableProperty] private ViewModes _view = ViewModes.None;
     partial void OnViewChanged(ViewModes oldValue, ViewModes newValue) {
-        WeakReferenceMessenger.Default.Send(new SmoothingViewModeMessage(newValue));
+        UpdateSlider();
+        _messenger.Send(new SmoothingViewModeMessage(newValue));
     }
 
     private void UpdateMeshText() {
-        BolusModel[] boli = Messenger.Send(new AllBolusRequestMessage()).Response;
+        BolusModel[] boli = _messenger.Send(new AllBolusRequestMessage()).Response;
         if (BolusModel.IsNullOrEmpty(boli)) {
-            Messenger.Send(new MeshInfoSetMessage("No bolus loaded."));
+            _messenger.Send(new MeshInfoSetMessage("No bolus loaded."));
             return;
         }
 
@@ -92,7 +96,7 @@ public partial class SmoothingViewModel : BaseViewModel {
             text += $"\r\nVolume[Smoothed]:\r\n   {boli[1].Mesh.VolumeString()}";
         }
 
-        Messenger.Send(new MeshInfoSetMessage(text));
+        _messenger.Send(new MeshInfoSetMessage(text));
     }
 
     public SmoothingViewModel() : base(new SmoothSceneManager()) {
@@ -103,7 +107,7 @@ public partial class SmoothingViewModel : BaseViewModel {
 
     [RelayCommand]
     public async Task Smooth() {
-        BolusModel[] boli = Messenger.Send(new AllBolusRequestMessage()).Response;
+        BolusModel[] boli = _messenger.Send(new AllBolusRequestMessage()).Response;
         if (BolusModel.IsNullOrEmpty(boli)) {
             ShowErrorMessage("Smoothing Error", "Unable to smooth an empty model");
             return;
@@ -111,14 +115,14 @@ public partial class SmoothingViewModel : BaseViewModel {
 
         var smoothedBolus = await Task.Run(() => new BolusModel(MarchingCubesSmoothing.Smooth(boli[0], Settings)));
 
-        Messenger.Send(new AddBolusMessage(smoothedBolus, BolusType.Smooth));
+        _messenger.Send(new AddBolusMessage(smoothedBolus, BolusType.Smooth));
         UpdateSlider();
         UpdateMeshText();
     }
 
     [RelayCommand]
     private void ClearSmoothed() {
-        Messenger.Send(new ClearBolusMessage(BolusType.Smooth));
+        _messenger.Send(new ClearBolusMessage(BolusType.Smooth));
         UpdateSlider();
         UpdateMeshText();
     }

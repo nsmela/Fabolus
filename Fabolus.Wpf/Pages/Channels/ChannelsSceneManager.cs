@@ -19,7 +19,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
-public class ChannelsSceneManager : SceneManager {
+public class ChannelsSceneManager : SceneManagerBase {
 
     private const double MAX_HEIGHT_OFFSET = 20.0;
 

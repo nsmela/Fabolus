@@ -20,9 +20,9 @@ public class SmoothSceneManager : SceneManagerBase {
     private ViewModes _view = ViewModes.None;
 
     protected override void RegisterMessages() {
-        Messenger.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay());
-        Messenger.Register<SmoothingContourMessage>(this, (r, m) => UpdateContour(m.Height));
-        Messenger.Register<SmoothingViewModeMessage>(this, (r, m) => {
+        _messenger.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay());
+        _messenger.Register<SmoothingContourMessage>(this, (r, m) => UpdateContour(m.Height));
+        _messenger.Register<SmoothingViewModeMessage>(this, (r, m) => {
             _view = m.ViewMode;
             UpdateDisplay();
         });
@@ -97,7 +97,7 @@ public class SmoothSceneManager : SceneManagerBase {
 
     private void UpdateContour(double height) {
         contour = null;
-        var boli = Messenger.Send(new AllBolusRequestMessage()).Response;
+        var boli = _messenger.Send(new AllBolusRequestMessage()).Response;
         if (boli is null || boli.Length < 2) { return; }
 
         var result = PolygonTools.ComparativeMeshSlice(boli[0].TransformedMesh(), boli[1].TransformedMesh(), height);
@@ -109,9 +109,9 @@ public class SmoothSceneManager : SceneManagerBase {
 
     private void UpdateDisplay() {
         // get all of the current bolus
-        var boli = Messenger.Send(new AllBolusRequestMessage()).Response;
+        var boli = _messenger.Send(new AllBolusRequestMessage()).Response;
         if (BolusModel.IsNullOrEmpty(boli)) {
-            Messenger.Send(new MeshDisplayUpdatedMessage([]));
+            _messenger.Send(new MeshDisplayUpdatedMessage([]));
             return;
         }
 
@@ -125,7 +125,7 @@ public class SmoothSceneManager : SceneManagerBase {
             };
 
             models.Add(model);
-            Messenger.Send(new MeshDisplayUpdatedMessage(models));
+            _messenger.Send(new MeshDisplayUpdatedMessage(models));
             return;
         }
 
@@ -186,6 +186,6 @@ public class SmoothSceneManager : SceneManagerBase {
                 break;
         }
 
-        Messenger.Send(new MeshDisplayUpdatedMessage(models));
+        _messenger.Send(new MeshDisplayUpdatedMessage(models));
     }
 }

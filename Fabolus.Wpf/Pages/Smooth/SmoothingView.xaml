@@ -9,6 +9,7 @@
              xmlns:common="clr-namespace:Fabolus.Wpf.Common"
              common:DataContextDisposal.AutoDispose="True"
              d:DesignHeight="450" d:DesignWidth="200">
+    
     <UserControl.DataContext>
         <local:SmoothingViewModel />
     </UserControl.DataContext>
@@ -119,7 +120,7 @@
 
         <Slider Orientation="Vertical" 
                 Margin="4, 6, 8, 6"
-                Visibility="{Binding Path=ShowHeightSlider, Converter={StaticResource BoolToVis}, FallbackValue=Visible}"
+                Visibility="{Binding Path=ShowHeightSlider, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
                 Minimum="{Binding MinHeight}"
                 Maximum="{Binding MaxHeight}"
                 Value="{Binding CurrentHeight}"

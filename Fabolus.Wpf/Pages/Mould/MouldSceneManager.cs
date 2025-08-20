@@ -13,7 +13,7 @@ using Fabolus.Wpf.Common.Extensions;
 
 namespace Fabolus.Wpf.Pages.Mould;
 
-public class MouldSceneManager : SceneManager {
+public class MouldSceneManager : SceneManagerBase {
     private BolusModel _bolus;
     private AirChannelsCollection _channels = [];
     private MouldModel? _mould;

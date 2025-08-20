@@ -21,7 +21,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Fabolus.Wpf.Pages.Split;
 
-public class SplitSceneManager : SceneManager {
+public class SplitSceneManager : SceneManagerBase {
 
     // parting
     private CuttingMeshParams _settings = new();
@@ -590,6 +590,10 @@ public class SplitSceneManager : SceneManager {
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
     private static Point ToSharpPoint(System.Windows.Point point) => new Point((int)point.X, (int)point.Y);
+
+    protected override void RegisterMessages() {
+        throw new NotImplementedException();
+    }
 }
 
 

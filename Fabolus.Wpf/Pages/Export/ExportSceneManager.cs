@@ -10,7 +10,7 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Export;
 
-public class ExportSceneManager : SceneManager {
+public class ExportSceneManager : SceneManagerBase {
     private BolusModel _bolus;
     private MouldModel _mould;
 

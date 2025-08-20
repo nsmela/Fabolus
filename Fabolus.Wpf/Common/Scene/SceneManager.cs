@@ -17,13 +17,13 @@ public class SceneManager : SceneManagerBase  {
         RegisterMessages();
         SetInputBindings();
 
-        _bolus = Messenger.Send(new BolusRequestMessage()).Response;
+        _bolus = _messenger.Send(new BolusRequestMessage()).Response;
         UpdateDisplay();
     }
 
     protected virtual void UpdateDisplay() {
         if (BolusModel.IsNullOrEmpty(_bolus)) {
-            Messenger.Send(new MeshDisplayUpdatedMessage()); // clears the display
+            _messenger.Send(new MeshDisplayUpdatedMessage()); // clears the display
             return;
         }
 
@@ -35,15 +35,15 @@ public class SceneManager : SceneManagerBase  {
             };
         }
 
-        Messenger.Send(new MeshDisplayUpdatedMessage(_displayModel));
+        _messenger.Send(new MeshDisplayUpdatedMessage(_displayModel));
     }
 
     protected virtual void SetInputBindings() =>
-        Messenger.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
+        _messenger.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
 
     protected override void RegisterMessages() {
         //bolus
-        Messenger.Register<BolusUpdatedMessage>(this, (r, m) => {
+        _messenger.Register<BolusUpdatedMessage>(this, (r, m) => {
             _bolus = m.Bolus;
             UpdateDisplay();
         });

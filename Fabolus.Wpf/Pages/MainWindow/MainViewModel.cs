@@ -30,7 +30,7 @@ using Fabolus.Wpf.Pages.Split;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
-    public IMessenger Messenger { get; } = WeakReferenceMessenger.Default;
+    private readonly IMessenger _messenger = WeakReferenceMessenger.Default;
 
     private const string NoFileText = "No file loaded";
 
@@ -54,16 +54,16 @@ public partial class MainViewModel : ObservableObject {
     public MainViewModel() {
 
         CurrentMeshInfo = new();
-        Messenger.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
-        Messenger.Register<PreferencesSetSplitViewMessage>(this, (r,m) => ShowSplitView = m.SplitViewEnabled);
+        _messenger.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
+        _messenger.Register<PreferencesSetSplitViewMessage>(this, (r,m) => ShowSplitView = m.SplitViewEnabled);
 
-        ShowSplitView = Messenger.Send(new PreferencesSplitViewRequest()).Response;
+        ShowSplitView = _messenger.Send(new PreferencesSplitViewRequest()).Response;
 
         CurrentView = new ImportView(); // switch to ImportView
     }
 
     private void BolusUpdated() {
-        var boli = Messenger.Send(new AllBolusRequestMessage()).Response;
+        var boli = _messenger.Send(new AllBolusRequestMessage()).Response;
 
         MeshLoaded = boli.Length > 0;
     }
@@ -71,7 +71,7 @@ public partial class MainViewModel : ObservableObject {
     // Commands
 
     [RelayCommand] public void SwitchToImportView() => CurrentView = new ImportView();
-    [RelayCommand] public void SwitchToRotationView() => CurrentView = new RotateToolsView();
+    [RelayCommand] public void SwitchToRotationView() => CurrentView = new RotateView();
     [RelayCommand] public void SwitchToSmoothingView() => CurrentView = new SmoothingView();
     [RelayCommand] public void SwitchToAirChannelView() => CurrentView = new ChannelsView();
     [RelayCommand] public void SwitchToMouldView() => CurrentView = new MouldView();
@@ -83,13 +83,13 @@ public partial class MainViewModel : ObservableObject {
         CurrentView = new SplitView();
     }
 
-    [RelayCommand] public void ToggleWireframe() => Messenger.Send(new WireframeToggleMessage());
+    [RelayCommand] public void ToggleWireframe() => _messenger.Send(new WireframeToggleMessage());
 
     [RelayCommand] public void CaptureScreenshot() {
-        var viewport = Messenger.Send(new ViewportRequestMessage()).Response;
+        var viewport = _messenger.Send(new ViewportRequestMessage()).Response;
         var bitmap = ViewportExtensions.RenderBitmap(viewport);
 
-        var info = Messenger.Send(new MeshInfoRequestMessage()).Response;
+        var info = _messenger.Send(new MeshInfoRequestMessage()).Response;
         RenderTargetBitmap renderInfo = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
         renderInfo.Render(info);
 

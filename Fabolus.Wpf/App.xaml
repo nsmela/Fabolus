@@ -32,10 +32,6 @@
                 <mesh:MeshView />
             </DataTemplate>
 
-            <DataTemplate DataType="{x:Type rotate:RotateViewModel}">
-                <rotate:RotateToolsView/>
-            </DataTemplate>
-
             <DataTemplate DataType="{x:Type meshinfo:MeshInfoViewModel}">
                 <meshinfo:MeshInfoView />
             </DataTemplate>

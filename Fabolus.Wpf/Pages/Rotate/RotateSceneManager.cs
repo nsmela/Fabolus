@@ -1,20 +1,21 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
+using HelixToolkit.Wpf.SharpDX;
+using SharpDX;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
-using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
-using System.Windows.Controls;
 using static Fabolus.Wpf.Bolus.BolusStore;
+
+// aliases
 using MeshHelper = Fabolus.Wpf.Common.Mesh.MeshHelper;
 using Transform3D = System.Windows.Media.Media3D.Transform3D;
 using Vector3D = System.Windows.Media.Media3D.Vector3D;
 
 namespace Fabolus.Wpf.Pages.Rotate;
 
-public sealed class RotateSceneManager : SceneManager {
+public sealed class RotateSceneManager : SceneManagerBase {
     public const float DEFAULT_OVERHANG_LOWER = 50.0f;
     public const float DEFAULT_OVERHANG_UPPER = 70.0f;
 
@@ -30,22 +31,22 @@ public sealed class RotateSceneManager : SceneManager {
 
     private DisplayModel3D[] AxisLines { get; set; } = [];
 
+    protected override void RegisterMessages() {
+        _messenger.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.Axis, m.Angle));
+        _messenger.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.Bolus));
+        _messenger.Register<ApplyOverhangSettings>(this, (r, m) => ApplyOverhangSettings(m.LowerAngle, m.UpperAngle));
+        _messenger.Register<ShowActiveRotationMessage>(this, (r, m) => UpdateActiveAxis(m.axis));
+    }
+
     public RotateSceneManager() {
+        RegisterMessages();
+
         _overhangSkin = OverhangsHelper.CreateOverhangsMaterial(_overhangLowerAngle, _overhangUpperAngle);
-        var printbedWidth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedWidthRequest>().Response;
-        var printbedDepth = WeakReferenceMessenger.Default.Send<PreferencesPrintbedDepthRequest>().Response;
+        var printbedWidth = _messenger.Send<PreferencesPrintbedWidthRequest>().Response;
+        var printbedDepth = _messenger.Send<PreferencesPrintbedDepthRequest>().Response;
         AxisLines = GenerateAxisLines(printbedWidth / 2, printbedDepth / 2);
 
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => ApplyTempRotation(m.Axis, m.Angle));
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated(m.Bolus));
-        WeakReferenceMessenger.Default.Register<ApplyOverhangSettings>(this, (r, m) => ApplyOverhangSettings(m.LowerAngle, m.UpperAngle));
-
-        WeakReferenceMessenger.Default.Register<ShowActiveRotationMessage>(this, (r, m) => UpdateActiveAxis(m.axis));
-
-
-
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        var bolus = _messenger.Send(new BolusRequestMessage());
         BolusUpdated(bolus);
     }
 
@@ -54,7 +55,7 @@ public sealed class RotateSceneManager : SceneManager {
         _overhangUpperAngle = upper;
         _overhangSkin = OverhangsHelper.CreateOverhangsMaterial(_overhangLowerAngle, _overhangUpperAngle);
 
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        var bolus = _messenger.Send(new BolusRequestMessage());
         UpdateDisplay(bolus);
     }
 
@@ -62,13 +63,13 @@ public sealed class RotateSceneManager : SceneManager {
         _tempAxis = axis;
         _tempAngle = angle;
 
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        var bolus = _messenger.Send(new BolusRequestMessage());
         UpdateDisplay(bolus);
     }
 
     private void UpdateActiveAxis(Vector3 axis) {
         _activeAxis = axis;
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
+        var bolus = _messenger.Send(new BolusRequestMessage());
         UpdateDisplay(bolus);
     }
 
@@ -81,7 +82,7 @@ public sealed class RotateSceneManager : SceneManager {
 
     void UpdateDisplay(BolusModel? bolus) {
         if (BolusModel.IsNullOrEmpty(bolus)) {
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
+            _messenger.Send(new MeshDisplayUpdatedMessage([]));
             return;
         }
 
@@ -103,9 +104,11 @@ public sealed class RotateSceneManager : SceneManager {
             models.Add(GenerateAxisWidget(bolus.Geometry.BoundingSphere.Radius));
         }
 
-        foreach (var model in AxisLines) { models.Add(model); }
+        foreach (var model in AxisLines) { 
+            models.Add(model); 
+        }
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+        _messenger.Send(new MeshDisplayUpdatedMessage(models));
     }
 
     private DisplayModel3D GenerateAxisWidget(float radius) {
@@ -153,4 +156,5 @@ public sealed class RotateSceneManager : SceneManager {
 
         return models.ToArray();
     }
+
 }
