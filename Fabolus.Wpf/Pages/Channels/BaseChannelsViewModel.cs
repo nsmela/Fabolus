@@ -16,7 +16,7 @@ public abstract class BaseChannelsViewModel : ObservableObject {
     protected bool IsActiveChannelSelected => _channels.ContainsKey(_activeChannel.GUID);
 
     protected BaseChannelsViewModel() {
-        SetMessaging();
+        RegisterMessages();
 
         var activeChannel = _messenger.Send(new ActiveChannelRequestMessage()).Response;
         ActiveChannelUpdated(activeChannel);
@@ -29,7 +29,7 @@ public abstract class BaseChannelsViewModel : ObservableObject {
 
     }
 
-    protected virtual void SetMessaging() {
+    protected virtual void RegisterMessages() {
         _messenger.Register<AirChannelsUpdatedMessage>(this, (r, m) => ChannelsUpdated(m.Channels));
         _messenger.Register<ChannelSettingsUpdatedMessage>(this, (r,m) => SettingsUpdated(m.Settings));
         _messenger.Register<ActiveChannelUpdatedMessage>(this, (r, m) => ActiveChannelUpdated(m.Channel));

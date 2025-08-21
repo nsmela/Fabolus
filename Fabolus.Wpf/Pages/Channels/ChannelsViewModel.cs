@@ -15,11 +15,9 @@ namespace Fabolus.Wpf.Pages.Channels;
 public partial class ChannelsViewModel : BaseViewModel {
     public override string TitleText => "channels";
 
-    [ObservableProperty] private BaseChannelsViewModel? _currentChannelViewModel;
+    [ObservableProperty] private UserControl _currentChannelView;
     [ObservableProperty] private string[] _channelNames = [];
     [ObservableProperty] private int _activeToolIndex = 0;
-
-    private bool _autoload_channels;
 
     private ChannelTypes CurrentType {
         get => (ChannelTypes)ActiveToolIndex;
@@ -57,7 +55,7 @@ public partial class ChannelsViewModel : BaseViewModel {
         _activeChannel = _messenger.Send(new ActiveChannelRequestMessage()).Response;
 
         CurrentType = _settings.SelectedType; //set active index and generates view model
-        CurrentChannelViewModel = _settings.SelectedType.ToViewModel(); //create the view model with the settings
+        CurrentChannelView = _settings.SelectedType.ToView(); //create the view model with the settings
 
         _messenger.Send(new MeshInfoSetMessage(string.Empty));
     }
@@ -68,8 +66,7 @@ public partial class ChannelsViewModel : BaseViewModel {
         ActiveToolIndex = (int)channel.ChannelType;
         _isBusy = false;
 
-        CurrentChannelViewModel = null;
-        CurrentChannelViewModel = channel.ChannelType.ToViewModel(); //create the view model with the settings
+        CurrentChannelView = channel.ChannelType.ToView(); //create the view model with the settings
 
         _activeChannel = channel;
     }
@@ -77,7 +74,7 @@ public partial class ChannelsViewModel : BaseViewModel {
     private void SettingsUpdated(object sender, AirChannelSettings settings) {
         if (settings.SelectedType != _settings.SelectedType) {
             ActiveToolIndex = (int)settings.SelectedType;
-            CurrentChannelViewModel = settings.SelectedType.ToViewModel(); //create the view model with the settings
+            CurrentChannelView = settings.SelectedType.ToView(); //create the view model with the settings
         }
 
         _settings = settings;

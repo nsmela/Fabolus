@@ -28,7 +28,7 @@
             </ComboBox>
         </StackPanel>
 
-        <ContentControl Content="{Binding CurrentChannelViewModel}" />
+        <ContentControl Content="{Binding CurrentChannelView}" />
 
         <StackPanel HorizontalAlignment="Stretch" 
                     VerticalAlignment="Top" 
