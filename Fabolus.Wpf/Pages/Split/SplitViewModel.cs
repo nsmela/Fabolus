@@ -46,9 +46,7 @@ public partial class SplitViewModel : BaseViewModel {
     partial void OnShowPartingMeshChanged(bool value) { UpdateViewOptions(); }
     partial void OnExplodePartingMeshesChanged(bool value) { UpdateViewOptions(); }
 
-    private void UpdateViewOptions() {
-        WeakReferenceMessenger.Default.Send(new UpdateSplitViewOptionsMessage(ViewOptions));
-    }
+    private void UpdateViewOptions() => _messenger.Send(new UpdateSplitViewOptionsMessage(ViewOptions));
 
     // split settings
     [ObservableProperty] private float _draftTolerance = 10.0f;
@@ -78,10 +76,10 @@ public partial class SplitViewModel : BaseViewModel {
 
     private void UpdateSettings() {
         var settings = CuttingSettings;
-        WeakReferenceMessenger.Default.Send(new SplitSettingsMessage(settings));
+        _messenger.Send(new SplitSettingsMessage(settings));
 
         _results = GeneratePreview();
-        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
+        _messenger.Send(new SplitResultsMessage(_results));
     }
 
     private SplitViewOptions ViewOptions => new SplitViewOptions(
@@ -108,28 +106,32 @@ public partial class SplitViewModel : BaseViewModel {
     private PartingTool _partingTool;
 
     protected override void RegisterMessages() {
-        WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestViewOptionsMessage>(this, (r, m) => m.Reply(ViewOptions));
-        WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestSettingsMessage>(this, (r, m) => m.Reply(CuttingSettings));
-        WeakReferenceMessenger.Default.Register<SplitViewModel, SplitRequestResultsMessage>(this, (r, m) => m.Reply(GeneratePreview()));
-        WeakReferenceMessenger.Default.Register<SplitViewModel, SplitPartingToolUpdatedMessage>(this, (r, m) => PartingToolUpdated(m.tool));
+        _messenger.Register<SplitViewModel, SplitRequestViewOptionsMessage>(this, (r, m) => m.Reply(ViewOptions));
+        _messenger.Register<SplitViewModel, SplitRequestSettingsMessage>(this, (r, m) => m.Reply(CuttingSettings));
+        _messenger.Register<SplitViewModel, SplitRequestResultsMessage>(this, (r, m) => m.Reply(GeneratePreview()));
+        _messenger.Register<SplitViewModel, SplitPartingToolUpdatedMessage>(this, (r, m) => PartingToolUpdated(m.tool));
     }
 
     public SplitViewModel() : base(new SplitSceneManager()) {
         RegisterMessages();
 
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+        var bolus = _messenger.Send(new BolusRequestMessage()).Response;
         _bolus = bolus.TransformedMesh();
+        _partingTool = new PartingTool(_bolus, [1]);
 
-        var mould = WeakReferenceMessenger.Default.Send(new MouldRequestMessage()).Response;
+        var mould = _messenger.Send(new MouldRequestMessage()).Response;
 
-        if (mould is null || mould.Geometry is null) {
-            MessageBox.Show("Need a mould generated to split!", $"Mould requred", MessageBoxButton.OK, MessageBoxImage.Error);
+        if (MouldModel.IsNullOrEmpty(mould)) {
+            _mould = new();
+            ShowErrorMessage("Splitting View Init Error", "A valid mould is required to split the bolus.");
             return;
         }
 
         _mould = mould;
 
-        _partingTool = new PartingTool(_bolus, [1]);
+        // send data to the SceneManager
+        UpdateViewOptions();
+        UpdateSettings(); 
     }
 
     private CuttingMeshResults GeneratePreview() {
@@ -164,14 +166,14 @@ public partial class SplitViewModel : BaseViewModel {
     // commands
 
     [RelayCommand]
-    private async Task Generate() {
+    private void Generate() {
         // trying to keep all boolean operations within MR.Dotnet framework
         var response = PartingTools.PartModel(_results);
 
         if (response.IsFailure) {
             var errors = response.Errors.Select(e => e.ErrorMessage).ToArray();
-            MessageBox.Show(string.Join(Environment.NewLine, errors), $"Generate failed: {errors}", MessageBoxButton.OK, MessageBoxImage.Error);
-            WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
+            ShowErrorMessage("Generate failed", string.Join(Environment.NewLine, errors));
+            _messenger.Send(new SplitResultsMessage(_results));
             return;
         }
 
@@ -186,7 +188,7 @@ public partial class SplitViewModel : BaseViewModel {
         ShowPullRegions = false;
         ExplodePartingMeshes = true;
 
-        WeakReferenceMessenger.Default.Send(new SplitResultsMessage(_results));
+        _messenger.Send(new SplitResultsMessage(_results));
     }
 
     [RelayCommand]
@@ -195,7 +197,7 @@ public partial class SplitViewModel : BaseViewModel {
         MeshModel mesh = _results.CuttingMesh;
 
         if (mesh.IsEmpty()) {
-            MessageBox.Show("Cutting mesh is empty!", $"Export Cutting Mesh", MessageBoxButton.OK, MessageBoxImage.Error);
+            ShowErrorMessage("Export Cutting Mesh Error", "Cutting mesh is empty!");
             return;
         }
 

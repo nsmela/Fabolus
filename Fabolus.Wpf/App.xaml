@@ -4,7 +4,6 @@
              xmlns:local="clr-namespace:Fabolus.Wpf"
              xmlns:mesh="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshDisplay"
              xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
-             xmlns:split="clr-namespace:Fabolus.Wpf.Pages.Split"
              StartupUri="Pages/MainWindow/MainView.xaml">
     <Application.Resources>
         <ResourceDictionary>
@@ -25,10 +24,6 @@
 
             <DataTemplate DataType="{x:Type meshinfo:MeshInfoViewModel}">
                 <meshinfo:MeshInfoView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type split:SplitViewModel}">
-                <split:SplitView />
             </DataTemplate>
             
         </ResourceDictionary>

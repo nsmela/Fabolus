@@ -11,13 +11,10 @@ using Fabolus.Core.Meshes.PartingTools;
 using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Core.Extensions;
 using System.Windows.Input;
-using Fabolus.Core.BolusModel;
-using SharpDX.DirectWrite;
-using System.Windows.Media;
+using CommunityToolkit.Mvvm.Input;
 
 // aliases
 using HitTestResult = HelixToolkit.Wpf.SharpDX.HitTestResult;
-using CommunityToolkit.Mvvm.Input;
 
 namespace Fabolus.Wpf.Pages.Split;
 
@@ -65,10 +62,43 @@ public class SplitSceneManager : SceneManagerBase {
     // view options
     private SplitViewOptions _view_options;
 
-    public SplitSceneManager() {
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+    protected override void RegisterMessages() {
+        // mouse controls
+        _messenger.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.Hits, m.OriginalEventArgs));
+        _messenger.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
+        _messenger.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.Hits, m.OriginalEventArgs));
 
-        SetDefaultInputBindings();
+        _messenger.Register<SplitSceneManager, UpdateSplitViewOptionsMessage>(this, (r, m) => {
+            _view_options = m.Options;
+            UpdateDisplay();
+        });
+
+        _messenger.Register<SplitSceneManager, SplitResultsMessage>(this, (r, m) => {
+            UpdateResults(m.Results);
+        });
+    }
+
+    protected override void RegisterInputBindings() => _messenger.Send(new MeshDisplayInputsMessage( new InputBindingCollection { 
+            // mouse controls
+            new MouseBinding(ViewportCommands.Rotate, new MouseGesture(MouseAction.RightClick, ModifierKeys.None)),
+            new MouseBinding(ViewportCommands.Pan, new MouseGesture(MouseAction.MiddleClick, ModifierKeys.None)),
+
+            // key commands
+            new KeyBinding(){ Command = ViewportCommands.BackView, Key = Key.B },
+            new KeyBinding(){ Command = ViewportCommands.BottomView, Key = Key.D },
+            new KeyBinding(){ Command = ViewportCommands.FrontView, Key = Key.F },
+            new KeyBinding(){ Command = ViewportCommands.Reset, Key = Key.H },
+            new KeyBinding(){ Command = ViewportCommands.LeftView, Key = Key.L },
+            new KeyBinding(){ Command = ViewportCommands.RightView, Key = Key.R },
+            new KeyBinding(){ Command = ViewportCommands.TopView, Key = Key.T },
+            new KeyBinding(){ Command = new RelayCommand(RemoveAnchor), Key = Key.Delete },
+        }));
+
+
+    public SplitSceneManager() {
+        var bolus = _messenger.Send(new BolusRequestMessage()).Response;
+        RegisterMessages();
+        RegisterInputBindings();
 
         // PartingTool
         _partingTool = new(bolus.TransformedMesh(), []);
@@ -79,28 +109,8 @@ public class SplitSceneManager : SceneManagerBase {
             Skin = DiffuseMaterials.Obsidian
         };
 
-        // request messages
-        WeakReferenceMessenger.Default.Register<SplitSceneManager, UpdateSplitViewOptionsMessage>(this, (r, m) => {
-            _view_options = m.Options;
-            UpdateDisplay();
-        });
-        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitResultsMessage>(this, (r,m) => {
-            UpdateResults(m.Results);
-        });
-
         _settings.Model = bolus.TransformedMesh();
-        _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
-
-        var results = WeakReferenceMessenger.Default.Send(new SplitRequestResultsMessage()).Response;
-        UpdateResults(results);
-    }
-
-    protected virtual void SetDefaultInputBindings() {
-        var delete_command = new RelayCommand(RemoveAnchor);
-        WeakReferenceMessenger.Default.Send(
-        new MeshDisplayInputsMessage(new InputBindingCollection {
-            new KeyBinding(delete_command, Key.Delete, ModifierKeys.None),
-        }));
+        _view_options = new();
     }
         
     void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
@@ -203,7 +213,7 @@ public class SplitSceneManager : SceneManagerBase {
         }
 
         _partingToolAnchors = meshes;
-        WeakReferenceMessenger.Default.Send(new SplitPartingToolUpdatedMessage(_partingTool));
+        _messenger.Send(new SplitPartingToolUpdatedMessage(_partingTool));
 
         UpdateDisplay();
     }
@@ -289,7 +299,7 @@ public class SplitSceneManager : SceneManagerBase {
             };
 
             UpdateDisplay();
-            WeakReferenceMessenger.Default.Send(new SplitPartingToolUpdatedMessage(_partingTool));
+            _messenger.Send(new SplitPartingToolUpdatedMessage(_partingTool));
             return;
         }
 
@@ -584,16 +594,13 @@ public class SplitSceneManager : SceneManagerBase {
             });
         }
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+        _messenger.Send(new MeshDisplayUpdatedMessage(models));
     }
     
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
     private static Point ToSharpPoint(System.Windows.Point point) => new Point((int)point.X, (int)point.Y);
 
-    protected override void RegisterMessages() {
-        throw new NotImplementedException();
-    }
 }
 
 

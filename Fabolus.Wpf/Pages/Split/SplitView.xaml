@@ -4,9 +4,16 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+             xmlns:common="clr-namespace:Fabolus.Wpf.Common"
+             common:DataContextDisposal.AutoDispose="True"
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Split"
              mc:Ignorable="d" 
              d:DesignWidth="200">
+
+    <UserControl.DataContext>
+        <local:SplitViewModel />
+    </UserControl.DataContext>
+
     <StackPanel Orientation="Vertical">
         
         <Label Content="seperate distance (mm)" 
@@ -16,8 +23,8 @@
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"/>
         <Slider Value="{Binding GapDistance, Mode=TwoWay}" 
-                Minimum="0.05"
-                Maximum="2.0"
+                Minimum="0.0"
+                Maximum="0.5"
                 TickFrequency="0.05"
                 IsSnapToTickEnabled="True"
                 AutoToolTipPlacement="TopLeft"
