@@ -3,15 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Fabolus.Wpf"
              xmlns:mesh="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshDisplay"
-             xmlns:import="clr-namespace:Fabolus.Wpf.Pages.Import"
-             xmlns:rotate="clr-namespace:Fabolus.Wpf.Pages.Rotate"
-             xmlns:smooth="clr-namespace:Fabolus.Wpf.Pages.Smooth"
              xmlns:meshinfo="clr-namespace:Fabolus.Wpf.Pages.MainWindow.MeshInfo"
-             xmlns:channels="clr-namespace:Fabolus.Wpf.Pages.Channels"
-             xmlns:straight="clr-namespace:Fabolus.Wpf.Pages.Channels.Straight"
-             xmlns:angled="clr-namespace:Fabolus.Wpf.Pages.Channels.Angled"
-             xmlns:mould="clr-namespace:Fabolus.Wpf.Pages.Mould"
-             xmlns:mouldviews="clr-namespace:Fabolus.Wpf.Pages.Mould.Views"
              xmlns:export="clr-namespace:Fabolus.Wpf.Pages.Export"
              xmlns:split="clr-namespace:Fabolus.Wpf.Pages.Split"
              StartupUri="Pages/MainWindow/MainView.xaml">
@@ -34,26 +26,6 @@
 
             <DataTemplate DataType="{x:Type meshinfo:MeshInfoViewModel}">
                 <meshinfo:MeshInfoView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type channels:ChannelsViewModel}">
-                <channels:ChannelsView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type straight:StraightChannelsViewModel}">
-                <straight:StraightChannelsView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type angled:AngledChannelsViewModel}">
-                <angled:AngledChannelsView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type mould:MouldViewModel}">
-                <mould:MouldView />
-            </DataTemplate>
-
-            <DataTemplate DataType="{x:Type mouldviews:SimpleMouldViewModel}">
-                <mouldviews:SimpleMouldView/>
             </DataTemplate>
             
             <DataTemplate DataType="{x:Type export:ExportViewModel}">

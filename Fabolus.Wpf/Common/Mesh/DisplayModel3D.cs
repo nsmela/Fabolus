@@ -13,4 +13,5 @@ public record struct DisplayModel3D(
         && model.Value.Geometry is not null
         && model.Value.Geometry.Positions is not null
         && model.Value.Geometry.Positions.Count > 0;
+
 }

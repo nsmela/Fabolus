@@ -55,7 +55,7 @@
                     Command="{Binding SwitchToAirChannelViewCommand}"
                     Width="72" Margin="1"/>
             <Button Content="mould" IsEnabled="{Binding MeshLoaded}"
-                    Command="{Binding SwitchToMoldViewCommand}"
+                    Command="{Binding SwitchToMouldViewCommand}"
                     Width="72" Margin="1"/>
             <Button Content="split" IsEnabled="{Binding MeshLoaded}"
                     Visibility="{Binding ShowSplitView, Converter={StaticResource BoolToVis} }"
