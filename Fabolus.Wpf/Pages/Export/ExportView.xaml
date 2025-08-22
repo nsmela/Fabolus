@@ -2,10 +2,18 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Export"
+             xmlns:common="clr-namespace:Fabolus.Wpf.Common"
+             common:DataContextDisposal.AutoDispose="True"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="200">
+    
+    <UserControl.DataContext>
+        <local:ExportViewModel />
+    </UserControl.DataContext>
+    
     <StackPanel Orientation="Vertical" HorizontalAlignment="Stretch">
 
         <Button Content="export Bolus" 
@@ -15,8 +23,17 @@
                 FontSize="14" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
-                IsEnabled="{Binding ShowBolus}"
-                Command="{Binding ExportBolusCommand}" />
+                IsEnabled="{Binding HasBolus}"
+                Command="{Binding ExportBolusCommand}">
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="MouseEnter">
+                    <i:InvokeCommandAction Command="{Binding ShowBolusCommand}" />
+                </i:EventTrigger>
+                <i:EventTrigger EventName="MouseLeave">
+                    <i:InvokeCommandAction Command="{Binding HideBolusCommand}" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </Button>
         <Button Content="export mould" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
@@ -24,7 +41,16 @@
                 FontSize="14" 
                 FontWeight="Bold"
                 FontFamily="\Fonts\#Poppins"
-                IsEnabled="{Binding MouldBolus}"
-                Command="{Binding ExportMouldCommand}" />
+                IsEnabled="{Binding HasMould}"
+                Command="{Binding ExportMouldCommand}" >
+            <i:Interaction.Triggers>
+                <i:EventTrigger EventName="MouseEnter">
+                    <i:InvokeCommandAction Command="{Binding ShowMouldCommand}" />
+                </i:EventTrigger>
+                <i:EventTrigger EventName="MouseLeave">
+                    <i:InvokeCommandAction Command="{Binding HideMouldCommand}" />
+                </i:EventTrigger>
+            </i:Interaction.Triggers>
+        </Button>
     </StackPanel>
 </UserControl>

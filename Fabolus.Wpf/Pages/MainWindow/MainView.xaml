@@ -12,6 +12,11 @@
         Title="FABOLUS" Height="550" Width="800" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterScreen">
+
+    <Window.DataContext>
+        <local:MainViewModel />
+    </Window.DataContext>
+
     <mah:MetroWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </mah:MetroWindow.Resources>
@@ -55,7 +60,7 @@
                     Command="{Binding SwitchToAirChannelViewCommand}"
                     Width="72" Margin="1"/>
             <Button Content="mould" IsEnabled="{Binding MeshLoaded}"
-                    Command="{Binding SwitchToMoldViewCommand}"
+                    Command="{Binding SwitchToMouldViewCommand}"
                     Width="72" Margin="1"/>
             <Button Content="split" IsEnabled="{Binding MeshLoaded}"
                     Visibility="{Binding ShowSplitView, Converter={StaticResource BoolToVis} }"
@@ -67,7 +72,7 @@
         </StackPanel>
 
         <!-- Tools View  -->
-        <ContentControl Content="{Binding CurrentViewModel}"
+        <ContentControl Content="{Binding CurrentView}"
                         Grid.Row="1" Grid.Column="0" 
                 Margin="2,0,2,0" />
 

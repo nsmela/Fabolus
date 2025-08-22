@@ -12,12 +12,20 @@ using System.Windows.Navigation;
 
 namespace Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 //messages
-public sealed record MeshDisplayUpdatedMessage(List<DisplayModel3D> models);
+public sealed record MeshDisplayUpdatedMessage {
+    public List<DisplayModel3D> Models;
+
+    // handling different ways to generate this class
+    public MeshDisplayUpdatedMessage(List<DisplayModel3D> models) => Models = models ?? [];
+    public MeshDisplayUpdatedMessage(DisplayModel3D model) => Models = [model];
+    public MeshDisplayUpdatedMessage() => Models = [];
+}
 
 public sealed record MeshSetInputBindingsMessage(
     RoutedCommand LeftMouseButton,
     RoutedCommand MiddleMouseButton,
     RoutedCommand RightMouseButton);
+
 public sealed record MeshDisplayInputsMessage(InputBindingCollection inputs);
 
 public sealed record MeshMouseDownMessage(List<HitTestResult> Hits, InputEventArgs OriginalEventArgs);

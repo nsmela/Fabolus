@@ -8,41 +8,53 @@ using HelixToolkit.Wpf.SharpDX;
 using Fabolus.Wpf.Features.Mould;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.Channels;
-using Fabolus.Core.Meshes.MeshTools;
-using Fabolus.Wpf.Common.Extensions;
+using Fabolus.Core.Meshes;
 
 namespace Fabolus.Wpf.Pages.Mould;
 
-public class MouldSceneManager : SceneManager {
+public class MouldSceneManager : SceneManagerBase {
     private BolusModel _bolus;
-    private AirChannelsCollection _channels = [];
+    private AirChannelsCollection _channels = new();
     private MouldModel? _mould;
-    private Material _mouldSkin = DiffuseMaterials.Ruby;
-    private Material _channelsSkin = DiffuseMaterials.Glass;
+
+    // display models
+    private DisplayModel3D _bolusModel;
+    private DisplayModel3D _mouldModel;
+    private List<DisplayModel3D> _channelsModels;
 
     private bool _showBolus = true;
     private bool _showMould = true;
     private bool _showChannels = true;
 
     public MouldSceneManager() {
-        SetMessaging();
+        RegisterMessages();
+        RegisterInputBindings();
+
+        _bolus = _messenger.Send(new BolusRequestMessage());
+        _bolusModel = new DisplayModel3D {
+            Geometry = _bolus.Geometry,
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Gray,
+        };
+
+        _channels = _messenger.Send(new AirChannelsRequestMessage());
+        _channelsModels = [];
+        foreach(var channel in _channels.Values){
+            _channelsModels.Add(new DisplayModel3D {
+                Geometry = channel.Geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Glass,
+                IsTransparent = true
+            });
+        }
+
+        _mould = _messenger.Send<MouldRequestMessage>();
+        Task.Run(() => MouldUpdated(_mould)); // to update mould and display async
     }
 
-    protected override void SetMessaging() {
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-
+    protected override void RegisterMessages() {
         //listening
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, async (r, m) => await BolusUpdated(m.Bolus));
-        WeakReferenceMessenger.Default.Register<MouldUpdatedMessage>(this, async (r, m) => await MouldUpdated(m.Mould));
-
-        _bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage());
-        _channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage());
-        _mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>();
-    }
-
-    private async Task BolusUpdated(BolusModel bolus) {
-        _bolus = bolus;
-        UpdateDisplay(bolus);
+        _messenger.Register<MouldUpdatedMessage>(this, async (r, m) => await MouldUpdated(m.Mould));
     }
 
     private async Task MouldUpdated(MouldModel mould) {
@@ -50,48 +62,38 @@ public class MouldSceneManager : SceneManager {
         _showBolus = mould.IsPreview;
         _showChannels = mould.IsPreview;
 
-        UpdateDisplay(_bolus);
+        if (!MeshModel.IsNullOrEmpty(_mould)) {
+            _mouldModel = new DisplayModel3D {
+                Geometry = _mould.Geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Ruby,
+                IsTransparent = true
+            };
+        }
+
+        await UpdateDisplay();
     }
 
-    protected override void UpdateDisplay(BolusModel? bolus) {
+    private async Task UpdateDisplay() {
         if (BolusModel.IsNullOrEmpty(_bolus)) {
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
+            _messenger.Send(new MeshDisplayUpdatedMessage());
             return;
         }
 
-        var models = new List<DisplayModel3D>();
+        List<DisplayModel3D> models = [];
 
-        //bolus
         if (_showBolus) {
-            models.Add(new DisplayModel3D {
-                Geometry = _bolus.Geometry,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = _skin
-            });
+            models.Add(_bolusModel); 
         }
 
-        //mould
-        if (_showMould && !MouldModel.IsNullOrEmpty(_mould)) {
-            models.Add(new DisplayModel3D {
-                Geometry = _mould.Geometry,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = _mouldSkin,
-                IsTransparent = true
-            });
+        if (_showChannels) { 
+            models.AddRange(_channelsModels); 
+        }
+        
+        if (_showMould && DisplayModel3D.IsValid(_mouldModel)) {
+            models.Add(_mouldModel);
         }
 
-        //channels
-        if (_showChannels) {
-            foreach (var channel in _channels.Values) {
-                models.Add(new DisplayModel3D {
-                    Geometry = channel.Geometry,
-                    Transform = MeshHelper.TransformEmpty,
-                    Skin = _channelsSkin,
-                    IsTransparent = true
-                });
-            }
-        }
-
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+        await Task.Run(() => _messenger.Send(new MeshDisplayUpdatedMessage(models)));
     }
 }

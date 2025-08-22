@@ -14,41 +14,44 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Export;
 
+// messages
+public sealed record ExportShowBolusMessage(bool ShowBolus);
+public sealed record ExportShowMouldMessage(bool ShowMould);
+
 public partial class ExportViewModel : BaseViewModel {
     public override string TitleText => "Export";
 
-    public override SceneManager GetSceneManager => new ExportSceneManager();
+    [ObservableProperty] private bool _hasBolus = false;
+    [ObservableProperty] private bool _hasMould = false;
 
-    [ObservableProperty] private bool _showBolus = false;
-    [ObservableProperty] private bool _showMould = false;
+    protected override void RegisterMessages() { }
 
-    public ExportViewModel() {
+    public ExportViewModel() : base(new ExportSceneManager()) {
         string mesh_info = string.Empty;
 
-        var bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response;
+        var bolus = _messenger.Send<BolusRequestMessage>().Response;
         if (!BolusModel.IsNullOrEmpty(bolus)) {
-            ShowBolus = true;
+            HasBolus = true;
             mesh_info += $"Bolus Volume:\r\n {bolus.Mesh.VolumeString()}";
         }
 
-        var mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
+        var mould = _messenger.Send<MouldRequestMessage>().Response;
         if (!MouldModel.IsNullOrEmpty(mould)) {
-            ShowMould = true;
+            HasMould = true;
             mesh_info += $"\r\nMould Volume:\r\n {mould.VolumeString()}";
         }
 
-        WeakReferenceMessenger.Default.Send(new MeshInfoSetMessage(mesh_info));
+        _messenger.Send(new MeshInfoSetMessage(mesh_info));
     }
 
-    //commands
-    #region Commands
+    // commands
     [RelayCommand]
     public async Task ExportBolus() {
-        var bolus = WeakReferenceMessenger.Default.Send<BolusRequestMessage>().Response;
+        var bolus = _messenger.Send<BolusRequestMessage>().Response;
         if (BolusModel.IsNullOrEmpty(bolus)) { return; }
         
         // get app preference for import folder
-        string export_folder = WeakReferenceMessenger.Default.Send(new PreferencesExportFolderRequest()).Response;
+        string export_folder = _messenger.Send(new PreferencesExportFolderRequest()).Response;
 
         SaveFileDialog saveFile = new() {
             Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*",
@@ -65,11 +68,11 @@ public partial class ExportViewModel : BaseViewModel {
 
     [RelayCommand]
     public async Task ExportMould() {
-        var mould = WeakReferenceMessenger.Default.Send<MouldRequestMessage>().Response;
+        var mould = _messenger.Send<MouldRequestMessage>().Response;
         if (MouldModel.IsNullOrEmpty(mould)) { return; }
 
         // get app preference for import folder
-        string export_folder = WeakReferenceMessenger.Default.Send(new PreferencesExportFolderRequest()).Response;
+        string export_folder = _messenger.Send(new PreferencesExportFolderRequest()).Response;
 
         SaveFileDialog saveFile = new() {
             Filter = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*",
@@ -84,6 +87,10 @@ public partial class ExportViewModel : BaseViewModel {
         await MeshModel.ToFile(filepath, mould);
     }
 
-    #endregion
+    [RelayCommand] public void ShowBolus() => _messenger.Send(new ExportShowBolusMessage(true));
+    [RelayCommand] public void HideBolus() => _messenger.Send(new ExportShowBolusMessage(false));
+    [RelayCommand] public void ShowMould() => _messenger.Send(new ExportShowMouldMessage(true));
+    [RelayCommand] public void HideMould() => _messenger.Send(new ExportShowMouldMessage(false));
+
 }
 

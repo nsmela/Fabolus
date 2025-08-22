@@ -1,4 +1,6 @@
-﻿using MahApps.Metro.Controls;
+﻿using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Wpf.Pages.Import;
+using MahApps.Metro.Controls;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,7 +22,6 @@ namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainView : MetroWindow {
     public MainView() {
         try {
-            DataContext = new MainViewModel();
             InitializeComponent();
         } catch (Exception ex) {
             throw new Exception(Name, ex);

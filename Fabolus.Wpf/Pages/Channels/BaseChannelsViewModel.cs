@@ -6,6 +6,8 @@ using Fabolus.Wpf.Features.Channels;
 namespace Fabolus.Wpf.Pages.Channels;
 
 public abstract class BaseChannelsViewModel : ObservableObject {
+    protected readonly IMessenger _messenger = WeakReferenceMessenger.Default;
+
     protected AirChannelsCollection _channels = [];
     protected AirChannelSettings _settings;
     protected IAirChannel _activeChannel;
@@ -14,30 +16,29 @@ public abstract class BaseChannelsViewModel : ObservableObject {
     protected bool IsActiveChannelSelected => _channels.ContainsKey(_activeChannel.GUID);
 
     protected BaseChannelsViewModel() {
-        SetMessaging();
+        RegisterMessages();
 
-        var activeChannel = WeakReferenceMessenger.Default.Send(new ActiveChannelRequestMessage()).Response;
+        var activeChannel = _messenger.Send(new ActiveChannelRequestMessage()).Response;
         ActiveChannelUpdated(activeChannel);
 
-        var channels = WeakReferenceMessenger.Default.Send(new AirChannelsRequestMessage()).Response;
+        var channels = _messenger.Send(new AirChannelsRequestMessage()).Response;
         ChannelsUpdated(channels);
 
-        var settings = WeakReferenceMessenger.Default.Send(new ChannelsSettingsRequestMessage()).Response;
+        var settings = _messenger.Send(new ChannelsSettingsRequestMessage()).Response;
         SettingsUpdated(settings);
 
     }
 
-    protected virtual void SetMessaging() {
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<AirChannelsUpdatedMessage>(this, async (r, m) => await ChannelsUpdated(m.Channels));
-        WeakReferenceMessenger.Default.Register<ChannelSettingsUpdatedMessage>(this, async (r,m) => await SettingsUpdated(m.Settings));
-        WeakReferenceMessenger.Default.Register<ActiveChannelUpdatedMessage>(this, async (r, m) => await ActiveChannelUpdated(m.Channel));
+    protected virtual void RegisterMessages() {
+        _messenger.Register<AirChannelsUpdatedMessage>(this, (r, m) => ChannelsUpdated(m.Channels));
+        _messenger.Register<ChannelSettingsUpdatedMessage>(this, (r,m) => SettingsUpdated(m.Settings));
+        _messenger.Register<ActiveChannelUpdatedMessage>(this, (r, m) => ActiveChannelUpdated(m.Channel));
     }
 
     // virtual methods for subclasses to modify
-    protected virtual async Task ActiveChannelUpdated(IAirChannel channel) => _activeChannel = channel;
+    protected virtual void ActiveChannelUpdated(IAirChannel channel) => _activeChannel = channel;
 
-    protected virtual async Task ChannelsUpdated(AirChannelsCollection channels) => _channels = channels;
+    protected virtual void ChannelsUpdated(AirChannelsCollection channels) => _channels = channels;
 
-    protected virtual async Task SettingsUpdated(AirChannelSettings settings) => _settings = settings;
+    protected virtual void SettingsUpdated(AirChannelSettings settings) => _settings = settings;
 }

@@ -14,19 +14,26 @@ using static Fabolus.Wpf.Bolus.BolusStore;
 
 namespace Fabolus.Wpf.Pages.Smooth;
 
-public class SmoothSceneManager : SceneManager {
+public class SmoothSceneManager : SceneManagerBase {
     private Material _surfaceDistanceSkin;
     private ComparitivePolygon? contour;
     private ViewModes _view = ViewModes.None;
 
-    public SmoothSceneManager() {
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(null));
-        WeakReferenceMessenger.Default.Register<SmoothingContourMessage>(this, (r, m) => UpdateContour(m.Height));
-        WeakReferenceMessenger.Default.Register<SmoothingViewModeMessage>(this, (r, m) => UpdateView(m.ViewMode));
+    protected override void RegisterMessages() {
+        _messenger.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay());
+        _messenger.Register<SmoothingContourMessage>(this, (r, m) => UpdateContour(m.Height));
+        _messenger.Register<SmoothingViewModeMessage>(this, (r, m) => {
+            _view = m.ViewMode;
+            UpdateDisplay();
+        });
+    }
 
+    public SmoothSceneManager() {
+        RegisterMessages();
+        RegisterInputBindings();
         SetDistancesTexture();
-        UpdateDisplay(null);
+        UpdateDisplay();
+
     }
 
     private void SetDistancesTexture() {
@@ -90,21 +97,21 @@ public class SmoothSceneManager : SceneManager {
 
     private void UpdateContour(double height) {
         contour = null;
-        var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        var boli = _messenger.Send(new AllBolusRequestMessage()).Response;
         if (boli is null || boli.Length < 2) { return; }
 
         var result = PolygonTools.ComparativeMeshSlice(boli[0].TransformedMesh(), boli[1].TransformedMesh(), height);
         if (result is null || result.UnionMesh.IsEmpty()) { return; }
         contour = result;
 
-        UpdateDisplay(null);
+        UpdateDisplay();
     }
 
-    protected override void UpdateDisplay(BolusModel? bolus) {
+    private void UpdateDisplay() {
         // get all of the current bolus
-        var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
-        if (boli is null || boli.Length == 0) {
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
+        var boli = _messenger.Send(new AllBolusRequestMessage()).Response;
+        if (BolusModel.IsNullOrEmpty(boli)) {
+            _messenger.Send(new MeshDisplayUpdatedMessage([]));
             return;
         }
 
@@ -118,80 +125,67 @@ public class SmoothSceneManager : SceneManager {
             };
 
             models.Add(model);
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+            _messenger.Send(new MeshDisplayUpdatedMessage(models));
             return;
         }
 
-        if (_view == ViewModes.None) {
-            var geometry = boli[1].Geometry;
-            models.Add(new DisplayModel3D {
-                Geometry = geometry,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = PhongMaterials.Green,
-                IsTransparent = false,
-            });
-
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
-            return;
-        }
-
-        if (_view == ViewModes.DistanceHeatMap) {
-            var geometry = boli[1].Geometry;
-            geometry.TextureCoordinates = GetTextureCoordinates(boli[1].Mesh, boli[0].Mesh);
-            models.Add(new DisplayModel3D {
-                Geometry = geometry,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = _surfaceDistanceSkin,
-                IsTransparent = false,
-            });
-
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
-            return;
-        }
-
-        if (_view == ViewModes.Contouring) {
-
-            // show transparent smoothed model
-            models.Add(new DisplayModel3D {
-                Geometry = boli[1].Geometry,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = PhongMaterials.Emerald,
-                IsTransparent = true,
-            });
-
-
-            // show contours
-            if (contour is not null) {
+        var geometry = boli[1].Geometry;
+        switch (_view) {
+            case ViewModes.None:
                 models.Add(new DisplayModel3D {
-                    Geometry = contour.UnionMesh.ToGeometry(),
+                    Geometry = geometry,
                     Transform = MeshHelper.TransformEmpty,
                     Skin = PhongMaterials.Green,
+                    IsTransparent = false,
                 });
+                break;
 
+            case ViewModes.DistanceHeatMap:
+                geometry.TextureCoordinates = GetTextureCoordinates(boli[1].Mesh, boli[0].Mesh);
                 models.Add(new DisplayModel3D {
-                    Geometry = contour.BodyMesh.ToGeometry(),
+                    Geometry = geometry,
                     Transform = MeshHelper.TransformEmpty,
-                    Skin = PhongMaterials.Red,
+                    Skin = _surfaceDistanceSkin,
+                    IsTransparent = false,
                 });
+                break;
 
+            case ViewModes.Contouring:
+                // show transparent smoothed model
                 models.Add(new DisplayModel3D {
-                    Geometry = contour.ToolMesh.ToGeometry(),
+                    Geometry = geometry,
                     Transform = MeshHelper.TransformEmpty,
-                    Skin = PhongMaterials.Blue,
+                    Skin = PhongMaterials.Emerald,
+                    IsTransparent = true,
                 });
-            }
 
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
-    
+                // show contours
+                if (contour is not null) {
+                    models.Add(new DisplayModel3D {
+                        Geometry = contour.UnionMesh.ToGeometry(),
+                        Transform = MeshHelper.TransformEmpty,
+                        Skin = PhongMaterials.Green,
+                    });
+
+                    models.Add(new DisplayModel3D {
+                        Geometry = contour.BodyMesh.ToGeometry(),
+                        Transform = MeshHelper.TransformEmpty,
+                        Skin = PhongMaterials.Red,
+                    });
+
+                    models.Add(new DisplayModel3D {
+                        Geometry = contour.ToolMesh.ToGeometry(),
+                        Transform = MeshHelper.TransformEmpty,
+                        Skin = PhongMaterials.Blue,
+                    });
+                }
+
+                break;
+
+            default:
+                break;
         }
 
-
+        _messenger.Send(new MeshDisplayUpdatedMessage(models));
     }
-
-    private void UpdateView(ViewModes view) {
-        _view = view;
-        UpdateDisplay(null);
-    }
-
-
 }

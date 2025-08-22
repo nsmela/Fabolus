@@ -11,44 +11,32 @@ using Fabolus.Core.Meshes.PartingTools;
 using Fabolus.Core.Meshes.MeshTools;
 using Fabolus.Core.Extensions;
 using System.Windows.Input;
-using Fabolus.Core.BolusModel;
-using SharpDX.DirectWrite;
-using System.Windows.Media;
+using CommunityToolkit.Mvvm.Input;
 
 // aliases
 using HitTestResult = HelixToolkit.Wpf.SharpDX.HitTestResult;
-using CommunityToolkit.Mvvm.Input;
+using Fabolus.Wpf.Features.Mould;
+using ControlzEx.Standard;
 
 namespace Fabolus.Wpf.Pages.Split;
 
-public class SplitSceneManager : SceneManager {
+public class SplitSceneManager : SceneManagerBase {
 
     // parting
     private CuttingMeshParams _settings = new();
-    private MeshGeometry3D _bolus = new();
     private MeshGeometry3D _partingMesh = new();
     private MeshGeometry3D _partingPathMesh = new();
     private MeshGeometry3D _mouldMesh = new();
-    private MeshGeometry3D _positivePullMesh;
-    private MeshGeometry3D _negativePullMesh;
+    private MeshGeometry3D _positivePullMesh = new();
+    private MeshGeometry3D _negativePullMesh = new();
 
     private MeshGeometry3D _positiveRegion = new();
     private MeshGeometry3D _negativeRegion = new();
     private MeshGeometry3D _neutralRegion = new();
-    private MeshGeometry3D _occludedRegion = new();
 
     // intersections
     private MeshGeometry3D _intersectionsOpenMesh = new();
     private MeshGeometry3D _intersectionsClosedMesh = new();
-
-    // boundaries
-    private MeshGeometry3D _boundariesMesh = new();
-
-    // curves
-    private MeshGeometry3D _curveNoneRegion = new();
-    private MeshGeometry3D _curveFlatRegion = new();
-    private MeshGeometry3D _curveValleyRegion = new();
-    private MeshGeometry3D _curveRidgeRegion = new();
 
     // parting line tool
     private PartingTool _partingTool;
@@ -65,12 +53,53 @@ public class SplitSceneManager : SceneManager {
     // view options
     private SplitViewOptions _view_options;
 
-    public SplitSceneManager() {
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
+    // display models
+    private List<DisplayModel3D> _bolusModel = [];
+    private DisplayModel3D _mouldModel;
+    private DisplayModel3D _partingPathModel;
+    private DisplayModel3D _pathingToolModel;
+    private DisplayModel3D _negativeModel;
+    private DisplayModel3D _positiveModel;
 
-        SetDefaultInputBindings();
+    protected override void RegisterMessages() {
+        // mouse controls
+        _messenger.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.Hits, m.OriginalEventArgs));
+        _messenger.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
+        _messenger.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.Hits, m.OriginalEventArgs));
+
+        _messenger.Register<SplitSceneManager, UpdateSplitViewOptionsMessage>(this, (r, m) => {
+            _view_options = m.Options;
+            UpdateDisplay();
+        });
+
+        _messenger.Register<SplitSceneManager, SplitResultsMessage>(this, (r, m) => {
+            UpdateResults(m.Results);
+        });
+    }
+
+    protected override void RegisterInputBindings() => _messenger.Send(new MeshDisplayInputsMessage( new InputBindingCollection { 
+            // mouse controls
+            new MouseBinding(ViewportCommands.Rotate, new MouseGesture(MouseAction.RightClick, ModifierKeys.None)),
+            new MouseBinding(ViewportCommands.Pan, new MouseGesture(MouseAction.MiddleClick, ModifierKeys.None)),
+
+            // key commands
+            new KeyBinding(){ Command = ViewportCommands.BackView, Key = Key.B },
+            new KeyBinding(){ Command = ViewportCommands.BottomView, Key = Key.D },
+            new KeyBinding(){ Command = ViewportCommands.FrontView, Key = Key.F },
+            new KeyBinding(){ Command = ViewportCommands.Reset, Key = Key.H },
+            new KeyBinding(){ Command = ViewportCommands.LeftView, Key = Key.L },
+            new KeyBinding(){ Command = ViewportCommands.RightView, Key = Key.R },
+            new KeyBinding(){ Command = ViewportCommands.TopView, Key = Key.T },
+            new KeyBinding(){ Command = new RelayCommand(RemoveAnchor), Key = Key.Delete },
+        }));
+
+
+    public SplitSceneManager() {
+        RegisterMessages();
+        RegisterInputBindings();
 
         // PartingTool
+        var bolus = _messenger.Send(new BolusRequestMessage()).Response;
         _partingTool = new(bolus.TransformedMesh(), []);
         _partingTool.Compute();
         _partingToolDisplay = new DisplayModel3D {
@@ -79,31 +108,11 @@ public class SplitSceneManager : SceneManager {
             Skin = DiffuseMaterials.Obsidian
         };
 
-        // request messages
-        WeakReferenceMessenger.Default.Register<SplitSceneManager, UpdateSplitViewOptionsMessage>(this, (r, m) => {
-            _view_options = m.Options;
-            UpdateDisplay();
-        });
-        WeakReferenceMessenger.Default.Register<SplitSceneManager, SplitResultsMessage>(this, (r,m) => {
-            UpdateResults(m.Results);
-        });
-
         _settings.Model = bolus.TransformedMesh();
-        _view_options = WeakReferenceMessenger.Default.Send<SplitRequestViewOptionsMessage>().Response;
-
-        var results = WeakReferenceMessenger.Default.Send(new SplitRequestResultsMessage()).Response;
-        UpdateResults(results);
-    }
-
-    protected virtual void SetDefaultInputBindings() {
-        var delete_command = new RelayCommand(RemoveAnchor);
-        WeakReferenceMessenger.Default.Send(
-        new MeshDisplayInputsMessage(new InputBindingCollection {
-            new KeyBinding(delete_command, Key.Delete, ModifierKeys.None),
-        }));
+        _view_options = new();
     }
         
-    protected override void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
+    private void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
         // end dragging
         _isDragging = false;
         _dragStartPosition = null;
@@ -111,7 +120,7 @@ public class SplitSceneManager : SceneManager {
         
     }
 
-    protected override void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
+    private void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
         //catch and ignored mouse buttons and exit
         var mouse = args as MouseButtonEventArgs;
         if (mouse.RightButton == MouseButtonState.Pressed
@@ -203,12 +212,12 @@ public class SplitSceneManager : SceneManager {
         }
 
         _partingToolAnchors = meshes;
-        WeakReferenceMessenger.Default.Send(new SplitPartingToolUpdatedMessage(_partingTool));
+        _messenger.Send(new SplitPartingToolUpdatedMessage(_partingTool));
 
         UpdateDisplay();
     }
 
-    protected override void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
+    private void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
         // reset parting tool
         _partingToolPreview = null;
 
@@ -289,7 +298,7 @@ public class SplitSceneManager : SceneManager {
             };
 
             UpdateDisplay();
-            WeakReferenceMessenger.Default.Send(new SplitPartingToolUpdatedMessage(_partingTool));
+            _messenger.Send(new SplitPartingToolUpdatedMessage(_partingTool));
             return;
         }
 
@@ -363,7 +372,15 @@ public class SplitSceneManager : SceneManager {
     }
 
     private void UpdateResults(CuttingMeshResults results) {
-        _bolus = results.Model.ToGeometry();
+        var mould = _messenger.Send<MouldRequestMessage>().Response;
+        if (!DisplayModel3D.IsValid(_mouldModel)) {
+            _mouldModel = new DisplayModel3D {
+                Geometry = mould.ToGeometry(),
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Ruby,
+                IsTransparent = true,
+            };
+        }
 
         // path for the parting line
         // testing
@@ -372,10 +389,17 @@ public class SplitSceneManager : SceneManager {
         foreach (Vector3 v in path.Select(v => new Vector3(v.X, v.Y, v.Z))) {
             builder.AddSphere(v, 0.25);
         }
-        _partingPathMesh = builder.ToMeshGeometry3D();
+        _pathingToolModel = new DisplayModel3D {
+            Geometry = builder.ToMeshGeometry3D(),
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Yellow,
+        };
 
-        _partingMesh = results.CuttingMesh.ToGeometry();
-        _mouldMesh = results.Mould is not null ? results.Mould.ToGeometry() : new();
+        _partingPathModel = new DisplayModel3D {
+            Geometry = results.CuttingMesh.ToGeometry(),
+            Transform = MeshHelper.TransformEmpty,
+            Skin = DiffuseMaterials.Blue,
+        };
 
         // draft regions
         _positiveRegion = results.DraftRegions[DraftRegions.DraftRegionClassification.Positive].ToGeometry();
@@ -390,12 +414,28 @@ public class SplitSceneManager : SceneManager {
         ];
 
         // final parted meshes
-        _negativePullMesh = MeshModel.IsNullOrEmpty(results.NegativePullMesh)
-            ? new()
-            : results.NegativePullMesh.ToGeometry();
-        _positivePullMesh = MeshModel.IsNullOrEmpty(results.PositivePullMesh) 
-            ? new() 
-            : results.PositivePullMesh.ToGeometry();
+
+        _bolusModel = [];
+        if (_negativeRegion is not null && _negativeRegion.Positions.Count > 0) {
+            _bolusModel.Add(new DisplayModel3D {
+                Geometry = _negativeRegion,
+                Skin = DiffuseMaterials.Red,
+            });
+        }
+
+        if (_positiveRegion is not null && _positiveRegion.Positions.Count > 0) {
+            _bolusModel.Add(new DisplayModel3D {
+                Geometry = _positiveRegion,
+                Skin = DiffuseMaterials.Green,
+            });
+        }
+
+        if (_neutralRegion is not null && _neutralRegion.Positions.Count > 0) {
+            _bolusModel.Add(new DisplayModel3D {
+                Geometry = _neutralRegion,
+                Skin = DiffuseMaterials.LightGray,
+            });
+        }
 
         // intersections
         MeshBuilder open = new();
@@ -426,32 +466,14 @@ public class SplitSceneManager : SceneManager {
         _intersectionsClosedMesh = closed.ToMeshGeometry3D();
         _intersectionsOpenMesh = open.ToMeshGeometry3D();
 
-        // boundaries
-        builder = new();
-        Contour[] boundaries = MeshTools.GetHoles(results.CuttingMesh).Data;
-        foreach(Contour contour in boundaries) {
-            int count = contour.Points.Length;
-            if (contour.IsClosed) {
-                builder.AddCylinder(ToVector3(contour.Points.Last()), ToVector3(contour.Points.First()), 0.1);
-            }
-            
-            for (int i = 0; i < count - 1; i++) {
-                var v0 = ToVector3(contour.Points[i]);
-                var v1 = ToVector3(contour.Points[i + 1]);
-
-                builder.AddCylinder(v0, v1, 0.1);
-            }
-
+        // final split mould display
+        if (!MeshModel.IsNullOrEmpty(results.NegativePullMesh)) {
+            _negativePullMesh = results.NegativePullMesh.ToGeometry();
         }
 
-        _boundariesMesh = builder.ToMeshGeometry3D();
-
-        // curves
-        var curves = MeshTools.GenerateCurveRegions(results.Model);
-        _curveNoneRegion = curves[MeshTools.CurveRegionClassification.None].ToGeometry();
-        _curveFlatRegion = curves[MeshTools.CurveRegionClassification.Flat].ToGeometry();
-        _curveValleyRegion = curves[MeshTools.CurveRegionClassification.Valley].ToGeometry();
-        _curveRidgeRegion = curves[MeshTools.CurveRegionClassification.Ridge].ToGeometry();
+        if (!MeshModel.IsNullOrEmpty(results.PositivePullMesh)) {
+            _positivePullMesh = results.PositivePullMesh.ToGeometry();
+        }
 
         UpdateDisplay();
     }
@@ -461,60 +483,17 @@ public class SplitSceneManager : SceneManager {
 
         // show bolus
         if (_view_options.ShowBolus) {
-            models.Add(new DisplayModel3D {
-                Geometry = _positiveRegion,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Red,
-            });
-
-            models.Add(new DisplayModel3D {
-                Geometry = _negativeRegion,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Green,
-            });
-
-            models.Add(new DisplayModel3D {
-                Geometry = _neutralRegion,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.LightGray,
-            });
-
+            models.AddRange(_bolusModel);
         }
 
-        // show curves
-        if (_view_options.ShowCurves) {
-            models.Add(new DisplayModel3D {
-                Geometry = _curveNoneRegion,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.White,
-            });
-
-            models.Add(new DisplayModel3D {
-                Geometry = _curveFlatRegion,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Green,
-            });
-
-            models.Add(new DisplayModel3D {
-                Geometry = _curveValleyRegion,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Yellow,
-            });
-
-            models.Add(new DisplayModel3D {
-                Geometry = _curveRidgeRegion,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Red,
-            });
+        // show mould
+        if (_view_options.ShowMould) { 
+            models.Add(_mouldModel); 
         }
 
         // parting line
         if (_view_options.ShowPartingLine) {
-            models.Add(new DisplayModel3D {
-                Geometry = _partingPathMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Yellow,
-            });
+            models.Add(_pathingToolModel);
 
             if (DisplayModel3D.IsValid(_partingToolPreview)) {
                 models.Add(_partingToolPreview.Value);
@@ -531,65 +510,47 @@ public class SplitSceneManager : SceneManager {
 
         // parting mesh
         if (_partingMesh is not null && _view_options.ShowPartingMesh) {
-            models.Add(new DisplayModel3D {
-                Geometry = _partingMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Blue,
-            });
+            models.Add(_partingPathModel);
 
             models.Add(new DisplayModel3D {
                 Geometry = _intersectionsClosedMesh,
-                Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Emerald,
             });
 
             models.Add(new DisplayModel3D {
                 Geometry = _intersectionsOpenMesh,
-                Transform = MeshHelper.TransformEmpty,
                 Skin = DiffuseMaterials.Ruby,
             });
 
-            models.Add(new DisplayModel3D {
-                Geometry = _boundariesMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Brass,
-            });
-        }
-
-        // mould mesh
-        if (_view_options.ShowPullRegions && _mouldMesh is not null && !_mouldMesh.IsEmpty()) {
-            models.Add(new DisplayModel3D {
-                Geometry = _mouldMesh,
-                Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Ruby,
-                IsTransparent = true,
-            });
         }
 
         // final split mould display
+        // final split mould display
         double spacing = _view_options.ExplodePartingMeshes ? 15 : 0;
-        if (_positivePullMesh is not null && _view_options.ShowPositiveParting) {
-            models.Add(new DisplayModel3D {
-                Geometry = _positivePullMesh,
-                Transform = MeshHelper.TranslationFromAxis(0, spacing, 0),
+
+        if (_negativePullMesh is not null && _view_options.ShowNegativeParting ) {
+            models.Add( new DisplayModel3D {
+                Geometry = _negativePullMesh,
+                Transform = MeshHelper.TranslationFromAxis(0, -spacing, 0),
                 Skin = DiffuseMaterials.Red,
             });
         }
-        
-        if (_negativePullMesh is not null && _view_options.ShowNegativeParting) {
-            models.Add(new DisplayModel3D {
-                Geometry = _negativePullMesh,
-                Transform = MeshHelper.TranslationFromAxis(0, -spacing, 0),
+
+        if (_positivePullMesh is not null && _view_options.ShowPositiveParting) {
+            models.Add( new DisplayModel3D {
+                Geometry = _positivePullMesh,
+                Transform = MeshHelper.TranslationFromAxis(0, spacing, 0),
                 Skin = DiffuseMaterials.Green,
             });
         }
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage(models));
+        _messenger.Send(new MeshDisplayUpdatedMessage(models));
     }
     
 
     private static Vector3 ToVector3(System.Numerics.Vector3 vector) => new Vector3(vector.X, vector.Y, vector.Z);
     private static Point ToSharpPoint(System.Windows.Point point) => new Point((int)point.X, (int)point.Y);
+
 }
 
 

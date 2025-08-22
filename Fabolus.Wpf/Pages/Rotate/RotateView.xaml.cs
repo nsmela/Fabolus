@@ -17,9 +17,8 @@ namespace Fabolus.Wpf.Pages.Rotate;
 /// <summary>
 /// Interaction logic for RotateToolsView.xaml
 /// </summary>
-public partial class RotateToolsView : UserControl {
-    public RotateToolsView() {
-        DataContext = new RotateViewModel();
+public partial class RotateView : UserControl {
+    public RotateView() {
         InitializeComponent();
     }
 }

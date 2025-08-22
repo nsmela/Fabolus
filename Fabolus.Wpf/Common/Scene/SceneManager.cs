@@ -1,73 +1,52 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
-using System.Windows.Input;
 using HelixToolkit.Wpf.SharpDX;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 
 using static Fabolus.Wpf.Bolus.BolusStore;
-using Material = HelixToolkit.Wpf.SharpDX.Material;
 
 namespace Fabolus.Wpf.Common.Scene;
 
-public class SceneManager : IDisposable   {
+public class SceneManager : SceneManagerBase  {
 
-    protected virtual Material _skin { get; } = PhongMaterials.Gray; 
+    protected BolusModel? _bolus;
+    protected DisplayModel3D _displayModel = new();
 
     public SceneManager() {
-        SetMessaging();
+        RegisterMessages();
         SetInputBindings();
 
-        var bolus = WeakReferenceMessenger.Default.Send(new BolusRequestMessage()).Response;
-        UpdateDisplay(bolus);
+        _bolus = _messenger.Send(new BolusRequestMessage()).Response;
+        UpdateDisplay();
     }
 
-    protected virtual void UpdateDisplay(BolusModel? bolus) {
-        if (bolus is null || bolus.Geometry is null || bolus.Geometry.Positions is null || bolus.Geometry.Positions.Count == 0) {
-            WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([]));
+    protected virtual void UpdateDisplay() {
+        if (BolusModel.IsNullOrEmpty(_bolus)) {
+            _messenger.Send(new MeshDisplayUpdatedMessage()); // clears the display
             return;
         }
 
-        var display = new DisplayModel3D {
-            Geometry = bolus.Geometry,
-            Transform = MeshHelper.TransformEmpty,
-            Skin = _skin
-        };
+        if (!BolusModel.IsNullOrEmpty(_bolus)) {
+            _displayModel = new DisplayModel3D {
+                Geometry = _bolus!.Geometry,
+                Transform = MeshHelper.TransformEmpty,
+                Skin = DiffuseMaterials.Gray,
+            };
+        }
 
-        WeakReferenceMessenger.Default.Send(new MeshDisplayUpdatedMessage([display]));
+        _messenger.Send(new MeshDisplayUpdatedMessage(_displayModel));
     }
-
-    protected virtual void SetMessaging() {
-        //bolus
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => UpdateDisplay(m.Bolus));
-
-        //mouse actions
-        WeakReferenceMessenger.Default.Register<MeshMouseDownMessage>(this, (r, m) => OnMouseDown(m.Hits, m.OriginalEventArgs));
-        WeakReferenceMessenger.Default.Register<MeshMouseMoveMessage>(this, (r, m) => OnMouseMove(m.Hits, m.OriginalEventArgs));
-        WeakReferenceMessenger.Default.Register<MeshMouseUpMessage>(this, (r, m) => OnMouseUp(m.Hits, m.OriginalEventArgs));
-    }
-
-    protected virtual void SetDefaultInputBindings() => WeakReferenceMessenger.Default.Send(new MeshSetInputBindingsMessage(
-        LeftMouseButton: new(),
-        MiddleMouseButton: ViewportCommands.Pan,
-        RightMouseButton: ViewportCommands.Rotate));
 
     protected virtual void SetInputBindings() =>
-        WeakReferenceMessenger.Default.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
-    
+        _messenger.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
 
-    protected virtual void OnMouseDown(List<HitTestResult> hits, InputEventArgs args) {
-    }
-
-    protected virtual void OnMouseMove(List<HitTestResult> hits, InputEventArgs args) {
-    }
-
-    protected virtual void OnMouseUp(List<HitTestResult> hits, InputEventArgs args) {
-    }
-
-    public virtual void Dispose() {
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-        WeakReferenceMessenger.Default.Send(new MeshDisplayInputsMessage(MeshDisplay.DefaultBindings));
+    protected override void RegisterMessages() {
+        //bolus
+        _messenger.Register<BolusUpdatedMessage>(this, (r, m) => {
+            _bolus = m.Bolus;
+            UpdateDisplay();
+        });
     }
 }
 

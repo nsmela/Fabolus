@@ -15,8 +15,6 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
     public Vector3 TranslateOffset { get; set; } = Vector3.Zero;
     public string? Filepath { get; init; } = null;
 
-    #region Constructors
-
     public BolusModel() {
         Mesh = new();
         Geometry = new();
@@ -33,10 +31,6 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
         Transform = new();
     }
 
-    #endregion
-
-    #region Public Methods
-
     public void ApplyTransform(BolusTransform transform) {
         Transform = transform;
         Geometry = Transform.ApplyTransforms(Mesh).ToGeometry();
@@ -48,5 +42,7 @@ public class BolusModel : Fabolus.Core.BolusModel.Bolus {
     public static bool IsNullOrEmpty(BolusModel? bolus) =>
         bolus is null || bolus.Mesh.IsEmpty() || bolus.Geometry.IsEmpty();
 
-    #endregion
+    public static bool IsNullOrEmpty(IEnumerable<BolusModel?> boli) =>
+    boli is null || boli.Count() == 0 || boli.Any(b => BolusModel.IsNullOrEmpty(b));
+
 }

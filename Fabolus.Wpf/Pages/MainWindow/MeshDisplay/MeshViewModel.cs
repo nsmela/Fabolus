@@ -65,7 +65,7 @@ public partial class MeshViewModel : ObservableObject {
     public MeshViewModel() {
 
         // Register messages
-        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, async (r, m) => await UpdateModels(m.models));
+        WeakReferenceMessenger.Default.Register<MeshDisplayUpdatedMessage>(this, async (r, m) => await UpdateModels(m.Models));
         WeakReferenceMessenger.Default.Register<MeshSetInputBindingsMessage>(this, (r, m) => UpdateInputBindings(m.LeftMouseButton, m.MiddleMouseButton, m.RightMouseButton));
         WeakReferenceMessenger.Default.Register<MeshDisplayInputsMessage>(this, (r, m) => UpdateInputs(m.inputs));
         WeakReferenceMessenger.Default.Register<WireframeToggleMessage>(this, async (r, m) => await ToggleWireframe());

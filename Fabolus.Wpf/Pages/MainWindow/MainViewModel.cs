@@ -30,21 +30,14 @@ using Fabolus.Wpf.Pages.Split;
 
 namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainViewModel : ObservableObject {
-    AppPreferencesStore _appPreferences = new();
+    private readonly IMessenger _messenger = WeakReferenceMessenger.Default;
 
     private const string NoFileText = "No file loaded";
 
-    [ObservableProperty] private BaseViewModel? _currentViewModel;
+    [ObservableProperty] private UserControl _currentView;
     [ObservableProperty] private string _currentViewTitle = "No View Selected";
     [ObservableProperty] private MeshInfoViewModel _currentMeshInfo;
-
-    //mesh info
-    [ObservableProperty] private bool _infoVisible = false;
-    [ObservableProperty] private bool _meshLoaded = false;
-    [ObservableProperty] private string _filePath = NoFileText;
-    [ObservableProperty] private string _fileSize = NoFileText;
-    [ObservableProperty] private string _triangleCount = NoFileText;
-    [ObservableProperty] private string _volumeText = NoFileText;
+    [ObservableProperty] private bool _meshLoaded;
 
     //debug info
     [ObservableProperty] private string _debugText = NoFileText;
@@ -52,69 +45,81 @@ public partial class MainViewModel : ObservableObject {
     // display views
     [ObservableProperty] private bool _showSplitView;
 
-    private SceneManager _sceneModel;
-
-    #region Stores
-    private BolusStore BolusStore { get; set; } = new();
-    private AirChannelsStore AirChannelsStore { get; set; } = new();
-    private MouldStore MoldStore { get; set; } = new();
-
-    #endregion
-
-    private void NavigateTo(BaseViewModel viewModel) {
-
-        if (CurrentViewModel is not null) {
-            CurrentViewModel.Dispose(); //to ensure multiple view models dont listen in at the same time
-            _sceneModel?.Dispose();
-        }
-
-        CurrentViewModel = viewModel;
-        CurrentViewTitle = viewModel.TitleText;
-
-        //based on the view
-        _sceneModel = viewModel.GetSceneManager;
-    }
+    // Stores: passively monitor messages to store or retreive data for multiple views
+    private AppPreferencesStore AppPreferences { get; } = new();
+    private BolusStore BolusStore { get; } = new();
+    private AirChannelsStore AirChannelsStore { get; } = new();
+    private MouldStore MouldStore { get; } = new();
 
     public MainViewModel() {
 
         CurrentMeshInfo = new();
-        _sceneModel = new();
-        WeakReferenceMessenger.Default.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
-        WeakReferenceMessenger.Default.Register<PreferencesSetSplitViewMessage>(this, (r,m) => ShowSplitView = m.SplitViewEnabled);
+        _messenger.Register<BolusUpdatedMessage>(this, (r, m) => BolusUpdated());
+        _messenger.Register<PreferencesSetSplitViewMessage>(this, (r,m) => ShowSplitView = m.SplitViewEnabled);
 
-        ShowSplitView = WeakReferenceMessenger.Default.Send(new PreferencesSplitViewRequest()).Response;
+        ShowSplitView = _messenger.Send(new PreferencesSplitViewRequest()).Response;
 
-        NavigateTo(new ImportViewModel());
+        SwitchToImportView();
     }
 
     private void BolusUpdated() {
-        var boli = WeakReferenceMessenger.Default.Send(new AllBolusRequestMessage()).Response;
+        var boli = _messenger.Send(new AllBolusRequestMessage()).Response;
 
         MeshLoaded = boli.Length > 0;
     }
 
-    #region Commands
-    [RelayCommand] public async Task SwitchToImportView() => NavigateTo(new ImportViewModel());
-    [RelayCommand] public async Task SwitchToRotationView() => NavigateTo(new RotateViewModel());
-    [RelayCommand] public async Task SwitchToSmoothingView() => NavigateTo(new SmoothingViewModel());
-    [RelayCommand] public async Task SwitchToAirChannelView() => NavigateTo(new ChannelsViewModel());
-    [RelayCommand] public async Task SwitchToMoldView() => NavigateTo(new MouldViewModel());
-    [RelayCommand] public async Task SwitchToExportView() => NavigateTo(new ExportViewModel());
+    // Commands
 
     [RelayCommand]
-    public async Task SwitchToSplitView() {
-        if (!ShowSplitView) { return; }
-        NavigateTo(new SplitViewModel());
+    public void SwitchToImportView() {
+        CurrentViewTitle = "import";
+        CurrentView = new ImportView();
     }
 
-    [RelayCommand] public async Task ToggleWireframe() =>
-        WeakReferenceMessenger.Default.Send(new WireframeToggleMessage());
+    [RelayCommand]
+    public void SwitchToRotationView() {
+        CurrentViewTitle = "rotate";
+        CurrentView = new RotateView();
+    }
 
-    [RelayCommand] public async Task CaptureScreenshot() {
-        var viewport = WeakReferenceMessenger.Default.Send(new ViewportRequestMessage()).Response;
+    [RelayCommand]
+    public void SwitchToSmoothingView() {
+        CurrentViewTitle = "smooth";
+        CurrentView = new SmoothingView();
+    }
+
+    [RelayCommand]
+    public void SwitchToAirChannelView() {
+        CurrentViewTitle = "channels";
+        CurrentView = new ChannelsView();
+    }
+
+    [RelayCommand]
+    public void SwitchToMouldView() {
+        CurrentViewTitle = "mould";
+        CurrentView = new MouldView();
+    }
+
+    [RelayCommand]
+    public void SwitchToExportView() {
+        CurrentViewTitle = "export";
+        CurrentView = new ExportView();
+    }
+
+    [RelayCommand]
+    public void SwitchToSplitView() {
+        if (!ShowSplitView) { return; }
+        CurrentViewTitle = "split";
+        CurrentView = new SplitView();
+    }
+
+    [RelayCommand] public void ToggleWireframe() => _messenger.Send(new WireframeToggleMessage());
+
+    [RelayCommand] public void CaptureScreenshot() {
+        var viewport = _messenger.Send(new ViewportRequestMessage()).Response;
         var bitmap = ViewportExtensions.RenderBitmap(viewport);
 
-        var info = WeakReferenceMessenger.Default.Send(new MeshInfoRequestMessage()).Response;
+        var info = _messenger.Send(new MeshInfoRequestMessage()).Response;
         RenderTargetBitmap renderInfo = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
         renderInfo.Render(info);
 
@@ -131,16 +136,21 @@ public partial class MainViewModel : ObservableObject {
             Clipboard.Clear();
             Clipboard.SetImage(result);
         } catch (Exception e) {
-            Debug.WriteLine($"Error copying screenshot to clipboard: {e.Message}");
+            DebugText = $"Error copying screenshot to clipboard: {e.Message}";
         }
+
     }
 
     [RelayCommand]
-    public async Task OpenPreferences() {
-        PreferencesView preferences = Application.Current.Windows.OfType<PreferencesView>().SingleOrDefault() ?? new PreferencesView();
+    public void OpenPreferences() {
+        PreferencesView preferences = 
+            Application.Current.Windows.OfType<PreferencesView>().SingleOrDefault() 
+            ?? new PreferencesView();
+
         preferences.Show();
         preferences.WindowState = WindowState.Normal;
         preferences.Activate();
+
     }
-    #endregion
+
 }

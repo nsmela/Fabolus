@@ -6,8 +6,14 @@
              xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Smooth"
              xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
              mc:Ignorable="d" 
+             xmlns:common="clr-namespace:Fabolus.Wpf.Common"
+             common:DataContextDisposal.AutoDispose="True"
              d:DesignHeight="450" d:DesignWidth="200">
-
+    
+    <UserControl.DataContext>
+        <local:SmoothingViewModel />
+    </UserControl.DataContext>
+    
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </UserControl.Resources>
@@ -15,7 +21,73 @@
     <StackPanel Orientation="Horizontal">
         <StackPanel Orientation="Vertical" Margin="4" Width="160">
 
-            <ContentControl Content="{Binding SetSmoothingViewModel}"/>
+            <Label Content="deflate distance" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins" 
+                ToolTip="Distance model is inflated and then deflated"/>
+            <Slider Value="{Binding DeflateDistance, Mode=TwoWay}"
+                Minimum="0.2" 
+                Maximum="2.0" 
+                TickFrequency="0.2" 
+                TickPlacement="TopLeft" 
+                IsSnapToTickEnabled="True" 
+                Height="30"            
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"/>
+
+            <Label Content="inflate distance"                        
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                ToolTip="Distance model is inflated after inflated and deflated"/>
+            <Slider Value="{Binding InflateDistance, Mode=TwoWay}"
+                Minimum="0.0" 
+                Maximum="1" 
+                TickPlacement="TopLeft" 
+                TickFrequency="0.1" 
+                IsSnapToTickEnabled="True" 
+                Height="30"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"/>
+
+            <Label Content="iterations" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                ToolTip="Number of times model is inflated and deflated"/>
+            <Slider Value="{Binding Iterations, Mode=TwoWay}"
+                Minimum="1" 
+                Maximum="5" 
+                TickPlacement="TopLeft" 
+                TickFrequency="1" 
+                IsSnapToTickEnabled="True" 
+                Height="30"            
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1"/>
+
+            <Label Content="marching cubes"                         
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"
+                ToolTip="Resolution (in mm) of the smoothing"/>
+            <Slider Value="{Binding CellSize, Mode=TwoWay}" 
+                Minimum="0.5" 
+                Maximum="3.0" 
+                TickPlacement="TopLeft" 
+                TickFrequency="0.5" 
+                IsSnapToTickEnabled="True" 
+                Height="30"
+                AutoToolTipPlacement="TopLeft"
+                AutoToolTipPrecision="1" />
 
             <Label Content="view setting" 
                 HorizontalAlignment="Center" 
@@ -27,7 +99,7 @@
             <ComboBox 
                 ItemsSource="{Binding Views}"
                 SelectedItem="{Binding View}"/>
-
+            
             <Button Content="apply" 
                     Height="30" Margin="4"
                     HorizontalAlignment="Stretch"
@@ -48,7 +120,7 @@
 
         <Slider Orientation="Vertical" 
                 Margin="4, 6, 8, 6"
-                Visibility="{Binding Path=ShowHeightSlider, Converter={StaticResource BoolToVis}, FallbackValue=Visible}"
+                Visibility="{Binding Path=ShowHeightSlider, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
                 Minimum="{Binding MinHeight}"
                 Maximum="{Binding MaxHeight}"
                 Value="{Binding CurrentHeight}"
