@@ -21,30 +21,20 @@ public partial class SplitViewModel : BaseViewModel {
 
     // view meshes
     [ObservableProperty] private bool _showBolus = true;
-    [ObservableProperty] private bool _showCurves = false;
+    [ObservableProperty] private bool _showMould = false;
+    [ObservableProperty] private bool _showPartingLine = true;
+    [ObservableProperty] private bool _showPartingMesh = false;
     [ObservableProperty] private bool _showNegativeParting = false;
     [ObservableProperty] private bool _showPositiveParting = false;
-    [ObservableProperty] private bool _showPullRegions = true;
-    [ObservableProperty] private bool _showPartingLine = true;
-    [ObservableProperty] private bool _showPartingMesh;
     [ObservableProperty] private bool _explodePartingMeshes = true;
 
-    partial void OnShowBolusChanged(bool value) {
-        if (value) { _showCurves = false; }
-        UpdateViewOptions(); 
-    }
-
-    partial void OnShowCurvesChanged(bool value) {
-        if (value) { _showBolus = false; }
-        UpdateViewOptions();
-    }
-
-    partial void OnShowNegativePartingChanged(bool value) { UpdateViewOptions(); }
-    partial void OnShowPositivePartingChanged(bool value) { UpdateViewOptions(); }
-    partial void OnShowPullRegionsChanged(bool value) { UpdateViewOptions(); }
-    partial void OnShowPartingLineChanged(bool value) { UpdateViewOptions(); }
-    partial void OnShowPartingMeshChanged(bool value) { UpdateViewOptions(); }
-    partial void OnExplodePartingMeshesChanged(bool value) { UpdateViewOptions(); }
+    partial void OnShowBolusChanged(bool value) => UpdateViewOptions(); 
+    partial void OnShowMouldChanged(bool value) => UpdateViewOptions();
+    partial void OnShowPartingLineChanged(bool value) => UpdateViewOptions(); 
+    partial void OnShowPartingMeshChanged(bool value) => UpdateViewOptions(); 
+    partial void OnShowNegativePartingChanged(bool value) => UpdateViewOptions(); 
+    partial void OnShowPositivePartingChanged(bool value) => UpdateViewOptions(); 
+    partial void OnExplodePartingMeshesChanged(bool value) => UpdateViewOptions(); 
 
     private void UpdateViewOptions() => _messenger.Send(new UpdateSplitViewOptionsMessage(ViewOptions));
 
@@ -84,12 +74,11 @@ public partial class SplitViewModel : BaseViewModel {
 
     private SplitViewOptions ViewOptions => new SplitViewOptions(
             ShowBolus,
-            ShowCurves,
-            ShowNegativeParting,
-            ShowPositiveParting,
-            ShowPullRegions,
+            ShowMould,
             ShowPartingLine,
             ShowPartingMesh,
+            ShowNegativeParting,
+            ShowPositiveParting,
             ExplodePartingMeshes
         );
 
@@ -181,11 +170,11 @@ public partial class SplitViewModel : BaseViewModel {
 
         // change view
         ShowBolus = false;
-        ShowNegativeParting = true;
-        ShowPositiveParting = true;
+        ShowMould = false;
         ShowPartingLine = false;
         ShowPartingMesh = false;
-        ShowPullRegions = false;
+        ShowNegativeParting = true;
+        ShowPositiveParting = true;
         ExplodePartingMeshes = true;
 
         _messenger.Send(new SplitResultsMessage(_results));

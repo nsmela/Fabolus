@@ -45,20 +45,6 @@
                 AutoToolTipPlacement="TopLeft"
                 AutoToolTipPrecision="1"
                 Margin="2"/>
-        
-        <Label Content="outer distance (mm)" 
-                HorizontalAlignment="Center" 
-                VerticalAlignment="Center"
-                FontSize="12" 
-                FontWeight="Bold"
-                FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding OuterDistance, Mode=TwoWay}" 
-                Minimum="5.0"
-                Maximum="100.0"
-                SmallChange="5.0"
-                AutoToolTipPlacement="TopLeft"
-                AutoToolTipPrecision="1"
-                Margin="2"/>
 
         <Label Content="inner distance (mm)" 
                 HorizontalAlignment="Center" 
@@ -76,7 +62,7 @@
 
         <!-- Toggle view buttons -->
         <Separator Margin="0,8,0,8" />
-        <Label Content="show models" 
+        <Label Content="visual modes" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
@@ -84,7 +70,7 @@
                 FontFamily="\Fonts\#Poppins"/>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-            <Label Content="show bolus" 
+            <Label Content="bolus" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
@@ -98,7 +84,7 @@
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-            <Label Content="show curvature regions" 
+            <Label Content="mould" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
@@ -106,27 +92,13 @@
                 FontFamily="\Fonts\#Poppins"/>
 
             <mah:ToggleSwitch 
-                    IsOn="{Binding ShowCurves, Mode=TwoWay}"
+                    IsOn="{Binding ShowMould, Mode=TwoWay}"
                     HorizontalContentAlignment="Right" />
 
         </StackPanel>
-        
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-            <Label Content="show pull regions" 
-                HorizontalAlignment="Center" 
-                VerticalAlignment="Center"
-                FontSize="12" 
-                FontWeight="Bold"
-                FontFamily="\Fonts\#Poppins"/>
 
-            <mah:ToggleSwitch 
-                    IsOn="{Binding ShowPullRegions, Mode=TwoWay}"
-                    HorizontalContentAlignment="Right" />
-
-        </StackPanel>
-        
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-            <Label Content="show parting line" 
+            <Label Content="parting line" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
@@ -140,7 +112,7 @@
         </StackPanel>
         
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-            <Label Content="show parting mesh" 
+            <Label Content="parting mesh" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
@@ -154,7 +126,7 @@
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-            <Label Content="show negative parting" 
+            <Label Content="negative parting" 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
@@ -168,7 +140,7 @@
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
-            <Label Content="show positive parting " 
+            <Label Content="positive parting " 
                 HorizontalAlignment="Center" 
                 VerticalAlignment="Center"
                 FontSize="12" 
@@ -195,7 +167,6 @@
 
         </StackPanel>
 
-        <!-- Export buttons -->
         <Button Content="generate models" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
@@ -205,7 +176,15 @@
                 FontFamily="\Fonts\#Poppins"
                 Command="{Binding GenerateCommand}" />
 
-        <Button Content="export cutting mesh" 
+        <Label Content="exports" 
+                HorizontalAlignment="Center" 
+                VerticalAlignment="Center"
+                FontSize="12" 
+                FontWeight="Bold"
+                FontFamily="\Fonts\#Poppins"/>
+
+        <!-- Export buttons -->
+        <Button Content="parting mesh" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
                 HorizontalAlignment="Stretch"
@@ -214,7 +193,7 @@
                 FontFamily="\Fonts\#Poppins"
                 Command="{Binding ExportCuttingMeshCommand}" />
         
-        <Button Content="export models" 
+        <Button Content="seperate models" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
                 HorizontalAlignment="Stretch"
@@ -223,7 +202,7 @@
                 FontFamily="\Fonts\#Poppins"
                 Command="{Binding ExportSeperateCommand}" />
 
-        <Button Content="export joined models" 
+        <Button Content="models together" 
                 Style="{DynamicResource MahApps.Styles.Button.Square}"
                 Height="30"
                 HorizontalAlignment="Stretch"

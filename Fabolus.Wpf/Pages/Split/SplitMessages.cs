@@ -6,12 +6,11 @@ namespace Fabolus.Wpf.Pages.Split;
 
 public record struct SplitViewOptions(
     bool ShowBolus,
-    bool ShowCurves,
-    bool ShowNegativeParting,
-    bool ShowPositiveParting,
-    bool ShowPullRegions,
+    bool ShowMould,
     bool ShowPartingLine,
     bool ShowPartingMesh,
+    bool ShowNegativeParting,
+    bool ShowPositiveParting,
     bool ExplodePartingMeshes);
 
 public sealed record SplitSeperationDistanceMessage(float Distance);
