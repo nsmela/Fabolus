@@ -23,6 +23,7 @@ public class AirChannelsStore {
         WeakReferenceMessenger.Default.Register<ApplyTempRotationMessage>(this, (r, m) => _channels = _channels.Clear()); //remove channels if bolus is rotated
         WeakReferenceMessenger.Default.Register<AddBolusMessage>(this, (r,m) => _channels = _channels.Clear()); //remove channels if bolus is added
         WeakReferenceMessenger.Default.Register<AddBolusFromFileMessage>(this, (r,m) => _channels = _channels.Clear()); //remove channels if bolus is added from file
+        WeakReferenceMessenger.Default.Register<ClearRotationsMessage>(this, (r,m) => _channels = _channels.Clear()); //remove channels if rotations are cleared
 
         //requests
         WeakReferenceMessenger.Default.Register<ActiveChannelRequestMessage>(this, (r, m) => m.Reply(_activeChannel));
