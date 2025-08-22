@@ -22,7 +22,6 @@ namespace Fabolus.Wpf.Pages.MainWindow;
 public partial class MainView : MetroWindow {
     public MainView() {
         try {
-            DataContext = new MainViewModel();
             InitializeComponent();
         } catch (Exception ex) {
             throw new Exception(Name, ex);

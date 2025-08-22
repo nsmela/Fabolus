@@ -59,7 +59,7 @@ public partial class MainViewModel : ObservableObject {
 
         ShowSplitView = _messenger.Send(new PreferencesSplitViewRequest()).Response;
 
-        CurrentView = new ImportView(); // switch to ImportView
+        SwitchToImportView();
     }
 
     private void BolusUpdated() {
@@ -70,16 +70,46 @@ public partial class MainViewModel : ObservableObject {
 
     // Commands
 
-    [RelayCommand] public void SwitchToImportView() => CurrentView = new ImportView();
-    [RelayCommand] public void SwitchToRotationView() => CurrentView = new RotateView();
-    [RelayCommand] public void SwitchToSmoothingView() => CurrentView = new SmoothingView();
-    [RelayCommand] public void SwitchToAirChannelView() => CurrentView = new ChannelsView();
-    [RelayCommand] public void SwitchToMouldView() => CurrentView = new MouldView();
-    [RelayCommand] public void SwitchToExportView() => CurrentView = new ExportView();
+    [RelayCommand]
+    public void SwitchToImportView() {
+        CurrentViewTitle = "import";
+        CurrentView = new ImportView();
+    }
+
+    [RelayCommand]
+    public void SwitchToRotationView() {
+        CurrentViewTitle = "rotate";
+        CurrentView = new RotateView();
+    }
+
+    [RelayCommand]
+    public void SwitchToSmoothingView() {
+        CurrentViewTitle = "smooth";
+        CurrentView = new SmoothingView();
+    }
+
+    [RelayCommand]
+    public void SwitchToAirChannelView() {
+        CurrentViewTitle = "channels";
+        CurrentView = new ChannelsView();
+    }
+
+    [RelayCommand]
+    public void SwitchToMouldView() {
+        CurrentViewTitle = "mould";
+        CurrentView = new MouldView();
+    }
+
+    [RelayCommand]
+    public void SwitchToExportView() {
+        CurrentViewTitle = "export";
+        CurrentView = new ExportView();
+    }
 
     [RelayCommand]
     public void SwitchToSplitView() {
         if (!ShowSplitView) { return; }
+        CurrentViewTitle = "split";
         CurrentView = new SplitView();
     }
 

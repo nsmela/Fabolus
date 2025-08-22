@@ -12,6 +12,11 @@
         Title="FABOLUS" Height="550" Width="800" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterScreen">
+
+    <Window.DataContext>
+        <local:MainViewModel />
+    </Window.DataContext>
+
     <mah:MetroWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
     </mah:MetroWindow.Resources>
