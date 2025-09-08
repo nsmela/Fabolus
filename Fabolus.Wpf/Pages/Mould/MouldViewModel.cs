@@ -95,7 +95,6 @@ public partial class MouldViewModel : BaseViewModel {
         _messenger.Send(new MeshInfoSetMessage($"Bolus Volume:\r\n {bolus.Mesh.VolumeString()}\r\nMould Volume:\r\n {mould.VolumeString()}"));
     }
 
-    [RelayCommand]
     private async Task GenerateMould() {
         var mould = new MouldModel(_generator, false);
         _messenger.Send(new MouldUpdatedMessage(mould));
