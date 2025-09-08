@@ -5,17 +5,17 @@ This application can import a STL file, smooth it, add airchannels, and create a
 
 Screenshots:
 
-![image](https://github.com/user-attachments/assets/84fe2126-a225-4b09-9ed6-cd850f4ecd80)
-![image](https://github.com/user-attachments/assets/1096fdcb-e751-4457-968a-bf72c37d9e32)
-![image](https://github.com/user-attachments/assets/86444a51-7646-465a-a592-3002237e778b)
-![image](https://github.com/user-attachments/assets/56bb2c10-15aa-4986-8caa-2be11dc53dab)
-![image](https://github.com/user-attachments/assets/89bc2319-f65b-4c18-a4d6-780f7911909a)
-![image](https://github.com/user-attachments/assets/39a3624a-9779-41bc-8ef2-0230ada2ca11)
-![image](https://github.com/user-attachments/assets/e649e678-de63-49be-a2ed-702101955a16)
-![image](https://github.com/user-attachments/assets/d01b72a5-8df4-4945-a5f8-29d37484e1de)
-![image](https://github.com/user-attachments/assets/6f5acabc-6cba-4772-832a-aaba8253b052)
-![image](https://github.com/user-attachments/assets/7440a131-72f8-4b5a-b150-28d960aa07f5)
-![image](https://github.com/user-attachments/assets/9e7a6b8b-f359-439b-a74c-71bf0980c4bf)
-![image](https://github.com/user-attachments/assets/f5199180-4b84-47cc-99ad-1a46b6e67993)
-![image](https://github.com/user-attachments/assets/2363a612-4c3d-42b3-a5f9-db4f399dd60b)
-![image](https://github.com/user-attachments/assets/ce8703f7-5a14-4e67-aa72-2a052f538fd4)
+<img width="800" height="550" alt="2025-09-08_10-14-45" src="https://github.com/user-attachments/assets/8306ff5e-0518-4c20-bc2e-e50954c238e8" />
+
+<img width="800" height="550" alt="imported" src="https://github.com/user-attachments/assets/b9eb92b3-5191-40fd-b808-65a4aa4d5f90" />
+
+<img width="800" height="550" alt="smoothing applied" src="https://github.com/user-attachments/assets/61004e7e-e7c0-42b9-9042-b3107f069a23" />
+<img width="800" height="550" alt="smoothing-distanceheatmap" src="https://github.com/user-attachments/assets/0471b267-2de9-4a28-bdc9-30946c2592ca" />
+<img width="800" height="550" alt="smoothing-contouring" src="https://github.com/user-attachments/assets/3a7f4bd2-242a-43c2-88a2-cf3075aeeb36" />
+<img width="800" height="550" alt="rotation" src="https://github.com/user-attachments/assets/c7bff6a4-fafd-4dd1-9a08-3d7bf2a30134" />
+<img width="800" height="550" alt="rotation-preview" src="https://github.com/user-attachments/assets/273b12c5-0a7e-4207-85f9-d4c6ed1907be" />
+<img width="800" height="550" alt="channels" src="https://github.com/user-attachments/assets/2782c3dd-2aba-4952-929a-95c475b78b4c" />
+<img width="800" height="550" alt="channels-channel types" src="https://github.com/user-attachments/assets/18f2d77f-271f-4f1b-8e7e-f21c1e69ba3b" />
+<img width="800" height="550" alt="mould" src="https://github.com/user-attachments/assets/0649474a-f204-4fd8-b13f-8a29d0943ca2" />
+<img width="800" height="550" alt="wiremesh display" src="https://github.com/user-attachments/assets/f04d4154-5d1a-48bc-8cdf-2a664a1019ed" />
+<img width="246" height="363" alt="app preferences" src="https://github.com/user-attachments/assets/d644f3e0-389b-4261-b3a6-a7b51f2bc003" />
