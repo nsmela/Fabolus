@@ -1,21 +1,21 @@
 ﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Input;
 using Fabolus.Wpf.Common.Bolus;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Common.Scene;
-using static Fabolus.Wpf.Bolus.BolusStore;
 using Fabolus.Wpf.Features.Channels;
 using Fabolus.Wpf.Pages.MainWindow.MeshDisplay;
 using HelixToolkit.Wpf.SharpDX;
-using System.Windows.Input;
-using Material = HelixToolkit.Wpf.SharpDX.Material;
-using Fabolus.Wpf.Features;
-using System;
-using Fabolus.Core.AirChannel;
 using SharpDX;
-using ControlzEx.Standard;
+using System.Windows.Input;
+using Fabolus.Core.AirChannel;
+using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Channels.Straight;
-using CommunityToolkit.Mvvm.Input;
+using System;
+
+using static Fabolus.Wpf.Bolus.BolusStore;
+using Material = HelixToolkit.Wpf.SharpDX.Material;
 
 namespace Fabolus.Wpf.Pages.Channels;
 
@@ -28,7 +28,11 @@ public class ChannelsSceneManager : SceneManagerBase {
     private AirChannelSettings _settings;
     private MeshGeometry3D? _previewMesh;
     private IAirChannel _activeChannel;
-    private Material _channelSkin = DiffuseMaterials.Emerald;
+    private Material _toolSkin = new DiffuseMaterial {
+        Name = "Medium Purple",
+        DiffuseColor = DiffuseMaterials.ToColor(0.574f, 0.4375f, 0.85546f)
+    };
+    private Material _channelSkin = DiffuseMaterials.Violet;
     private Material _selectedSkin = DiffuseMaterials.Turquoise;
 
     private Guid? BolusId => _bolus?.Geometry?.GUID;
@@ -239,7 +243,7 @@ public class ChannelsSceneManager : SceneManagerBase {
             models.Add(new DisplayModel3D {
                 Geometry = _previewMesh,
                 Transform = MeshHelper.TransformEmpty,
-                Skin = DiffuseMaterials.Ruby
+                Skin = _toolSkin
             });
         }
 
