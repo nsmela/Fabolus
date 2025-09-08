@@ -16,6 +16,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="SplashScreen\SplashImage.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Fabolus icon resized.ico" />
   </ItemGroup>
 
@@ -27,6 +31,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Fabolus.Core\Fabolus.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="SplashScreen\SplashImage.png" />
   </ItemGroup>
 
 </Project>
