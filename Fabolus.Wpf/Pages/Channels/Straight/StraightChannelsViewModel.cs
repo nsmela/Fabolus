@@ -16,18 +16,30 @@ public partial class StraightChannelsViewModel : BaseChannelsViewModel {
     [ObservableProperty] private float _channelNozzleLength;
 
     partial void OnChannelDepthChanged(float oldValue, float newValue) {
+        if (_isBusy) { return; }
         if (oldValue == newValue) { return; }
         SetSettings();
     }
     partial void OnChannelDiameterChanged(float oldValue, float newValue) {
+        if (_isBusy) { return; }
         if (oldValue == newValue) { return; }
         SetSettings();
     }
     partial void OnChannelNozzleDiameterChanged(float oldValue, float newValue) {
+        if (_isBusy) { return; }
         if (oldValue == newValue) { return; }
+
+        // nozzle diameter constrained to ChannelDiameter
+        if (newValue > ChannelDiameter) {
+            _isBusy = true;
+            ChannelNozzleDiameter = ChannelDiameter;
+            _isBusy = false;
+        }
+
         SetSettings();
     }
     partial void OnChannelNozzleLengthChanged(float oldValue, float newValue) {
+        if (_isBusy) { return; }
         if (oldValue == newValue) { return; }
         SetSettings();
     }

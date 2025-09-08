@@ -14,22 +14,37 @@ public partial class AngledChannelsViewModel : BaseChannelsViewModel {
     [ObservableProperty] private float _channelDepth;
 
     partial void OnChannelConeDiameterChanged(float oldValue, float newValue) {
+        if (_isBusy) { return; }
         if (oldValue == newValue) { return; }
+
+        // nozzle diameter constrained to ChannelDiameter
+        if (newValue > ChannelDiameter) {
+            _isBusy = true;
+            ChannelConeDiameter = ChannelDiameter;
+            _isBusy = false;
+        }
+
         SetSettings();
     }
 
     partial void OnChannelConeLengthChanged(float oldValue, float newValue) {
+        if (_isBusy) { return; }
         if (oldValue == newValue) { return; }
+
         SetSettings();
     }
 
     partial void OnChannelDiameterChanged(float oldValue, float newValue) {
+        if (_isBusy) { return; }
         if (oldValue == newValue) { return; }
+
         SetSettings();
     }
 
     partial void OnChannelDepthChanged(float oldValue, float newValue) {
+        if (_isBusy) { return; }
         if (oldValue == newValue) { return; }
+
         SetSettings();
     }
 
