@@ -15,19 +15,45 @@
     <StackPanel HorizontalAlignment="Stretch" 
                 VerticalAlignment="Top" 
                 Margin="4,0,4,0">
-        <Label Content="simple mould generator" HorizontalAlignment="Center" 
+        <Label Content="mould generator" HorizontalAlignment="Center" 
                         VerticalAlignment="Center"
                         FontSize="12" 
                         FontWeight="Bold"
                         FontFamily="\Fonts\#Poppins"/>
 
-        <Label Content="top offset" 
+        <Label Content="mould type" 
+               HorizontalAlignment="Center" 
+               VerticalAlignment="Center"
+               FontSize="12" 
+               FontWeight="Bold"
+               FontFamily="\Fonts\#Poppins"/>
+        <ComboBox ItemsSource="{Binding MouldTypeOptions}"
+                  SelectedIndex="{Binding SelectedMouldIndex, Mode=TwoWay}"
+                  HorizontalAlignment="Stretch"
+                  Margin="4"/>
+
+        <!-- Triangulated View -->
+        <StackPanel x:Name="TriangulatedSettingsPanel">
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedMouldIndex}" Value="0">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding SelectedMouldIndex}" Value="1">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+            <Label Content="top offset" 
                             HorizontalAlignment="Center" 
                             VerticalAlignment="Center"
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding TopOffset, Mode=TwoWay}"
+            <Slider Value="{Binding TopOffset, Mode=TwoWay}"
                             Minimum="2.0" Maximum="10.0" 
                             TickFrequency="1.0" 
                             TickPlacement="TopLeft" 
@@ -36,13 +62,13 @@
                             IsSnapToTickEnabled="True" 
                             Height="30"/>
 
-        <Label Content="width offset" 
+            <Label Content="width offset" 
                             HorizontalAlignment="Center" 
                             VerticalAlignment="Center"
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding WidthOffset, Mode=TwoWay}"
+            <Slider Value="{Binding WidthOffset, Mode=TwoWay}"
                             Minimum="3.0" Maximum="10.0" 
                             TickFrequency="1.0" 
                             TickPlacement="TopLeft" 
@@ -51,13 +77,13 @@
                             IsSnapToTickEnabled="True" 
                             Height="30"/>
 
-        <Label Content="bottom offset" 
+            <Label Content="bottom offset" 
                             HorizontalAlignment="Center" 
                             VerticalAlignment="Center"
                             FontSize="12" 
                             FontWeight="Bold"
                             FontFamily="\Fonts\#Poppins"/>
-        <Slider Value="{Binding BottomOffset, Mode=TwoWay}"
+            <Slider Value="{Binding BottomOffset, Mode=TwoWay}"
                             Minimum="2.0" Maximum="10.0" 
                             TickFrequency="1.0" 
                             TickPlacement="TopLeft" 
@@ -66,31 +92,49 @@
                             IsSnapToTickEnabled="True" 
                             Height="30"/>
 
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-            <Label Content="use tight contour" 
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Label Content="add trough" 
                                 VerticalAlignment="Center"
                                 FontSize="12" 
                                 FontWeight="Bold"
                                 FontFamily="\Fonts\#Poppins"/>
-            <CheckBox IsChecked="{Binding IsTight, Mode=TwoWay}"
+                <CheckBox IsChecked="{Binding HasTrough, Mode=TwoWay}"
                                 VerticalAlignment="Center"
                                 HorizontalAlignment="Right"
                                 Height="30"/>
 
+            </StackPanel>
+            
         </StackPanel>
+        
+        <!-- Contoured View -->
+        <StackPanel x:Name="ContouredSettingsPanel">
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedMouldIndex}" Value="2">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
 
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-            <Label Content="add trough" 
-                                VerticalAlignment="Center"
-                                FontSize="12" 
-                                FontWeight="Bold"
-                                FontFamily="\Fonts\#Poppins"/>
-            <CheckBox IsChecked="{Binding HasTrough, Mode=TwoWay}"
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Right"
-                                Height="30"/>
-
+            <Label Content="contour offset" 
+                   HorizontalAlignment="Center" 
+                   VerticalAlignment="Center"
+                   FontSize="12" 
+                   FontWeight="Bold"
+                   FontFamily="\Fonts\#Poppins"/>
+            <Slider Value="{Binding ContouredOffset, Mode=TwoWay}"
+                    Minimum="1.0" Maximum="10.0" 
+                    TickFrequency="0.5" 
+                    TickPlacement="TopLeft" 
+                    AutoToolTipPlacement="TopLeft"
+                    AutoToolTipPrecision="2"
+                    IsSnapToTickEnabled="True" 
+                    Height="30"/>
         </StackPanel>
-
+        
     </StackPanel>
 </UserControl>

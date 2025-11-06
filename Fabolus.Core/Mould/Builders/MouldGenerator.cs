@@ -13,5 +13,4 @@ public abstract record MouldGenerator {
 
     public abstract Result<MeshModel> Build();
     public abstract Result<MeshModel> Preview();
-
 }
