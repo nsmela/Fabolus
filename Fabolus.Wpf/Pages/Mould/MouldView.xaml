@@ -15,12 +15,23 @@
     <StackPanel HorizontalAlignment="Stretch" 
                 VerticalAlignment="Top" 
                 Margin="4,0,4,0">
-        <Label Content="simple mould generator" HorizontalAlignment="Center" 
+        <Label Content="mould generator" HorizontalAlignment="Center" 
                         VerticalAlignment="Center"
                         FontSize="12" 
                         FontWeight="Bold"
                         FontFamily="\Fonts\#Poppins"/>
 
+        <Label Content="mould type" 
+               HorizontalAlignment="Center" 
+               VerticalAlignment="Center"
+               FontSize="12" 
+               FontWeight="Bold"
+               FontFamily="\Fonts\#Poppins"/>
+        <ComboBox ItemsSource="{Binding Source={StaticResource MouldTypeOptions}}"
+                  SelectedItem="{Binding SelectedMouldIndex, Mode=TwoWay}"
+                  HorizontalAlignment="Stretch"
+                  Margin="4"/>
+        
         <Label Content="top offset" 
                             HorizontalAlignment="Center" 
                             VerticalAlignment="Center"
