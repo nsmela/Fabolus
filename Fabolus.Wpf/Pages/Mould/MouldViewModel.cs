@@ -161,12 +161,11 @@ public partial class MouldViewModel : BaseViewModel
         if (storedGenerator is ContouredMouldGenerator)
         {
             SelectedMouldIndex = 2;
-        } else if (_triangulatedGenerator.IsTight)
-        {
-            SelectedMouldIndex = 0;
+            _generator = _contouredGenerator;
         } else
         {
-            SelectedMouldIndex = 1;
+            SelectedMouldIndex = _triangulatedGenerator.IsTight ? 0 : 1;
+            _generator = _triangulatedGenerator;
         }
 
         _messenger.Send(new MouldGeneratorUpdatedMessage(_generator));

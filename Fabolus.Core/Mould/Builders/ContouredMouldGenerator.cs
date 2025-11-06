@@ -22,6 +22,10 @@ public sealed record ContouredMouldGenerator : MouldGenerator {
     public ContouredMouldGenerator WithToolMeshes(MeshModel[] toolMeshes) => this with { ToolMeshes = toolMeshes };
 
     public override Result<MeshModel> Build() {
+        var previewResult = Preview();
+        if (previewResult.IsFailure){ return previewResult; }
+
+        _preview = previewResult.Data!;
         var mould = MeshTools.BooleanSubtraction(_preview, BolusReference);
         if (mould.IsFailure) { return mould.Errors; }
 
