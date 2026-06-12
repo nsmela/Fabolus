@@ -45,9 +45,5 @@ public interface IGeometryEngine
     /// Creates a deep copy of a mesh.
     /// </summary>
     Result<IMesh> CloneMesh(IMesh source);
-        
-    /// <summary>
-    /// Computes the 3D bounding box of the mesh.
-    /// </summary>
-    Result<BoundingBox3D> GetBounds(IMesh mesh);
+
 }

@@ -11,10 +11,4 @@ public sealed record MeshRotation(
     double CenterX,
     double CenterY,
     double CenterZ
-)
-{
-    /// <summary>
-    /// When this rotation was applied.
-    /// </summary>
-    public DateTime AppliedAt { get; init; } = DateTime.UtcNow;
-}
+);

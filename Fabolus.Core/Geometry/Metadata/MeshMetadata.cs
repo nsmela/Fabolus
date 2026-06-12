@@ -130,10 +130,10 @@ public sealed record MeshMetadata {
         var fileName = Path.GetFileNameWithoutExtension(filePath);
         var metadata = new MeshMetadata();
 
-        return metadata.WithProperties(m => {
-            m.Set(CoreKeys.Id, Guid.NewGuid());
-            m.Set(CoreKeys.Name, fileName);
-            m.Set(CoreKeys.CreatedBy, "Import");
-        });
+        return metadata.WithProperties(m =>
+            m.Set(CoreKeys.Id, Guid.NewGuid())
+            .Set(CoreKeys.Name, fileName)
+            .Set(CoreKeys.CreatedBy, "Import")
+        );
     }
 }
