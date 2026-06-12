@@ -1,4 +1,4 @@
-namespace Radaidant.Core.Common;
+namespace Fabolus.Core.Common;
 
 /// <summary>
 /// Represents an optional value. Use when a value is genuinely optional and its absence

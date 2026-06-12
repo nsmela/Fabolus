@@ -1,4 +1,4 @@
-namespace Radaidant.Core.Common;
+namespace Fabolus.Core.Common;
 
 /// <summary>
 /// Represents a strongly-typed domain error, preventing stringly-typed magic values.

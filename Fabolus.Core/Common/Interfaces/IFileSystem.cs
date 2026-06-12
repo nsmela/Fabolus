@@ -1,4 +1,4 @@
-namespace Radaidant.Core.Common.Interfaces;
+namespace Fabolus.Core.Common.Interfaces;
 
 /// <summary>
 /// Named architectural seam for file system access.
