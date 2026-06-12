@@ -63,7 +63,7 @@ public sealed class Workspace
     /// Adds a mesh to the workspace.
     /// Mesh ID comes from IMesh.Id property.
     /// </summary>
-    public Result<Workspace> AddMesh(IMesh mesh)
+    public Result<Workspace> AddMesh(IMesh mesh, bool setActive = true)
     {
         if (mesh is null)
             return WorkspaceErrors.NullMesh;
@@ -76,6 +76,9 @@ public sealed class Workspace
             return WorkspaceErrors.DuplicateMesh(mesh.Metadata.Name);
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes) { [meshId] = mesh };
+
+        var activeId = setActive ? meshId : ActiveMeshId;
+
         return new Workspace(newMeshes, ActiveMeshId, Metadata);
     }
 
