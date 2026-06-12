@@ -1,6 +1,5 @@
-using Radaidant.Core.Common;
 
-namespace Radaidant.Core.Common.Interfaces;
+namespace Fabolus.Core.Common.Interfaces;
 
 /// <summary>
 /// Named architectural seam for dialog presentation.
