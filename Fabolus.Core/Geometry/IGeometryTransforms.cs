@@ -29,5 +29,4 @@ public interface IGeometryTransforms
     /// </summary>
     Result<IMesh> Rotate(IMesh source, double angleRadians, double axisX, double axisY, double axisZ);
 
-    Result<IMesh> ClearRotation(IMesh source);
 }

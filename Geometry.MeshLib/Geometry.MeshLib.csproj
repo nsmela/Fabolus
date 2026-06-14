@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MeshLib" Version="3.1.2.192" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fabolus.Core\Fabolus.Core.csproj" />
+  </ItemGroup>
+
+</Project>
