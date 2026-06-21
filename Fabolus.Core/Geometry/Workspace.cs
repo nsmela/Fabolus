@@ -79,7 +79,7 @@ public sealed class Workspace
 
         var activeId = setActive ? meshId : ActiveMeshId;
 
-        return new Workspace(newMeshes, ActiveMeshId, Metadata);
+        return new Workspace(newMeshes, activeId, Metadata);
     }
 
     /// <summary>
