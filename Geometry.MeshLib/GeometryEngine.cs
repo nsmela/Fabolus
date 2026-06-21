@@ -105,11 +105,11 @@ public sealed class GeometryEngine : IGeometryEngine, IGeometryEvaluators
             // Fail-safe default
         }
 
-        var validVerts = mlMesh.topology.getValidVerts();
-        var validFaces = mlMesh.topology.getValidFaces();
+        using var validVerts = mlMesh.topology.getValidVerts();
+        using var validFaces = mlMesh.topology.getValidFaces();
 
         // Calculate boundary edge count
-        var bdEdges = MR.findAllLeftBdEdges(mlMesh.topology, null, null);
+        using var bdEdges = MR.findAllLeftBdEdges(mlMesh.topology, null, null);
         int boundaryEdges = (int)bdEdges.count();
 
         // Check degenerate triangles
@@ -152,13 +152,13 @@ public sealed class GeometryEngine : IGeometryEngine, IGeometryEvaluators
             return GeometryErrors.InvalidMeshType;
 
         var mlMesh = mrMesh.Mesh;
-        var validVerts = mlMesh.topology.getValidVerts();
-        var validFaces = mlMesh.topology.getValidFaces();
+        using var validVerts = mlMesh.topology.getValidVerts();
+        using var validFaces = mlMesh.topology.getValidFaces();
 
         var bounds = MR.computeBoundingBox(mlMesh.topology, mlMesh.points, null, null);
 
         double volume = 0.0;
-        var bdEdges = MR.findAllLeftBdEdges(mlMesh.topology, null, null);
+        using var bdEdges = MR.findAllLeftBdEdges(mlMesh.topology, null, null);
         bool isClosed = bdEdges.count() == 0;
 
         if (isClosed)
@@ -194,14 +194,16 @@ public sealed class GeometryEngine : IGeometryEngine, IGeometryEvaluators
             return GeometryErrors.InvalidMeshType;
 
         var mlMesh = mrMesh.Mesh;
-        int activeVerts = (int)mlMesh.topology.getValidVerts().count();
-        int activeFaces = (int)mlMesh.topology.getValidFaces().count();
+        using var validVerts = mlMesh.topology.getValidVerts();
+        using var validFaces = mlMesh.topology.getValidFaces();
+        
+        int activeVerts = (int)validVerts.count();
+        int activeFaces = (int)validFaces.count();
 
         var vertices = new double[activeVerts * 3];
         var triangles = new int[activeFaces * 3];
         var normals = new double[activeVerts * 3];
 
-        var validVerts = mlMesh.topology.getValidVerts();
         var pts = mlMesh.points.vec;
         ulong ptsCount = pts.size();
 
@@ -223,7 +225,7 @@ public sealed class GeometryEngine : IGeometryEngine, IGeometryEvaluators
         }
 
         // Calculate vertex normals
-        var normalsVec = MR.computePerVertNormals(mlMesh);
+        using var normalsVec = MR.computePerVertNormals(mlMesh);
         int nIndex = 0;
         for (ulong i = 0; i < ptsCount; i++)
         {
@@ -237,7 +239,6 @@ public sealed class GeometryEngine : IGeometryEngine, IGeometryEvaluators
             }
         }
 
-        var validFaces = mlMesh.topology.getValidFaces();
         ulong faceCap = mlMesh.topology.faceCapacity();
         int tIndex = 0;
         for (ulong i = 0; i < faceCap; i++)
@@ -268,17 +269,17 @@ public sealed class GeometryEngine : IGeometryEngine, IGeometryEvaluators
         var currentMesh = currentMR.Mesh;
         var originalMesh = originalMR.Mesh;
 
-        int activeVerts = (int)currentMesh.topology.getValidVerts().count();
+        using var validVerts = currentMesh.topology.getValidVerts();
+        int activeVerts = (int)validVerts.count();
         var colors = new double[activeVerts * 3];
 
-        var validVerts = currentMesh.topology.getValidVerts();
         var pts = currentMesh.points.vec;
         ulong ptsCount = pts.size();
 
         double scale = Math.Max(maxDeviation, 0.001);
         int colorIndex = 0;
 
-        var originalPart = new MR.MeshPart(originalMesh);
+        using var originalPart = new MR.MeshPart(originalMesh);
 
         for (ulong i = 0; i < ptsCount; i++)
         {
@@ -287,8 +288,8 @@ public sealed class GeometryEngine : IGeometryEngine, IGeometryEvaluators
             {
                 var pt = pts[i];
                 var ptRef = pt;
-                var distResultOpt = MR.findSignedDistance(in ptRef, originalPart, null, null);
-                var distResult = distResultOpt.value();
+                using var distResultOpt = MR.findSignedDistance(in ptRef, originalPart, null, null);
+                using var distResult = distResultOpt.value();
                 double d = distResult.dist;
                 bool inside = d < 0;
                 double t = Math.Min(Math.Abs(d) / scale, 1.0);

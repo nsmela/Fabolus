@@ -21,15 +21,28 @@ internal sealed class MRMesh : IMesh
 
     public bool IsEmpty => throw new NotImplementedException();
 
-    internal MRMesh(MR.Mesh mesh, MeshMetadata metadata, IMesh? originalMesh = null)
+    private readonly bool _ownsNativeMesh;
+    private bool _disposed;
+
+    internal MRMesh(MR.Mesh mesh, MeshMetadata metadata, IMesh? originalMesh = null, bool ownsNativeMesh = true)
     {
         Mesh = mesh ?? throw new ArgumentNullException(nameof(mesh));
         Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
         OriginalMesh = originalMesh;
+        _ownsNativeMesh = ownsNativeMesh;
     }
 
-    public IMesh Clone() => new MRMesh(new MR.Mesh(Mesh), Metadata);
+    public IMesh Clone() => new MRMesh(new MR.Mesh(Mesh), Metadata, ownsNativeMesh: true);
 
-    public IMesh WithMetadata(MeshMetadata metadata) => new MRMesh(Mesh, metadata);
+    public IMesh WithMetadata(MeshMetadata metadata) => new MRMesh(Mesh, metadata, ownsNativeMesh: false);
     
+    public void Dispose()
+    {
+        if (_disposed) return;
+        if (_ownsNativeMesh)
+        {
+            Mesh?.Dispose();
+        }
+        _disposed = true;
+    }
 }

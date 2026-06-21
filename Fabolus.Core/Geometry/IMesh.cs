@@ -5,7 +5,7 @@ namespace Fabolus.Core.Geometry;
 /// <summary>
 /// Represents a 3D mesh in the workspace.
 /// </summary>
-public interface IMesh
+public interface IMesh : IDisposable
 {
     /// <summary>
     /// All metadata associated with this mesh.
