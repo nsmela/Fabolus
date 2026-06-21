@@ -35,7 +35,7 @@ public class GeometryGeneratorsTests
 
         stats.MinX.Should().BeApproximately(center.X - radius, 1e-1);
         stats.MaxX.Should().BeApproximately(center.X + radius, 1e-1);
-        sphere.VertexCount.Should().Be((slices + 1) * slices);
+        sphere.VertexCount.Should().Be(slices * (slices - 1) + 2);
     }
 
     [Theory]
@@ -130,7 +130,7 @@ public class GeometryGeneratorsTests
         mesh.TriangleCount.Should().BeGreaterThan(6); // Should have walls and caps
     }
 
-    [Fact(Skip = "Known bug: g3.DCurve3 throws NRE during convex hull generation")]
+    [Fact]
     public void GetConvexHull_ReturnsOuterBoundary()
     {
         var sphere = _fixture.LoadStl("sphere.stl");

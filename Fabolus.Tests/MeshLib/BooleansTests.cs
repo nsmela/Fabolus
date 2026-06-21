@@ -59,7 +59,7 @@ public class BooleansTests
         intersectStats.Volume.Should().BeLessThanOrEqualTo(statsA.Volume);
         intersectStats.Volume.Should().BeGreaterThan(0); // Overlapping
         
-        intersect.Metadata.Name.Should().Be($"{sphereA.Metadata.Name} Intersect {sphereB.Metadata.Name}");
+        intersect.Metadata.Name.Should().Be($"{sphereA.Metadata.Name} Intersection {sphereB.Metadata.Name}");
     }
 
     [Fact]
@@ -78,6 +78,6 @@ public class BooleansTests
         var subtractStats = _engine.GetStatistics(subtract).Value;
         subtractStats.Volume.Should().BeLessThan(statsA.Volume);
         
-        subtract.Metadata.Name.Should().Be($"{sphereA.Metadata.Name} Subtract {sphereB.Metadata.Name}");
+        subtract.Metadata.Name.Should().Be($"{sphereA.Metadata.Name} DifferenceAB {sphereB.Metadata.Name}");
     }
 }

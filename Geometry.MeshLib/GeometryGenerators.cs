@@ -157,15 +157,21 @@ internal sealed class GeometryGenerators : IGeometryGenerators
 
     public Result<IMesh> GenerateSphere(Vector3 center, double radius, int slices = 16)
     {
-        int stacks = slices;
         if (radius <= 0)
             return GeometryErrors.InvalidRadius;
 
         var vertices = new List<double>();
         var triangles = new List<int>();
 
-        // Generate UV sphere vertices
-        for (int j = 0; j <= stacks; j++)
+        // North pole
+        vertices.Add(center.X);
+        vertices.Add(center.Y + radius);
+        vertices.Add(center.Z);
+
+        int stacks = slices;
+
+        // Rings
+        for (int j = 1; j < stacks; j++)
         {
             double phi = Math.PI * j / stacks;
             float cosPhi = (float)Math.Cos(phi);
@@ -187,24 +193,55 @@ internal sealed class GeometryGenerators : IGeometryGenerators
             }
         }
 
-        // Generate triangles
-        for (int j = 0; j < stacks; j++)
+        // South pole
+        vertices.Add(center.X);
+        vertices.Add(center.Y - radius);
+        vertices.Add(center.Z);
+
+        int southPoleIndex = vertices.Count / 3 - 1;
+
+        // Top cap triangles
+        for (int i = 0; i < slices; i++)
         {
-            int currRow = j * slices;
-            int nextRow = (j + 1) * slices;
+            int nextI = (i + 1) % slices;
+            triangles.Add(0); // North pole
+            triangles.Add(1 + nextI);
+            triangles.Add(1 + i);
+        }
+
+        // Middle rings
+        for (int j = 0; j < stacks - 2; j++)
+        {
+            int currRowStart = 1 + j * slices;
+            int nextRowStart = 1 + (j + 1) * slices;
 
             for (int i = 0; i < slices; i++)
             {
                 int nextI = (i + 1) % slices;
 
-                triangles.Add(currRow + i);
-                triangles.Add(currRow + nextI);
-                triangles.Add(nextRow + i);
+                int v1 = currRowStart + i;
+                int v2 = currRowStart + nextI;
+                int v3 = nextRowStart + i;
+                int v4 = nextRowStart + nextI;
 
-                triangles.Add(currRow + nextI);
-                triangles.Add(nextRow + nextI);
-                triangles.Add(nextRow + i);
+                triangles.Add(v1);
+                triangles.Add(v2);
+                triangles.Add(v3);
+
+                triangles.Add(v2);
+                triangles.Add(v4);
+                triangles.Add(v3);
             }
+        }
+
+        // Bottom cap triangles
+        int lastRowStart = 1 + (stacks - 2) * slices;
+        for (int i = 0; i < slices; i++)
+        {
+            int nextI = (i + 1) % slices;
+            triangles.Add(southPoleIndex); // South pole
+            triangles.Add(lastRowStart + i);
+            triangles.Add(lastRowStart + nextI);
         }
 
         return _engine.CreateMesh(
@@ -537,27 +574,40 @@ internal sealed class GeometryGenerators : IGeometryGenerators
         var validVerts = model.topology.getValidVerts();
         var pts = model.points.vec;
 
-        var projectedPoints = new List<g3.Vector2d>();
+        NetTopologySuite.Geometries.GeometryFactory factory = new();
+        var ntsPts = new List<NetTopologySuite.Geometries.Point>();
+
         for (ulong i = 0; i < pts.size(); i++)
         {
             var vid = new MR.VertId((int)i);
             if (validVerts.test(vid))
             {
                 var pt = pts[i];
-                projectedPoints.Add(new g3.Vector2d(pt.x, pt.y));
+                ntsPts.Add(new NetTopologySuite.Geometries.Point(pt.x, pt.y));
             }
         }
 
-        g3.ConvexHull2 hull = new(projectedPoints.ToArray(), projectedPoints.Count, g3.QueryNumberType.QT_DOUBLE);
-        g3.Polygon2d hullPolygon = hull.GetHullPolygon();
+        var multiPoint = factory.CreateMultiPoint(ntsPts.ToArray());
+        var hull = new NetTopologySuite.Algorithm.ConvexHull(multiPoint);
+        var result = hull.GetConvexHull();
 
-        var resampled = Resample(hullPolygon);
+        if (result is null || result.IsEmpty) {
+            return new Error("Geometry.HullFailed", "Failed to compute convex hull.");
+        }
+
+        var verts = result.Coordinates.Select(c => new Vector2((float)c.X, (float)c.Y)).ToList();
+        if (verts.Count > 1 && verts[0] == verts[^1])
+            verts.RemoveAt(verts.Count - 1);
+
+        var polygon2d = new g3.Polygon2d(verts.Select(v => new g3.Vector2d(v.X, v.Y)));
+        var resampled = Resample(polygon2d);
 
         return new Polygon2D { OuterBoundary = resampled.Vertices.Select(v => new Vector2((float)v.x, (float)v.y)).ToList() };
     }
 
     private static g3.Polygon2d Resample(g3.Polygon2d polygon) {
-        g3.DCurve3 hullCurve = new(polygon, 0, 1);
+        var pts3d = polygon.Vertices.Select(v => new g3.Vector3d(v.x, v.y, 0)).ToList();
+        g3.DCurve3 hullCurve = new(pts3d, true);
         g3.CurveResampler resampler = new();
         for (int i = 0; i < 4; i++) {
             List<g3.Vector3d> newPoints = resampler.SplitCollapseResample(hullCurve, 4.0f, 1.0f);
