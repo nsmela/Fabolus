@@ -6,7 +6,7 @@ using IMesh = Fabolus.Core.Geometry.IMesh;
 
 namespace GeometryMeshLib;
 
-public sealed class GeometryEngine : IGeometryEngine
+public sealed class GeometryEngine : IGeometryEngine, IGeometryEvaluators
 {
     public IGeometryIO IO { get; }
     public IGeometryTransforms Transforms { get; }
@@ -14,7 +14,7 @@ public sealed class GeometryEngine : IGeometryEngine
     public IGeometryModifiers Modifiers { get; }
     public IGeometryGenerators Generators { get; }
 
-    public IGeometryEvaluators Evaluators => throw new NotImplementedException();
+    public IGeometryEvaluators Evaluators => this;
 
     public GeometryEngine(IFileSystem fileSystem)
     {

@@ -6,7 +6,7 @@ namespace GeometryMeshLib;
 /// Centralized error registry for the MRGeometryEngine layer.
 /// Covers mesh-type mismatches, invalid geometry data, and operation pre-condition failures.
 /// </summary>
-internal static class GeometryErrors
+public static class GeometryErrors
 {
     // ===== TYPE GUARD =====
     public static readonly Error InvalidMeshType =

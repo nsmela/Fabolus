@@ -32,7 +32,7 @@ public sealed class TransformMesh {
 
         var updatedMetadata = transformedMesh.Metadata.WithTransformRecord($"Translated by (X: {deltaX:F2}, Y: {deltaY:F2}, Z: {deltaZ:F2})");
 
-        return workspace.UpdateMesh(transformedMesh.WithMetadata(updatedMetadata));
+        return currentWorkspace.UpdateMesh(transformedMesh.WithMetadata(updatedMetadata));
     }
 
     public Result<Workspace> Rotate(Workspace workspace, Guid meshId, double angleRadians, RotationAxis axis) {
@@ -64,9 +64,9 @@ public sealed class TransformMesh {
 
         double angleDegrees = angleRadians * (180.0 / Math.PI);
         var updatedMetadata = transformedMesh.Metadata.WithTransformRecord(
-            $"Rotated {angleDegrees:F1}° on {axis} axis");
+            $"Rotated {angleDegrees:F1} degrees on {axis} axis");
 
-        return workspace.UpdateMesh(transformedMesh.WithMetadata(updatedMetadata));
+        return currentWorkspace.UpdateMesh(transformedMesh.WithMetadata(updatedMetadata));
     }
 
     public Result<Workspace> Scale(Workspace workspace, Guid meshId, double scaleFactor) {
@@ -87,7 +87,7 @@ public sealed class TransformMesh {
         var updatedMetadata = transformedMesh.Metadata.WithTransformRecord(
                     $"Scaled by {scaleFactor:F2}x");
 
-        return workspace.UpdateMesh(transformedMesh.WithMetadata(updatedMetadata));
+        return currentWorkspace.UpdateMesh(transformedMesh.WithMetadata(updatedMetadata));
     }
 
     /// <summary>
@@ -164,4 +164,4 @@ public sealed class TransformMesh {
         var updatedWorkspace = updateResult.Value;
         return Result.Success((updatedWorkspace, workingMesh));
     }
-}
+}
