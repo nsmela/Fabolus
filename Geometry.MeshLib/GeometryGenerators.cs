@@ -149,10 +149,7 @@ internal sealed class GeometryGenerators : IGeometryGenerators
              .Set(CoreKeys.Name, "Generated Tube")
              .Set(CoreKeys.CreatedBy, $"GenerateTube(segments={parameters.Segments}, points={parameters.Path.Count})"));
 
-        return _engine.CreateMesh(mesh as MRMesh is not null
-                ? ((MRMesh)mesh).Mesh
-                : throw new InvalidOperationException("Expected Mesh from engine."),
-            metadata);
+        return Result.Success(mesh.WithMetadata(metadata));
     }
 
     public Result<IMesh> GenerateSphere(Vector3 center, double radius, int slices = 16)
@@ -317,10 +314,10 @@ internal sealed class GeometryGenerators : IGeometryGenerators
             return new Error("Geometry.OffsetFailed", "Failed to generate offset polygon.");
 
         // 3. Triangulate the 2D polygon(s) using MeshLib PlanarTriangulation
-        var contours = new MR.Std.Vector_StdVectorMRVector2f();
+        using var contours = new MR.Std.Vector_StdVectorMRVector2f();
         foreach (var path in solution)
         {
-            var contour = new MR.Std.Vector_MRVector2f();
+            using var contour = new MR.Std.Vector_MRVector2f();
             foreach (var pt in path)
             {
                 contour.pushBack(new MR.Vector2f((float)(pt.X / scale), (float)(pt.Y / scale)));
@@ -336,19 +333,20 @@ internal sealed class GeometryGenerators : IGeometryGenerators
         // 4. Extrude the 2D mesh vertically with contoured Z
         var penetration = parameters.ZMin; // Used as depth
         var flatTopZ = parameters.ZMax;      // Used as absolute top Z
-
         ulong ptsCount = polyMesh.points.vec.size();
         var bottomMap = new int[ptsCount];
         var topMap = new int[ptsCount];
 
-        MR.ObjectMesh? spatial = null;
-        if (parameters.TargetMesh is MRMesh mrTargetMesh && mrTargetMesh.Mesh is not null)
+        var mrTargetMesh = parameters.TargetMesh as MRMesh;
+        using var spatial = (mrTargetMesh is not null && mrTargetMesh.Mesh is not null) ? new MR.ObjectMesh() : null;
+        using var sharedPtr = (mrTargetMesh is not null && mrTargetMesh.Mesh is not null) ? new MR.Std.SharedPtr_MRMesh(mrTargetMesh.Mesh) : null;
+        if (spatial != null)
         {
-            spatial = new MR.ObjectMesh();
-            spatial.setMesh(new MR.Std.SharedPtr_MRMesh(mrTargetMesh.Mesh));
+            spatial.setMesh(sharedPtr);
         }
 
-        var polyVerts = polyMesh.topology.getValidVerts();
+        using var validVerts = polyMesh.topology.getValidVerts();
+        var polyVerts = validVerts;
         var polyPts = polyMesh.points.vec;
 
         var vertices = new List<double>();
@@ -366,9 +364,9 @@ internal sealed class GeometryGenerators : IGeometryGenerators
             {
                 var origin = new MR.Vector3f(v.x, v.y, z + 1000.0f);
                 var dir = new MR.Vector3f(0, 0, -1);
-                var ray = new MR.Line3f(origin, dir);
+                using var ray = new MR.Line3f(origin, dir);
                 
-                var hitResult = spatial.worldRayIntersection(ray, null);
+                using var hitResult = spatial.worldRayIntersection(ray, null);
                 if (hitResult is not null)
                 {
                     z = origin.z + hitResult.distanceAlongLine * dir.z;
@@ -391,8 +389,9 @@ internal sealed class GeometryGenerators : IGeometryGenerators
             vertices.Add(topZ);
             topMap[i] = topIdx;
         }
-
-        var polyFaces = polyMesh.topology.getValidFaces();
+        
+        using var validFaces = polyMesh.topology.getValidFaces();
+        var polyFaces = validFaces;
         ulong faceCap = polyMesh.topology.faceCapacity();
         
         var edgeCounts = new Dictionary<(int, int), int>();
@@ -457,10 +456,8 @@ internal sealed class GeometryGenerators : IGeometryGenerators
              .Set(CoreKeys.Name, "Painted Air Channel")
              .Set(CoreKeys.CreatedBy, $"GenerateExtrudedPath(radius={parameters.Radius}, points={parameters.Path.Count})"));
 
-        return _engine.CreateMesh(mesh as MRMesh is not null
-            ? ((MRMesh)mesh).Mesh
-            : throw new InvalidOperationException("Expected Mesh from engine."),
-            metadata);
+
+        return Result.Success(mesh.WithMetadata(metadata));
     }
     
     private static void AddEdgeCount(Dictionary<(int, int), int> edgeCounts, int a, int b) =>
@@ -646,8 +643,8 @@ internal sealed class GeometryGenerators : IGeometryGenerators
 
     public Result<IMesh> ExtrudePolygon(Polygon2D polygon, float zMin, float zMax)
     {
-        var contours = new MR.Std.Vector_StdVectorMRVector2f();
-        var contour = new MR.Std.Vector_MRVector2f();
+        using var contours = new MR.Std.Vector_StdVectorMRVector2f();
+        using var contour = new MR.Std.Vector_MRVector2f();
         foreach (var pt in polygon.OuterBoundary)
         {
             contour.pushBack(new MR.Vector2f(pt.X, pt.Y));
@@ -752,9 +749,6 @@ internal sealed class GeometryGenerators : IGeometryGenerators
              .Set(CoreKeys.Name, "Extruded Mould")
              .Set(CoreKeys.CreatedBy, "ExtrudePolygon"));
 
-        return _engine.CreateMesh(finalMesh as MRMesh is not null
-            ? ((MRMesh)finalMesh).Mesh
-            : throw new InvalidOperationException("Expected Mesh from engine."),
-            metadata);
+        return Result.Success(finalMesh.WithMetadata(metadata));
     }
 }

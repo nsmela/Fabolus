@@ -38,7 +38,11 @@ internal sealed class GeometryTransforms : IGeometryTransforms
             }
         }
 
-        return new MRMesh(clone, source.Metadata, transformedOriginal);
+        var newMetadata = source.Metadata.WithProperties(m =>
+            m.Set(CoreKeys.Name, $"Translated ({source.Metadata.Name})")
+             .Set(CoreKeys.CreatedBy, $"Translate({deltaX}, {deltaY}, {deltaZ})"));
+
+        return new MRMesh(clone, newMetadata, transformedOriginal);
     }
 
     public Result<IMesh> Scale(IMesh source, double scaleFactor) =>
@@ -72,7 +76,11 @@ internal sealed class GeometryTransforms : IGeometryTransforms
             }
         }
 
-        return new MRMesh(clone, source.Metadata, transformedOriginal);
+        var newMetadata = source.Metadata.WithProperties(m =>
+            m.Set(CoreKeys.Name, $"Scaled ({source.Metadata.Name})")
+             .Set(CoreKeys.CreatedBy, $"Scale({scaleX}, {scaleY}, {scaleZ})"));
+
+        return new MRMesh(clone, newMetadata, transformedOriginal);
     }
 
     public Result<IMesh> Rotate(IMesh source, double angleRadians, double axisX, double axisY, double axisZ)
@@ -161,7 +169,12 @@ internal sealed class GeometryTransforms : IGeometryTransforms
             }
         }
 
-        return new MRMesh(clone, source.Metadata, transformedOriginal);
+        var newMetadata = source.Metadata.WithProperties(m =>
+            m.Set(CoreKeys.Name, $"Rotated ({source.Metadata.Name})")
+             .Set(CoreKeys.CreatedBy, $"Rotate({angleRadians}rad)")
+             .Set(CoreKeys.Rotation, rotationMetadata));
+
+        return new MRMesh(clone, newMetadata, transformedOriginal);
     }
 
 }

@@ -92,7 +92,11 @@ public sealed class Workspace
             return WorkspaceErrors.MeshNotFound(meshId);
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
-        newMeshes.Remove(meshId);
+        if (newMeshes.TryGetValue(meshId, out var existingMesh))
+        {
+            existingMesh.Dispose();
+            newMeshes.Remove(meshId);
+        }
 
         var newActiveMeshId = meshId == ActiveMeshId ? Guid.Empty : ActiveMeshId;
         return new Workspace(newMeshes, newActiveMeshId, Metadata);
@@ -110,7 +114,12 @@ public sealed class Workspace
         if (!_meshes.ContainsKey(meshId))
             return WorkspaceErrors.MeshNotFound(updatedMesh.Metadata.Name);
 
-        var newMeshes = new Dictionary<Guid, IMesh>(_meshes) { [meshId] = updatedMesh };
+        var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
+        if (newMeshes.TryGetValue(meshId, out var existingMesh))
+        {
+            existingMesh.Dispose();
+        }
+        newMeshes[meshId] = updatedMesh;
         return new Workspace(newMeshes, ActiveMeshId, Metadata);
     }
 

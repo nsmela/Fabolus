@@ -80,4 +80,26 @@ public class BooleansTests
         
         subtract.Metadata.Name.Should().Be($"{sphereA.Metadata.Name} DifferenceAB {sphereB.Metadata.Name}");
     }
+
+    [Fact]
+    public void Union_ResultMeshIsIndependentOfResultWrapper()
+    {
+        var sphereA = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
+        var sphereB = _fixture.Engine.Generators.GenerateSphere(new Vector3(5, 0, 0), 10).Value;
+
+        var union = _fixture.Engine.Booleans.Union(sphereA, sphereB).Value;
+
+        // Force GC to collect the BooleanResult native wrapper that might be hanging around
+        // if Booleans.cs doesn't keep it alive or if we just want to ensure our result mesh
+        // isn't dependent on it.
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        // If the native mesh was destroyed when BooleanResult finalized, GetStatistics will crash
+        // or return garbage.
+        var stats = _engine.GetStatistics(union);
+        stats.IsSuccess.Should().BeTrue();
+        stats.Value.Volume.Should().BeGreaterThan(0);
+    }
 }
