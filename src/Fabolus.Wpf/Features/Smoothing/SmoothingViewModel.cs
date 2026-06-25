@@ -1,0 +1,172 @@
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.Features.MeshIO;
+using Fabolus.Core.Features.Smoothing;
+using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
+using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.Main;
+using Fabolus.Wpf.Features.Viewport;
+
+namespace Fabolus.Wpf.Features.Smoothing;
+
+public partial class SmoothingViewModel : ObservableObject, IViewState {
+    
+    private readonly IMessenger _messenger;
+    private readonly IAlertDialog _alert;
+    private readonly IGeometryEngine _engine;
+    private readonly SmoothingSceneManager _sceneManager;
+
+    private readonly ResetSmoothing _resetFeature;
+    private readonly SmoothMesh _smoothFeature;
+
+    private Workspace Workspace { get; set; }
+    private Guid ActiveMeshId { get; set; }
+
+    [ObservableProperty] private int _iterations = 1;
+    [ObservableProperty] private float _intensity = 1.5f;
+    [ObservableProperty] private float _inflation = 0.2f;
+    [ObservableProperty] private float _remeshRatio = 1.0f;
+    [ObservableProperty] private float _resolution = 1.0f;
+    [ObservableProperty] private double _heatmapSensitivity = 1.0;
+    [ObservableProperty] private bool _hasActiveMesh;
+    [ObservableProperty] private bool _isSmoothed;
+    [ObservableProperty] private string _applyButtonText = "Apply Smoothing";
+    [ObservableProperty] private bool _showHeatmap;
+    [ObservableProperty] private bool _showGhost;
+    [ObservableProperty] private bool _showComparisonSlider;
+    [ObservableProperty] private double _comparisonFactor = 0.5;
+
+    partial void OnShowHeatmapChanged(bool value) => UpdateViewport();
+    partial void OnHeatmapSensitivityChanged(double value) => UpdateViewport();
+    partial void OnShowGhostChanged(bool value) => UpdateViewport();
+    partial void OnShowComparisonSliderChanged(bool value) => UpdateViewport();
+    partial void OnComparisonFactorChanged(double value) => UpdateViewport();
+
+    public SmoothingViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine) {
+        _messenger = messenger;
+        _alert = alert;
+        _engine = engine;
+
+        _resetFeature = new ResetSmoothing(_engine);
+        _sceneManager = new SmoothingSceneManager(engine);
+        _smoothFeature = new SmoothMesh(engine);
+    }
+
+    public SmoothingViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryMeshLib.GeometryEngine(new FileSystem())) { }
+
+    public ISceneManager SceneManager => _sceneManager;
+
+    public void Activate(Workspace workspace) {
+        UpdateWorkspace(workspace);
+
+        var activeMeshResult = Workspace.GetActiveMesh();
+        if (activeMeshResult.IsSuccess) {
+
+            var settingsResult = activeMeshResult.Value.Metadata.GetSmoothing();
+
+            var settings = settingsResult.HasValue
+                ? settingsResult.Value
+                : new SmoothSettings();
+
+            UpdateSettings(settings);
+
+        }
+    }
+
+    public Workspace Deactivate() => Workspace;
+
+    private void UpdateSettings(SmoothSettings settings) {
+        Iterations = settings.Iterations;
+        Inflation = settings.Inflation;
+        Intensity = settings.Intensity;
+        RemeshRatio = settings.RemeshRatio;
+        Resolution = settings.Resolution;
+    }
+
+    private void UpdateViewport() {
+
+        _sceneManager.UpdateWorkspace(Workspace);
+    }
+
+    private void UpdateWorkspace(Workspace workspace) {
+        Workspace = workspace;
+
+        var meshResult = Workspace.GetActiveMesh();
+        if (meshResult.IsFailure) return;
+        var mesh = meshResult.Value;
+
+        double[]? heatmapColors = null;
+        if (ShowHeatmap && mesh.OriginalMesh != null) {
+            var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, mesh.OriginalMesh, HeatmapSensitivity);
+            if (colorResult.IsSuccess) {
+                heatmapColors = colorResult.Value;
+            }
+        }
+
+        PublishInfo(mesh);
+        UpdateViewport();
+    }
+
+    private void PublishInfo(IMesh activeMesh) {
+        var items = new List<MeshInfoItem>();
+
+        var originalResult = activeMesh.Metadata.DerivedFrom;
+        if (originalResult.HasValue) {
+            var originalMesh = Workspace.GetMesh(originalResult.Value).Value;
+            var originalStats = _engine.Evaluators.GetStatistics(originalMesh).Value;
+            items.Add(new TitleInfoItem { Label = "Original Mesh" });
+            items.Add(new TextInfoItem { Label = "Volume", Value = $"{originalStats.Volume:N2} mL" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(originalStats.SurfaceArea/100):N2} mm²" });
+            items.Add(new TextInfoItem { Label = "Triangles", Value = originalStats.TriangleCount.ToString("N0") });
+        }
+
+        var settingsResult = activeMesh.Metadata.GetSmoothing();
+        if (settingsResult.HasValue) 
+        {
+            var stats = activeMesh.Metadata.MeshStats().Value;
+            items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
+            items.Add(new TextInfoItem { Label = "Volume", Value = $"{stats.Volume:N2} mL" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(stats.SurfaceArea / 100):N2} mm²" });
+            items.Add(new TextInfoItem { Label = "Triangles", Value = stats.TriangleCount.ToString("N0") });
+        }
+
+        _messenger.Send(new UpdateMeshInfoMessage(items));
+    }
+
+    [RelayCommand]
+    public void ApplySmoothing() {
+        var settings = new SmoothSettings(
+            Iterations,
+            Intensity,
+            Inflation,
+            RemeshRatio,
+            Resolution);
+
+        var result = _smoothFeature.Execute(Workspace, settings);
+        if (result.IsFailure) {
+            _alert.ShowError(result.Error.Description);
+            return;
+        }
+       
+        UpdateWorkspace(result.Value);
+    }
+
+    [RelayCommand]
+    public void ResetSmoothing() {
+        var result = _resetFeature.Execute(Workspace);
+        if (result.IsFailure) {
+            _alert.ShowError(result.Error.Description);
+            return;
+        }
+
+        UpdateWorkspace(result.Value);
+    }
+}
+
+public enum ViewModes {
+    None,
+    DistanceHeatMap,
+    Contouring
+}
