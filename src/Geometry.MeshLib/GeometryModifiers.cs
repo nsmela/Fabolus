@@ -1,5 +1,6 @@
 using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 
 namespace GeometryMeshLib;
 
@@ -18,15 +19,20 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
         try
         {
-            var model = new MR.Mesh(mrMesh.Mesh); // Deep copy
-            MR.MeshPart mp = new(model);
-            MR.OffsetParameters parms = new()
+            using var model = new MR.Mesh(mrMesh.Mesh); // Deep copy
+            using var mp = new MR.MeshPart(model);
+            using var parms = new MR.OffsetParameters()
             {
                 voxelSize = cellSize > 0 ? cellSize : MR.suggestVoxelSize(mp, 1e6f),
             };
 
             var result = MR.offsetMesh(mp, offsetDistance, parms);
-            return _engine.CreateMesh(result, input.Metadata, input.OriginalMesh ?? input);
+            
+            var newMetadata = input.Metadata.WithProperties(m =>
+                m.Set(CoreKeys.Name, $"Offset ({input.Metadata.Name})")
+                 .Set(CoreKeys.CreatedBy, $"Offset({offsetDistance})"));
+
+            return _engine.CreateMesh(result, newMetadata, input.OriginalMesh ?? input);
         }
         catch (Exception ex)
         {
@@ -36,26 +42,36 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
     public Result<IMesh> OffsetDouble(IMesh input, float offsetDistance, int iterations = 1, float cellSize = 0.0f)
     {
+        if (iterations < 1) return Result.Success(input);
         if (input is not MRMesh mrMesh) return GeometryErrors.InvalidMeshType;
 
         try
         {
-            var model = new MR.Mesh(mrMesh.Mesh); // Deep copy
-            MR.MeshPart mp = new(model);
-            MR.OffsetParameters parms = new()
-            {
-                voxelSize = cellSize > 0 ? cellSize : MR.suggestVoxelSize(mp, 1e6f),
-            };
-
-            var resultMesh = model;
+            var currentMesh = new MR.Mesh(mrMesh.Mesh); // Deep copy
+            
             for (int i = 0; i < iterations; i++)
             {
-                resultMesh = MR.doubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
-                if (resultMesh.points.vec.size() == 0) break;
-                mp = new MR.MeshPart(resultMesh);
+                using var mp = new MR.MeshPart(currentMesh);
+                using var parms = new MR.OffsetParameters()
+                {
+                    voxelSize = cellSize > 0 ? cellSize : MR.suggestVoxelSize(mp, 1e6f),
+                };
+
+                var nextMesh = MR.doubleOffsetMesh(mp, offsetDistance, -offsetDistance, parms);
+                if (nextMesh.points.vec.size() == 0) 
+                {
+                    nextMesh.Dispose();
+                    break;
+                }
+                currentMesh.Dispose();
+                currentMesh = nextMesh;
             }
 
-            return _engine.CreateMesh(resultMesh, input.Metadata, input.OriginalMesh ?? input);
+            var newMetadata = input.Metadata.WithProperties(m =>
+                m.Set(CoreKeys.Name, $"DoubleOffset ({input.Metadata.Name})")
+                 .Set(CoreKeys.CreatedBy, $"OffsetDouble({offsetDistance}, {iterations})"));
+
+            return _engine.CreateMesh(currentMesh, newMetadata, input.OriginalMesh ?? input);
         }
         catch (Exception ex)
         {
@@ -72,16 +88,23 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var clone = new MR.Mesh(mrMesh.Mesh);
             int currentTriangles = (int)clone.topology.getValidFaces().count();
             if (currentTriangles <= targetTriangleCount)
+            {
+                clone.Dispose();
                 return Result.Success(mesh);
+            }
 
             int toDelete = currentTriangles - targetTriangleCount;
 
-            var settings = new MR.DecimateSettings();
+            using var settings = new MR.DecimateSettings();
             settings.maxDeletedFaces = toDelete;
 
             MR.decimateMesh(clone, settings);
 
-            return _engine.CreateMesh(clone, mrMesh.Metadata, mrMesh.OriginalMesh ?? mrMesh);
+            var newMetadata = mrMesh.Metadata.WithProperties(m =>
+                m.Set(CoreKeys.Name, $"Resized ({mrMesh.Metadata.Name})")
+                 .Set(CoreKeys.CreatedBy, $"Resize({targetTriangleCount})"));
+
+            return _engine.CreateMesh(clone, newMetadata, mrMesh.OriginalMesh ?? mrMesh);
         }
         catch (Exception ex)
         {
@@ -96,10 +119,15 @@ public sealed class GeometryModifiers : IGeometryModifiers
         try
         {
             var mesh = new MR.Mesh(mrMesh.Mesh);
-            MR.fixMeshDegeneracies(mesh, new MR.FixMeshDegeneraciesParams());
+            using var parms = new MR.FixMeshDegeneraciesParams();
+            MR.fixMeshDegeneracies(mesh, parms);
             MR.fixMultipleEdges(mesh);
 
-            return _engine.CreateMesh(mesh, input.Metadata, input.OriginalMesh ?? input);
+            var newMetadata = input.Metadata.WithProperties(m =>
+                m.Set(CoreKeys.Name, $"Repaired ({input.Metadata.Name})")
+                 .Set(CoreKeys.CreatedBy, "Repair"));
+
+            return _engine.CreateMesh(mesh, newMetadata, input.OriginalMesh ?? input);
         }
         catch (Exception ex)
         {
@@ -114,9 +142,14 @@ public sealed class GeometryModifiers : IGeometryModifiers
         try
         {
             var mesh = new MR.Mesh(mrMesh.Mesh);
-            MR.SelfIntersections.fix(mesh, new MR.SelfIntersections.Settings());
+            using var settings = new MR.SelfIntersections.Settings();
+            MR.SelfIntersections.fix(mesh, settings);
 
-            return _engine.CreateMesh(mesh, input.Metadata, input.OriginalMesh ?? input);
+            var newMetadata = input.Metadata.WithProperties(m =>
+                m.Set(CoreKeys.Name, $"Repaired SI ({input.Metadata.Name})")
+                 .Set(CoreKeys.CreatedBy, "RepairSelfIntersections"));
+
+            return _engine.CreateMesh(mesh, newMetadata, input.OriginalMesh ?? input);
         }
         catch (Exception ex)
         {

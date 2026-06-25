@@ -164,4 +164,4 @@ public sealed class TransformMesh {
         var updatedWorkspace = updateResult.Value;
         return Result.Success((updatedWorkspace, workingMesh));
     }
-}
+}

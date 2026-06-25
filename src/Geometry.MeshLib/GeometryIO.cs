@@ -34,6 +34,8 @@ internal sealed class GeometryIO : IGeometryIO
             if (loadedMesh is null)
                 return IOErrors.NoMeshData;
 
+            loadedMesh.pack();
+
             var metadata = MeshMetadata.FromFileName(filePath);
             var mrMesh = new MRMesh(loadedMesh, metadata);
 
@@ -65,7 +67,23 @@ internal sealed class GeometryIO : IGeometryIO
             if (!string.IsNullOrEmpty(directory) && !_fileSystem.DirectoryExists(directory))
                 _fileSystem.CreateDirectory(directory);
 
-            MR.MeshSave.toAnySupportedFormat(mrMesh.Mesh, filePath, null);
+            // Use a temporary file to leverage MeshLib's native exporters
+            // while still enforcing the IFileSystem abstraction for the final destination.
+            string tempFile = Path.GetTempFileName() + Path.GetExtension(filePath);
+            try
+            {
+                MR.MeshSave.toAnySupportedFormat(mrMesh.Mesh, tempFile, null);
+                var bytes = File.ReadAllBytes(tempFile);
+                _fileSystem.WriteAllBytes(filePath, bytes);
+            }
+            finally
+            {
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
+
             return Result.Success();
         }
         catch (UnauthorizedAccessException ex)
