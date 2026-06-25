@@ -11,6 +11,23 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4C284DE2-9423-45B8-9D8B-D4B1EF4DDB6E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{4A098B28-0A50-4C47-B04A-4B6FD9E93902}"
+	ProjectSection(SolutionItems) = preProject
+		files\chin_bolus.stl = files\chin_bolus.stl
+		files\ear_bolus.stl = files\ear_bolus.stl
+		files\ear_bolus_smoothed.stl = files\ear_bolus_smoothed.stl
+		files\eye_bolus.stl = files\eye_bolus.stl
+		files\larynx small.stl = files\larynx small.stl
+		files\larynx_bolus.stl = files\larynx_bolus.stl
+		files\mould_test.stl = files\mould_test.stl
+		files\nose_bolus.stl = files\nose_bolus.stl
+		files\scalp_bolus.stl = files\scalp_bolus.stl
+		files\scalp_mould.stl = files\scalp_mould.stl
+		files\small test.stl = files\small test.stl
+		files\sphere.stl = files\sphere.stl
+		files\test bolus 107mL.stl = files\test bolus 107mL.stl
+		files\test bolus 7mm.stl = files\test bolus 7mm.stl
+		files\test_smoothed_bolus.stl = files\test_smoothed_bolus.stl
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus.Core", "src\Fabolus.Core\Fabolus.Core.csproj", "{0DFCD2FD-52E4-4BF9-879C-70493FD982BC}"
 EndProject

@@ -1,5 +1,4 @@
 using Fabolus.Core.Common;
-using System.Collections.ObjectModel;
 
 namespace Fabolus.Core.Geometry;
 
@@ -129,8 +128,11 @@ public sealed class Workspace
     /// </summary>
     public Result<Workspace> SetActiveMesh(Guid? meshId)
     {
-        if (meshId is null || !_meshes.ContainsKey(meshId.Value))
-            return WorkspaceErrors.CannotSetActive(meshId.Value);
+        if (meshId is null || meshId == Guid.Empty) 
+            return new Workspace(_meshes, null, Metadata);
+
+        if (!_meshes.ContainsKey(meshId.Value))
+            return WorkspaceErrors.MeshNotFound(meshId.Value);
 
         return new Workspace(_meshes, meshId, Metadata);
     }

@@ -28,6 +28,8 @@ public class WorkspaceTests
 
         public IMesh Clone() => new MockMesh(Metadata);
         public IMesh WithMetadata(MeshMetadata metadata) => new MockMesh(metadata);
+
+        public void Dispose() { }
     }
 
     [Fact]
