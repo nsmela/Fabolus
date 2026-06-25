@@ -114,6 +114,22 @@
                         VerticalAlignment="Center" />
             </StackPanel>
 
+            <!-- RemeshRatio -->
+            <StackPanel Grid.Row="3" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,4">
+                    <TextBlock Text="Triangle Ratio" Style="{StaticResource FieldLabel}"
+                               HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding RemeshRatio, StringFormat={}{0:F1}x }"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" />
+                </Grid>
+                <Slider Minimum="0.5" Maximum="10.0"
+                        Value="{Binding RemeshRatio, Mode=TwoWay}"
+                        Ticks="0.5 1.0 2.0 3.0 4.0 5.0"
+                        IsSnapToTickEnabled="True"
+                        VerticalAlignment="Center" />
+            </StackPanel>
+            
             <!-- Smoothness -->
             <StackPanel Grid.Row="3" Margin="0,0,0,18">
                 <Grid Margin="0,0,0,4">
