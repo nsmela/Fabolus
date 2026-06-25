@@ -1,5 +1,6 @@
 using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 
 namespace GeometryMeshLib;
 
