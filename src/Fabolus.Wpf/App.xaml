@@ -1,0 +1,35 @@
+﻿<Application x:Class="Fabolus.Wpf.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Fabolus.Wpf"
+             xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- MahApps.Metro resource dictionaries. Make sure that all file names are Case Sensitive! -->
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml" />
+                <!-- Theme setting -->
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Themes/Light.Blue.xaml" />
+                <!-- Custome Themes -->
+                <ResourceDictionary Source="Themes\AxisRotationSliderTheme.xaml" />
+                <ResourceDictionary Source="Themes\Buttons.xaml" />
+                <ResourceDictionary Source="Themes\Colours.xaml" />
+                <ResourceDictionary Source="Themes\Controls.xaml" />
+                <ResourceDictionary Source="Themes\SteelSlider.xaml" />
+
+                <!-- Overrides -->
+                <ResourceDictionary Source="Themes/SteelCyan.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <conv:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
+            <conv:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
+            <conv:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+            <conv:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
+            <conv:GreaterThanZeroToVisibilityConverter x:Key="GreaterThanZeroToVisibilityConverter"/>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

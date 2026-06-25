@@ -1,0 +1,100 @@
+<UserControl x:Class="Fabolus.Wpf.Features.Main.InfoPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.Main"
+             mc:Ignorable="d">
+    <UserControl.Resources>
+        <Style x:Key="InfoCard" TargetType="HeaderedContentControl">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="HeaderedContentControl">
+                        <StackPanel>
+                            <ContentPresenter ContentSource="Header" Margin="0,0,0,10" />
+                            <ContentPresenter />
+                        </StackPanel>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Text.CardHeader" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#5E6B73" />
+        </Style>
+
+        <DataTemplate DataType="{x:Type local:TextInfoItem}">
+            <Grid Margin="0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}" Foreground="#5E6B73" FontSize="13" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Value}" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#1B2227" FontSize="13" VerticalAlignment="Center" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type local:StatusInfoItem}">
+            <Grid Margin="0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Label}" Foreground="#5E6B73" FontSize="13" VerticalAlignment="Center" />
+                <Border Grid.Column="1" CornerRadius="4" Padding="6,2">
+                    <Border.Background>
+                        <SolidColorBrush Color="{Binding Colour}" />
+                    </Border.Background>
+                    <TextBlock Text="{Binding Text}" FontFamily="Consolas" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type local:ProgressInfoItem}">
+            <StackPanel Margin="0,6">
+                <Grid>
+                    <TextBlock Text="{Binding Label}" Foreground="#5E6B73" FontSize="13" />
+                    <TextBlock Text="{Binding Caption}" HorizontalAlignment="Right" Foreground="#5E6B73" FontSize="11" />
+                </Grid>
+                <ProgressBar Margin="0,6,0,0" Height="4" Maximum="{Binding Maximum}" Value="{Binding Value}" BorderThickness="0" Background="#E2E7EA" Foreground="#0CA3B4" />
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type local:TitleInfoItem}">
+            <TextBlock Text="{Binding Label}" Style="{StaticResource Text.CardHeader}"/>
+        </DataTemplate>
+    </UserControl.Resources>
+    
+    <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+        Margin="0,0,16,16" Width="300"
+        Background="#F0FFFFFF"
+        BorderBrush="#99FFFFFF" BorderThickness="1"
+        CornerRadius="9" Padding="14,13">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="Visibility" Value="Visible" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding InfoItems.Count}" Value="0">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding InfoItems}" Value="{x:Null}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Border.Effect>
+            <DropShadowEffect Color="Black" Opacity="0.3"
+                      BlurRadius="24" ShadowDepth="8" Direction="270"/>
+        </Border.Effect>
+
+        <HeaderedContentControl Style="{StaticResource InfoCard}">
+            <HeaderedContentControl.Header>
+                <TextBlock Text="MESH INFO" Style="{StaticResource Text.CardHeader}"/>
+            </HeaderedContentControl.Header>
+            <ItemsControl ItemsSource="{Binding InfoItems}"/>
+        </HeaderedContentControl>
+    </Border>
+</UserControl>

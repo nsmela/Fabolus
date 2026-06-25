@@ -1,0 +1,197 @@
+﻿<UserControl x:Class="Fabolus.Wpf.Features.Smoothing.SmoothingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.Smoothing"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance local:SmoothingViewModel, IsDesignTimeCreatable=True}"
+             d:DesignHeight="486" d:DesignWidth="222"
+             Background="Transparent">
+
+    <UserControl.Resources>
+
+        <!-- Field caption above each control -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+        </Style>
+
+        <!-- One segment of the Display (Solid / Wire / Heat) control. -->
+        <Style x:Key="SegmentButton" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
+            <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="seg" CornerRadius="5" Background="Transparent" Padding="0,6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="seg" Property="Background" Value="{DynamicResource Brush.Card}" />
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                                <Setter TargetName="seg" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="2" ShadowDepth="1" Direction="270"
+                                                          Opacity="0.12" Color="#FF141E28" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
+    <!-- Tool rail shell -->
+    <Border Style="{StaticResource ToolRail}">
+        <StackPanel Orientation="Vertical" Margin="16,18">
+
+            <!-- Section label -->
+            <TextBlock Grid.Row="0" Text="PARAMETERS"
+                       Style="{StaticResource Text.SectionLabel}"
+                       Margin="0,0,0,16" />
+
+            <!-- Intensity -->
+            <StackPanel Grid.Row="2" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,4">
+                    <TextBlock Text="Intensity" Style="{StaticResource FieldLabel}"
+                               HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding Intensity, StringFormat={}{0:0.0} mm}"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" />
+                </Grid>
+                <Slider Minimum="0.0" Maximum="20"
+                        Value="{Binding Intensity, Mode=TwoWay}"
+                        IsSnapToTickEnabled="True" 
+                        Ticks="0.5 1.0 2.0 3.0 4.0 5.0 7.5 10.0 15.0 20.0"
+                        VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Inflation -->
+            <StackPanel Grid.Row="2" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,4">
+                    <TextBlock Text="Inflation" Style="{StaticResource FieldLabel}"
+                               HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding Inflation, StringFormat={}{0:F1} mm}"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" />
+                </Grid>
+                <Slider Minimum="0.0" Maximum="2.0"
+                        Value="{Binding Inflation, Mode=TwoWay}"
+                        IsSnapToTickEnabled="True" TickFrequency="0.1"
+                        SmallChange="0.1" LargeChange="0.2"
+                        VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Iterations -->
+            <StackPanel Grid.Row="2" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,4">
+                    <TextBlock Text="Iterations" Style="{StaticResource FieldLabel}"
+                               HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding Iterations, StringFormat={}x{0}}"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" />
+                </Grid>
+                <Slider Minimum="1" Maximum="12"
+                        Value="{Binding Iterations, Mode=TwoWay}"
+                        IsSnapToTickEnabled="True" TickFrequency="1"
+                        SmallChange="1" LargeChange="2"
+                        VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- RemeshRatio -->
+            <StackPanel Grid.Row="3" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,4">
+                    <TextBlock Text="Triangle Ratio" Style="{StaticResource FieldLabel}"
+                               HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding RemeshRatio, StringFormat={}{0:F1}x }"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" />
+                </Grid>
+                <Slider Minimum="0.5" Maximum="10.0"
+                        Value="{Binding RemeshRatio, Mode=TwoWay}"
+                        Ticks="0.5 1.0 2.0 3.0 4.0 5.0"
+                        IsSnapToTickEnabled="True"
+                        VerticalAlignment="Center" />
+            </StackPanel>
+            
+            <!-- Smoothness -->
+            <StackPanel Grid.Row="3" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,4">
+                    <TextBlock Text="Smoothness" Style="{StaticResource FieldLabel}"
+                               HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding Resolution, StringFormat={}{0:F1} mm voxels}"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" />
+                </Grid>
+                <Slider Minimum="0.5" Maximum="10.0"
+                        Value="{Binding Resolution, Mode=TwoWay}"
+                        SmallChange="0.5" LargeChange="1.0"
+                        IsSnapToTickEnabled="True" TickFrequency="0.5"
+                        VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Display mode -->
+            <StackPanel Grid.Row="5" Margin="0,0,0,18">
+                <TextBlock Text="Display" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
+                <Border Background="#FFE6EAED" CornerRadius="7" Padding="3">
+                    <UniformGrid Columns="3">
+                        <RadioButton Content="Solid" GroupName="DisplayMode"
+                                     Style="{StaticResource SegmentButton}"
+                                     IsChecked="{Binding IsSolidDisplay, Mode=OneWay}"
+                                     Command="{Binding SetDisplayModeCommand}" CommandParameter="Solid" />
+                        <RadioButton Content="Wire" GroupName="DisplayMode"
+                                     Style="{StaticResource SegmentButton}"
+                                     IsChecked="{Binding IsWireDisplay, Mode=OneWay}"
+                                     Command="{Binding SetDisplayModeCommand}" CommandParameter="Wire" />
+                        <RadioButton Content="Heat" GroupName="DisplayMode"
+                                     Style="{StaticResource SegmentButton}"
+                                     IsChecked="{Binding IsHeatDisplay, Mode=OneWay}"
+                                     Command="{Binding SetDisplayModeCommand}" CommandParameter="Heat" />
+                    </UniformGrid>
+                </Border>
+            </StackPanel>
+
+            <!-- Apply Smoothing -->
+            <Button Grid.Row="7"
+                    Command="{Binding ApplySmoothingCommand}"
+                    Style="{StaticResource Button.Primary}"
+                    HorizontalAlignment="Stretch"
+                    Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Viewbox Width="15" Height="15" Margin="0,0,8,0">
+                        <Path Data="M3.5 8.5 L6.5 11.5 L12.5 4.5"
+                              Stroke="{DynamicResource Brush.Text.OnAccent}" StrokeThickness="1.8"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" Fill="{x:Null}" />
+                    </Viewbox>
+                    <TextBlock Text="Apply Smoothing" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+
+            <!-- Reset -->
+            <Button Grid.Row="8"
+                    Command="{Binding ResetSmoothingCommand}"
+                    Content="Reset"
+                    Style="{StaticResource Button.Secondary}"
+                    HorizontalAlignment="Stretch" />
+
+        </StackPanel>
+    </Border>
+
+</UserControl>
