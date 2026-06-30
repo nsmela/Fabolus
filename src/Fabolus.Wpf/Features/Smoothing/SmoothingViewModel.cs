@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.MeshIO;
@@ -29,7 +29,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     [ObservableProperty] private float _inflation = 0.2f;
     [ObservableProperty] private float _remeshRatio = 1.0f;
     [ObservableProperty] private float _resolution = 1.0f;
-    [ObservableProperty] private double _heatmapSensitivity = 1.0;
+    [ObservableProperty] private double _heatmapSensitivity = 0.4;
     [ObservableProperty] private bool _hasActiveMesh;
     [ObservableProperty] private bool _isSmoothed;
     [ObservableProperty] private string _applyButtonText = "Apply Smoothing";
@@ -37,6 +37,8 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     [ObservableProperty] private bool _showGhost;
     [ObservableProperty] private bool _showComparisonSlider;
     [ObservableProperty] private double _comparisonFactor = 0.5;
+
+    [ObservableProperty] private SmoothDisplayMode _displayMode = SmoothDisplayMode.None;
 
     partial void OnShowHeatmapChanged(bool value) => UpdateViewport();
     partial void OnHeatmapSensitivityChanged(double value) => UpdateViewport();
@@ -77,6 +79,11 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
     public Workspace Deactivate() => Workspace;
 
+    partial void OnDisplayModeChanged(SmoothDisplayMode value) {
+        _sceneManager.SetDisplayMode(value);
+        UpdateViewport();
+    }
+
     private void UpdateSettings(SmoothSettings settings) {
         Iterations = settings.Iterations;
         Inflation = settings.Inflation;
@@ -86,8 +93,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     }
 
     private void UpdateViewport() {
-
-        _sceneManager.UpdateWorkspace(Workspace);
+        UpdateWorkspace(Workspace);
     }
 
     private void UpdateWorkspace(Workspace workspace) {
@@ -98,15 +104,25 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         var mesh = meshResult.Value;
 
         double[]? heatmapColors = null;
-        if (ShowHeatmap && mesh.OriginalMesh != null) {
-            var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, mesh.OriginalMesh, HeatmapSensitivity);
-            if (colorResult.IsSuccess) {
-                heatmapColors = colorResult.Value;
+        if (DisplayMode == SmoothDisplayMode.Heatmap) {
+            IMesh? originalMesh = mesh.OriginalMesh;
+            if (originalMesh == null && mesh.Metadata.DerivedFrom.HasValue) {
+                var originalResult = Workspace.GetMesh(mesh.Metadata.DerivedFrom.Value);
+                if (originalResult.IsSuccess) {
+                    originalMesh = originalResult.Value;
+                }
+            }
+
+            if (originalMesh != null) {
+                var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, originalMesh, HeatmapSensitivity);
+                if (colorResult.IsSuccess) {
+                    heatmapColors = colorResult.Value;
+                }
             }
         }
 
         PublishInfo(mesh);
-        UpdateViewport();
+        _sceneManager.UpdateWorkspace(Workspace, heatmapColors);
     }
 
     private void PublishInfo(IMesh activeMesh) {

@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Common;
+using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using GeometryMeshLib;
@@ -201,7 +201,7 @@ public class GeometryEvaluators : IGeometryEvaluators {
         };
     }
 
-    public Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 1.0) {
+    public Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 0.4) {
         if (current is not MRMesh currentMR || original is not MRMesh originalMR)
             return GeometryErrors.InvalidMeshType;
 
@@ -219,6 +219,7 @@ public class GeometryEvaluators : IGeometryEvaluators {
         int colorIndex = 0;
 
         using var originalPart = new MR.MeshPart(originalMesh);
+        var gradient = Fabolus.Core.Features.Overhangs.ColourGradient.SmoothingDeviation;
 
         for (ulong i = 0; i < ptsCount; i++) {
             var vid = new MR.VertId((int)i);
@@ -228,20 +229,14 @@ public class GeometryEvaluators : IGeometryEvaluators {
                 using var distResultOpt = MR.findSignedDistance(in ptRef, originalPart, null, null);
                 using var distResult = distResultOpt.value();
                 double d = distResult.dist;
-                bool inside = d < 0;
-                double t = Math.Min(Math.Abs(d) / scale, 1.0);
-
-                if (inside) {
-                    // Inside (Smoothed mesh is inside original): White to Red
-                    colors[colorIndex++] = 1.0;
-                    colors[colorIndex++] = 1.0 - t;
-                    colors[colorIndex++] = 1.0 - t;
-                } else {
-                    // Outside (Smoothed mesh expanded): White to Green
-                    colors[colorIndex++] = 1.0 - t;
-                    colors[colorIndex++] = 1.0;
-                    colors[colorIndex++] = 1.0 - t;
-                }
+                
+                // Map distance from [-scale, scale] to [0, 1]
+                double t = Math.Clamp((d + scale) / (2.0 * scale), 0.0, 1.0);
+                
+                var color = gradient.Sample((float)t);
+                colors[colorIndex++] = color.R;
+                colors[colorIndex++] = color.G;
+                colors[colorIndex++] = color.B;
             }
         }
 
