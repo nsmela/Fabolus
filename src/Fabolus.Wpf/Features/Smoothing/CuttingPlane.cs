@@ -1,6 +1,4 @@
-﻿
-using HelixToolkit.Wpf.SharpDX;
-using System;
+﻿using HelixToolkit.Wpf.SharpDX;
 
 namespace Fabolus.Wpf.Features.Smoothing;
 
@@ -11,7 +9,6 @@ public static class CuttingPlane
             Direction = SharpDX.Vector3.UnitZ,
             Material = DiffuseMaterials.Pearl,
             Offset = SharpDX.Vector3.Zero,
-            TargetTransform = dragTransform,
             Length = 10.0,
             Diameter = 5.0
         };
@@ -22,7 +19,7 @@ public static class CuttingPlane
             Source = element,
             Mode = System.Windows.Data.BindingMode.OneWay
         };
-        System.Windows.Data.BindingOperations.SetBinding(element, HelixToolkit.Wpf.SharpDX.Element3D.TransformProperty, binding);
+        System.Windows.Data.BindingOperations.SetBinding(element, Element3D.TransformProperty, binding);
 
         bool isUpdating = false;
 
