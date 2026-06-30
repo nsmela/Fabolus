@@ -6,6 +6,7 @@
              xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:local="clr-namespace:Fabolus.Wpf.Features.Rotatation"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance local:RotateViewModel, IsDesignTimeCreatable=True}"
              d:DesignHeight="486" d:DesignWidth="222">
@@ -28,6 +29,45 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
+        <!-- Round knob for the RangeSlider thumbs, matching Slider.SteelThumb -->
+        <Style x:Key="RangeKnob" TargetType="{x:Type mah:MetroThumb}">
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Width" Value="15" />
+            <Setter Property="Height" Value="15" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type mah:MetroThumb}">
+                        <Ellipse x:Name="knob"
+                         Fill="{DynamicResource Brush.Card}"
+                         Stroke="{DynamicResource Brush.Accent}"
+                         StrokeThickness="2"
+                         RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.Effect>
+                                <DropShadowEffect BlurRadius="3" ShadowDepth="1" Direction="270"
+                                          Opacity="0.25" Color="#FF000000" />
+                            </Ellipse.Effect>
+                        </Ellipse>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="knob" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.12" ScaleY="1.12" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsDragging" Value="True">
+                                <Setter TargetName="knob" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.2" ScaleY="1.2" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <!-- Tool rail shell -->
@@ -166,10 +206,62 @@
                        Style="{StaticResource Text.Value}" Foreground="{DynamicResource Brush.Danger}" />
                     </StackPanel>
                 </Grid>
-                <mah:RangeSlider Minimum="40" Maximum="90"
-                     LowerValue="{Binding WarningAngle, Mode=TwoWay}"
-                     UpperValue="{Binding CriticalAngle, Mode=TwoWay}"
-                     MinRange="1" MinRangeWidth="5"/>
+                <mah:RangeSlider Minimum="40" Maximum="90" MinHeight="18"
+                 LowerValue="{Binding WarningAngle, Mode=TwoWay}"
+                 UpperValue="{Binding CriticalAngle, Mode=TwoWay}"
+                 MinRange="1" MinRangeWidth="5"
+                 Background="Transparent"
+                 HorizontalContentAlignment="Stretch"
+                 VerticalContentAlignment="Stretch">
+                    <mah:RangeSlider.Template>
+                        <ControlTemplate TargetType="{x:Type mah:RangeSlider}">
+                            <Grid x:Name="PART_Container" Background="{TemplateBinding Background}" VerticalAlignment="Center">
+                                <StackPanel x:Name="PART_RangeSliderContainer" Orientation="Horizontal" Background="Transparent">
+                                    <!-- unfilled track before the lower thumb -->
+                                    <RepeatButton x:Name="PART_LeftEdge">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                        Background="{DynamicResource Brush.Slider.Track}" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+
+                                    <!-- lower (warning) knob -->
+                                    <mah:MetroThumb x:Name="PART_LeftThumb" Style="{StaticResource RangeKnob}" />
+
+                                    <!-- selected range: filled bar, drag to move the whole range -->
+                                    <mah:MetroThumb x:Name="PART_MiddleThumb" MinWidth="{TemplateBinding MinRangeWidth}" Cursor="Hand">
+                                        <mah:MetroThumb.Template>
+                                            <ControlTemplate TargetType="{x:Type mah:MetroThumb}">
+                                                <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                        Background="{DynamicResource Brush.Accent}" />
+                                            </ControlTemplate>
+                                        </mah:MetroThumb.Template>
+                                    </mah:MetroThumb>
+
+                                    <!-- upper (critical) knob -->
+                                    <mah:MetroThumb x:Name="PART_RightThumb" Style="{StaticResource RangeKnob}" />
+
+                                    <!-- unfilled track after the upper thumb -->
+                                    <RepeatButton x:Name="PART_RightEdge">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                        Background="{DynamicResource Brush.Slider.Track}" />
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </StackPanel>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.45" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </mah:RangeSlider.Template>
+                </mah:RangeSlider>
             </StackPanel>
             
             <!-- Spacer pushes Reset to the bottom of the rail -->
