@@ -1,12 +1,9 @@
-﻿using Fabolus.Core.Geometry.Metadata;
+﻿using Fabolus.Core.Common;
+using Fabolus.Core.Geometry.Metadata;
 using System.Collections.Immutable;
+using System.Numerics;
 
 namespace Fabolus.Core.Features.Transforms;
-
-/// <summary>
-/// A single entry in a mesh's transformation history.
-/// </summary>
-public sealed record TransformRecord(string Operation, DateTime Timestamp);
 
 /// <summary>
 /// Metadata keys specific to the transformation feature.
@@ -15,7 +12,8 @@ public static class TransformKeys {
     /// <summary>
     /// Tracks the sequential history of all spatial transformations applied to a mesh.
     /// </summary>
-    public static readonly MetadataKey<ImmutableList<TransformRecord>> History = new("Transform.History");
+    public static readonly MetadataKey<Quaternion> Rotation = new("Transform.Rotate");
+    public static readonly MetadataKey<Vector3> Translation = new("Transform.Translate");
 }
 
 
@@ -23,13 +21,18 @@ public static class TransformKeys {
 /// Helpers for safely appending transformation history.
 /// </summary>
 public static class TransformMetadataExtensions {
-    public static MeshMetadata WithTransformRecord(this MeshMetadata metadata, string operationDescription) {
-        var newRecord = new TransformRecord(operationDescription, DateTime.UtcNow);
+    public static MeshMetadata WithoutRotation(this MeshMetadata metadata) =>
+    metadata.WithoutProperty(TransformKeys.Rotation);
 
-        // Safely get existing history or start a new list
-        var historyResult = metadata.GetProperty(TransformKeys.History);
-        var currentHistory = historyResult.HasValue ? historyResult.Value : ImmutableList<TransformRecord>.Empty;
+    public static MeshMetadata WithoutTranslate(this MeshMetadata metadata) =>
+        metadata.WithoutProperty(TransformKeys.Translation);
 
-        return metadata.WithProperty(TransformKeys.History, currentHistory.Add(newRecord));
-    }
+    public static MeshMetadata WithRotation(this MeshMetadata metadata, Quaternion q) =>
+        metadata.WithProperty(TransformKeys.Rotation, q);
+
+    public static MeshMetadata WithTranslate(this MeshMetadata metadata, Vector3 v) =>
+        metadata.WithProperty(TransformKeys.Translation, v);
+
+    public static Maybe<Quaternion> Rotation(this MeshMetadata metadata) => metadata.GetProperty(TransformKeys.Rotation);
+    public static Maybe<Vector3> Translation(this MeshMetadata metadata) => metadata.GetProperty(TransformKeys.Translation);
 }

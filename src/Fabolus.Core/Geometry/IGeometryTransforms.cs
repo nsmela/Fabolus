@@ -1,4 +1,5 @@
 ﻿using Fabolus.Core.Common;
+using System.Numerics;
 
 namespace Fabolus.Core.Geometry;
 
@@ -27,6 +28,6 @@ public interface IGeometryTransforms
     /// <summary>
     /// Rotates a mesh around an axis.
     /// </summary>
-    Result<IMesh> Rotate(IMesh source, double angleRadians, double axisX, double axisY, double axisZ);
+    Result<IMesh> Rotate(IMesh source, Quaternion q);
 
 }

@@ -1,6 +1,8 @@
 using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
+using System.Numerics;
+using static MR;
 
 namespace GeometryMeshLib;
 
@@ -83,98 +85,47 @@ internal sealed class GeometryTransforms : IGeometryTransforms
         return new MRMesh(clone, newMetadata, transformedOriginal);
     }
 
-    public Result<IMesh> Rotate(IMesh source, double angleRadians, double axisX, double axisY, double axisZ)
-    {
+    public Result<IMesh> Rotate(IMesh source, Quaternion q) {
         if (source is not MRMesh mrMesh)
             return GeometryErrors.InvalidMeshType;
 
-        double axisLenSq = axisX * axisX + axisY * axisY + axisZ * axisZ;
-        if (axisLenSq < 1e-10)
-            return GeometryErrors.InvalidAxis;
-
-        double axisLen = Math.Sqrt(axisLenSq);
-        double ux = axisX / axisLen;
-        double uy = axisY / axisLen;
-        double uz = axisZ / axisLen;
-
         var clone = new MR.Mesh(mrMesh.Mesh);
 
-        // TODO: must be a cleaner way
-        // Rotate around mesh bounding box center
-        var bbox = MR.computeBoundingBox(clone.topology, clone.points, null, null);
-        var center = bbox.center();
+        // Calculate quaternion component products
+        float xx = q.X * q.X;
+        float yy = q.Y * q.Y;
+        float zz = q.Z * q.Z;
+        float xy = q.X * q.Y;
+        float xz = q.X * q.Z;
+        float yz = q.Y * q.Z;
+        float wx = q.W * q.X;
+        float wy = q.W * q.Y;
+        float wz = q.W * q.Z;
 
-        var pts = clone.points.vec;
-        ulong size = pts.size();
-        float cosTheta = (float)Math.Cos(angleRadians);
-        float sinTheta = (float)Math.Sin(angleRadians);
-        float ax = (float)ux;
-        float ay = (float)uy;
-        float az = (float)uz;
-
-        for (ulong i = 0; i < size; i++)
-        {
-            var p = pts[i];
-            float x = p.x - center.x;
-            float y = p.y - center.y;
-            float z = p.z - center.z;
-
-            float dot = ax * x + ay * y + az * z;
-            float crossX = ay * z - az * y;
-            float crossY = az * x - ax * z;
-            float crossZ = ax * y - ay * x;
-
-            float rx = x * cosTheta + crossX * sinTheta + ax * dot * (1.0f - cosTheta);
-            float ry = y * cosTheta + crossY * sinTheta + ay * dot * (1.0f - cosTheta);
-            float rz = z * cosTheta + crossZ * sinTheta + az * dot * (1.0f - cosTheta);
-
-            pts[i] = new MR.Vector3f(rx + center.x, ry + center.y, rz + center.z);
-        }
-        clone.invalidateCaches();
-
-        var rotationMetadata = new MeshRotation(
-            angleRadians,
-            ux, uy, uz,
-            center.x, center.y, center.z
+        // Convert quaternion to a 3x3 rotation matrix (row by row)
+        var rowX = new Vector3f(
+            1.0f - 2.0f * (yy + zz),
+            2.0f * (xy - wz),
+            2.0f * (xz + wy)
         );
 
-        IMesh? transformedOriginal = null;
-        if (mrMesh.OriginalMesh != null)
-        {
-            if (mrMesh.OriginalMesh is MRMesh origMR)
-            {
-                var origClone = new MR.Mesh(origMR.Mesh);
-                var origPts = origClone.points.vec;
-                ulong origSize = origPts.size();
-                for (ulong i = 0; i < origSize; i++)
-                {
-                    var p = origPts[i];
-                    float x = p.x - center.x;
-                    float y = p.y - center.y;
-                    float z = p.z - center.z;
+        var rowY = new Vector3f(
+            2.0f * (xy + wz),
+            1.0f - 2.0f * (xx + zz),
+            2.0f * (yz - wx)
+        );
 
-                    float dot = ax * x + ay * y + az * z;
-                    float crossX = ay * z - az * y;
-                    float crossY = az * x - ax * z;
-                    float crossZ = ax * y - ay * x;
+        var rowZ = new Vector3f(
+            2.0f * (xz - wy),
+            2.0f * (yz + wx),
+            1.0f - 2.0f * (xx + yy)
+        );
 
-                    float rx = x * cosTheta + crossX * sinTheta + ax * dot * (1.0f - cosTheta);
-                    float ry = y * cosTheta + crossY * sinTheta + ay * dot * (1.0f - cosTheta);
-                    float rz = z * cosTheta + crossZ * sinTheta + az * dot * (1.0f - cosTheta);
+        var rotationMatrix = new Matrix3f(rowX, rowY, rowZ);
+        var transform = AffineXf3f.linear(rotationMatrix);
+        clone.transform(transform);
 
-                    origPts[i] = new MR.Vector3f(rx + center.x, ry + center.y, rz + center.z);
-                }
-                origClone.invalidateCaches();
-                transformedOriginal = new MRMesh(origClone, origMR.Metadata, null);
-            }
-        }
-
-        var newMetadata = source.Metadata.WithProperties(m =>
-            m.Set(CoreKeys.Name, $"Rotated ({source.Metadata.Name})")
-             .Set(CoreKeys.CreatedBy, $"Rotate({angleRadians}rad)")
-             .Set(CoreKeys.Rotation, rotationMetadata));
-
-        return new MRMesh(clone, newMetadata, transformedOriginal);
+        return Result<IMesh>.Success(new MRMesh(clone, source.Metadata, source));
     }
 
 }

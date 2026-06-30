@@ -7,8 +7,7 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance local:SmoothingViewModel, IsDesignTimeCreatable=True}"
-             d:DesignHeight="486" d:DesignWidth="222"
-             Background="Transparent">
+             d:DesignHeight="486" d:DesignWidth="222">
 
     <UserControl.Resources>
 

@@ -1,12 +1,22 @@
 using Fabolus.Core.Common;
+using System.Numerics;
 
 namespace Fabolus.Core.Geometry;
 
 public interface IGeometryEvaluators {
+
     /// <summary>
-    /// Validates the topology of a mesh.
+    /// Calculates vertex colors for a mesh based on its distance to another mesh.
+    /// Used for deviation mapping (heatmap).
     /// </summary>
-    Result<TopologyValidation> ValidateTopology(IMesh mesh);
+    Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 1.0);
+
+    /// <summary>
+    /// Computes the outward unit normal of every vertex, in the same order that
+    /// <see cref="GetRenderData"/> emits vertices. Used for direction-relative
+    /// per-vertex analysis such as overhang colouring.
+    /// </summary>
+    Result<IReadOnlyList<Vector3>> ComputeVertexNormals(IMesh mesh);
 
     /// <summary>
     /// Calculates statistics for a mesh.
@@ -19,12 +29,6 @@ public interface IGeometryEvaluators {
     Result<RenderData> GetRenderData(IMesh mesh);
 
     /// <summary>
-    /// Calculates vertex colors for a mesh based on its distance to another mesh.
-    /// Used for deviation mapping (heatmap).
-    /// </summary>
-    Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 1.0);
-
-    /// <summary>
     /// Checks if a mesh consists of multiple disconnected components.
     /// </summary>
     Result<bool> HasMultipleComponents(IMesh mesh);
@@ -33,4 +37,10 @@ public interface IGeometryEvaluators {
     /// Separates a single mesh into multiple disjoint components.
     /// </summary>
     Result<IEnumerable<IMesh>> SeparateComponents(IMesh mesh);
+
+    /// <summary>
+    /// Validates the topology of a mesh.
+    /// </summary>
+    Result<TopologyValidation> ValidateTopology(IMesh mesh);
+
 }

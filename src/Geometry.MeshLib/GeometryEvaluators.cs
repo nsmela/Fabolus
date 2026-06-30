@@ -2,6 +2,7 @@
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using GeometryMeshLib;
+using System.Numerics;
 
 namespace Geometry.MeshLib;
 
@@ -10,6 +11,32 @@ public class GeometryEvaluators : IGeometryEvaluators {
 
     public GeometryEvaluators(GeometryEngine engine) {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
+    }
+
+    public Result<IReadOnlyList<Vector3>> ComputeVertexNormals(IMesh mesh) {
+        if (mesh is not MRMesh mrMesh)
+            return GeometryErrors.InvalidMeshType;
+
+        var mlMesh = mrMesh.Mesh;
+        using var validVerts = mlMesh.topology.getValidVerts();
+        var pts = mlMesh.points.vec;
+        ulong ptsCount = pts.size();
+
+        // Same iteration order as GetRenderData, so colours align with render vertices.
+        using var normalsVec = MR.computePerVertNormals(mlMesh);
+
+        var normals = new List<Vector3>((int)validVerts.count());
+        for (ulong i = 0; i < ptsCount; i++) {
+            var vid = new MR.VertId((int)i);
+            if (!validVerts.test(vid)) continue;
+
+            var n = normalsVec[vid];
+            var vector = new Vector3(n.x, n.y, n.z);
+            var length = vector.Length();
+            normals.Add(length > 1e-12f ? vector / length : Vector3.Zero);
+        }
+
+        return Result.Success<IReadOnlyList<Vector3>>(normals);
     }
 
     public Result<TopologyValidation> ValidateTopology(IMesh mesh) {
