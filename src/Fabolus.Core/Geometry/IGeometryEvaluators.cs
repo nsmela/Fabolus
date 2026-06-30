@@ -9,7 +9,7 @@ public interface IGeometryEvaluators {
     /// Calculates vertex colors for a mesh based on its distance to another mesh.
     /// Used for deviation mapping (heatmap).
     /// </summary>
-    Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 1.0);
+    Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 0.4);
 
     /// <summary>
     /// Computes the outward unit normal of every vertex, in the same order that

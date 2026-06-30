@@ -168,11 +168,14 @@ internal class RotateSceneManager : ISceneManager {
         if (geometry.Colors is null || geometry.Normals is null) {
             return;
         }
+
         var colors = geometry.Colors;
         var normals = geometry.Normals;
+
         for (int i = 0; i < colors.Count; i++) {
             float nDotL = Math.Max(0f, Vector3.Dot(normals[i], lightDirection));
             float shade = _ambient + (1f - _ambient) * nDotL;
+
             var c = colors[i];
             colors[i] = new Color4(c.Red * shade, c.Green * shade, c.Blue * shade, c.Alpha);
         }

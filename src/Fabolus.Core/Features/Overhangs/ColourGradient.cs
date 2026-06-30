@@ -28,6 +28,20 @@ public sealed class ColourGradient {
         new ColourStop(1f, new RgbColour(0.30f, 0.70f, 0.30f))   // facing away             -> green
     ).Value;
 
+    /// <summary>
+    /// The default smoothing deviation gradient: red for critical inward erosion (t = 0),
+    /// yellow for safe inward (t = 0.25), green for zero deviation (t = 0.5), 
+    /// cyan for safe outward inflation (t = 0.75), and blue for critical outward (t = 1).
+    /// </summary>
+    public static ColourGradient SmoothingDeviation { get; } = Create(
+        new ColourStop(0f, new RgbColour(0.85f, 0.15f, 0.15f)),    // -0.40 critical inward -> red
+        new ColourStop(0.25f, new RgbColour(0.95f, 0.85f, 0.20f)), // -0.20 safe inward -> yellow
+        new ColourStop(0.5f, new RgbColour(0.30f, 0.70f, 0.30f)),  //  0.00 zero deviation -> green
+        new ColourStop(0.75f, new RgbColour(0.20f, 0.85f, 0.95f)), // +0.20 safe outward -> cyan
+        new ColourStop(1f, new RgbColour(0.15f, 0.15f, 0.85f))     // +0.40 critical outward -> blue
+    ).Value;
+
+
     public static Result<ColourGradient> Create(params ColourStop[] stops) {
         if (stops is null || stops.Length < 2)
             return new Error("Overhang.GradientTooFewStops", "A gradient needs at least two colour stops.");
