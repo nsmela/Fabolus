@@ -4,6 +4,7 @@ using Fabolus.Core.Features.Transforms;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
 using Xunit;
+using System.Numerics;
 
 namespace Fabolus.Tests.Features;
 
@@ -39,8 +40,8 @@ public class TransformMeshTests
         var forkedMesh = updatedWorkspace.GetActiveMesh().Value;
         forkedMesh.Metadata.DerivedFrom.HasValue.Should().BeTrue();
         forkedMesh.Metadata.DerivedFrom.Value.Should().Be(baseId);
-        var history = forkedMesh.Metadata.GetProperty(TransformKeys.History).Value;
-        history.Should().Contain(r => r.Operation.Contains("Translated by"));
+        var translate = forkedMesh.Metadata.GetProperty(TransformKeys.Translation).Value;
+        translate.Should().NotBeNull();
 
         var stats = _fixture.Engine.Evaluators.GetStatistics(forkedMesh).Value;
         var originalStats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
@@ -59,36 +60,14 @@ public class TransformMeshTests
         workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
 
         // Rotate 90 degrees around Z axis
-        var angleRadians = System.Math.PI / 2.0;
-        var result = _transformFeature.Rotate(workspace, baseId, angleRadians, RotationAxis.Z);
+        float angleRadians = (float)(System.Math.PI / 2.0f);
+        var result = _transformFeature.Rotate(workspace, baseId, angleRadians, Vector3.UnitZ);
 
         result.IsSuccess.Should().BeTrue();
         var forkedMesh = result.Value.GetActiveMesh().Value;
 
-        var history = forkedMesh.Metadata.GetProperty(TransformKeys.History).Value;
-        history.Should().Contain(r => r.Operation.Contains("Rotated 90.0 degrees on Z axis"));
-    }
-
-    [Fact]
-    public void Scale_ValidMesh_ForksAndScales()
-    {
-        var workspace = Workspace.CreateEmpty();
-        var mesh = _fixture.LoadStl("sphere.stl");
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
-
-        var result = _transformFeature.Scale(workspace, baseId, 2.0);
-
-        result.IsSuccess.Should().BeTrue();
-        var forkedMesh = result.Value.GetActiveMesh().Value;
-
-        var history = forkedMesh.Metadata.GetProperty(TransformKeys.History).Value;
-        history.Should().Contain(r => r.Operation.Contains("Scaled by 2.00x"));
-
-        var stats = _fixture.Engine.Evaluators.GetStatistics(forkedMesh).Value;
-        var originalStats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
-
-        (stats.MaxX - stats.MinX).Should().BeApproximately(2 * (originalStats.MaxX - originalStats.MinX), 0.01);
+        var rotation = forkedMesh.Metadata.GetProperty(TransformKeys.Rotation).Value;
+        rotation.Should().NotBeNull();
     }
 
     [Fact]
@@ -105,7 +84,7 @@ public class TransformMeshTests
         // Ensure we are working with the fork
         workspace.Meshes.Count.Should().Be(2);
 
-        var result = _transformFeature.ClearTransforms(workspace, forkedId);
+        var result = _transformFeature.ClearRotation(workspace, forkedId);
 
         result.IsSuccess.Should().BeTrue();
         var restoredWorkspace = result.Value;

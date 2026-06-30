@@ -2,6 +2,7 @@ using Fabolus.Tests.Fixtures;
 using FluentAssertions;
 using GeometryMeshLib;
 using System;
+using System.Numerics;
 using Xunit;
 
 namespace Fabolus.Tests.MeshLib;
@@ -74,7 +75,7 @@ public class GeometryTransformsTests
         var original = _fixture.UnitCube();
         var originalStats = _engine.Evaluators.GetStatistics(original).Value;
 
-        var result = _fixture.Engine.Transforms.Rotate(original, Math.PI / 2, 0, 0, 1);
+        var result = _fixture.Engine.Transforms.Rotate(original, new Quaternion((float)(Math.PI / 2), 0, 0, 1));
 
         result.IsSuccess.Should().BeTrue();
         var transformedStats = _engine.Evaluators.GetStatistics(result.Value).Value;

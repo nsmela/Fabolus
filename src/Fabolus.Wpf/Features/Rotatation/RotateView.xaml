@@ -1,0 +1,187 @@
+﻿<UserControl x:Class="Fabolus.Wpf.Features.Rotatation.RotateView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.Rotatation"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance local:RotateViewModel, IsDesignTimeCreatable=True}"
+             d:DesignHeight="486" d:DesignWidth="222">
+
+    <UserControl.Resources>
+
+        <!-- Small colored chip carrying the axis letter -->
+        <Style x:Key="AxisChip" TargetType="Border">
+            <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="AxisChipText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Font.Mono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+    </UserControl.Resources>
+
+    <!-- Tool rail shell -->
+    <Border Style="{StaticResource ToolRail}">
+        <Grid Margin="16,18">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <!-- section label -->
+                <RowDefinition Height="Auto" />
+                <!-- X -->
+                <RowDefinition Height="Auto" />
+                <!-- Y -->
+                <RowDefinition Height="Auto" />
+                <!-- Z -->
+                <RowDefinition Height="*" />
+                <!-- spacer -->
+                <RowDefinition Height="Auto" />
+                <!-- reset -->
+            </Grid.RowDefinitions>
+
+            <!-- Section label -->
+            <TextBlock Grid.Row="0" Text="ROTATION"
+                       Style="{StaticResource Text.SectionLabel}"
+                       Margin="0,0,0,16" />
+
+            <!-- X axis -->
+            <StackPanel Grid.Row="1" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,7">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Border Style="{StaticResource AxisChip}" Background="{DynamicResource Brush.Axis.X}">
+                            <TextBlock Text="X" Style="{StaticResource AxisChipText}" />
+                        </Border>
+                        <TextBlock Text="Rotate X" VerticalAlignment="Center" Margin="9,0,0,0"
+                                   FontFamily="{StaticResource Font.Sans}" FontSize="13" FontWeight="Medium"
+                                   Foreground="{DynamicResource Brush.Text.Primary}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding XAxisAngle, StringFormat={}{0:0}°}"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+                <Slider Minimum="-180" Maximum="180"
+                        Style="{StaticResource Slider.Axis.X}"
+                        Value="{Binding XAxisAngle, Mode=TwoWay}"
+                        SmallChange="1" LargeChange="15"
+                        local:SliderExtension.DragCompletedCommand="{Binding SaveAxisRotationCommand}"
+                        VerticalAlignment="Center">
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="MouseEnter">
+                            <i:InvokeCommandAction Command="{Binding ShowAxisXRotationCommand}" />
+                        </i:EventTrigger>
+                        <i:EventTrigger EventName="MouseLeave">
+                            <i:InvokeCommandAction Command="{Binding HideAxisRotationCommand}" />
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
+                </Slider>
+            </StackPanel>
+
+            <!-- Y axis -->
+            <StackPanel Grid.Row="2" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,7">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Border Style="{StaticResource AxisChip}" Background="{DynamicResource Brush.Axis.Y}">
+                            <TextBlock Text="Y" Style="{StaticResource AxisChipText}" />
+                        </Border>
+                        <TextBlock Text="Rotate Y" VerticalAlignment="Center" Margin="9,0,0,0"
+                                   FontFamily="{StaticResource Font.Sans}" FontSize="13" FontWeight="Medium"
+                                   Foreground="{DynamicResource Brush.Text.Primary}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding YAxisAngle, StringFormat={}{0:0}°}"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+                <Slider Minimum="-180" Maximum="180"
+                        Style="{StaticResource Slider.Axis.Y}"
+                        Value="{Binding YAxisAngle, Mode=TwoWay}"
+                        SmallChange="1" LargeChange="15"
+                        local:SliderExtension.DragCompletedCommand="{Binding SaveAxisRotationCommand}"
+                        VerticalAlignment="Center" >
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="MouseEnter">
+                            <i:InvokeCommandAction Command="{Binding ShowAxisYRotationCommand}" />
+                        </i:EventTrigger>
+                        <i:EventTrigger EventName="MouseLeave">
+                            <i:InvokeCommandAction Command="{Binding HideAxisRotationCommand}" />
+                        </i:EventTrigger>
+                        <i:EventTrigger EventName="LostMouseCapture">
+                            <i:InvokeCommandAction Command="{Binding SaveAxisRotationCommand}" />
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
+                </Slider>
+            </StackPanel>
+
+            <!-- Z axis -->
+            <StackPanel Grid.Row="3" Margin="0,0,0,18">
+                <Grid Margin="0,0,0,7">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Border Style="{StaticResource AxisChip}" Background="{DynamicResource Brush.Axis.Z}">
+                            <TextBlock Text="Z" Style="{StaticResource AxisChipText}" />
+                        </Border>
+                        <TextBlock Text="Rotate Z" VerticalAlignment="Center" Margin="9,0,0,0"
+                                   FontFamily="{StaticResource Font.Sans}" FontSize="13" FontWeight="Medium"
+                                   Foreground="{DynamicResource Brush.Text.Primary}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding ZAxisAngle, StringFormat={}{0:0}°}"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+                <Slider Minimum="-180" Maximum="180"
+                        Style="{StaticResource Slider.Axis.Z}"
+                        Value="{Binding ZAxisAngle, Mode=TwoWay}"
+                        SmallChange="1" LargeChange="15"
+                        local:SliderExtension.DragCompletedCommand="{Binding SaveAxisRotationCommand}"
+                        VerticalAlignment="Center" >
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="MouseEnter">
+                            <i:InvokeCommandAction Command="{Binding ShowAxisZRotationCommand}" />
+                        </i:EventTrigger>
+                        <i:EventTrigger EventName="MouseLeave">
+                            <i:InvokeCommandAction Command="{Binding HideAxisRotationCommand}" />
+                        </i:EventTrigger>
+                        <i:EventTrigger EventName="Thumb.DragCompleted">
+                            <i:InvokeCommandAction Command="{Binding SaveAxisRotationCommand}" />
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
+                </Slider>
+            </StackPanel>
+
+            <StackPanel Grid.Row="4">
+                <Grid Margin="0,0,0,7">
+                    <TextBlock Text="Overhang thresholds" Style="{DynamicResource FieldLabel}" HorizontalAlignment="Left" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="{Binding WarningAngle, StringFormat={}{0:0}°}"
+                       Style="{StaticResource Text.Value}" Foreground="{DynamicResource Brush.Warning}" />
+                        <TextBlock Text="–" Style="{StaticResource Text.Value}" Margin="5,0" />
+                        <TextBlock Text="{Binding CriticalAngle, StringFormat={}{0:0}°}"
+                       Style="{StaticResource Text.Value}" Foreground="{DynamicResource Brush.Danger}" />
+                    </StackPanel>
+                </Grid>
+                <mah:RangeSlider Minimum="40" Maximum="90"
+                     LowerValue="{Binding WarningAngle, Mode=TwoWay}"
+                     UpperValue="{Binding CriticalAngle, Mode=TwoWay}"
+                     MinRange="1" MinRangeWidth="5"/>
+            </StackPanel>
+            
+            <!-- Spacer pushes Reset to the bottom of the rail -->
+
+            <!-- Reset -->
+            <Button Grid.Row="5"
+                    Command="{Binding ClearRotationsCommand}"
+                    Content="Reset"
+                    Style="{StaticResource Button.Secondary}"
+                    HorizontalAlignment="Stretch" />
+
+        </Grid>
+    </Border>
+
+</UserControl>
