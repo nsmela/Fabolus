@@ -1,7 +1,8 @@
-﻿using Fabolus.Core.Common;
+using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using GeometryMeshLib;
+using System.Numerics;
 
 namespace Geometry.MeshLib;
 
@@ -10,6 +11,32 @@ public class GeometryEvaluators : IGeometryEvaluators {
 
     public GeometryEvaluators(GeometryEngine engine) {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
+    }
+
+    public Result<IReadOnlyList<Vector3>> ComputeVertexNormals(IMesh mesh) {
+        if (mesh is not MRMesh mrMesh)
+            return GeometryErrors.InvalidMeshType;
+
+        var mlMesh = mrMesh.Mesh;
+        using var validVerts = mlMesh.topology.getValidVerts();
+        var pts = mlMesh.points.vec;
+        ulong ptsCount = pts.size();
+
+        // Same iteration order as GetRenderData, so colours align with render vertices.
+        using var normalsVec = MR.computePerVertNormals(mlMesh);
+
+        var normals = new List<Vector3>((int)validVerts.count());
+        for (ulong i = 0; i < ptsCount; i++) {
+            var vid = new MR.VertId((int)i);
+            if (!validVerts.test(vid)) continue;
+
+            var n = normalsVec[vid];
+            var vector = new Vector3(n.x, n.y, n.z);
+            var length = vector.Length();
+            normals.Add(length > 1e-12f ? vector / length : Vector3.Zero);
+        }
+
+        return Result.Success<IReadOnlyList<Vector3>>(normals);
     }
 
     public Result<TopologyValidation> ValidateTopology(IMesh mesh) {
@@ -174,7 +201,7 @@ public class GeometryEvaluators : IGeometryEvaluators {
         };
     }
 
-    public Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 1.0) {
+    public Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 0.4) {
         if (current is not MRMesh currentMR || original is not MRMesh originalMR)
             return GeometryErrors.InvalidMeshType;
 
@@ -192,6 +219,7 @@ public class GeometryEvaluators : IGeometryEvaluators {
         int colorIndex = 0;
 
         using var originalPart = new MR.MeshPart(originalMesh);
+        var gradient = Fabolus.Core.Features.Overhangs.ColourGradient.SmoothingDeviation;
 
         for (ulong i = 0; i < ptsCount; i++) {
             var vid = new MR.VertId((int)i);
@@ -201,20 +229,14 @@ public class GeometryEvaluators : IGeometryEvaluators {
                 using var distResultOpt = MR.findSignedDistance(in ptRef, originalPart, null, null);
                 using var distResult = distResultOpt.value();
                 double d = distResult.dist;
-                bool inside = d < 0;
-                double t = Math.Min(Math.Abs(d) / scale, 1.0);
-
-                if (inside) {
-                    // Inside (Smoothed mesh is inside original): White to Red
-                    colors[colorIndex++] = 1.0;
-                    colors[colorIndex++] = 1.0 - t;
-                    colors[colorIndex++] = 1.0 - t;
-                } else {
-                    // Outside (Smoothed mesh expanded): White to Green
-                    colors[colorIndex++] = 1.0 - t;
-                    colors[colorIndex++] = 1.0;
-                    colors[colorIndex++] = 1.0 - t;
-                }
+                
+                // Map distance from [-scale, scale] to [0, 1]
+                double t = Math.Clamp((d + scale) / (2.0 * scale), 0.0, 1.0);
+                
+                var color = gradient.Sample((float)t);
+                colors[colorIndex++] = color.R;
+                colors[colorIndex++] = color.G;
+                colors[colorIndex++] = color.B;
             }
         }
 

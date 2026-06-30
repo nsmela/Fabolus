@@ -9,6 +9,7 @@
         xmlns:viewport="clr-namespace:Fabolus.Wpf.Features.Viewport"
         xmlns:mm="clr-namespace:Fabolus.Wpf.Features.MeshManager"
         xmlns:smooth="clr-namespace:Fabolus.Wpf.Features.Smoothing"
+        xmlns:rotate="clr-namespace:Fabolus.Wpf.Features.Rotatation"
         mc:Ignorable="d"
         Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -28,6 +29,10 @@
 
         <DataTemplate DataType="{x:Type smooth:SmoothingViewModel}">
             <smooth:SmoothingView/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type rotate:RotateViewModel }">
+            <rotate:RotateView />
         </DataTemplate>
 
         <Style x:Key="CaptionButton" TargetType="Button">
@@ -144,7 +149,7 @@
                         </Button.Style>
                     </Button>
 
-                    <Button Command="{Binding SwitchToRotatationViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                <Button Command="{Binding SwitchToRotateViewCommand}" IsEnabled="{Binding MeshLoaded}">
                         <Button.Content>
                             <StackPanel Orientation="Horizontal">
                                 <Viewbox Width="16" Height="16" Margin="0,0,7,0">

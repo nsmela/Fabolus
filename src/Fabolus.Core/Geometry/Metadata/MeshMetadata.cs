@@ -1,6 +1,5 @@
 using Fabolus.Core.Common;
 using System.Collections.Immutable;
-using System.IO;
 
 namespace Fabolus.Core.Geometry.Metadata;
 
@@ -67,6 +66,9 @@ public sealed record MeshMetadata {
 
         throw new KeyNotFoundException($"Metadata missing required key: {key.Name}");
     }
+
+    public MeshMetadata WithoutProperty<T>(MetadataKey<T> key) =>
+        this with { Properties = Properties.Remove(key.Name) };
 
     // --- HELPER METHODS --- //
 

@@ -1,4 +1,5 @@
-﻿using HelixToolkit.Wpf.SharpDX;
+﻿using Fabolus.Core.Geometry;
+using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Input;
 
 namespace Fabolus.Wpf.Features.Viewport;

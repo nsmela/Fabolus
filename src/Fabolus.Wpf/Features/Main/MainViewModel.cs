@@ -10,6 +10,7 @@ using Fabolus.Core.Common.Interfaces;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Features.Smoothing;
+using Fabolus.Wpf.Features.Rotatation;
 
 namespace Fabolus.Wpf.Features.Main;
 public partial class MainViewModel : ObservableObject {
@@ -140,6 +141,21 @@ public partial class MainViewModel : ObservableObject {
 
         CurrentViewTitle = "smooth";
         CurrentView = new SmoothingViewModel(_messenger, _alertDialog, _engine);
+        SceneManager = CurrentView.SceneManager;
+
+        CurrentView.Activate(Workspace);
+    }
+
+    [RelayCommand]
+    public void SwitchToRotateView() {
+        if (CurrentView is RotateViewModel) return;
+
+        if (CurrentView is not null) {
+            WorkspaceUpdated(CurrentView.Deactivate());
+        }
+
+        CurrentViewTitle = "rotate";
+        CurrentView = new RotateViewModel(_messenger, _alertDialog, _engine);
         SceneManager = CurrentView.SceneManager;
 
         CurrentView.Activate(Workspace);

@@ -1,58 +1,160 @@
-﻿using Fabolus.Core.Features.Smoothing;
+using System.Windows.Input;
+using System.Windows.Media;
+using Fabolus.Core.Features.Smoothing;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
-using System.Windows.Input;
+using SharpDX;
 
 namespace Fabolus.Wpf.Features.Smoothing;
 
-public class SmoothingSceneManager : ISceneManager {
+public class SmoothingSceneManager : ISceneManager
+{
     private readonly Material _rawSkin = DiffuseMaterials.SkyBlue;
-    private readonly Material _smoothSkin = DiffuseMaterials.Green;
+    private readonly Material _smoothSkin = DiffuseMaterials.Emerald;
 
     private readonly IGeometryEngine _engine;
 
     private readonly Element3D _grid;
+    private CrossSectionMeshGeometryModel3D? _crossSectionModel;
+    private CrossSectionMeshGeometryModel3D? _originalCrossSectionModel;
+    private Plane _crossSectionPlane = new Plane { D = 0, Normal = Vector3.UnitZ };
+    private Plane _originalCrossSectionPlane = new Plane { D = 0, Normal = -Vector3.UnitZ };
     private Guid _activeId = Guid.Empty;
+    private Element3D _gizmo;
+    private double _minZ = -double.MaxValue;
+    private double _maxZ = double.MaxValue;
+    private double _currentGizmoHeight = 0;
+
+    private SmoothDisplayMode _displayMode;
 
     public event Action<Element3D>? VisualAddedOrUpdated;
     public event Action<Guid>? VisualRemovedById;
     public event Action? VisualsCleared;
 
-    public SmoothingSceneManager(IGeometryEngine engine) {
+    public SmoothingSceneManager(IGeometryEngine engine)
+    {
         _engine = engine;
         _grid = SceneHelpers.GenerateGrid();
+        _gizmo = CuttingPlane.Create(OnCuttingPlaneHeightChanged, () => _minZ, () => _maxZ);
     }
 
-    public void UpdateWorkspace(Workspace workspace) {
+    public void SetDisplayMode(SmoothDisplayMode displayMode)
+    {
+        _displayMode = displayMode;
+    }
+
+    private void OnCuttingPlaneHeightChanged(double height)
+    {
+        _currentGizmoHeight = height;
+        _crossSectionPlane = new Plane { D = (float)height, Normal = Vector3.UnitZ };
+        _originalCrossSectionPlane = new Plane { D = (float)-height, Normal = -Vector3.UnitZ };
+
+        if (_crossSectionModel != null)
+        {
+            _crossSectionModel.Plane1 = _crossSectionPlane;
+        }
+        if (_originalCrossSectionModel != null)
+        {
+            _originalCrossSectionModel.Plane1 = _originalCrossSectionPlane;
+        }
+    }
+
+    public void UpdateWorkspace(Workspace workspace, double[]? heatmapColors = null)
+    {
         VisualRemovedById?.Invoke(_activeId);
+        if (_crossSectionModel != null)
+        {
+            VisualRemovedById?.Invoke(_crossSectionModel.GUID);
+        }
+        if (_originalCrossSectionModel != null)
+        {
+            VisualRemovedById?.Invoke(_originalCrossSectionModel.GUID);
+        }
 
         var activeMeshResult = workspace.GetActiveMesh();
-        if (activeMeshResult.IsFailure) {
+        if (activeMeshResult.IsFailure)
+        {
             return;
         }
 
         IMesh mesh = activeMeshResult.Value;
 
-        MeshGeometry3D geometry = mesh.ToHelixMesh(_engine).Value;
-        var model = new MeshGeometryModel3D {
+        MeshGeometry3D geometry = mesh.ToHelixMesh(_engine, heatmapColors).Value;
+
+        Material material;
+        if (_displayMode == SmoothDisplayMode.Heatmap && heatmapColors != null)
+        {
+            material = new VertColorMaterial();
+        }
+        else
+        {
+            material = mesh.Metadata.GetSmoothing().HasValue ? _smoothSkin : _rawSkin;
+        }
+
+        var model = new MeshGeometryModel3D
+        {
             Geometry = geometry,
-            Material = mesh.Metadata.GetSmoothing().HasValue
-                ? _smoothSkin 
-                : _rawSkin,
+            Material = material,
         };
         _activeId = model.GUID;
 
-        VisualAddedOrUpdated?.Invoke(model);
+        bool isSmoothed = mesh.Metadata.GetSmoothing().HasValue;
+        bool hasValidDerived = mesh.Metadata.DerivedFrom.HasValue && workspace.ContainsMesh(mesh.Metadata.DerivedFrom.Value);
+
+        if (isSmoothed && hasValidDerived && _displayMode == SmoothDisplayMode.CrossSection)
+        {
+            _gizmo.Visibility = System.Windows.Visibility.Visible;
+
+            _crossSectionModel = GenerateCrossSection(geometry, _crossSectionPlane, _smoothSkin, Colors.Green);
+            VisualAddedOrUpdated?.Invoke(_crossSectionModel);
+
+            var originalMeshResult = workspace.GetMesh(mesh.Metadata.DerivedFrom.Value);
+            if (originalMeshResult.IsSuccess)
+            {
+                MeshGeometry3D originalGeometry = originalMeshResult.Value.ToHelixMesh(_engine).Value;
+                
+                _minZ = Math.Min(geometry.Bound.Minimum.Z, originalGeometry.Bound.Minimum.Z) - 1.0;
+                _maxZ = Math.Max(geometry.Bound.Maximum.Z, originalGeometry.Bound.Maximum.Z) + 1.0;
+
+                double clampedHeight = Math.Clamp(_currentGizmoHeight, _minZ, _maxZ);
+                if (Math.Abs(clampedHeight - _currentGizmoHeight) > 0.001)
+                {
+                    // Update gizmo position if it's currently outside the new bounds
+                    _gizmo.Transform = new System.Windows.Media.Media3D.TranslateTransform3D(0, 0, clampedHeight);
+                }
+
+                _originalCrossSectionModel = GenerateCrossSection(originalGeometry, _originalCrossSectionPlane, _rawSkin, Colors.Red);
+                VisualAddedOrUpdated?.Invoke(_originalCrossSectionModel);
+            }
+        }
+        else
+        {
+            _gizmo.Visibility = System.Windows.Visibility.Collapsed;
+            _crossSectionModel = null;
+            _originalCrossSectionModel = null;
+            VisualAddedOrUpdated?.Invoke(model);
+        }
     }
 
-    public void OnActivated() {
+    public void OnActivated()
+    {
         VisualsCleared?.Invoke();
         VisualAddedOrUpdated?.Invoke(_grid);
+        VisualAddedOrUpdated?.Invoke(_gizmo);
+        if (_crossSectionModel != null)
+        {
+            VisualAddedOrUpdated?.Invoke(_crossSectionModel);
+        }
+        if (_originalCrossSectionModel != null)
+        {
+            VisualAddedOrUpdated?.Invoke(_originalCrossSectionModel);
+        }
     }
 
-    public void OnDeactivated() {
+    public void OnDeactivated()
+    {
     }
 
     public bool OnKeyDown(Key key) => false;
@@ -64,4 +166,21 @@ public class SmoothingSceneManager : ISceneManager {
     public bool OnMouseMove(MouseMove3DEventArgs eventArgs) => false;
 
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
+
+    private CrossSectionMeshGeometryModel3D GenerateCrossSection(MeshGeometry3D geometry, Plane plane, Material material, System.Windows.Media.Color crossSectionColor)
+    {
+        return new CrossSectionMeshGeometryModel3D
+        {
+            Geometry = geometry,
+            Material = material,
+            CrossSectionColor = crossSectionColor,
+            EnablePlane1 = true,
+            Plane1 = plane,
+            FillMode = SharpDX.Direct3D11.FillMode.Solid,
+            CullMode = SharpDX.Direct3D11.CullMode.Back,
+            CuttingOperation = CuttingOperation.Intersect,
+            IsHitTestVisible = false,
+        };
+    }
 }
+

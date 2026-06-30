@@ -1,7 +1,11 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Filled (value) portion: flat cyan capsule -->
+    <!-- ============================================================ -->
+    <!--  SHARED PARTS                                                -->
+    <!-- ============================================================ -->
+
+    <!-- Filled (value) portion of the default cyan slider -->
     <Style x:Key="Slider.FillButton" TargetType="RepeatButton">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="Focusable" Value="False" />
@@ -16,7 +20,22 @@
         </Setter>
     </Style>
 
-    <!-- Remaining portion: invisible but click/drag-able -->
+    <!-- Filled portion for axis sliders: full-strength axis color (from Foreground) -->
+    <Style x:Key="Slider.AxisFillButton" TargetType="RepeatButton">
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                            Background="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Slider}}}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Remaining (unfilled) portion: invisible but click/drag-able -->
     <Style x:Key="Slider.EmptyButton" TargetType="RepeatButton">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="Focusable" Value="False" />
@@ -30,7 +49,8 @@
         </Setter>
     </Style>
 
-    <!-- 15px white knob; ring color = owning Slider's Foreground. Hover/drag scales. -->
+    <!-- 15px white knob; ring color = owning Slider's Foreground.
+         Hover/drag scales the knob (works for any ring color). -->
     <Style x:Key="Slider.SteelThumb" TargetType="Thumb">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="Width" Value="15" />
@@ -71,7 +91,9 @@
         </Setter>
     </Style>
 
-    <!-- Base horizontal slider; Foreground drives the thumb ring (defaults to cyan) -->
+    <!-- ============================================================ -->
+    <!--  DEFAULT CYAN SLIDER                                         -->
+    <!-- ============================================================ -->
     <Style x:Key="Slider.Steel" TargetType="Slider">
         <Setter Property="MinHeight" Value="18" />
         <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
@@ -82,6 +104,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
                     <Grid VerticalAlignment="Center" Background="Transparent">
+                        <!-- base (unfilled) track -->
                         <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
                                 Background="{TemplateBinding Background}" />
                         <Track x:Name="PART_Track" VerticalAlignment="Center">
@@ -108,18 +131,58 @@
         </Setter>
     </Style>
 
-    <!-- Axis variants: same fill + track, only the thumb ring color changes -->
-    <Style x:Key="Slider.Axis.X" TargetType="Slider" BasedOn="{StaticResource Slider.Steel}">
+    <!-- ============================================================ -->
+    <!--  AXIS SLIDERS  (fill + track tint + ring all from Foreground)-->
+    <!-- ============================================================ -->
+    <Style x:Key="Slider.Axis" TargetType="Slider">
+        <Setter Property="MinHeight" Value="18" />
+        <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid VerticalAlignment="Center" Background="Transparent">
+                        <!-- base track: same hue as the fill, dialed down to a tint -->
+                        <Border Height="4" CornerRadius="2" VerticalAlignment="Center" 
+                                Background="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Slider}}}" />
+                        <Track x:Name="PART_Track" VerticalAlignment="Center">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge"
+                                              Style="{StaticResource Slider.AxisFillButton}" />
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge"
+                                              Style="{StaticResource Slider.EmptyButton}" />
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource Slider.SteelThumb}" />
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- One Foreground setter colors fill + track + ring per axis -->
+    <Style x:Key="Slider.Axis.X" TargetType="Slider" BasedOn="{StaticResource Slider.Axis}">
         <Setter Property="Foreground" Value="{DynamicResource Brush.Axis.X}" />
     </Style>
-    <Style x:Key="Slider.Axis.Y" TargetType="Slider" BasedOn="{StaticResource Slider.Steel}">
+    <Style x:Key="Slider.Axis.Y" TargetType="Slider" BasedOn="{StaticResource Slider.Axis}">
         <Setter Property="Foreground" Value="{DynamicResource Brush.Axis.Y}" />
     </Style>
-    <Style x:Key="Slider.Axis.Z" TargetType="Slider" BasedOn="{StaticResource Slider.Steel}">
+    <Style x:Key="Slider.Axis.Z" TargetType="Slider" BasedOn="{StaticResource Slider.Axis}">
         <Setter Property="Foreground" Value="{DynamicResource Brush.Axis.Z}" />
     </Style>
 
-    <!-- Implicit alias: every bare <Slider> gets the steel look (remove for opt-in only) -->
+    <!-- Implicit alias: every bare <Slider> gets the cyan look.
+         Axis sliders are opt-in via Style="{StaticResource Slider.Axis.X}".
+         Remove this line if you want the default to be opt-in too. -->
     <Style TargetType="Slider" BasedOn="{StaticResource Slider.Steel}" />
 
 </ResourceDictionary>
