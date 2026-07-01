@@ -23,9 +23,4 @@ public static class CoreKeys {
     /// The key representing the operation or user that created this mesh.
     /// </summary>
     public static readonly MetadataKey<string> CreatedBy = new("Created By"); // TODO: should kvp value instead be a class or feature?
-
-    /// <summary>
-    /// The rotation applied to this mesh.
-    /// </summary>
-    public static readonly MetadataKey<MeshRotation> Rotation = new("Rotation");
 }
