@@ -38,6 +38,10 @@ public class MouldSceneManager : ISceneManager
     private bool _mouldHiddenForHover;
     private bool _mouseOverTarget;
 
+    // While a mould has been generated, the target mesh IS the final result - channel
+    // placement/selection/preview are all disabled until the user clears it.
+    public bool IsMouldGenerated { get; set; }
+
     private readonly Dictionary<Guid, Guid> _channelVisualToModelId = [];
     private readonly Dictionary<Guid, Guid> _channelModelToVisualId = [];
 
@@ -76,8 +80,17 @@ public class MouldSceneManager : ISceneManager
         var model = new MeshGeometryModel3D
         {
             Geometry = geometryResult.Value,
-            Material = _targetSkin,
+            // Once generated, the target mesh IS the mould result - keep it in the same
+            // skin the preview used, rather than reverting to the plain target colour.
+            Material = IsMouldGenerated ? _mouldSkin : _targetSkin,
         };
+
+        if (IsMouldGenerated)
+        {
+            // Boolean-subtracted geometry (cavities, channels) can have inward-facing
+            // surfaces that back-face culling would hide - show both sides.
+            model.CullMode = SharpDX.Direct3D11.CullMode.None;
+        }
 
         _targetMeshId = model.GUID;
         VisualAddedOrUpdated?.Invoke(model);
@@ -119,6 +132,33 @@ public class MouldSceneManager : ISceneManager
         VisualAddedOrUpdated?.Invoke(_mouldModel);
 
         return Result.Success();
+    }
+
+    // Called once the mould has actually been generated: the mould shell and channel
+    // markers are now baked into the new active mesh's geometry, so the pre-generation
+    // overlays would just be stale duplicates on top of it.
+    public void ClearPreviews()
+    {
+        if (_mouldModel is not null)
+        {
+            VisualRemovedById?.Invoke(_mouldModel.GUID);
+            _mouldModel = null;
+        }
+        _mouldHiddenForHover = false;
+
+        foreach (var visualId in _channelVisualToModelId.Keys.ToList())
+            VisualRemovedById?.Invoke(visualId);
+        _channelVisualToModelId.Clear();
+        _channelModelToVisualId.Clear();
+        Channels = [];
+        _selectedChannelId = Guid.Empty;
+
+        if (_previewChannelId != Guid.Empty)
+        {
+            VisualRemovedById?.Invoke(_previewChannelId);
+            _previewChannelId = Guid.Empty;
+        }
+        PreviewChannel = null;
     }
 
     private void SetMouldHiddenForHover(bool hidden)
@@ -191,7 +231,7 @@ public class MouldSceneManager : ISceneManager
             _previewChannelId = Guid.Empty;
         }
 
-        if (PreviewChannel is null || !_mouseOverTarget)
+        if (IsMouldGenerated || PreviewChannel is null || !_mouseOverTarget)
             return;
 
         var generateResult = PreviewChannel.Generate(_engine, AirChannelRenderMode.Full);
@@ -225,7 +265,7 @@ public class MouldSceneManager : ISceneManager
 
     public bool OnKeyDown(Key key)
     {
-        if (key == Key.Delete && _selectedChannelId != Guid.Empty)
+        if (!IsMouldGenerated && key == Key.Delete && _selectedChannelId != Guid.Empty)
         {
             DeleteSelectedChannelRequested?.Invoke();
             return true;
@@ -238,6 +278,9 @@ public class MouldSceneManager : ISceneManager
 
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs)
     {
+        if (IsMouldGenerated)
+            return false;
+
         // Right/middle click drive camera rotate/pan gestures; only place or select on left click.
         if (eventArgs.OriginalInputEventArgs is not System.Windows.Input.MouseButtonEventArgs { ChangedButton: System.Windows.Input.MouseButton.Left })
             return false;
@@ -273,6 +316,9 @@ public class MouldSceneManager : ISceneManager
 
     public bool OnMouseMove(HitTestResult? hit)
     {
+        if (IsMouldGenerated)
+            return false;
+
         bool overTarget = hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId;
 
         SetMouldHiddenForHover(overTarget);

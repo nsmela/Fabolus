@@ -1,5 +1,7 @@
 using Fabolus.Core.Common;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 
 namespace Fabolus.Core.Features.Moulds;
 
@@ -42,8 +44,22 @@ public sealed class GenerateMould
             mouldMesh = subtractedResult.Value;
         }
 
-        var finalMesh = mouldMesh.WithMetadata(mouldMesh.Metadata.WithMouldDefinition(mouldDefinition with { TargetMeshId = meshId }));
-        
+        // Boolean operations hand back bare metadata (just Id/Name/CreatedBy) - every other
+        // consumer (Mesh Manager, etc.) expects Stats/Topology to already be populated.
+        var statsResult = _geometryEngine.Evaluators.GetStatistics(mouldMesh);
+        if (statsResult.IsFailure) return statsResult.Error;
+
+        var topologyResult = _geometryEngine.Evaluators.ValidateTopology(mouldMesh);
+        if (topologyResult.IsFailure) return topologyResult.Error;
+
+        var metadata = mouldMesh.Metadata.WithProperties(m => m
+            .Set(CoreKeys.Name, $"{mesh.Metadata.Name} (Mould)")
+            .Set(CoreKeys.DerivedFrom, meshId)
+            .Set(MeshIOKeys.Stats, statsResult.Value)
+            .Set(MeshIOKeys.Topology, topologyResult.Value));
+
+        var finalMesh = mouldMesh.WithMetadata(metadata.WithMouldDefinition(mouldDefinition with { TargetMeshId = meshId }));
+
         var addResult = workspace.AddMesh(finalMesh);
         if (addResult.IsFailure) return addResult;
         
