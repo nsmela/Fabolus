@@ -4,7 +4,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Fabolus.Wpf.Features.Moulding"
-             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              mc:Ignorable="d"
              d:DesignHeight="620" d:DesignWidth="260"
              Background="Transparent">
@@ -82,44 +81,6 @@
             </Setter>
         </Style>
 
-        <!-- Placed-channel list row -->
-        <DataTemplate x:Key="ChannelRowTemplate">
-            <Grid Margin="9,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <!-- index badge -->
-                <Border Grid.Column="0" Width="20" Height="20" CornerRadius="5"
-                        Background="{DynamicResource Brush.Accent}" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Index}" Foreground="{DynamicResource Brush.Text.OnAccent}"
-                               FontFamily="{StaticResource Font.Mono}" FontSize="10" FontWeight="SemiBold"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Border>
-
-                <!-- name + summary -->
-                <StackPanel Grid.Column="1" Margin="9,0" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Name}"
-                               FontFamily="{StaticResource Font.Sans}" FontSize="12.5" FontWeight="SemiBold"
-                               Foreground="{DynamicResource Brush.Text.Primary}" />
-                    <TextBlock Text="{Binding Summary}"
-                               FontFamily="{StaticResource Font.Mono}" FontSize="10"
-                               Foreground="{DynamicResource Brush.Text.Muted}" />
-                </StackPanel>
-
-                <!-- type chip -->
-                <Border Grid.Column="2" CornerRadius="10" Background="{DynamicResource Brush.Surface}"
-                        BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
-                        Padding="7,3" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding TypeLabel}"
-                               FontFamily="{StaticResource Font.Sans}" FontSize="9.5" FontWeight="SemiBold"
-                               Foreground="{DynamicResource Brush.Text.Secondary}" />
-                </Border>
-            </Grid>
-        </DataTemplate>
-
     </UserControl.Resources>
     
     <!-- ============================================================ -->
@@ -144,7 +105,7 @@
                                            Foreground="{DynamicResource Brush.Text.Primary}" />
                 <Border Grid.Column="2" Style="{StaticResource Tag.Accent}" CornerRadius="10" Padding="7,3"
                                         VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Channels.Count}"
+                    <TextBlock Text="{Binding ChannelCount}"
                                                FontFamily="{StaticResource Font.Mono}" FontSize="10" FontWeight="SemiBold"
                                                Foreground="{DynamicResource Brush.Accent.Pressed}" />
                 </Border>
@@ -154,19 +115,8 @@
         <!-- Channel editing body -->
         <StackPanel Margin="16,4,16,18">
 
-            <!-- has-channels editing block -->
+            <!-- placement / selection settings -->
             <StackPanel>
-                <StackPanel.Style>
-                    <Style TargetType="StackPanel">
-                        <Setter Property="Visibility" Value="Visible" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding HasChannels}" Value="False">
-                                <Setter Property="Visibility" Value="Collapsed" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </StackPanel.Style>
-
                 <!-- channel type selector -->
                 <TextBlock Text="CHANNEL TYPE" Style="{StaticResource Text.SectionLabel}" Margin="0,0,0,8" />
                 <UniformGrid Columns="3" Margin="-3,0,-3,8">
@@ -187,14 +137,16 @@
                                                  Command="{Binding SetChannelTypeCommand}" CommandParameter="Path" />
                 </UniformGrid>
                 <TextBlock Text="{Binding ChannelTypeDescription}" Style="{StaticResource FieldHint}"
-                                           Margin="0,0,0,16" />
+                                           Margin="0,0,0,4" />
+                <TextBlock Text="Click a point on the mesh to place a channel with the settings below, or click an existing channel to select and edit it."
+                                           Style="{StaticResource FieldHint}" Margin="0,0,0,16" />
 
-                <!-- parameters for the selected / next channel -->
+                <!-- parameters for the next channel -->
                 <Grid Margin="0,0,0,8">
                     <TextBlock Text="PARAMETERS" Style="{StaticResource Text.SectionLabel}"
                                                HorizontalAlignment="Left" VerticalAlignment="Center" />
                     <Border Style="{StaticResource Tag.Accent}" HorizontalAlignment="Right">
-                        <TextBlock Text="{Binding SelectedChannel.Name}"
+                        <TextBlock Text="{Binding ChannelType}"
                                                    FontFamily="{StaticResource Font.Sans}" FontSize="10.5" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource Brush.Accent.Pressed}" />
                     </Border>
@@ -219,7 +171,7 @@
                         <TextBlock Text="{Binding TipLength, StringFormat={}{0:F0} mm}"
                                                    Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
                     </Grid>
-                    <Slider Minimum="0" Maximum="20" Style="{StaticResource Slider.Steel}"
+                    <Slider Minimum="0" Maximum="8" Style="{StaticResource Slider.Steel}"
                                             Value="{Binding TipLength, Mode=TwoWay}"
                                             SmallChange="1" LargeChange="2" VerticalAlignment="Center" />
                 </StackPanel>
@@ -228,13 +180,13 @@
                 <StackPanel Margin="0,0,0,13">
                     <Grid Margin="0,0,0,4">
                         <TextBlock Text="Tip depth" Style="{StaticResource FieldLabel}" HorizontalAlignment="Left" />
-                        <TextBlock Text="{Binding TipDepth, StringFormat={}{0:F0} mm}"
+                        <TextBlock Text="{Binding TipDepth, StringFormat={}{0:F1} mm}"
                                                    Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
                     </Grid>
-                    <Slider Minimum="0" Maximum="12" Style="{StaticResource Slider.Steel}"
+                    <Slider Minimum="0" Maximum="2" Style="{StaticResource Slider.Steel}"
                                             Value="{Binding TipDepth, Mode=TwoWay}"
-                                            SmallChange="1" LargeChange="2" VerticalAlignment="Center" />
-                    <TextBlock Text="How far past the start point the tip sinks into the mesh."
+                                            SmallChange="0.1" LargeChange="0.5" VerticalAlignment="Center" />
+                    <TextBlock Text="How far the start point is brought into the mesh, against the surface normal."
                                                Style="{StaticResource FieldHint}" Margin="0,6,0,0" />
                 </StackPanel>
 

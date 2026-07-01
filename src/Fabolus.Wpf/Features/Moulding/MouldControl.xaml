@@ -4,7 +4,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Fabolus.Wpf.Features.Moulding"
-             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              Background="Transparent">
     <UserControl.Resources>
 
@@ -54,14 +53,19 @@
                     <TextBlock Grid.Column="1" Text="Mould" VerticalAlignment="Center"
                                 FontFamily="{StaticResource Font.Sans}" FontSize="14" FontWeight="SemiBold"
                                 Foreground="{DynamicResource Brush.Text.Primary}" />
-                    <TextBlock Grid.Column="2" Text="2-part" VerticalAlignment="Center"
-                                FontFamily="{StaticResource Font.Mono}" FontSize="10"
-                                Foreground="{DynamicResource Brush.Text.Muted}" />
                 </Grid>
             </Expander.Header>
 
             <!-- Mould editing body -->
             <StackPanel Margin="16,4,16,18">
+
+                <!-- Mould shape -->
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Shape" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
+                    <ComboBox ItemsSource="{Binding MouldShapeTypes}"
+                                SelectedItem="{Binding SelectedMouldType, Mode=TwoWay}"
+                                FontFamily="{StaticResource Font.Sans}" FontSize="13" Height="36" />
+                </StackPanel>
 
                 <!-- Wall thickness -->
                 <StackPanel Margin="0,0,0,15">
@@ -85,37 +89,6 @@
                     <Slider Minimum="0" Maximum="30" Style="{StaticResource Slider.Steel}"
                             Value="{Binding BaseHeight, Mode=TwoWay}"
                             SmallChange="1" LargeChange="5" VerticalAlignment="Center" />
-                </StackPanel>
-
-                <!-- Draft angle -->
-                <StackPanel Margin="0,0,0,15">
-                    <Grid Margin="0,0,0,4">
-                        <TextBlock Text="Draft angle" Style="{StaticResource FieldLabel}" HorizontalAlignment="Left" />
-                        <TextBlock Text="{Binding DraftAngle, StringFormat={}{0:F0}°}"
-                                    Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
-                    </Grid>
-                    <Slider Minimum="0" Maximum="10" Style="{StaticResource Slider.Steel}"
-                            Value="{Binding DraftAngle, Mode=TwoWay}"
-                            SmallChange="1" LargeChange="2" VerticalAlignment="Center" />
-                </StackPanel>
-
-                <!-- Split into 2 parts -->
-                <Grid Margin="0,0,0,15">
-                    <TextBlock Text="Split into 2 parts"
-                                FontFamily="{StaticResource Font.Sans}" FontSize="13" FontWeight="Medium"
-                                Foreground="{DynamicResource Brush.Text.Primary}"
-                                VerticalAlignment="Center" HorizontalAlignment="Left" />
-                    <mah:ToggleSwitch IsOn="{Binding SplitMould, Mode=TwoWay}"
-                                        HorizontalAlignment="Right" VerticalAlignment="Center"
-                                        OnContent="" OffContent="" />
-                </Grid>
-
-                <!-- Resolution -->
-                <StackPanel>
-                    <TextBlock Text="Resolution" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
-                    <ComboBox ItemsSource="{Binding Resolutions}"
-                                SelectedItem="{Binding SelectedResolution, Mode=TwoWay}"
-                                FontFamily="{StaticResource Font.Sans}" FontSize="13" Height="36" />
                 </StackPanel>
 
             </StackPanel>

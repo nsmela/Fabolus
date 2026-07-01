@@ -1,69 +1,299 @@
-﻿using Fabolus.Core.Common;
+﻿using System.Numerics;
+using System.Windows;
+using System.Windows.Input;
+using Fabolus.Core.Common;
 using Fabolus.Core.Features.AirChannels;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
+using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
-using System.Numerics;
-using System.Windows.Input;
 
 namespace Fabolus.Wpf.Features.Moulding;
 
 public class MouldSceneManager : ISceneManager
 {
     private readonly IGeometryEngine _engine;
+    private readonly Element3D _grid;
+
+    private readonly Material _targetSkin = DiffuseMaterials.Gray;
+
+    // The mould is only ever shown as a live preview before generation.
+    private readonly Material _mouldSkin = DiffuseMaterials.Ruby;
+
+    private readonly Material _channelSkin = DiffuseMaterials.Emerald;
+    private readonly Material _selectedChannelSkin = DiffuseMaterials.Pearl;
+    private readonly Material _previewChannelSkin = DiffuseMaterials.Pearl;
 
     private Workspace Workspace { get; set; }
-    private IReadOnlyList<IAirChannel> Channels { get; set; } = [];
+    private IMesh TargetMesh { get; set; }
+    private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];
     private IAirChannel PreviewChannel { get; set; }
-    private MouldDefinition MouldDefinition { get; set; }
+
+    private Guid _targetMeshId = Guid.Empty;
+    private Guid _previewChannelId = Guid.Empty;
+    private Guid _selectedChannelId = Guid.Empty;
+
+    private MeshGeometryModel3D _mouldModel;
+    private bool _mouldHiddenForHover;
+    private bool _mouseOverTarget;
+
+    private readonly Dictionary<Guid, Guid> _channelVisualToModelId = [];
+    private readonly Dictionary<Guid, Guid> _channelModelToVisualId = [];
 
     public event Action<Element3D> VisualAddedOrUpdated;
     public event Action<Guid> VisualRemovedById;
     public event Action VisualsCleared;
 
+    public event Action<Vector3, Vector3> ChannelPlaced;
+    public event Action<Guid> ChannelSelected;
+    public event Action<Vector3, Vector3> ChannelHovered;
+    public event Action DeleteSelectedChannelRequested;
+
     public MouldSceneManager(IGeometryEngine engine)
     {
         _engine = engine;
+        _grid = SceneHelpers.GenerateGrid();
     }
 
     public Result UpdateWorkspace(Workspace workspace)
     {
         Workspace = workspace;
 
+        if (_targetMeshId != Guid.Empty)
+            VisualRemovedById?.Invoke(_targetMeshId);
+
+        var activeMeshResult = Workspace.GetActiveMesh();
+        if (activeMeshResult.IsFailure)
+            return activeMeshResult.Error;
+
+        TargetMesh = activeMeshResult.Value;
+
+        var geometryResult = TargetMesh.ToHelixMesh(_engine);
+        if (geometryResult.IsFailure)
+            return geometryResult.Error;
+
+        var model = new MeshGeometryModel3D
+        {
+            Geometry = geometryResult.Value,
+            Material = _targetSkin,
+        };
+
+        _targetMeshId = model.GUID;
+        VisualAddedOrUpdated?.Invoke(model);
+
         return Result.Success();
-    }
-
-    public Result UpdateChannels(IEnumerable<IAirChannel> channels)
-    {
-
-        return Result.Success();
-    }
-
-    public void UpdatePreviewChannel(IAirChannel channel)
-    {
-        Vector3 point = Vector3.Zero;
-        PreviewChannel = channel;
     }
 
     public Result UpdateMould(MouldDefinition mouldDefinition)
     {
-        MouldDefinition = mouldDefinition;
+        if (_mouldModel is not null)
+        {
+            VisualRemovedById?.Invoke(_mouldModel.GUID);
+            _mouldModel = null;
+        }
+
+        if (TargetMesh is null)
+            return Result.Success();
+
+        var generateResult = mouldDefinition.Generate(_engine, TargetMesh);
+        if (generateResult.IsFailure)
+            return Result.Success(); // Invalid parameters mid-drag; just skip the preview silently.
+
+        using var mouldMesh = generateResult.Value;
+
+        var geometryResult = mouldMesh.ToHelixMesh(_engine);
+        if (geometryResult.IsFailure)
+            return Result.Success();
+
+        _mouldModel = new MeshGeometryModel3D
+        {
+            Geometry = geometryResult.Value,
+            Material = _mouldSkin,
+            // The mould shell encloses the target mesh; picking must fall through to the
+            // mesh underneath so hovering/clicking on it can place air channels.
+            IsHitTestVisible = false,
+            Visibility = _mouldHiddenForHover ? Visibility.Hidden : Visibility.Visible,
+        };
+
+        VisualAddedOrUpdated?.Invoke(_mouldModel);
 
         return Result.Success();
     }
 
-    public void OnActivated() { }
+    private void SetMouldHiddenForHover(bool hidden)
+    {
+        if (_mouldHiddenForHover == hidden)
+            return;
+
+        _mouldHiddenForHover = hidden;
+
+        if (_mouldModel is null)
+            return;
+
+        _mouldModel.Visibility = hidden ? Visibility.Collapsed : Visibility.Visible;
+        VisualAddedOrUpdated?.Invoke(_mouldModel);
+    }
+
+    public Result UpdateChannels(IReadOnlyList<AirChannelModel> channels)
+    {
+        foreach (var visualId in _channelVisualToModelId.Keys.ToList())
+            VisualRemovedById?.Invoke(visualId);
+
+        _channelVisualToModelId.Clear();
+        _channelModelToVisualId.Clear();
+        Channels = channels;
+
+        foreach (var channel in Channels)
+        {
+            var generateResult = channel.DomainModel.Generate(_engine, AirChannelRenderMode.Full);
+            if (generateResult.IsFailure)
+                continue;
+
+            using var channelMesh = generateResult.Value;
+            var geometryResult = channelMesh.ToHelixMesh(_engine);
+            if (geometryResult.IsFailure)
+                continue;
+
+            var model = new MeshGeometryModel3D
+            {
+                Geometry = geometryResult.Value,
+                Material = channel.Id == _selectedChannelId ? _selectedChannelSkin : _channelSkin,
+                CullMode = SharpDX.Direct3D11.CullMode.Back,
+            };
+
+            _channelVisualToModelId[model.GUID] = channel.Id;
+            _channelModelToVisualId[channel.Id] = model.GUID;
+            VisualAddedOrUpdated?.Invoke(model);
+        }
+
+        return Result.Success();
+    }
+
+    public void SelectChannel(Guid channelId)
+    {
+        _selectedChannelId = channelId;
+        UpdateChannels(Channels);
+        ChannelSelected?.Invoke(channelId);
+    }
+
+    public void UpdatePreviewChannel(IAirChannel channel)
+    {
+        PreviewChannel = channel;
+        RenderPreviewChannel();
+    }
+
+    private void RenderPreviewChannel()
+    {
+        if (_previewChannelId != Guid.Empty)
+        {
+            VisualRemovedById?.Invoke(_previewChannelId);
+            _previewChannelId = Guid.Empty;
+        }
+
+        if (PreviewChannel is null || !_mouseOverTarget)
+            return;
+
+        var generateResult = PreviewChannel.Generate(_engine, AirChannelRenderMode.Full);
+        if (generateResult.IsFailure)
+            return;
+
+        using var previewMesh = generateResult.Value;
+        var geometryResult = previewMesh.ToHelixMesh(_engine);
+        if (geometryResult.IsFailure)
+            return;
+
+        var model = new MeshGeometryModel3D
+        {
+            Geometry = geometryResult.Value,
+            Material = _previewChannelSkin,
+            IsHitTestVisible = false,
+            CullMode = SharpDX.Direct3D11.CullMode.Back,
+        };
+
+        _previewChannelId = model.GUID;
+        VisualAddedOrUpdated?.Invoke(model);
+    }
+
+    public void OnActivated()
+    {
+        VisualsCleared?.Invoke();
+        VisualAddedOrUpdated?.Invoke(_grid);
+    }
 
     public void OnDeactivated() { }
 
-    public bool OnKeyDown(Key key) => false;
+    public bool OnKeyDown(Key key)
+    {
+        if (key == Key.Delete && _selectedChannelId != Guid.Empty)
+        {
+            DeleteSelectedChannelRequested?.Invoke();
+            return true;
+        }
+
+        return false;
+    }
 
     public bool OnKeyUp(Key key) => false;
 
-    public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
+    public bool OnMouseDown(MouseDown3DEventArgs eventArgs)
+    {
+        // Right/middle click drive camera rotate/pan gestures; only place or select on left click.
+        if (eventArgs.OriginalInputEventArgs is not System.Windows.Input.MouseButtonEventArgs { ChangedButton: System.Windows.Input.MouseButton.Left })
+            return false;
 
-    public bool OnMouseMove(MouseMove3DEventArgs eventArgs) => false;
+        var hit = eventArgs.HitTestResult;
+
+        if (hit?.ModelHit is not MeshGeometryModel3D meshHit)
+        {
+            // Missed everything: deselect rather than leaving a stale selection highlighted.
+            SelectChannel(Guid.Empty);
+            return false;
+        }
+
+        if (meshHit.GUID == _targetMeshId)
+        {
+            var point = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
+            var normal = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
+
+            ChannelPlaced?.Invoke(point, normal);
+            return true;
+        }
+
+        if (_channelVisualToModelId.TryGetValue(meshHit.GUID, out var channelId))
+        {
+            SelectChannel(channelId);
+            return true;
+        }
+
+        // Hit something unrelated (e.g. the grid): also clear the selection.
+        SelectChannel(Guid.Empty);
+        return false;
+    }
+
+    public bool OnMouseMove(HitTestResult? hit)
+    {
+        bool overTarget = hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId;
+
+        SetMouldHiddenForHover(overTarget);
+        _mouseOverTarget = overTarget;
+
+        if (!overTarget)
+        {
+            RenderPreviewChannel(); // hides the marker left over from the last hover
+            return false;
+        }
+
+        var point = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
+        var normal = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
+
+        // Total length depends on the mould's bounds and this point's own Z, so the
+        // preview is rebuilt in full via ChannelHovered rather than just repositioned -
+        // a plain SetPreview would move the start point but leave a stale total length.
+        ChannelHovered?.Invoke(point, normal);
+
+        return true;
+    }
 
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 }

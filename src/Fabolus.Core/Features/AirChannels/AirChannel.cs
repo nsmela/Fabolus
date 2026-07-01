@@ -29,7 +29,8 @@ public sealed record StraightAirChannel(
     float ConeLength,
     float TotalLength,
     float TipDiameter,
-    float CylinderDiameter) : IAirChannel
+    float CylinderDiameter,
+    float PenetrationDepth = 1.0f) : IAirChannel
 {
     public IAirChannel SetPreview(Vector3 startPoint, Vector3 direction) =>
     this with { StartPoint = startPoint };
@@ -45,20 +46,20 @@ public sealed record StraightAirChannel(
     private Result<IMesh> GeneratePoint(IGeometryEngine engine) =>
         engine.Generators.GenerateTube(new TubeParameters
         {
-            Path = new[] { StartPoint + Vector3.UnitZ * -1.0f, StartPoint + Vector3.UnitZ },
+            Path = new[] { StartPoint + Vector3.UnitZ * -PenetrationDepth, StartPoint + Vector3.UnitZ },
             Radii = new[] { TipDiameter / 2f, TipDiameter / 2f },
         });
 
     private Result<IMesh> GenerateCone(IGeometryEngine engine) =>
         engine.Generators.GenerateTube(new TubeParameters
         {
-            Path = new[] { StartPoint + Vector3.UnitZ * -1.0f, StartPoint + Vector3.UnitZ * ConeLength },
+            Path = new[] { StartPoint + Vector3.UnitZ * -PenetrationDepth, StartPoint + Vector3.UnitZ * ConeLength },
             Radii = new[] { TipDiameter / 2f, CylinderDiameter / 2f },
         });
 
     private Result<IMesh> GenerateFull(IGeometryEngine engine)
     {
-        var coneStart = StartPoint + Vector3.UnitZ * -1.0f; // penetrates a bit
+        var coneStart = StartPoint + Vector3.UnitZ * -PenetrationDepth; // brought into the mesh
         var coneEnd = StartPoint + Vector3.UnitZ * ConeLength;
         var endPoint = StartPoint + Vector3.UnitZ * TotalLength;
 
@@ -76,7 +77,8 @@ public sealed record AngledAirChannel(
     float TipLength,
     float TotalLength,
     float TipDiameter,
-    float Radius) : IAirChannel
+    float Radius,
+    float PenetrationDepth = 1.0f) : IAirChannel
 {
     public IAirChannel SetPreview(Vector3 startPoint, Vector3 direction) =>
         this with { StartPoint = startPoint, Normal = direction };
@@ -90,17 +92,17 @@ public sealed record AngledAirChannel(
 
         if (renderMode == AirChannelRenderMode.Point)
         {
-            path.Add(StartPoint + normal * -1.0f);
+            path.Add(StartPoint + normal * -PenetrationDepth);
             path.Add(StartPoint + normal * 1.0f);
         }
         else if (renderMode == AirChannelRenderMode.Cone)
         {
-            path.Add(StartPoint + normal * -1.0f);
+            path.Add(StartPoint + normal * -PenetrationDepth);
             path.Add(coneEnd);
         }
         else // Full
         {
-            path.Add(StartPoint + normal * -1.0f);
+            path.Add(StartPoint + normal * -PenetrationDepth); // brought into the mesh
             path.Add(coneEnd);
 
             var arcPoints = engine.Generators.Arc3d(Radius, coneEnd, normal, Vector3.UnitZ, 16);

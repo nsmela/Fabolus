@@ -32,7 +32,7 @@
             ShowViewCube="False"
             
             MouseDown3D="MainViewport_MouseDown3D"
-            MouseMove3D="MainViewport_MouseMove3D"
+            MouseMove="MainViewport_MouseMove"
             MouseUp3D="MainViewport_MouseUp3D"
             KeyDown="MainViewport_KeyDown"
             KeyUp="MainViewport_KeyUp">

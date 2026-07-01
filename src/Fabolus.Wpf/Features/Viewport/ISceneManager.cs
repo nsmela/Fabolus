@@ -18,6 +18,10 @@ public interface ISceneManager {
 
     bool OnMouseDown(MouseDown3DEventArgs eventArgs);
     bool OnMouseUp(MouseUp3DEventArgs eventArgs);
-    bool OnMouseMove(MouseMove3DEventArgs eventArgs);
+
+    // Plain (non-3D) mouse move, hit-tested manually by the caller. HelixToolkit's
+    // MouseMove3D routed event only fires while a mouse button is held, which breaks
+    // hover-based interactions (e.g. previewing/placing items without dragging).
+    bool OnMouseMove(HitTestResult? hit);
 
 }

@@ -51,7 +51,7 @@ internal class MeshManagerSceneManager : ISceneManager {
 
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
 
-    public bool OnMouseMove(MouseMove3DEventArgs eventArgs) => false;
+    public bool OnMouseMove(HitTestResult? hit) => false;
 
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 
