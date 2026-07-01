@@ -22,19 +22,13 @@ public sealed class Workspace
     public Guid ActiveMeshId { get; }
 
     /// <summary>
-    /// Workspace-level metadata (e.g., patient info, study details).
-    /// </summary>
-    public IReadOnlyDictionary<string, object> Metadata { get; }
-
-    /// <summary>
     /// Number of meshes in the workspace.
     /// </summary>
     public int MeshCount => _meshes.Count;
 
     private Workspace(
         IReadOnlyDictionary<Guid, IMesh> meshes,
-        Guid? activeMeshId = null,
-        IReadOnlyDictionary<string, object>? metadata = null)
+        Guid? activeMeshId = null)
     {
         var updatedMeshes = new Dictionary<Guid, IMesh>();
         foreach (var kvp in meshes)
@@ -44,7 +38,6 @@ public sealed class Workspace
 
         _meshes = updatedMeshes;
         ActiveMeshId = activeMeshId ?? Guid.Empty;
-        Metadata = metadata ?? new Dictionary<string, object>();
     }
 
     /// <summary>
@@ -52,12 +45,6 @@ public sealed class Workspace
     /// </summary>
     public static Workspace CreateEmpty() =>
         new(new Dictionary<Guid, IMesh>());
-
-    /// <summary>
-    /// Creates a workspace with initial metadata.
-    /// </summary>
-    public static Workspace CreateEmpty(IReadOnlyDictionary<string, object> metadata) =>
-        new(new Dictionary<Guid, IMesh>(), null, metadata);
 
     /// <summary>
     /// Adds a mesh to the workspace.
@@ -79,7 +66,7 @@ public sealed class Workspace
 
         var activeId = setActive ? meshId : ActiveMeshId;
 
-        return new Workspace(newMeshes, activeId, Metadata);
+        return new Workspace(newMeshes, activeId);
     }
 
     /// <summary>
@@ -99,7 +86,7 @@ public sealed class Workspace
         }
 
         var newActiveMeshId = meshId == ActiveMeshId ? Guid.Empty : ActiveMeshId;
-        return new Workspace(newMeshes, newActiveMeshId, Metadata);
+        return new Workspace(newMeshes, newActiveMeshId);
     }
 
     /// <summary>
@@ -120,7 +107,7 @@ public sealed class Workspace
             existingMesh.Dispose();
         }
         newMeshes[meshId] = updatedMesh;
-        return new Workspace(newMeshes, ActiveMeshId, Metadata);
+        return new Workspace(newMeshes, ActiveMeshId);
     }
 
     /// <summary>
@@ -128,13 +115,13 @@ public sealed class Workspace
     /// </summary>
     public Result<Workspace> SetActiveMesh(Guid? meshId)
     {
-        if (meshId is null || meshId == Guid.Empty) 
-            return new Workspace(_meshes, null, Metadata);
+        if (meshId is null || meshId == Guid.Empty)
+            return new Workspace(_meshes, null);
 
         if (!_meshes.ContainsKey(meshId.Value))
             return WorkspaceErrors.MeshNotFound(meshId.Value);
 
-        return new Workspace(_meshes, meshId, Metadata);
+        return new Workspace(_meshes, meshId);
     }
 
     /// <summary>
@@ -160,15 +147,6 @@ public sealed class Workspace
             return Result.Success(mesh);
 
         return WorkspaceErrors.MeshNotFound(meshId);
-    }
-
-    /// <summary>
-    /// Updates workspace metadata.
-    /// </summary>
-    public Workspace WithMetadata(string key, object value)
-    {
-        var newMetadata = new Dictionary<string, object>(Metadata) { [key] = value };
-        return new Workspace(_meshes, ActiveMeshId, newMetadata);
     }
 
     /// <summary>

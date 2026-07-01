@@ -21,7 +21,7 @@ public enum AirChannelRenderMode
 public interface IAirChannel
 {
     IAirChannel SetPreview(Vector3 startPoint, Vector3 direction);
-    Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode);
+    Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null);
 }
 
 public sealed record StraightAirChannel(
@@ -35,7 +35,7 @@ public sealed record StraightAirChannel(
     public IAirChannel SetPreview(Vector3 startPoint, Vector3 direction) =>
     this with { StartPoint = startPoint };
 
-    public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode) => renderMode switch
+    public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null) => renderMode switch
     {
         AirChannelRenderMode.Full => GenerateFull(engine),
         AirChannelRenderMode.Cone => GenerateCone(engine),
@@ -83,7 +83,7 @@ public sealed record AngledAirChannel(
     public IAirChannel SetPreview(Vector3 startPoint, Vector3 direction) =>
         this with { StartPoint = startPoint, Normal = direction };
 
-    public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode)
+    public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null)
     {
         var normal = Vector3.Normalize(Normal);
         var coneEnd = StartPoint + normal * TipLength;
@@ -149,13 +149,12 @@ public sealed record PaintedAirChannel(
     IReadOnlyList<Vector3> Path,
     float Radius,
     float TotalLength,
-    float PenetrationDepth,
-    IMesh? TargetMesh = null) : IAirChannel
+    float PenetrationDepth) : IAirChannel
 {
     public IAirChannel SetPreview(Vector3 startPoint, Vector3 direction) =>
         this with { Path = new[] { startPoint } };
 
-    public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode)
+    public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null)
     {
         if (Path.Count == 0)
         {
@@ -189,7 +188,7 @@ public sealed record PaintedAirChannel(
             Radius = Radius,
             ZMin = PenetrationDepth, // passed as depth
             ZMax = Path[0].Z + TotalLength,  // pass absolute Z for the top
-            TargetMesh = TargetMesh  // pass mesh down for raycasting
+            TargetMesh = targetMesh  // pass mesh down for raycasting
         };
 
         return engine.Generators.GenerateExtrudedPath(parameters);

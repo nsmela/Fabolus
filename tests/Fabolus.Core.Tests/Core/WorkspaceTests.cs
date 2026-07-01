@@ -136,15 +136,4 @@ public class WorkspaceTests
         clearedResult.Value.ActiveMeshId.Should().Be(Guid.Empty);
     }
 
-    [Fact]
-    public void WithMetadata_ReturnsNewInstanceWithMetadata()
-    {
-        var workspace = Workspace.CreateEmpty();
-        
-        var newWorkspace = workspace.WithMetadata("Patient", "John Doe");
-
-        newWorkspace.Should().NotBeSameAs(workspace);
-        newWorkspace.Metadata.Should().ContainKey("Patient").WhoseValue.Should().Be("John Doe");
-        workspace.Metadata.Should().NotContainKey("Patient"); // Ensure immutability
-    }
 }

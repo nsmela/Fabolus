@@ -186,7 +186,7 @@ public class MouldSceneManager : ISceneManager
 
         foreach (var channel in Channels)
         {
-            var generateResult = channel.DomainModel.Generate(_engine, AirChannelRenderMode.Full);
+            var generateResult = channel.DomainModel.Generate(_engine, AirChannelRenderMode.Full, TargetMesh);
             if (generateResult.IsFailure)
                 continue;
 
@@ -234,7 +234,7 @@ public class MouldSceneManager : ISceneManager
         if (IsMouldGenerated || PreviewChannel is null || !_mouseOverTarget)
             return;
 
-        var generateResult = PreviewChannel.Generate(_engine, AirChannelRenderMode.Full);
+        var generateResult = PreviewChannel.Generate(_engine, AirChannelRenderMode.Full, TargetMesh);
         if (generateResult.IsFailure)
             return;
 
