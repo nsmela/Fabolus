@@ -1,0 +1,97 @@
+﻿<UserControl x:Class="Fabolus.Wpf.Features.Moulding.MouldControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.Moulding"
+             Background="Transparent">
+    <UserControl.Resources>
+
+        <!-- Field caption above each control -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+        </Style>
+
+        <!-- Helper caption (sub-label under a control) -->
+        <Style x:Key="FieldHint" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <!-- Accordion section header: icon + title (+ optional trailing content) -->
+        <Style x:Key="SectionExpander" TargetType="Expander">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Divider}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+    </UserControl.Resources>
+
+        <!-- ============================================================ -->
+        <!--  MOULD                                                       -->
+        <!-- ============================================================ -->
+        <Expander Style="{StaticResource SectionExpander}"
+                    IsExpanded="{Binding IsMouldExpanded, Mode=TwoWay}">
+            <Expander.Header>
+                <Grid Height="46" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Viewbox Grid.Column="0" Width="16" Height="16" Margin="0,0,10,0">
+                        <Path Data="{StaticResource Icon.Mould}"
+                                Stroke="{DynamicResource Brush.Accent.Pressed}" StrokeThickness="1.5" Fill="{x:Null}"
+                                StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                    </Viewbox>
+                    <TextBlock Grid.Column="1" Text="Mould" VerticalAlignment="Center"
+                                FontFamily="{StaticResource Font.Sans}" FontSize="14" FontWeight="SemiBold"
+                                Foreground="{DynamicResource Brush.Text.Primary}" />
+                </Grid>
+            </Expander.Header>
+
+            <!-- Mould editing body -->
+            <StackPanel Margin="16,4,16,18">
+
+                <!-- Mould shape -->
+                <StackPanel Margin="0,0,0,15">
+                    <TextBlock Text="Shape" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
+                    <ComboBox ItemsSource="{Binding MouldShapeTypes}"
+                                SelectedItem="{Binding SelectedMouldType, Mode=TwoWay}"
+                                FontFamily="{StaticResource Font.Sans}" FontSize="13" Height="36" />
+                </StackPanel>
+
+                <!-- Wall thickness -->
+                <StackPanel Margin="0,0,0,15">
+                    <Grid Margin="0,0,0,4">
+                        <TextBlock Text="Wall thickness" Style="{StaticResource FieldLabel}" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding WallThickness, StringFormat={}{0:F1} mm}"
+                                    Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
+                    </Grid>
+                    <Slider Minimum="1" Maximum="10" Style="{StaticResource Slider.Steel}"
+                            Value="{Binding WallThickness, Mode=TwoWay}"
+                            SmallChange="0.1" LargeChange="1" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Base height -->
+                <StackPanel Margin="0,0,0,15">
+                    <Grid Margin="0,0,0,4">
+                        <TextBlock Text="Base height" Style="{StaticResource FieldLabel}" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding BaseHeight, StringFormat={}{0:F0} mm}"
+                                    Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
+                    </Grid>
+                    <Slider Minimum="0" Maximum="30" Style="{StaticResource Slider.Steel}"
+                            Value="{Binding BaseHeight, Mode=TwoWay}"
+                            SmallChange="1" LargeChange="5" VerticalAlignment="Center" />
+                </StackPanel>
+
+            </StackPanel>
+        </Expander>
+
+</UserControl>

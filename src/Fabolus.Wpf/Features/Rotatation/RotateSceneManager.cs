@@ -233,6 +233,6 @@ internal class RotateSceneManager : ISceneManager {
     public bool OnKeyDown(Key key) => false;
     public bool OnKeyUp(Key key) => false;
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
-    public bool OnMouseMove(MouseMove3DEventArgs eventArgs) => false;
+    public bool OnMouseMove(HelixToolkit.Wpf.SharpDX.HitTestResult? hit) => false;
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 }

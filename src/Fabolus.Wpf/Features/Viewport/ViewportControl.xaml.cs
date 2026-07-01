@@ -97,10 +97,13 @@ public partial class ViewportControl : UserControl, IDisposable {
         // normal function
     }
 
-    private void MainViewport_MouseMove3D(object sender, RoutedEventArgs e) {
-        if (e is MouseMove3DEventArgs args) {
-            SceneManager?.OnMouseMove(args);
-        }
+    private void MainViewport_MouseMove(object sender, MouseEventArgs e) {
+        if (SceneManager is null) return;
+
+        var position = e.GetPosition(MainViewport);
+        var hits = MainViewport.FindHits(position);
+
+        SceneManager.OnMouseMove(hits.Count > 0 ? hits[0] : null);
     }
 
     private void MainViewport_MouseUp3D(object sender, RoutedEventArgs e) {

@@ -10,6 +10,7 @@
         xmlns:mm="clr-namespace:Fabolus.Wpf.Features.MeshManager"
         xmlns:smooth="clr-namespace:Fabolus.Wpf.Features.Smoothing"
         xmlns:rotate="clr-namespace:Fabolus.Wpf.Features.Rotatation"
+        xmlns:mould="clr-namespace:Fabolus.Wpf.Features.Moulding"
         mc:Ignorable="d"
         Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -35,6 +36,10 @@
             <rotate:RotateView />
         </DataTemplate>
 
+        <DataTemplate DataType="{x:Type mould:MouldViewModel }">
+            <mould:MouldView />
+        </DataTemplate>
+        
         <Style x:Key="CaptionButton" TargetType="Button">
             <Setter Property="Width" Value="46"/>
             <Setter Property="Background" Value="Transparent"/>
@@ -172,7 +177,29 @@
                         </Button.Style>
                     </Button>
 
-                </StackPanel>
+                <Button Command="{Binding SwitchToMouldViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <Path Data="{StaticResource Icon.Mould}"
+                                      Stroke="{DynamicResource Brush.Border.Strong}" StrokeThickness="1.2" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="mould" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="mould">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                    
+            </StackPanel>
             </Border>
 
             <!-- Tools View  -->

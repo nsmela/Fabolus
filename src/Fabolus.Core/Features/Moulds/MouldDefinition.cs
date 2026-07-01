@@ -1,6 +1,6 @@
 using Fabolus.Core.Common;
-using Fabolus.Core.Geometry;
 using Fabolus.Core.Features.AirChannels;
+using Fabolus.Core.Geometry;
 
 namespace Fabolus.Core.Features.Moulds;
 
@@ -12,7 +12,7 @@ public abstract record MouldDefinition
     public abstract Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh);
 }
 
-public sealed record ConvexMouldDefinition(double OffsetXY, double OffsetBottom, double OffsetTop) : MouldDefinition
+public sealed record ConvexMouldDefinition(double OffsetXY = 2.0, double OffsetBottom = 2.0, double OffsetTop = 2.0) : MouldDefinition
 {
     public override Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh)
     {
@@ -36,7 +36,7 @@ public sealed record ConvexMouldDefinition(double OffsetXY, double OffsetBottom,
     }
 }
 
-public sealed record ConcaveMouldDefinition(double OffsetXY, double OffsetBottom, double OffsetTop) : MouldDefinition
+public sealed record ConcaveMouldDefinition(double OffsetXY = 2.0, double OffsetBottom = 2.0, double OffsetTop = 2.0) : MouldDefinition
 {
     public override Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh)
     {
@@ -60,7 +60,7 @@ public sealed record ConcaveMouldDefinition(double OffsetXY, double OffsetBottom
     }
 }
 
-public sealed record ContouredMouldDefinition(double OffsetXY) : MouldDefinition
+public sealed record ContouredMouldDefinition(double OffsetXY = 2.0) : MouldDefinition
 {
     public override Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh)
     {
