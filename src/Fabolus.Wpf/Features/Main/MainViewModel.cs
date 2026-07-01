@@ -11,6 +11,7 @@ using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Rotatation;
+using Fabolus.Wpf.Features.Moulding;
 
 namespace Fabolus.Wpf.Features.Main;
 public partial class MainViewModel : ObservableObject {
@@ -156,6 +157,24 @@ public partial class MainViewModel : ObservableObject {
 
         CurrentViewTitle = "rotate";
         CurrentView = new RotateViewModel(_messenger, _alertDialog, _engine);
+        SceneManager = CurrentView.SceneManager;
+
+        CurrentView.Activate(Workspace);
+    }
+
+    [RelayCommand]
+    public void SwitchToMouldView()
+    {
+        if (CurrentView is MouldViewModel)
+            return;
+
+        if (CurrentView is not null)
+        {
+            WorkspaceUpdated(CurrentView.Deactivate());
+        }
+
+        CurrentViewTitle = "mould";
+        CurrentView = new MouldViewModel(_messenger, _alertDialog, _engine);
         SceneManager = CurrentView.SceneManager;
 
         CurrentView.Activate(Workspace);
