@@ -32,6 +32,24 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // it there); this mirrors that selection so the parameter panel can edit it.
     [ObservableProperty] private Guid _selectedChannelId = Guid.Empty;
 
+    // True once Generate Mould has produced a result from the current settings/channels.
+    // Drives the primary button (Generate <-> Clear) and gates the "settings changed"
+    // guard below.
+    [ObservableProperty] private bool _isGenerated;
+    private Guid _pregenerationMeshId = Guid.Empty;
+    private Guid _generatedMeshId = Guid.Empty;
+
+    partial void OnIsGeneratedChanged(bool value) => _sceneManager.IsMouldGenerated = value;
+
+    // Once a mould has been generated, any further settings/channel edit invalidates it -
+    // there's no incremental way to update baked-in geometry, so fall back to the
+    // pre-generation mesh and let the edit proceed normally from there.
+    private void EnsureNotGenerated()
+    {
+        if (IsGenerated)
+            ClearGeneratedMould();
+    }
+
     // True while the parameter fields are being populated *from* the selected channel,
     // so those assignments don't immediately turn around and rewrite the channel.
     private bool _syncingSelection;
@@ -111,6 +129,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         if (_syncingSelection) return;
 
+        EnsureNotGenerated();
         UpdatePreviewChannel();
 
         if (SelectedChannelId != Guid.Empty)
@@ -204,10 +223,29 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         IMesh mesh = activeMeshResult.Value;
 
+        // MouldDefinition is only ever set on an actual generated-mould result (by
+        // GenerateMould); PendingMouldDefinition holds settings/channels the user was
+        // still editing when they last left this mesh. Prefer the former - if this mesh
+        // IS a mould, we're viewing its baked result, not something still being edited.
         var mouldResult = mesh.Metadata.MouldDefinition();
+
+        if (mouldResult.HasValue && mouldResult.Value.TargetMeshId != Guid.Empty
+            && Workspace.ContainsMesh(mouldResult.Value.TargetMeshId))
+        {
+            IsGenerated = true;
+            _generatedMeshId = mesh.Metadata.Id;
+            _pregenerationMeshId = mouldResult.Value.TargetMeshId;
+        }
+        else
+        {
+            IsGenerated = false;
+            _pregenerationMeshId = Guid.Empty;
+            _generatedMeshId = Guid.Empty;
+        }
+
         var mouldDefinition = mouldResult.HasValue
             ? mouldResult.Value
-            : new ConcaveMouldDefinition();
+            : mesh.Metadata.PendingMouldDefinition().GetValueOrDefault(new ConcaveMouldDefinition());
 
         SelectedChannelId = Guid.Empty;
         Channels = mouldDefinition.AirChannels.ToList();
@@ -238,7 +276,36 @@ public partial class MouldViewModel : ObservableObject, IViewState
         UpdateMould();
     }
 
-    public Workspace Deactivate() => Workspace;
+    public Workspace Deactivate()
+    {
+        PersistUncommittedMouldState();
+        return Workspace;
+    }
+
+    // The mould/channel settings only live here in the ViewModel until Generate is
+    // clicked. If the user switches away (and another feature - Smooth, Rotate, etc. -
+    // then forks or updates this mesh), that in-progress work would otherwise be lost.
+    // Saved as PendingMouldDefinition, distinct from MouldDefinition (which means "this
+    // mesh IS a generated mould") - metadata already carries forward across those forks
+    // (they copy the existing metadata and only touch their own keys), so this is enough.
+    private void PersistUncommittedMouldState()
+    {
+        // Already generated: GenerateMould saved the correct metadata directly on the
+        // result mesh - nothing pending to persist for this (no-longer-active) mesh.
+        if (IsGenerated || Channels.Count == 0)
+            return;
+
+        var meshResult = Workspace.GetActiveMesh();
+        if (meshResult.IsFailure)
+            return;
+
+        var mesh = meshResult.Value;
+        var updatedMesh = mesh.WithMetadata(mesh.Metadata.WithPendingMouldDefinition(BuildMouldDefinition()));
+
+        var result = Workspace.UpdateMesh(updatedMesh);
+        if (result.IsSuccess)
+            Workspace = result.Value;
+    }
 
     private MouldDefinition BuildMouldDefinition() => SelectedMouldType switch
     {
@@ -249,6 +316,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     private void UpdateMould()
     {
+        EnsureNotGenerated();
+
         var result = _sceneManager.UpdateMould(BuildMouldDefinition());
         if (result.IsFailure)
             _alert.ShowError(result.Error.Description);
@@ -330,6 +399,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         if (SelectedChannelId == Guid.Empty) return;
 
+        EnsureNotGenerated();
         Channels = Channels.Where(c => c.Id != SelectedChannelId).ToList();
         OnPropertyChanged(nameof(ChannelCount));
 
@@ -341,6 +411,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     [RelayCommand]
     public void ClearChannels()
     {
+        EnsureNotGenerated();
         Channels = [];
         OnPropertyChanged(nameof(ChannelCount));
 
@@ -353,8 +424,9 @@ public partial class MouldViewModel : ObservableObject, IViewState
     public void GenerateMould()
     {
         var mouldDefinition = BuildMouldDefinition();
+        var pregenerationMeshId = Workspace.ActiveMeshId;
 
-        var result = _generateMouldFeature.Execute(Workspace, Workspace.ActiveMeshId, mouldDefinition);
+        var result = _generateMouldFeature.Execute(Workspace, pregenerationMeshId, mouldDefinition);
         if (result.IsFailure)
         {
             _alert.ShowError(result.Error.Description);
@@ -362,7 +434,51 @@ public partial class MouldViewModel : ObservableObject, IViewState
         }
 
         Workspace = result.Value;
+        _pregenerationMeshId = pregenerationMeshId;
+        _generatedMeshId = Workspace.ActiveMeshId;
+        IsGenerated = true;
+
+        // The mould shell and channels are now baked into the generated mesh itself
+        // (and saved on its metadata by GenerateMould) - drop the pre-generation
+        // overlays, but keep Channels/settings in memory so Clear can restore them.
+        _sceneManager.ClearPreviews();
+
         _sceneManager.UpdateWorkspace(Workspace);
+        _messenger.Send(new WorkspaceChangedMessage(Workspace));
+    }
+
+    [RelayCommand]
+    public void ClearGeneratedMould()
+    {
+        if (!IsGenerated) return;
+
+        var removeResult = Workspace.RemoveMesh(_generatedMeshId);
+        if (removeResult.IsFailure)
+        {
+            _alert.ShowError(removeResult.Error.Description);
+            return;
+        }
+
+        var activateResult = removeResult.Value.SetActiveMesh(_pregenerationMeshId);
+        if (activateResult.IsFailure)
+        {
+            _alert.ShowError(activateResult.Error.Description);
+            return;
+        }
+
+        Workspace = activateResult.Value;
+        IsGenerated = false;
+        _generatedMeshId = Guid.Empty;
+
+        var result = _sceneManager.UpdateWorkspace(Workspace);
+        if (result.IsFailure)
+            _alert.ShowError(result.Error.Description);
+
+        _sceneManager.UpdateChannels(Channels);
+        if (SelectedChannelId != Guid.Empty)
+            _sceneManager.SelectChannel(SelectedChannelId);
+        UpdateMould();
+
         _messenger.Send(new WorkspaceChangedMessage(Workspace));
     }
 }

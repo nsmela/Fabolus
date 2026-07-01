@@ -35,6 +35,43 @@
         <Setter Property="Padding" Value="0" />
     </Style>
 
+    <!-- Primary action: "Generate Mould" until generated, then swaps to "Clear Mould" -->
+    <Style x:Key="PrimaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource Button.Primary}">
+        <Setter Property="Command" Value="{Binding GenerateMouldCommand}" />
+        <Setter Property="Content">
+            <Setter.Value>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Viewbox Width="15" Height="15" Margin="0,0,8,0">
+                        <Path Data="{StaticResource Icon.Mould}"
+                              Stroke="{DynamicResource Brush.Text.OnAccent}" StrokeThickness="1.6" Fill="{x:Null}"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                    </Viewbox>
+                    <TextBlock Text="Generate Mould" VerticalAlignment="Center" />
+                </StackPanel>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsGenerated}" Value="True">
+                <Setter Property="Command" Value="{Binding ClearGeneratedMouldCommand}" />
+                <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Danger}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Content">
+                    <Setter.Value>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Viewbox Width="14" Height="14" Margin="0,0,8,0">
+                                <Path Data="M3 4.5 L13 4.5 M6.5 4.5 L6.5 3.2 L9.5 3.2 L9.5 4.5 M4.5 4.5 L5 12.8 a1 1 0 0 0 1 0.9 L10 13.7 a1 1 0 0 0 1 -0.9 L11.5 4.5"
+                                      Stroke="{DynamicResource Brush.Danger}" StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            </Viewbox>
+                            <TextBlock Text="Clear Mould" VerticalAlignment="Center" Foreground="{DynamicResource Brush.Danger}" />
+                        </StackPanel>
+                    </Setter.Value>
+                </Setter>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     </UserControl.Resources>
 
     <!-- Tool-rail shell -->
@@ -58,18 +95,8 @@
             </ScrollViewer>
 
             <!-- Pinned primary action -->
-            <Button Grid.Row="1" Command="{Binding GenerateMouldCommand}"
-                    Style="{StaticResource Button.Primary}" HorizontalAlignment="Stretch"
-                    Margin="16,12,16,16">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Viewbox Width="15" Height="15" Margin="0,0,8,0">
-                        <Path Data="{StaticResource Icon.Mould}"
-                              Stroke="{DynamicResource Brush.Text.OnAccent}" StrokeThickness="1.6" Fill="{x:Null}"
-                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
-                    </Viewbox>
-                    <TextBlock Text="Generate Mould" VerticalAlignment="Center" />
-                </StackPanel>
-            </Button>
+            <Button Grid.Row="1" Style="{StaticResource PrimaryActionButtonStyle}"
+                    HorizontalAlignment="Stretch" Margin="16,12,16,16" />
 
         </Grid>
     </Border>
