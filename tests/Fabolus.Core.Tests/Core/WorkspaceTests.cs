@@ -80,7 +80,10 @@ public class WorkspaceTests
         var result = workspace.GetMesh(id);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeSameAs(mesh);
+        // Not BeSameAs(mesh): AddMesh establishes BaseMesh on entry, which wraps the mesh in
+        // new metadata (a new IMesh instance, same underlying identity/Id).
+        result.Value.Metadata.Id.Should().Be(id);
+        result.Value.Metadata.BaseMesh.HasValue.Should().BeTrue();
     }
 
     [Fact]
@@ -128,7 +131,9 @@ public class WorkspaceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.ActiveMeshId.Should().Be(id);
-        result.Value.GetActiveMesh().Value.Should().BeSameAs(mesh);
+        // Not BeSameAs(mesh): AddMesh establishes BaseMesh on entry, which wraps the mesh in
+        // new metadata (a new IMesh instance, same underlying identity/Id).
+        result.Value.GetActiveMesh().Value.Metadata.Id.Should().Be(id);
 
         var clearedResult = result.Value.SetActiveMesh(null);
         clearedResult.IsSuccess.Should().BeTrue();

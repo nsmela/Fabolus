@@ -27,7 +27,7 @@ public sealed class ClearMould {
         var mouldResult = activeMesh.Metadata.MouldDefinition();
         if (mouldResult.HasNoValue) return workspace;
 
-        var baseMesh = activeMesh.Metadata.BaseMesh.GetValueOrDefault(activeMesh);
+        var baseMesh = activeMesh.Metadata.BaseMesh.Value;
         var revertedMetadata = activeMesh.Metadata.WithoutCommand<MouldDefinition>();
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);

@@ -28,8 +28,10 @@ public sealed class GenerateMould
 
         // Boolean operations hand back bare metadata (just Id/Name/CreatedBy), so the final
         // metadata is built from the source mesh's own metadata instead (mesh.Metadata, not
-        // mouldMesh.Metadata) - Id/Commands/BaseMesh all carry forward automatically, same as
-        // Smoothing and Rotate/Translate now that Mould operates in place too.
+        // mouldMesh.Metadata) - Id/Commands/BaseMesh all carry forward automatically (BaseMesh
+        // is guaranteed present - Workspace.AddMesh establishes it for every mesh the moment
+        // it enters the workspace), same as Smoothing and Rotate/Translate now that Mould
+        // operates in place too.
         var statsResult = _geometryEngine.Evaluators.GetStatistics(mouldMesh);
         if (statsResult.IsFailure) return statsResult.Error;
 
@@ -41,10 +43,6 @@ public sealed class GenerateMould
             .Set(MeshIOKeys.Topology, topologyResult.Value));
 
         metadata = metadata.WithCommand(mouldDefinition with { TargetMeshId = meshId });
-        // First-ever command on this mesh still needs to establish BaseMesh before UpdateMesh
-        // disposes the pre-mould `mesh` object below - same disposal hazard SmoothMesh guards
-        // against (WithPropagatedBaseMesh is a no-op if BaseMesh was already set upstream).
-        metadata = metadata.WithPropagatedBaseMesh(mesh);
 
         var finalMesh = mouldMesh.WithMetadata(metadata);
 

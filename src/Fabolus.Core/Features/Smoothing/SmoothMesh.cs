@@ -28,7 +28,9 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
         if (getMeshResult.IsFailure) return getMeshResult.Error;
 
         var activeMesh = getMeshResult.Value;
-        var baseMesh = activeMesh.Metadata.BaseMesh.GetValueOrDefault(activeMesh);
+        // BaseMesh is guaranteed present - Workspace.AddMesh establishes it for every mesh
+        // the moment it enters the workspace.
+        var baseMesh = activeMesh.Metadata.BaseMesh.Value;
         var updatedMetadata = activeMesh.Metadata.WithCommand(settings);
 
         var replayResult = CommandReplay.Apply(Engine, baseMesh, updatedMetadata.Commands);
@@ -38,14 +40,11 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
 
         var topology = Engine.Evaluators.ValidateTopology(finalMesh).Value;
         var stats = Engine.Evaluators.GetStatistics(finalMesh).Value;
+        // BaseMesh carries forward automatically here (updatedMetadata was built from
+        // activeMesh.Metadata, which already has it).
         var metadata = updatedMetadata.WithProperties(m => m
             .Set(MeshIOKeys.Stats, stats)
             .Set(MeshIOKeys.Topology, topology));
-        // Deliberately propagates from activeMesh, not from the replay's own BaseMesh output:
-        // the replay's input was baseMesh itself (a clone, once one exists), whose own
-        // metadata never records "I am a base" - checking it would re-clone on every repeat
-        // Apply instead of reusing the one already established on activeMesh.
-        metadata = metadata.WithPropagatedBaseMesh(activeMesh);
 
         finalMesh = finalMesh.WithMetadata(metadata);
 

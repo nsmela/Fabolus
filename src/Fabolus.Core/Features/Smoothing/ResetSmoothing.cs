@@ -27,7 +27,7 @@ public sealed class ResetSmoothing {
         var smoothResult = activeMesh.Metadata.GetSmoothing();
         if (smoothResult.HasNoValue) return workspace;
 
-        var baseMesh = activeMesh.Metadata.BaseMesh.GetValueOrDefault(activeMesh);
+        var baseMesh = activeMesh.Metadata.BaseMesh.Value;
         var revertedMetadata = activeMesh.Metadata.WithoutCommand<SmoothSettings>();
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
