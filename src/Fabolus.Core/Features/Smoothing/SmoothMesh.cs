@@ -47,31 +47,11 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
             isForked = true;
         }
 
-        int baseTriangleCount = originalMesh.TriangleCount;
-
-        // Erosion through offset cycle
-        var offsetResult = Engine.Modifiers.OffsetDouble(originalMesh, settings.Intensity, settings.Iterations, settings.Resolution);
-        if (offsetResult.IsFailure) return offsetResult.Error;
-
-        if (offsetResult.Value.TriangleCount == 0)
-            return new Error("Smoothing.OverEroded", "The mesh collapsed due to high intensity. Try reducing Iterations or Intensity.");
-
-        var currentMesh = offsetResult.Value;
-
-        // optional inflation 
-        if (Math.Abs(settings.Inflation) > 0.001) {
-            var inflationResult = Engine.Modifiers.Offset(currentMesh, settings.Inflation, settings.Resolution);
-            if (inflationResult.IsFailure) return inflationResult.Error;
-            currentMesh = inflationResult.Value;
-        }
-
-        // Resize (Decimation)
-        int targetTriangleCount = (int)(baseTriangleCount * Math.Max(settings.RemeshRatio, 1.0));
-        var resizeResult = Engine.Modifiers.Resize(currentMesh, targetTriangleCount);
-        if (resizeResult.IsFailure) return resizeResult.Error;
+        var applyResult = settings.Apply(Engine, originalMesh);
+        if (applyResult.IsFailure) return applyResult.Error;
 
         // Finalize metadata and update workspace
-        var finalMesh = resizeResult.Value;
+        var finalMesh = applyResult.Value;
 
         var topology = Engine.Evaluators.ValidateTopology(finalMesh).Value;
         var stats = Engine.Evaluators.GetStatistics(finalMesh).Value;
@@ -83,9 +63,12 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
             }
 
             m.Set(MeshIOKeys.Stats, stats)
-             .Set(MeshIOKeys.Topology, topology)
-             .Set(SmoothKeys.SmoothSettings, settings);
+             .Set(MeshIOKeys.Topology, topology);
         });
+        metadata = metadata.WithCommand(settings);
+        if (isForked) {
+            metadata = metadata.WithBaseMesh(originalMesh);
+        }
 
         finalMesh = finalMesh.WithMetadata(metadata);
 

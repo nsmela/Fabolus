@@ -105,16 +105,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         double[]? heatmapColors = null;
         if (DisplayMode == SmoothDisplayMode.Heatmap) {
-            IMesh? originalMesh = mesh.OriginalMesh;
-            if (originalMesh == null && mesh.Metadata.DerivedFrom.HasValue) {
-                var originalResult = Workspace.GetMesh(mesh.Metadata.DerivedFrom.Value);
-                if (originalResult.IsSuccess) {
-                    originalMesh = originalResult.Value;
-                }
-            }
-
-            if (originalMesh != null) {
-                var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, originalMesh, HeatmapSensitivity);
+            var baseMeshResult = mesh.Metadata.BaseMesh;
+            if (baseMeshResult.HasValue) {
+                var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, baseMeshResult.Value, HeatmapSensitivity);
                 if (colorResult.IsSuccess) {
                     heatmapColors = colorResult.Value;
                 }

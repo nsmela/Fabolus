@@ -44,9 +44,9 @@ public sealed class TransformMesh {
 
         var transformedMesh = transformedResult.Value;
         var metadata = targetMesh.Metadata.WithProperties(m =>
-            m.Set(TransformKeys.Translation, vector)
-             .Set(CoreKeys.DerivedFrom, targetMesh.Metadata.Id)
+            m.Set(CoreKeys.DerivedFrom, targetMesh.Metadata.Id)
         );
+        metadata = metadata.WithCommand(new TranslateCommand(vector));
         transformedMesh = transformedMesh.WithMetadata(metadata);
 
         return workspace.UpdateMesh(transformedMesh);
@@ -72,8 +72,7 @@ public sealed class TransformMesh {
             quaternion = quaternion * rotationResult.Value ;
         }
 
-        var metadata = transformedMesh.Metadata.WithProperties(m => 
-            m.Set(TransformKeys.Rotation, quaternion));
+        var metadata = transformedMesh.Metadata.WithCommand(new RotateCommand(quaternion));
         transformedMesh = transformedMesh.WithMetadata(metadata);
 
         return workspace.UpdateMesh(transformedMesh);
@@ -106,7 +105,7 @@ public sealed class TransformMesh {
             return transformedResult.Error;
 
         var transformedMesh = transformedResult.Value;
-        transformedMesh = transformedMesh.WithMetadata(metadata.WithoutRotation());
+        transformedMesh = transformedMesh.WithMetadata(metadata.WithoutCommand<RotateCommand>());
         return workspace.UpdateMesh(transformedMesh);
     }
 

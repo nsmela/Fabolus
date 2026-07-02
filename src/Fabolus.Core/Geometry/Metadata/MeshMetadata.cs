@@ -1,5 +1,7 @@
 using Fabolus.Core.Common;
+using Fabolus.Core.Geometry;
 using System.Collections.Immutable;
+using System.Linq;
 
 namespace Fabolus.Core.Geometry.Metadata;
 
@@ -121,6 +123,43 @@ public sealed record MeshMetadata {
     /// <param name="value">The string representing the creator or operation.</param>
     /// <returns>A new <see cref="MeshMetadata"/> instance with the updated CreatedBy property.</returns>
     public MeshMetadata WithCreatedBy(string value) => WithProperty(CoreKeys.CreatedBy, value ?? string.Empty);
+
+    /// <summary>
+    /// The ordered list of commands applied to <see cref="BaseMesh"/> to produce this mesh's
+    /// current state. Empty for a mesh nothing has been applied to yet (e.g. a fresh import).
+    /// </summary>
+    public IReadOnlyList<IMeshCommand> Commands => GetProperty(CoreKeys.Commands).GetValueOrDefault(Array.Empty<IMeshCommand>());
+
+    /// <summary>
+    /// Records that <paramref name="command"/> was applied. Any existing command of the same
+    /// runtime type is replaced (not stacked) and the new one moved to the end of the order -
+    /// this mirrors today's "one net value per feature" behavior (e.g. rotations compose into a
+    /// single net Quaternion) while still preserving relative order across different features.
+    /// </summary>
+    public MeshMetadata WithCommand(IMeshCommand command) {
+        var updated = Commands.Where(c => c.GetType() != command.GetType()).ToList();
+        updated.Add(command);
+        return WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)updated);
+    }
+
+    /// <summary>
+    /// Removes any command of the given runtime type from the ordered list.
+    /// </summary>
+    public MeshMetadata WithoutCommand<TCommand>() where TCommand : IMeshCommand {
+        var updated = Commands.Where(c => c is not TCommand).ToList();
+        return WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)updated);
+    }
+
+    /// <summary>
+    /// Gets the pristine mesh this one was derived from, before any of <see cref="Commands"/>
+    /// were applied, if one has been recorded.
+    /// </summary>
+    public Maybe<IMesh> BaseMesh => GetProperty(CoreKeys.BaseMesh);
+
+    /// <summary>
+    /// Creates a new metadata instance recording the pristine base mesh.
+    /// </summary>
+    public MeshMetadata WithBaseMesh(IMesh mesh) => WithProperty(CoreKeys.BaseMesh, mesh);
 
     /// <summary>
     /// Creates a base metadata instance from a given file path (typically used for imports).

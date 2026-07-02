@@ -1,8 +1,10 @@
+using System.Linq;
 using System.Numerics;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Features.AirChannels;
+using Fabolus.Core.Features.Transforms;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
 using Xunit;
@@ -19,6 +21,29 @@ public class MouldsTests
     {
         _fixture = fixture;
         _generateMouldFeature = new GenerateMould(_fixture.Engine);
+    }
+
+    [Fact]
+    public void GenerateMould_PreservesCommandsFromSourceMesh()
+    {
+        var workspace = Workspace.CreateEmpty();
+        var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
+        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+
+        var transformFeature = new TransformMesh(_fixture.Engine);
+        workspace = transformFeature.Rotate(workspace, mesh.Metadata.Id, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
+        var rotatedMeshId = workspace.ActiveMeshId;
+
+        var mouldDef = new ContouredMouldDefinition(OffsetXY: 2.0);
+        var result = _generateMouldFeature.Execute(workspace, rotatedMeshId, mouldDef);
+
+        result.IsSuccess.Should().BeTrue();
+        var mouldMesh = result.Value.GetActiveMesh().Value;
+
+        // Boolean ops hand back bare metadata - the source mesh's prior commands (the
+        // rotation) must be carried forward explicitly, in addition to the new MouldDefinition.
+        mouldMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
+        mouldMesh.Metadata.Commands.OfType<MouldDefinition>().Should().HaveCount(1);
     }
 
     [Fact]

@@ -14,7 +14,6 @@ public class WorkspaceTests
         public int VertexCount => 0;
         public int TriangleCount => 0;
         public bool IsEmpty => true;
-        public IMesh OriginalMesh => this;
 
         public MockMesh(Guid id)
         {

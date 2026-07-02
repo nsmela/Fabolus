@@ -40,7 +40,7 @@ public class TransformMeshTests
         var forkedMesh = updatedWorkspace.GetActiveMesh().Value;
         forkedMesh.Metadata.DerivedFrom.HasValue.Should().BeTrue();
         forkedMesh.Metadata.DerivedFrom.Value.Should().Be(baseId);
-        var translate = forkedMesh.Metadata.GetProperty(TransformKeys.Translation).Value;
+        var translate = forkedMesh.Metadata.Translation().Value;
         translate.Should().NotBeNull();
 
         var stats = _fixture.Engine.Evaluators.GetStatistics(forkedMesh).Value;
@@ -66,8 +66,32 @@ public class TransformMeshTests
         result.IsSuccess.Should().BeTrue();
         var forkedMesh = result.Value.GetActiveMesh().Value;
 
-        var rotation = forkedMesh.Metadata.GetProperty(TransformKeys.Rotation).Value;
+        var rotation = forkedMesh.Metadata.Rotation().Value;
         rotation.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Rotate_Twice_PropagatesTransitiveRootBaseMesh_NotImmediateParent()
+    {
+        var workspace = Workspace.CreateEmpty();
+        var mesh = _fixture.LoadStl("sphere.stl");
+        var baseId = mesh.Metadata.Id;
+        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+
+        float angleRadians = (float)(System.Math.PI / 4.0f);
+        workspace = _transformFeature.Rotate(workspace, baseId, angleRadians, Vector3.UnitZ).Value;
+        var onceRotated = workspace.GetActiveMesh().Value;
+
+        onceRotated.Metadata.BaseMesh.HasValue.Should().BeTrue();
+        onceRotated.Metadata.BaseMesh.Value.Metadata.Id.Should().Be(baseId);
+
+        // Rotate again on the same (in-place) mesh - BaseMesh must still point at the true
+        // original, not the once-rotated intermediate state (the bug this fixes).
+        workspace = _transformFeature.Rotate(workspace, onceRotated.Metadata.Id, angleRadians, Vector3.UnitZ).Value;
+        var twiceRotated = workspace.GetActiveMesh().Value;
+
+        twiceRotated.Metadata.BaseMesh.HasValue.Should().BeTrue();
+        twiceRotated.Metadata.BaseMesh.Value.Metadata.Id.Should().Be(baseId);
     }
 
     [Fact]

@@ -21,31 +21,15 @@ public sealed class GenerateMould
         
         var mesh = meshResult.Value;
 
-        var generateResult = mouldDefinition.Generate(_geometryEngine, mesh);
-        if (generateResult.IsFailure) return generateResult.Error;
+        var applyResult = mouldDefinition.Apply(_geometryEngine, mesh);
+        if (applyResult.IsFailure) return applyResult.Error;
 
-        var mouldMesh = generateResult.Value;
-
-        // Subtract the target mesh from the mould
-        var targetSubtractedResult = _geometryEngine.Booleans.Subtract(mouldMesh, mesh);
-        if (targetSubtractedResult.IsFailure) return targetSubtractedResult.Error;
-        
-        mouldMesh = targetSubtractedResult.Value;
-
-        // Subtract the air channels from the mould
-        foreach (var channel in mouldDefinition.AirChannels)
-        {
-            var channelMeshResult = channel.DomainModel.Generate(_geometryEngine, Features.AirChannels.AirChannelRenderMode.Full);
-            if (channelMeshResult.IsFailure) return channelMeshResult.Error;
-
-            var subtractedResult = _geometryEngine.Booleans.Subtract(mouldMesh, channelMeshResult.Value);
-            if (subtractedResult.IsFailure) return subtractedResult.Error;
-
-            mouldMesh = subtractedResult.Value;
-        }
+        var mouldMesh = applyResult.Value;
 
         // Boolean operations hand back bare metadata (just Id/Name/CreatedBy) - every other
-        // consumer (Mesh Manager, etc.) expects Stats/Topology to already be populated.
+        // consumer (Mesh Manager, etc.) expects Stats/Topology to already be populated, and
+        // this mesh's own Commands history needs to be seeded from the source mesh since
+        // boolean ops don't carry any of the source's metadata forward.
         var statsResult = _geometryEngine.Evaluators.GetStatistics(mouldMesh);
         if (statsResult.IsFailure) return statsResult.Error;
 
@@ -55,10 +39,14 @@ public sealed class GenerateMould
         var metadata = mouldMesh.Metadata.WithProperties(m => m
             .Set(CoreKeys.Name, $"{mesh.Metadata.Name} (Mould)")
             .Set(CoreKeys.DerivedFrom, meshId)
+            .Set(CoreKeys.Commands, mesh.Metadata.Commands)
             .Set(MeshIOKeys.Stats, statsResult.Value)
             .Set(MeshIOKeys.Topology, topologyResult.Value));
 
-        var finalMesh = mouldMesh.WithMetadata(metadata.WithMouldDefinition(mouldDefinition with { TargetMeshId = meshId }));
+        metadata = metadata.WithCommand(mouldDefinition with { TargetMeshId = meshId });
+        metadata = metadata.WithBaseMesh(mesh.Metadata.BaseMesh.GetValueOrDefault(mesh));
+
+        var finalMesh = mouldMesh.WithMetadata(metadata);
 
         var addResult = workspace.AddMesh(finalMesh);
         if (addResult.IsFailure) return addResult;

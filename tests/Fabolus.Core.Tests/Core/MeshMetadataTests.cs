@@ -1,3 +1,5 @@
+using Fabolus.Core.Common;
+using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using FluentAssertions;
 using System;
@@ -8,6 +10,14 @@ namespace Fabolus.Tests.Core;
 
 public class MeshMetadataTests
 {
+    private sealed record FakeCommandA : IMeshCommand {
+        public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) => Result<IMesh>.Success(mesh);
+    }
+
+    private sealed record FakeCommandB : IMeshCommand {
+        public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) => Result<IMesh>.Success(mesh);
+    }
+
     [Fact]
     public void WithProperty_SetsPropertyAndReturnsNewInstance()
     {
@@ -71,5 +81,40 @@ public class MeshMetadataTests
         metadata.Name.Should().Be("MyMesh");
         metadata.DerivedFrom.Value.Should().Be(derivedFrom);
         metadata.CreatedBy.Value.Should().Be("Generator");
+    }
+
+    [Fact]
+    public void WithCommand_AppendsNewCommandType()
+    {
+        var metadata = new MeshMetadata().WithCommand(new FakeCommandA());
+
+        metadata.Commands.Should().ContainSingle().Which.Should().BeOfType<FakeCommandA>();
+    }
+
+    [Fact]
+    public void WithCommand_ReplacesExistingOfSameTypeAndMovesToEnd()
+    {
+        // Mirrors the "rotate, smooth, rotate again" scenario: re-recording a command of a
+        // type that already exists should replace it (not stack it) and move it to the end
+        // of the order, matching today's "one net value per feature" overwrite behavior.
+        var metadata = new MeshMetadata()
+            .WithCommand(new FakeCommandA())
+            .WithCommand(new FakeCommandB())
+            .WithCommand(new FakeCommandA());
+
+        metadata.Commands.Should().HaveCount(2);
+        metadata.Commands[0].Should().BeOfType<FakeCommandB>();
+        metadata.Commands[1].Should().BeOfType<FakeCommandA>();
+    }
+
+    [Fact]
+    public void WithoutCommand_RemovesCommandOfGivenType()
+    {
+        var metadata = new MeshMetadata()
+            .WithCommand(new FakeCommandA())
+            .WithCommand(new FakeCommandB())
+            .WithoutCommand<FakeCommandA>();
+
+        metadata.Commands.Should().ContainSingle().Which.Should().BeOfType<FakeCommandB>();
     }
 }

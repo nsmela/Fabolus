@@ -85,7 +85,7 @@ public class GeometryTransformsTests
     }
 
     [Fact]
-    public void Transforms_PropagateOriginalMesh()
+    public void Transforms_PropagateBaseMesh()
     {
         var original = _fixture.UnitCube();
         // create a derived mesh
@@ -93,10 +93,10 @@ public class GeometryTransformsTests
 
         var transformed = _fixture.Engine.Transforms.Translate(derived, 1, 1, 1).Value;
 
-        transformed.OriginalMesh.Should().NotBeNull();
-        transformed.OriginalMesh.Should().NotBeSameAs(original); // Should be a translated copy of original
-        
-        var originalOfTransformedStats = _engine.Evaluators.GetStatistics(transformed.OriginalMesh).Value;
+        transformed.Metadata.BaseMesh.HasValue.Should().BeTrue();
+        transformed.Metadata.BaseMesh.Value.Should().NotBeSameAs(original); // Should be a translated copy of original
+
+        var originalOfTransformedStats = _engine.Evaluators.GetStatistics(transformed.Metadata.BaseMesh.Value).Value;
         var originalStats = _engine.Evaluators.GetStatistics(original).Value;
 
         originalOfTransformedStats.MinX.Should().BeApproximately(originalStats.MinX + 1, 1e-3);
