@@ -256,7 +256,9 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         UpdatePreviewChannel();
 
-        var result = _sceneManager.UpdateWorkspace(Workspace);
+        // The scene manager only ever renders the active mesh, so that's all it gets -
+        // the Workspace itself stays here in the view model.
+        var result = _sceneManager.UpdateMesh(mesh);
         if (result.IsFailure)
             _alert.ShowError(result.Error.Description);
 
@@ -428,7 +430,9 @@ public partial class MouldViewModel : ObservableObject, IViewState
         // overlays, but keep Channels/settings in memory so Clear can restore them.
         _sceneManager.ClearPreviews();
 
-        _sceneManager.UpdateWorkspace(Workspace);
+        var meshResult = Workspace.GetActiveMesh();
+        if (meshResult.IsSuccess)
+            _sceneManager.UpdateMesh(meshResult.Value);
         _messenger.Send(new WorkspaceChangedMessage(Workspace));
     }
 
@@ -447,9 +451,13 @@ public partial class MouldViewModel : ObservableObject, IViewState
         Workspace = result.Value;
         IsGenerated = false;
 
-        var updateResult = _sceneManager.UpdateWorkspace(Workspace);
-        if (updateResult.IsFailure)
-            _alert.ShowError(updateResult.Error.Description);
+        var meshResult = Workspace.GetActiveMesh();
+        if (meshResult.IsSuccess)
+        {
+            var updateResult = _sceneManager.UpdateMesh(meshResult.Value);
+            if (updateResult.IsFailure)
+                _alert.ShowError(updateResult.Error.Description);
+        }
 
         _sceneManager.UpdateChannels(Channels);
         if (SelectedChannelId != Guid.Empty)

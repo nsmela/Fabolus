@@ -25,7 +25,7 @@ internal class RotateSceneManager : ISceneManager {
     private Guid _activeId;
     private Guid _activeGizmoId;
 
-    private Workspace Workspace { get; set; }
+    private IMesh? ActiveMesh { get; set; }
     private OverhangSettings OverhangSettings { get; set; }
     private RotateTransform3D TempRotation { get; set; } = new();
 
@@ -51,14 +51,11 @@ internal class RotateSceneManager : ISceneManager {
 
         var vector = new SharpDX.Vector3(axis.X, axis.Y, axis.Z);
 
-        if (vector == Vector3.Zero || Workspace is null) return;
+        if (vector == Vector3.Zero || ActiveMesh is null) return;
 
-        var activeResult = Workspace.GetActiveMesh();
-        if (activeResult.IsSuccess) {
-            _activeGizmo = GenerateAxisGizmo(vector, activeResult.Value);
-            _activeGizmoId = _activeGizmo.GUID;
-            VisualAddedOrUpdated?.Invoke(_activeGizmo);
-        }
+        _activeGizmo = GenerateAxisGizmo(vector, ActiveMesh);
+        _activeGizmoId = _activeGizmo.GUID;
+        VisualAddedOrUpdated?.Invoke(_activeGizmo);
     }
 
     public void OnActivated() {
@@ -69,7 +66,10 @@ internal class RotateSceneManager : ISceneManager {
     public void ApplyTempRotation(Vector3D axis, float degree) {
         var rotation = new AxisAngleRotation3D(axis, degree);
         TempRotation = new RotateTransform3D(rotation);
-        UpdateWorkspace(Workspace);
+
+        if (ActiveMesh is not null) {
+            UpdateMesh(ActiveMesh);
+        }
     }
 
     /// <summary>
@@ -104,34 +104,26 @@ internal class RotateSceneManager : ISceneManager {
             MinAngleDegrees: 0f,
             MaxAngleDegrees: 90f);
 
-        if (Workspace is not null) {
-            UpdateWorkspace(Workspace);
+        if (ActiveMesh is not null) {
+            UpdateMesh(ActiveMesh);
         }
     }
 
-    public void UpdateWorkspace(Workspace workspace) {
+    public void UpdateMesh(IMesh mesh) {
         if (_activeId != Guid.Empty) {
             VisualRemovedById?.Invoke(_activeId);
         }
 
-        Workspace = workspace;
-
-        var activeResult = Workspace.GetActiveMesh();
-        if (activeResult.IsFailure) {
-            return;
-        }
-
-        IMesh mesh = activeResult.Value;
+        ActiveMesh = mesh;
 
         var matrix = TempRotation.Value;
         matrix.Invert();
-        
+
         var v = matrix.Transform(new Vector3D(0, 0, 1));
         var direction = OverhangDirection.Create(
             new System.Numerics.Vector3((float)v.X, (float)v.Y, (float)v.Z)).Value;
         var colouringResult = _overhangFeature.Execute(
-            Workspace, 
-            mesh.Metadata.Id,
+            mesh,
             OverhangSettings with { Direction = direction });
         if (colouringResult.IsFailure) {
             return;

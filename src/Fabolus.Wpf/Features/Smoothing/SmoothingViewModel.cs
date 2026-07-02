@@ -115,7 +115,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         }
 
         PublishInfo(mesh);
-        _sceneManager.UpdateWorkspace(Workspace, heatmapColors);
+        // The scene manager only ever renders the active mesh, so that's all it gets -
+        // the Workspace itself stays here in the view model.
+        _sceneManager.UpdateMesh(mesh, heatmapColors);
     }
 
     private void PublishInfo(IMesh activeMesh) {

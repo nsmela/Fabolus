@@ -61,7 +61,7 @@ public class SmoothingSceneManager : ISceneManager
         }
     }
 
-    public void UpdateWorkspace(Workspace workspace, double[]? heatmapColors = null)
+    public void UpdateMesh(IMesh mesh, double[]? heatmapColors = null)
     {
         VisualRemovedById?.Invoke(_activeId);
         if (_crossSectionModel != null)
@@ -72,14 +72,6 @@ public class SmoothingSceneManager : ISceneManager
         {
             VisualRemovedById?.Invoke(_originalCrossSectionModel.GUID);
         }
-
-        var activeMeshResult = workspace.GetActiveMesh();
-        if (activeMeshResult.IsFailure)
-        {
-            return;
-        }
-
-        IMesh mesh = activeMeshResult.Value;
 
         MeshGeometry3D geometry = mesh.ToHelixMesh(_engine, heatmapColors).Value;
 
