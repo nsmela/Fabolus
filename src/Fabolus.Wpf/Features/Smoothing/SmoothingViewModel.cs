@@ -103,21 +103,37 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         if (meshResult.IsFailure) return;
         var mesh = meshResult.Value;
 
+        // Comparison views (heatmap, cross-section) compare against the mesh's aligned
+        // "unsmoothed twin" - BaseMesh with the remaining commands (e.g. a rotation) replayed
+        // on top - NOT raw BaseMesh, which stays pristine and never rotates, so it drifts out
+        // of alignment as soon as the mesh is transformed after smoothing.
+        IMesh? unsmoothedMesh = null;
+        if (DisplayMode != SmoothDisplayMode.None && mesh.Metadata.GetSmoothing().HasValue) {
+            var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(mesh);
+            if (unsmoothedResult.IsSuccess) {
+                unsmoothedMesh = unsmoothedResult.Value;
+            }
+        }
+
         double[]? heatmapColors = null;
-        if (DisplayMode == SmoothDisplayMode.Heatmap) {
-            var baseMeshResult = mesh.Metadata.BaseMesh;
-            if (baseMeshResult.HasValue) {
-                var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, baseMeshResult.Value, HeatmapSensitivity);
-                if (colorResult.IsSuccess) {
-                    heatmapColors = colorResult.Value;
-                }
+        if (DisplayMode == SmoothDisplayMode.Heatmap && unsmoothedMesh is not null) {
+            var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, unsmoothedMesh, HeatmapSensitivity);
+            if (colorResult.IsSuccess) {
+                heatmapColors = colorResult.Value;
             }
         }
 
         PublishInfo(mesh);
         // The scene manager only ever renders the active mesh, so that's all it gets -
         // the Workspace itself stays here in the view model.
-        _sceneManager.UpdateMesh(mesh, heatmapColors);
+        _sceneManager.UpdateMesh(mesh, unsmoothedMesh, heatmapColors);
+
+        // The twin is a scratch mesh and the scene manager has already converted it to render
+        // geometry - but when no other commands existed, the replay hands back the stored
+        // BaseMesh itself, which must not be disposed.
+        if (unsmoothedMesh is not null && !ReferenceEquals(unsmoothedMesh, mesh.Metadata.BaseMesh.Value)) {
+            unsmoothedMesh.Dispose();
+        }
     }
 
     private void PublishInfo(IMesh activeMesh) {

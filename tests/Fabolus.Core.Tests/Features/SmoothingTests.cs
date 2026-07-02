@@ -121,6 +121,58 @@ public class SmoothingTests
     }
 
     [Fact]
+    public void ComputeUnsmoothedMesh_AfterTransform_StaysAlignedWithCurrentMesh()
+    {
+        var workspace = Workspace.CreateEmpty();
+        var mesh = _fixture.LoadStl("sphere.stl");
+        var baseId = mesh.Metadata.Id;
+        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+
+        // Smooth, then translate - the comparison reference shown in the Smoothing view must
+        // follow the mesh to its new position, not sit back at BaseMesh's original spot.
+        workspace = _smoothingFeature.Execute(workspace, new SmoothSettings()).Value;
+        var transformFeature = new TransformMesh(_fixture.Engine);
+        workspace = transformFeature.Translate(workspace, baseId, 50, 0, 0).Value;
+
+        var currentMesh = workspace.GetActiveMesh().Value;
+        var result = _resetFeature.ComputeUnsmoothedMesh(currentMesh);
+
+        result.IsSuccess.Should().BeTrue();
+        var unsmoothed = result.Value;
+
+        var currentStats = _fixture.Engine.Evaluators.GetStatistics(currentMesh).Value;
+        var unsmoothedStats = _fixture.Engine.Evaluators.GetStatistics(unsmoothed).Value;
+        var baseStats = _fixture.Engine.Evaluators.GetStatistics(currentMesh.Metadata.BaseMesh.Value).Value;
+
+        // Aligned with the (translated, smoothed) current mesh...
+        var currentCentreX = (currentStats.MinX + currentStats.MaxX) / 2;
+        var unsmoothedCentreX = (unsmoothedStats.MinX + unsmoothedStats.MaxX) / 2;
+        unsmoothedCentreX.Should().BeApproximately(currentCentreX, 2.0);
+
+        // ...and NOT with the pristine BaseMesh, which never moves.
+        var baseCentreX = (baseStats.MinX + baseStats.MaxX) / 2;
+        (unsmoothedCentreX - baseCentreX).Should().BeApproximately(50, 2.0);
+    }
+
+    [Fact]
+    public void ComputeUnsmoothedMesh_NoOtherCommands_ReturnsBaseMeshInstance()
+    {
+        var workspace = Workspace.CreateEmpty();
+        var mesh = _fixture.LoadStl("sphere.stl");
+        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+
+        workspace = _smoothingFeature.Execute(workspace, new SmoothSettings()).Value;
+        var currentMesh = workspace.GetActiveMesh().Value;
+
+        var result = _resetFeature.ComputeUnsmoothedMesh(currentMesh);
+
+        result.IsSuccess.Should().BeTrue();
+        // With nothing left to replay, the twin IS the stored BaseMesh - callers rely on this
+        // to know when disposing the result would destroy the metadata-held BaseMesh.
+        result.Value.Should().BeSameAs(currentMesh.Metadata.BaseMesh.Value);
+    }
+
+    [Fact]
     public void ResetSmoothing_RemovesSmoothingButKeepsOtherCommands()
     {
         var workspace = Workspace.CreateEmpty();

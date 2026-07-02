@@ -13,6 +13,20 @@ public sealed class ResetSmoothing {
     }
 
     /// <summary>
+    /// The mesh as it would look with only its smoothing removed: BaseMesh with all remaining
+    /// commands (e.g. a rotation) replayed on top. This is the aligned "unsmoothed twin" of
+    /// the current geometry - comparing against raw BaseMesh instead would drift out of
+    /// alignment as soon as any transform is applied after smoothing, since BaseMesh stays
+    /// pristine and never rotates/translates.
+    /// May return the BaseMesh instance itself (when no other commands exist) - callers who
+    /// dispose the result must check for that, or they'd destroy the metadata-held BaseMesh.
+    /// </summary>
+    public Result<IMesh> ComputeUnsmoothedMesh(IMesh mesh) {
+        var revertedMetadata = mesh.Metadata.WithoutCommand<SmoothSettings>();
+        return CommandReplay.Apply(_engine, mesh.Metadata.BaseMesh.Value, revertedMetadata.Commands);
+    }
+
+    /// <summary>
     /// Undoes smoothing in place: replays this mesh's own Commands (minus SmoothSettings, and
     /// anything higher-priority that depended on it, e.g. a generated Mould) against its
     /// BaseMesh, so any other applied operations (e.g. a prior rotation) are preserved. No
@@ -27,10 +41,9 @@ public sealed class ResetSmoothing {
         var smoothResult = activeMesh.Metadata.GetSmoothing();
         if (smoothResult.HasNoValue) return workspace;
 
-        var baseMesh = activeMesh.Metadata.BaseMesh.Value;
         var revertedMetadata = activeMesh.Metadata.WithoutCommand<SmoothSettings>();
 
-        var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
+        var replayResult = ComputeUnsmoothedMesh(activeMesh);
         if (replayResult.IsFailure) return replayResult.Error;
 
         var currentMesh = replayResult.Value;

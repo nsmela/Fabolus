@@ -45,7 +45,7 @@ public abstract record MouldDefinition : IMeshCommand
             mouldMesh = subtractedResult.Value;
         }
 
-        return mouldMesh;
+        return Result<IMesh>.Success(mouldMesh);
     }
 }
 

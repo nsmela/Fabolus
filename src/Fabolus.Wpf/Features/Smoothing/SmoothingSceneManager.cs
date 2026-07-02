@@ -61,7 +61,11 @@ public class SmoothingSceneManager : ISceneManager
         }
     }
 
-    public void UpdateMesh(IMesh mesh, double[]? heatmapColors = null)
+    /// <param name="mesh">The active (possibly smoothed) mesh.</param>
+    /// <param name="unsmoothedMesh">The aligned unsmoothed counterpart to compare against in
+    /// cross-section mode (BaseMesh with the mesh's other commands replayed on top, supplied
+    /// by the view model). Only borrowed for this call - the caller may dispose it after.</param>
+    public void UpdateMesh(IMesh mesh, IMesh? unsmoothedMesh = null, double[]? heatmapColors = null)
     {
         VisualRemovedById?.Invoke(_activeId);
         if (_crossSectionModel != null)
@@ -93,16 +97,15 @@ public class SmoothingSceneManager : ISceneManager
         _activeId = model.GUID;
 
         bool isSmoothed = mesh.Metadata.GetSmoothing().HasValue;
-        var baseMeshResult = mesh.Metadata.BaseMesh;
 
-        if (isSmoothed && baseMeshResult.HasValue && _displayMode == SmoothDisplayMode.CrossSection)
+        if (isSmoothed && unsmoothedMesh is not null && _displayMode == SmoothDisplayMode.CrossSection)
         {
             _gizmo.Visibility = System.Windows.Visibility.Visible;
 
             _crossSectionModel = GenerateCrossSection(geometry, _crossSectionPlane, _smoothSkin, Colors.Green);
             VisualAddedOrUpdated?.Invoke(_crossSectionModel);
 
-            MeshGeometry3D originalGeometry = baseMeshResult.Value.ToHelixMesh(_engine).Value;
+            MeshGeometry3D originalGeometry = unsmoothedMesh.ToHelixMesh(_engine).Value;
 
             _minZ = Math.Min(geometry.Bound.Minimum.Z, originalGeometry.Bound.Minimum.Z) - 1.0;
             _maxZ = Math.Max(geometry.Bound.Maximum.Z, originalGeometry.Bound.Maximum.Z) + 1.0;
