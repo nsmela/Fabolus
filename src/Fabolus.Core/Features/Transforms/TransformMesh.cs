@@ -44,7 +44,14 @@ public sealed class TransformMesh {
         var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var transformedMesh = replayResult.Value.WithMetadata(updatedMetadata);
+        var transformedMesh = replayResult.Value;
+
+        // Rigid transforms preserve topology (no need to re-validate) but move the bounding
+        // box - refresh Stats so anything sized from it (e.g. the rotation axis gizmo) sees
+        // the mesh's new extents.
+        var stats = _engine.Evaluators.GetStatistics(transformedMesh).Value;
+        var metadata = updatedMetadata.WithProperties(m => m.Set(MeshIOKeys.Stats, stats));
+        transformedMesh = transformedMesh.WithMetadata(metadata);
 
         return workspace.UpdateMesh(transformedMesh);
     }
@@ -78,7 +85,14 @@ public sealed class TransformMesh {
         var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var transformedMesh = replayResult.Value.WithMetadata(updatedMetadata);
+        var transformedMesh = replayResult.Value;
+
+        // Rigid transforms preserve topology (no need to re-validate) but move the bounding
+        // box - refresh Stats so anything sized from it (e.g. the rotation axis gizmo) sees
+        // the mesh's new extents.
+        var stats = _engine.Evaluators.GetStatistics(transformedMesh).Value;
+        var metadata = updatedMetadata.WithProperties(m => m.Set(MeshIOKeys.Stats, stats));
+        transformedMesh = transformedMesh.WithMetadata(metadata);
 
         return workspace.UpdateMesh(transformedMesh);
     }

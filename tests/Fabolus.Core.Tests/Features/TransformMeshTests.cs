@@ -1,5 +1,6 @@
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Transforms;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
@@ -51,6 +52,30 @@ public class TransformMeshTests
         (stats.MinX - originalStats.MinX).Should().BeApproximately(10, 0.01);
         (stats.MinY - originalStats.MinY).Should().BeApproximately(20, 0.01);
         (stats.MinZ - originalStats.MinZ).Should().BeApproximately(30, 0.01);
+
+        // The metadata's cached Stats must track the move too - UI elements are sized from it.
+        translatedMesh.Metadata.MeshStats().Value.MinX.Should().BeApproximately(stats.MinX, 0.01);
+    }
+
+    [Fact]
+    public void Rotate_RefreshesBoundingBoxStats()
+    {
+        var workspace = Workspace.CreateEmpty();
+        var cube = _fixture.UnitCube();
+        var id = cube.Metadata.Id;
+        workspace = workspace.AddMesh(cube).Value.SetActiveMesh(id).Value;
+
+        // 45 degrees about Z: the unit cube's XY footprint grows from 1.0 to sqrt(2). The
+        // metadata's cached Stats must reflect that - the rotation axis gizmo is sized from
+        // it, and stale import-time bounds left it too small after committed rotations.
+        workspace = _transformFeature.Rotate(workspace, id, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
+
+        var rotatedMesh = workspace.GetActiveMesh().Value;
+        var stats = rotatedMesh.Metadata.MeshStats().Value;
+
+        (stats.MaxX - stats.MinX).Should().BeApproximately(System.Math.Sqrt(2), 0.01);
+        (stats.MaxY - stats.MinY).Should().BeApproximately(System.Math.Sqrt(2), 0.01);
+        (stats.MaxZ - stats.MinZ).Should().BeApproximately(1.0, 0.01);
     }
 
     [Fact]
