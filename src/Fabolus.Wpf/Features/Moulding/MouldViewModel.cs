@@ -17,6 +17,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     private readonly IGeometryEngine _engine;
     private readonly MouldSceneManager _sceneManager;
     private readonly GenerateMould _generateMouldFeature;
+    private readonly ClearMould _clearMouldFeature;
 
     private Workspace Workspace { get; set; }
 
@@ -36,8 +37,6 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // Drives the primary button (Generate <-> Clear) and gates the "settings changed"
     // guard below.
     [ObservableProperty] private bool _isGenerated;
-    private Guid _pregenerationMeshId = Guid.Empty;
-    private Guid _generatedMeshId = Guid.Empty;
 
     partial void OnIsGeneratedChanged(bool value) => _sceneManager.IsMouldGenerated = value;
 
@@ -201,6 +200,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
         _engine = engine;
 
         _generateMouldFeature = new GenerateMould(_engine);
+        _clearMouldFeature = new ClearMould(_engine);
         _sceneManager = new MouldSceneManager(_engine);
         _sceneManager.ChannelPlaced += OnChannelPlaced;
         _sceneManager.ChannelSelected += id => SelectedChannelId = id;
@@ -229,19 +229,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
         // IS a mould, we're viewing its baked result, not something still being edited.
         var mouldResult = mesh.Metadata.MouldDefinition();
 
-        if (mouldResult.HasValue && mouldResult.Value.TargetMeshId != Guid.Empty
-            && Workspace.ContainsMesh(mouldResult.Value.TargetMeshId))
-        {
-            IsGenerated = true;
-            _generatedMeshId = mesh.Metadata.Id;
-            _pregenerationMeshId = mouldResult.Value.TargetMeshId;
-        }
-        else
-        {
-            IsGenerated = false;
-            _pregenerationMeshId = Guid.Empty;
-            _generatedMeshId = Guid.Empty;
-        }
+        IsGenerated = mouldResult.HasValue;
 
         var mouldDefinition = mouldResult.HasValue
             ? mouldResult.Value
@@ -268,7 +256,9 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         UpdatePreviewChannel();
 
-        var result = _sceneManager.UpdateWorkspace(Workspace);
+        // The scene manager only ever renders the active mesh, so that's all it gets -
+        // the Workspace itself stays here in the view model.
+        var result = _sceneManager.UpdateMesh(mesh);
         if (result.IsFailure)
             _alert.ShowError(result.Error.Description);
 
@@ -424,9 +414,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
     public void GenerateMould()
     {
         var mouldDefinition = BuildMouldDefinition();
-        var pregenerationMeshId = Workspace.ActiveMeshId;
 
-        var result = _generateMouldFeature.Execute(Workspace, pregenerationMeshId, mouldDefinition);
+        var result = _generateMouldFeature.Execute(Workspace, Workspace.ActiveMeshId, mouldDefinition);
         if (result.IsFailure)
         {
             _alert.ShowError(result.Error.Description);
@@ -434,8 +423,6 @@ public partial class MouldViewModel : ObservableObject, IViewState
         }
 
         Workspace = result.Value;
-        _pregenerationMeshId = pregenerationMeshId;
-        _generatedMeshId = Workspace.ActiveMeshId;
         IsGenerated = true;
 
         // The mould shell and channels are now baked into the generated mesh itself
@@ -443,7 +430,9 @@ public partial class MouldViewModel : ObservableObject, IViewState
         // overlays, but keep Channels/settings in memory so Clear can restore them.
         _sceneManager.ClearPreviews();
 
-        _sceneManager.UpdateWorkspace(Workspace);
+        var meshResult = Workspace.GetActiveMesh();
+        if (meshResult.IsSuccess)
+            _sceneManager.UpdateMesh(meshResult.Value);
         _messenger.Send(new WorkspaceChangedMessage(Workspace));
     }
 
@@ -452,27 +441,23 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         if (!IsGenerated) return;
 
-        var removeResult = Workspace.RemoveMesh(_generatedMeshId);
-        if (removeResult.IsFailure)
-        {
-            _alert.ShowError(removeResult.Error.Description);
-            return;
-        }
-
-        var activateResult = removeResult.Value.SetActiveMesh(_pregenerationMeshId);
-        if (activateResult.IsFailure)
-        {
-            _alert.ShowError(activateResult.Error.Description);
-            return;
-        }
-
-        Workspace = activateResult.Value;
-        IsGenerated = false;
-        _generatedMeshId = Guid.Empty;
-
-        var result = _sceneManager.UpdateWorkspace(Workspace);
+        var result = _clearMouldFeature.Execute(Workspace);
         if (result.IsFailure)
+        {
             _alert.ShowError(result.Error.Description);
+            return;
+        }
+
+        Workspace = result.Value;
+        IsGenerated = false;
+
+        var meshResult = Workspace.GetActiveMesh();
+        if (meshResult.IsSuccess)
+        {
+            var updateResult = _sceneManager.UpdateMesh(meshResult.Value);
+            if (updateResult.IsFailure)
+                _alert.ShowError(updateResult.Error.Description);
+        }
 
         _sceneManager.UpdateChannels(Channels);
         if (SelectedChannelId != Guid.Empty)

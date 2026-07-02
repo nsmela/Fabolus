@@ -62,6 +62,14 @@ public sealed class Workspace
         if (_meshes.ContainsKey(meshId))
             return WorkspaceErrors.DuplicateMesh(mesh.Metadata.Name);
 
+        // Establish BaseMesh exactly once, here, at the single point every mesh enters a
+        // Workspace - so every command (Smooth, Rotate, Translate, Mould) can rely on it
+        // already being present instead of each lazily cloning it on its own first command.
+        // Must clone (not just point at itself): this same mesh object will eventually be
+        // disposed by UpdateMesh/RemoveMesh when a command replaces it.
+        if (mesh.Metadata.BaseMesh.HasNoValue)
+            mesh = mesh.WithMetadata(mesh.Metadata.WithBaseMesh(mesh.Clone()));
+
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes) { [meshId] = mesh };
 
         var activeId = setActive ? meshId : ActiveMeshId;

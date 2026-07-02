@@ -11,90 +11,43 @@ namespace Fabolus.Core.Features.Smoothing;
 /// </summary>
 public sealed class SmoothMesh(IGeometryEngine Engine) {
     /// <summary>
-    /// Smooths the specified mesh.
+    /// Smooths the specified mesh in place. Records the new SmoothSettings (replacing any
+    /// prior one - overwrite, not stack) and replays the full updated Commands list against
+    /// BaseMesh, so any sibling command already applied (e.g. a prior Rotate) is preserved in
+    /// the result instead of being silently discarded, and repeat Apply calls don't
+    /// stack/degrade. Never forks a new mesh, so there's only ever one Workspace entry for
+    /// this mesh, matching Rotate/Translate.
     /// </summary>
     /// <param name="workspace">The current workspace.</param>
-    /// <param name="meshId">The ID of the mesh to smooth.</param>
-    /// <param name="iterations">Effective smoothing passes (maps to offset distance).</param>
-    /// <param name="intensity">The strength of each pass (maps to offset distance).</param>
-    /// <param name="ratio">The target complexity relative to the original mesh (e.g. 2.0 = double the triangles).</param>
+    /// <param name="settings">The smoothing parameters to apply.</param>
     public Result<Workspace> Execute(
-        Workspace workspace, 
-        SmoothSettings settings) 
+        Workspace workspace,
+        SmoothSettings settings)
     {
         var getMeshResult = workspace.GetActiveMesh();
         if (getMeshResult.IsFailure) return getMeshResult.Error;
 
         var activeMesh = getMeshResult.Value;
+        // BaseMesh is guaranteed present - Workspace.AddMesh establishes it for every mesh
+        // the moment it enters the workspace.
+        var baseMesh = activeMesh.Metadata.BaseMesh.Value;
+        var updatedMetadata = activeMesh.Metadata.WithCommand(settings);
 
-        // use derived Mesh to prevent smoothing stacking / degrading
-        IMesh originalMesh;
-        Guid workingMeshId;
-        bool isForked = false;
+        var replayResult = CommandReplay.Apply(Engine, baseMesh, updatedMetadata.Commands);
+        if (replayResult.IsFailure) return replayResult.Error;
 
-        var derivedResult = activeMesh.Metadata.DerivedFrom;
-        if (derivedResult.HasValue) {
-            // use parent
-            var parentResult = workspace.GetMesh(derivedResult.Value);
-            if (parentResult.IsFailure) return parentResult.Error;
-
-            originalMesh = parentResult.Value;
-            workingMeshId = activeMesh.Metadata.Id;
-        } else {
-            // need to derive
-            originalMesh = activeMesh;
-            workingMeshId = Guid.NewGuid();
-            isForked = true;
-        }
-
-        int baseTriangleCount = originalMesh.TriangleCount;
-
-        // Erosion through offset cycle
-        var offsetResult = Engine.Modifiers.OffsetDouble(originalMesh, settings.Intensity, settings.Iterations, settings.Resolution);
-        if (offsetResult.IsFailure) return offsetResult.Error;
-
-        if (offsetResult.Value.TriangleCount == 0)
-            return new Error("Smoothing.OverEroded", "The mesh collapsed due to high intensity. Try reducing Iterations or Intensity.");
-
-        var currentMesh = offsetResult.Value;
-
-        // optional inflation 
-        if (Math.Abs(settings.Inflation) > 0.001) {
-            var inflationResult = Engine.Modifiers.Offset(currentMesh, settings.Inflation, settings.Resolution);
-            if (inflationResult.IsFailure) return inflationResult.Error;
-            currentMesh = inflationResult.Value;
-        }
-
-        // Resize (Decimation)
-        int targetTriangleCount = (int)(baseTriangleCount * Math.Max(settings.RemeshRatio, 1.0));
-        var resizeResult = Engine.Modifiers.Resize(currentMesh, targetTriangleCount);
-        if (resizeResult.IsFailure) return resizeResult.Error;
-
-        // Finalize metadata and update workspace
-        var finalMesh = resizeResult.Value;
+        var finalMesh = replayResult.Value;
 
         var topology = Engine.Evaluators.ValidateTopology(finalMesh).Value;
         var stats = Engine.Evaluators.GetStatistics(finalMesh).Value;
-        var metadata = activeMesh.Metadata.WithProperties(m => {
-            if (isForked) {
-                m.Set(CoreKeys.Id, workingMeshId)
-                 .Set(CoreKeys.Name, $"{originalMesh.Metadata.Name} (Smoothed)")
-                 .Set(CoreKeys.DerivedFrom, originalMesh.Metadata.Id);
-            }
-
-            m.Set(MeshIOKeys.Stats, stats)
-             .Set(MeshIOKeys.Topology, topology)
-             .Set(SmoothKeys.SmoothSettings, settings);
-        });
+        // BaseMesh carries forward automatically here (updatedMetadata was built from
+        // activeMesh.Metadata, which already has it).
+        var metadata = updatedMetadata.WithProperties(m => m
+            .Set(MeshIOKeys.Stats, stats)
+            .Set(MeshIOKeys.Topology, topology));
 
         finalMesh = finalMesh.WithMetadata(metadata);
 
-        // Update workspace
-        if (isForked) {
-            return workspace.AddMesh(finalMesh);
-        } else {
-            return workspace.UpdateMesh(finalMesh);
-        }
-
+        return workspace.UpdateMesh(finalMesh);
     }
 }

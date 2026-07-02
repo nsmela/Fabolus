@@ -1,5 +1,7 @@
-﻿using Fabolus.Core.Common;
+using Fabolus.Core.Common;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 
 namespace Fabolus.Core.Features.Smoothing;
 
@@ -10,6 +12,26 @@ public sealed class ResetSmoothing {
         _engine = engine;
     }
 
+    /// <summary>
+    /// The mesh as it would look with only its smoothing removed: BaseMesh with all remaining
+    /// commands (e.g. a rotation) replayed on top. This is the aligned "unsmoothed twin" of
+    /// the current geometry - comparing against raw BaseMesh instead would drift out of
+    /// alignment as soon as any transform is applied after smoothing, since BaseMesh stays
+    /// pristine and never rotates/translates.
+    /// May return the BaseMesh instance itself (when no other commands exist) - callers who
+    /// dispose the result must check for that, or they'd destroy the metadata-held BaseMesh.
+    /// </summary>
+    public Result<IMesh> ComputeUnsmoothedMesh(IMesh mesh) {
+        var revertedMetadata = mesh.Metadata.WithoutCommand<SmoothSettings>();
+        return CommandReplay.Apply(_engine, mesh.Metadata.BaseMesh.Value, revertedMetadata.Commands);
+    }
+
+    /// <summary>
+    /// Undoes smoothing in place: replays this mesh's own Commands (minus SmoothSettings, and
+    /// anything higher-priority that depended on it, e.g. a generated Mould) against its
+    /// BaseMesh, so any other applied operations (e.g. a prior rotation) are preserved. No
+    /// separate Workspace entry to remove or reactivate - Smoothing never forks.
+    /// </summary>
     public Result<Workspace> Execute(Workspace workspace) {
         var getMeshResult = workspace.GetActiveMesh();
         if (getMeshResult.IsFailure) return getMeshResult.Error;
@@ -18,25 +40,21 @@ public sealed class ResetSmoothing {
 
         var smoothResult = activeMesh.Metadata.GetSmoothing();
         if (smoothResult.HasNoValue) return workspace;
-        var settings = smoothResult.Value;
 
-        var currentId = activeMesh.Metadata.Id;
-        var derivedResult = activeMesh.Metadata.DerivedFrom;
-        if (derivedResult.HasNoValue) return SmoothMeshErrors.NoDerived;
+        var revertedMetadata = activeMesh.Metadata.WithoutCommand<SmoothSettings>();
 
-        var derivedId = derivedResult.Value;
-        var activeResult = workspace.SetActiveMesh(derivedId);
-        if (activeResult.IsFailure) {
-            return activeResult.Error;
-        }
+        var replayResult = ComputeUnsmoothedMesh(activeMesh);
+        if (replayResult.IsFailure) return replayResult.Error;
 
-        workspace = activeResult.Value;
-        var id = currentId;
-        return workspace.RemoveMesh(id);
+        var currentMesh = replayResult.Value;
+
+        var topology = _engine.Evaluators.ValidateTopology(currentMesh).Value;
+        var stats = _engine.Evaluators.GetStatistics(currentMesh).Value;
+        var metadata = revertedMetadata.WithProperties(m => m
+            .Set(MeshIOKeys.Stats, stats)
+            .Set(MeshIOKeys.Topology, topology));
+
+        var finalMesh = currentMesh.WithMetadata(metadata);
+        return workspace.UpdateMesh(finalMesh);
     }
-}
-
-public static class SmoothMeshErrors {
-    public static readonly Error NoSmoothing = new("Smoothing.None", "The active mesh is not smoothed.");
-    public static readonly Error NoDerived = new("Smoothing.NoOriginal", "The smoothed mesh has no parent mesh!");
 }

@@ -25,7 +25,6 @@ public class MouldSceneManager : ISceneManager
     private readonly Material _selectedChannelSkin = DiffuseMaterials.Pearl;
     private readonly Material _previewChannelSkin = DiffuseMaterials.Pearl;
 
-    private Workspace Workspace { get; set; }
     private IMesh TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];
     private IAirChannel PreviewChannel { get; set; }
@@ -60,18 +59,12 @@ public class MouldSceneManager : ISceneManager
         _grid = SceneHelpers.GenerateGrid();
     }
 
-    public Result UpdateWorkspace(Workspace workspace)
+    public Result UpdateMesh(IMesh mesh)
     {
-        Workspace = workspace;
-
         if (_targetMeshId != Guid.Empty)
             VisualRemovedById?.Invoke(_targetMeshId);
 
-        var activeMeshResult = Workspace.GetActiveMesh();
-        if (activeMeshResult.IsFailure)
-            return activeMeshResult.Error;
-
-        TargetMesh = activeMeshResult.Value;
+        TargetMesh = mesh;
 
         var geometryResult = TargetMesh.ToHelixMesh(_engine);
         if (geometryResult.IsFailure)

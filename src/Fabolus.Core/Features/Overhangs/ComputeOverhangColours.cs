@@ -9,7 +9,7 @@ namespace Fabolus.Core.Features.Overhangs;
 /// same workflow serves any build orientation and any palette.
 /// </summary>
 public sealed class ComputeOverhangColors(IGeometryEngine Engine) {
-    public Result<OverhangColoring> Execute(Workspace workspace, Guid meshId, OverhangSettings settings) {
+    public Result<OverhangColoring> Execute(IMesh mesh, OverhangSettings settings) {
         if (settings is null)
             return new Error("Overhang.NullSettings", "Overhang settings must be provided.");
 
@@ -17,11 +17,7 @@ public sealed class ComputeOverhangColors(IGeometryEngine Engine) {
         if (span <= 0f)
             return new Error("Overhang.InvalidAngleRange", "MaxAngleDegrees must be greater than MinAngleDegrees.");
 
-        var meshResult = workspace.GetMesh(meshId);
-        if (meshResult.IsFailure)
-            return meshResult.Error;
-
-        var normalsResult = Engine.Evaluators.ComputeVertexNormals(meshResult.Value);
+        var normalsResult = Engine.Evaluators.ComputeVertexNormals(mesh);
         if (normalsResult.IsFailure)
             return normalsResult.Error;
 

@@ -38,7 +38,7 @@ public class GeometryModifiersTests
         var validation = _engine.Evaluators.ValidateTopology(offsetMesh).Value;
         validation.IsWatertight.Should().BeTrue();
         
-        offsetMesh.OriginalMesh.Should().NotBeNull();
+        offsetMesh.Metadata.BaseMesh.HasValue.Should().BeTrue();
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class GeometryModifiersTests
         var result = _fixture.Engine.Modifiers.OffsetDouble(sphere, 2.0f, iterations: 1);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.OriginalMesh.Should().NotBeNull();
+        result.Value.Metadata.BaseMesh.HasValue.Should().BeTrue();
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class GeometryModifiersTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TriangleCount.Should().BeLessThanOrEqualTo(target + 10); // slight tolerance depending on decimator
-        result.Value.OriginalMesh.Should().NotBeNull();
+        result.Value.Metadata.BaseMesh.HasValue.Should().BeTrue();
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public class GeometryModifiersTests
         
         repaired.VertexCount.Should().BeInRange(sphere.VertexCount - 10, sphere.VertexCount + 10);
         repaired.TriangleCount.Should().BeInRange(sphere.TriangleCount - 10, sphere.TriangleCount + 10);
-        repaired.OriginalMesh.Should().NotBeNull();
+        repaired.Metadata.BaseMesh.HasValue.Should().BeTrue();
     }
 
     [Fact]
@@ -104,6 +104,6 @@ public class GeometryModifiersTests
         
         repaired.VertexCount.Should().BeInRange(sphere.VertexCount - 10, sphere.VertexCount + 10);
         repaired.TriangleCount.Should().BeInRange(sphere.TriangleCount - 10, sphere.TriangleCount + 10);
-        repaired.OriginalMesh.Should().NotBeNull();
+        repaired.Metadata.BaseMesh.HasValue.Should().BeTrue();
     }
 }

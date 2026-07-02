@@ -61,7 +61,11 @@ public class SmoothingSceneManager : ISceneManager
         }
     }
 
-    public void UpdateWorkspace(Workspace workspace, double[]? heatmapColors = null)
+    /// <param name="mesh">The active (possibly smoothed) mesh.</param>
+    /// <param name="unsmoothedMesh">The aligned unsmoothed counterpart to compare against in
+    /// cross-section mode (BaseMesh with the mesh's other commands replayed on top, supplied
+    /// by the view model). Only borrowed for this call - the caller may dispose it after.</param>
+    public void UpdateMesh(IMesh mesh, IMesh? unsmoothedMesh = null, double[]? heatmapColors = null)
     {
         VisualRemovedById?.Invoke(_activeId);
         if (_crossSectionModel != null)
@@ -72,14 +76,6 @@ public class SmoothingSceneManager : ISceneManager
         {
             VisualRemovedById?.Invoke(_originalCrossSectionModel.GUID);
         }
-
-        var activeMeshResult = workspace.GetActiveMesh();
-        if (activeMeshResult.IsFailure)
-        {
-            return;
-        }
-
-        IMesh mesh = activeMeshResult.Value;
 
         MeshGeometry3D geometry = mesh.ToHelixMesh(_engine, heatmapColors).Value;
 
@@ -101,33 +97,28 @@ public class SmoothingSceneManager : ISceneManager
         _activeId = model.GUID;
 
         bool isSmoothed = mesh.Metadata.GetSmoothing().HasValue;
-        bool hasValidDerived = mesh.Metadata.DerivedFrom.HasValue && workspace.ContainsMesh(mesh.Metadata.DerivedFrom.Value);
 
-        if (isSmoothed && hasValidDerived && _displayMode == SmoothDisplayMode.CrossSection)
+        if (isSmoothed && unsmoothedMesh is not null && _displayMode == SmoothDisplayMode.CrossSection)
         {
             _gizmo.Visibility = System.Windows.Visibility.Visible;
 
             _crossSectionModel = GenerateCrossSection(geometry, _crossSectionPlane, _smoothSkin, Colors.Green);
             VisualAddedOrUpdated?.Invoke(_crossSectionModel);
 
-            var originalMeshResult = workspace.GetMesh(mesh.Metadata.DerivedFrom.Value);
-            if (originalMeshResult.IsSuccess)
+            MeshGeometry3D originalGeometry = unsmoothedMesh.ToHelixMesh(_engine).Value;
+
+            _minZ = Math.Min(geometry.Bound.Minimum.Z, originalGeometry.Bound.Minimum.Z) - 1.0;
+            _maxZ = Math.Max(geometry.Bound.Maximum.Z, originalGeometry.Bound.Maximum.Z) + 1.0;
+
+            double clampedHeight = Math.Clamp(_currentGizmoHeight, _minZ, _maxZ);
+            if (Math.Abs(clampedHeight - _currentGizmoHeight) > 0.001)
             {
-                MeshGeometry3D originalGeometry = originalMeshResult.Value.ToHelixMesh(_engine).Value;
-                
-                _minZ = Math.Min(geometry.Bound.Minimum.Z, originalGeometry.Bound.Minimum.Z) - 1.0;
-                _maxZ = Math.Max(geometry.Bound.Maximum.Z, originalGeometry.Bound.Maximum.Z) + 1.0;
-
-                double clampedHeight = Math.Clamp(_currentGizmoHeight, _minZ, _maxZ);
-                if (Math.Abs(clampedHeight - _currentGizmoHeight) > 0.001)
-                {
-                    // Update gizmo position if it's currently outside the new bounds
-                    _gizmo.Transform = new System.Windows.Media.Media3D.TranslateTransform3D(0, 0, clampedHeight);
-                }
-
-                _originalCrossSectionModel = GenerateCrossSection(originalGeometry, _originalCrossSectionPlane, _rawSkin, Colors.Red);
-                VisualAddedOrUpdated?.Invoke(_originalCrossSectionModel);
+                // Update gizmo position if it's currently outside the new bounds
+                _gizmo.Transform = new System.Windows.Media.Media3D.TranslateTransform3D(0, 0, clampedHeight);
             }
+
+            _originalCrossSectionModel = GenerateCrossSection(originalGeometry, _originalCrossSectionPlane, _rawSkin, Colors.Red);
+            VisualAddedOrUpdated?.Invoke(_originalCrossSectionModel);
         }
         else
         {

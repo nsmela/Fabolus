@@ -1,15 +1,52 @@
 using Fabolus.Core.Common;
 using Fabolus.Core.Features.AirChannels;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 
 namespace Fabolus.Core.Features.Moulds;
 
-public abstract record MouldDefinition
+public abstract record MouldDefinition : IMeshCommand
 {
     public Guid TargetMeshId { get; init; }
     public IReadOnlyList<AirChannelModel> AirChannels { get; init; } = Array.Empty<AirChannelModel>();
 
+    public int Priority => CommandPriority.Mould;
+
+    /// <summary>
+    /// Generates just the mould shell shape (no boolean subtraction) - cheap enough for
+    /// live preview while the user is still adjusting settings.
+    /// </summary>
     public abstract Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh);
+
+    /// <summary>
+    /// The full committed pipeline: the shell from <see cref="Generate"/>, then subtract the
+    /// target mesh, then subtract each air channel.
+    /// </summary>
+    public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh)
+    {
+        var generateResult = Generate(engine, mesh);
+        if (generateResult.IsFailure) return generateResult.Error;
+
+        var mouldMesh = generateResult.Value;
+
+        var targetSubtractedResult = engine.Booleans.Subtract(mouldMesh, mesh);
+        if (targetSubtractedResult.IsFailure) return targetSubtractedResult.Error;
+
+        mouldMesh = targetSubtractedResult.Value;
+
+        foreach (var channel in AirChannels)
+        {
+            var channelMeshResult = channel.DomainModel.Generate(engine, AirChannelRenderMode.Full);
+            if (channelMeshResult.IsFailure) return channelMeshResult.Error;
+
+            var subtractedResult = engine.Booleans.Subtract(mouldMesh, channelMeshResult.Value);
+            if (subtractedResult.IsFailure) return subtractedResult.Error;
+
+            mouldMesh = subtractedResult.Value;
+        }
+
+        return Result<IMesh>.Success(mouldMesh);
+    }
 }
 
 public sealed record ConvexMouldDefinition(double OffsetXY = 2.0, double OffsetBottom = 2.0, double OffsetTop = 2.0) : MouldDefinition

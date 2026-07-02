@@ -103,35 +103,45 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         if (meshResult.IsFailure) return;
         var mesh = meshResult.Value;
 
-        double[]? heatmapColors = null;
-        if (DisplayMode == SmoothDisplayMode.Heatmap) {
-            IMesh? originalMesh = mesh.OriginalMesh;
-            if (originalMesh == null && mesh.Metadata.DerivedFrom.HasValue) {
-                var originalResult = Workspace.GetMesh(mesh.Metadata.DerivedFrom.Value);
-                if (originalResult.IsSuccess) {
-                    originalMesh = originalResult.Value;
-                }
+        // Comparison views (heatmap, cross-section) compare against the mesh's aligned
+        // "unsmoothed twin" - BaseMesh with the remaining commands (e.g. a rotation) replayed
+        // on top - NOT raw BaseMesh, which stays pristine and never rotates, so it drifts out
+        // of alignment as soon as the mesh is transformed after smoothing.
+        IMesh? unsmoothedMesh = null;
+        if (DisplayMode != SmoothDisplayMode.None && mesh.Metadata.GetSmoothing().HasValue) {
+            var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(mesh);
+            if (unsmoothedResult.IsSuccess) {
+                unsmoothedMesh = unsmoothedResult.Value;
             }
+        }
 
-            if (originalMesh != null) {
-                var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, originalMesh, HeatmapSensitivity);
-                if (colorResult.IsSuccess) {
-                    heatmapColors = colorResult.Value;
-                }
+        double[]? heatmapColors = null;
+        if (DisplayMode == SmoothDisplayMode.Heatmap && unsmoothedMesh is not null) {
+            var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, unsmoothedMesh, HeatmapSensitivity);
+            if (colorResult.IsSuccess) {
+                heatmapColors = colorResult.Value;
             }
         }
 
         PublishInfo(mesh);
-        _sceneManager.UpdateWorkspace(Workspace, heatmapColors);
+        // The scene manager only ever renders the active mesh, so that's all it gets -
+        // the Workspace itself stays here in the view model.
+        _sceneManager.UpdateMesh(mesh, unsmoothedMesh, heatmapColors);
+
+        // The twin is a scratch mesh and the scene manager has already converted it to render
+        // geometry - but when no other commands existed, the replay hands back the stored
+        // BaseMesh itself, which must not be disposed.
+        if (unsmoothedMesh is not null && !ReferenceEquals(unsmoothedMesh, mesh.Metadata.BaseMesh.Value)) {
+            unsmoothedMesh.Dispose();
+        }
     }
 
     private void PublishInfo(IMesh activeMesh) {
         var items = new List<MeshInfoItem>();
 
-        var originalResult = activeMesh.Metadata.DerivedFrom;
-        if (originalResult.HasValue) {
-            var originalMesh = Workspace.GetMesh(originalResult.Value).Value;
-            var originalStats = _engine.Evaluators.GetStatistics(originalMesh).Value;
+        var baseMeshResult = activeMesh.Metadata.BaseMesh;
+        if (baseMeshResult.HasValue) {
+            var originalStats = _engine.Evaluators.GetStatistics(baseMeshResult.Value).Value;
             items.Add(new TitleInfoItem { Label = "Original Mesh" });
             items.Add(new TextInfoItem { Label = "Volume", Value = $"{originalStats.Volume:N2} mL" });
             items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(originalStats.SurfaceArea/100):N2} mm²" });

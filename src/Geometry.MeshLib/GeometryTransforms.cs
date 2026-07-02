@@ -30,21 +30,26 @@ internal sealed class GeometryTransforms : IGeometryTransforms
         }
         clone.invalidateCaches();
 
-        IMesh? transformedOriginal = null;
-        if (mrMesh.OriginalMesh != null)
+        IMesh? transformedBase = null;
+        var baseMesh = source.Metadata.BaseMesh;
+        if (baseMesh.HasValue)
         {
-            var origResult = Translate(mrMesh.OriginalMesh, deltaX, deltaY, deltaZ);
-            if (origResult.IsSuccess)
+            var baseResult = Translate(baseMesh.Value, deltaX, deltaY, deltaZ);
+            if (baseResult.IsSuccess)
             {
-                transformedOriginal = origResult.Value;
+                transformedBase = baseResult.Value;
             }
         }
 
         var newMetadata = source.Metadata.WithProperties(m =>
             m.Set(CoreKeys.Name, $"Translated ({source.Metadata.Name})")
              .Set(CoreKeys.CreatedBy, $"Translate({deltaX}, {deltaY}, {deltaZ})"));
+        if (transformedBase is not null)
+        {
+            newMetadata = newMetadata.WithBaseMesh(transformedBase);
+        }
 
-        return new MRMesh(clone, newMetadata, transformedOriginal);
+        return new MRMesh(clone, newMetadata);
     }
 
     public Result<IMesh> Scale(IMesh source, double scaleFactor) =>
@@ -68,21 +73,26 @@ internal sealed class GeometryTransforms : IGeometryTransforms
         }
         clone.invalidateCaches();
 
-        IMesh? transformedOriginal = null;
-        if (mrMesh.OriginalMesh != null)
+        IMesh? transformedBase = null;
+        var baseMesh = source.Metadata.BaseMesh;
+        if (baseMesh.HasValue)
         {
-            var origResult = Scale(mrMesh.OriginalMesh, scaleX, scaleY, scaleZ);
-            if (origResult.IsSuccess)
+            var baseResult = Scale(baseMesh.Value, scaleX, scaleY, scaleZ);
+            if (baseResult.IsSuccess)
             {
-                transformedOriginal = origResult.Value;
+                transformedBase = baseResult.Value;
             }
         }
 
         var newMetadata = source.Metadata.WithProperties(m =>
             m.Set(CoreKeys.Name, $"Scaled ({source.Metadata.Name})")
              .Set(CoreKeys.CreatedBy, $"Scale({scaleX}, {scaleY}, {scaleZ})"));
+        if (transformedBase is not null)
+        {
+            newMetadata = newMetadata.WithBaseMesh(transformedBase);
+        }
 
-        return new MRMesh(clone, newMetadata, transformedOriginal);
+        return new MRMesh(clone, newMetadata);
     }
 
     public Result<IMesh> Rotate(IMesh source, Quaternion q) {
@@ -125,7 +135,11 @@ internal sealed class GeometryTransforms : IGeometryTransforms
         var transform = AffineXf3f.linear(rotationMatrix);
         clone.transform(transform);
 
-        return Result<IMesh>.Success(new MRMesh(clone, source.Metadata, source));
+        // Propagate the transitive root ancestor, matching every other geometry operation -
+        // previously this set the immediate pre-rotation mesh instead of the true root.
+        var newMetadata = source.Metadata.WithPropagatedBaseMesh(source);
+
+        return Result<IMesh>.Success(new MRMesh(clone, newMetadata));
     }
 
 }

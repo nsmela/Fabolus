@@ -1,3 +1,5 @@
+using Fabolus.Core.Geometry;
+
 namespace Fabolus.Core.Geometry.Metadata;
 
 /// <summary>
@@ -23,4 +25,16 @@ public static class CoreKeys {
     /// The key representing the operation or user that created this mesh.
     /// </summary>
     public static readonly MetadataKey<string> CreatedBy = new("Created By"); // TODO: should kvp value instead be a class or feature?
+
+    /// <summary>
+    /// The ordered list of commands applied to <see cref="BaseMesh"/> to produce this mesh's current state.
+    /// </summary>
+    public static readonly MetadataKey<IReadOnlyList<IMeshCommand>> Commands = new("Commands");
+
+    /// <summary>
+    /// The pristine mesh this one was derived from, before any of <see cref="Commands"/> were applied.
+    /// Held as a live mesh (not a Workspace lookup) so a command can be edited/removed and the
+    /// result rebuilt without needing another live mesh instance elsewhere.
+    /// </summary>
+    public static readonly MetadataKey<IMesh> BaseMesh = new("Base Mesh");
 }

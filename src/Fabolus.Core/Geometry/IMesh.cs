@@ -28,12 +28,6 @@ public interface IMesh : IDisposable
     bool IsEmpty { get; }
 
     /// <summary>
-    /// Is this mesh generated based on another mesh?
-    /// Returns empty if this is the original mesh.
-    /// </summary>
-    IMesh OriginalMesh { get; }
-    
-    /// <summary>
     /// Creates a deep copy of this mesh.
     /// </summary>
     IMesh Clone();

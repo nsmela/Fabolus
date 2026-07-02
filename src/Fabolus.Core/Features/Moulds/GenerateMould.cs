@@ -21,48 +21,31 @@ public sealed class GenerateMould
         
         var mesh = meshResult.Value;
 
-        var generateResult = mouldDefinition.Generate(_geometryEngine, mesh);
-        if (generateResult.IsFailure) return generateResult.Error;
+        var applyResult = mouldDefinition.Apply(_geometryEngine, mesh);
+        if (applyResult.IsFailure) return applyResult.Error;
 
-        var mouldMesh = generateResult.Value;
+        var mouldMesh = applyResult.Value;
 
-        // Subtract the target mesh from the mould
-        var targetSubtractedResult = _geometryEngine.Booleans.Subtract(mouldMesh, mesh);
-        if (targetSubtractedResult.IsFailure) return targetSubtractedResult.Error;
-        
-        mouldMesh = targetSubtractedResult.Value;
-
-        // Subtract the air channels from the mould
-        foreach (var channel in mouldDefinition.AirChannels)
-        {
-            var channelMeshResult = channel.DomainModel.Generate(_geometryEngine, Features.AirChannels.AirChannelRenderMode.Full);
-            if (channelMeshResult.IsFailure) return channelMeshResult.Error;
-
-            var subtractedResult = _geometryEngine.Booleans.Subtract(mouldMesh, channelMeshResult.Value);
-            if (subtractedResult.IsFailure) return subtractedResult.Error;
-
-            mouldMesh = subtractedResult.Value;
-        }
-
-        // Boolean operations hand back bare metadata (just Id/Name/CreatedBy) - every other
-        // consumer (Mesh Manager, etc.) expects Stats/Topology to already be populated.
+        // Boolean operations hand back bare metadata (just Id/Name/CreatedBy), so the final
+        // metadata is built from the source mesh's own metadata instead (mesh.Metadata, not
+        // mouldMesh.Metadata) - Id/Commands/BaseMesh all carry forward automatically (BaseMesh
+        // is guaranteed present - Workspace.AddMesh establishes it for every mesh the moment
+        // it enters the workspace), same as Smoothing and Rotate/Translate now that Mould
+        // operates in place too.
         var statsResult = _geometryEngine.Evaluators.GetStatistics(mouldMesh);
         if (statsResult.IsFailure) return statsResult.Error;
 
         var topologyResult = _geometryEngine.Evaluators.ValidateTopology(mouldMesh);
         if (topologyResult.IsFailure) return topologyResult.Error;
 
-        var metadata = mouldMesh.Metadata.WithProperties(m => m
-            .Set(CoreKeys.Name, $"{mesh.Metadata.Name} (Mould)")
-            .Set(CoreKeys.DerivedFrom, meshId)
+        var metadata = mesh.Metadata.WithProperties(m => m
             .Set(MeshIOKeys.Stats, statsResult.Value)
             .Set(MeshIOKeys.Topology, topologyResult.Value));
 
-        var finalMesh = mouldMesh.WithMetadata(metadata.WithMouldDefinition(mouldDefinition with { TargetMeshId = meshId }));
+        metadata = metadata.WithCommand(mouldDefinition with { TargetMeshId = meshId });
 
-        var addResult = workspace.AddMesh(finalMesh);
-        if (addResult.IsFailure) return addResult;
-        
-        return addResult.Value.SetActiveMesh(finalMesh.Metadata.Id);
+        var finalMesh = mouldMesh.WithMetadata(metadata);
+
+        return workspace.UpdateMesh(finalMesh);
     }
 }

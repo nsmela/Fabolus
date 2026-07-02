@@ -10,10 +10,8 @@ namespace GeometryMeshLib;
 internal sealed class MRMesh : IMesh
 {
     internal MR.Mesh Mesh { get; }
-    
-    public MeshMetadata Metadata { get; }
 
-    public IMesh OriginalMesh { get; }
+    public MeshMetadata Metadata { get; }
 
     public int VertexCount => (int)Mesh.topology.getValidVerts().count();
 
@@ -24,11 +22,10 @@ internal sealed class MRMesh : IMesh
     private readonly bool _ownsNativeMesh;
     private bool _disposed;
 
-    internal MRMesh(MR.Mesh mesh, MeshMetadata metadata, IMesh? originalMesh = null, bool ownsNativeMesh = true)
+    internal MRMesh(MR.Mesh mesh, MeshMetadata metadata, bool ownsNativeMesh = true)
     {
         Mesh = mesh ?? throw new ArgumentNullException(nameof(mesh));
         Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
-        OriginalMesh = originalMesh;
         _ownsNativeMesh = ownsNativeMesh;
     }
 

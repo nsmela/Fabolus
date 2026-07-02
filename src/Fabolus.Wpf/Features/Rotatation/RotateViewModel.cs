@@ -66,7 +66,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     public void Activate(Workspace workspace) {
         // Seed the gradient from the current slider values before the first render,
         // so the initial frame matches the warning/critical thresholds. The scene
-        // manager skips rendering here because its Workspace is not set yet.
+        // manager skips rendering here because it has no mesh yet.
         _sceneManager.SetOverhangs(WarningAngle, CriticalAngle);
 
         UpdateWorkspace(workspace);
@@ -87,10 +87,15 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     private void SendOverhangSettings() =>
         _sceneManager.SetOverhangs(WarningAngle, CriticalAngle);
 
+    // The scene manager only ever renders the active mesh, so that's all it gets -
+    // the Workspace itself stays here in the view model.
     private void UpdateWorkspace(Workspace workspace) {
         Workspace = workspace;
 
-        _sceneManager.UpdateWorkspace(workspace);
+        var meshResult = Workspace.GetActiveMesh();
+        if (meshResult.IsFailure) return;
+
+        _sceneManager.UpdateMesh(meshResult.Value);
     }
 
     private void ShowAxisRotation(Vector3 axis) {

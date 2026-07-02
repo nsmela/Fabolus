@@ -27,12 +27,12 @@ public sealed class GeometryEngine : IGeometryEngine
         Evaluators = new GeometryEvaluators(this);
     }
 
-    internal Result<IMesh> CreateMesh(MR.Mesh mesh, MeshMetadata metadata, IMesh? originalMesh = null)
+    internal Result<IMesh> CreateMesh(MR.Mesh mesh, MeshMetadata metadata)
     {
         if (mesh is null) return GeometryErrors.NullMesh;
         if (metadata is null) return GeometryErrors.NullMetadata;
 
-        return new MRMesh(mesh, metadata, originalMesh);
+        return new MRMesh(mesh, metadata);
     }
 
     public Result<IMesh> CreateMesh(ReadOnlySpan<double> vertices, ReadOnlySpan<int> triangles)
