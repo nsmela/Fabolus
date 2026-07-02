@@ -44,7 +44,7 @@ public sealed class GenerateMould
             .Set(MeshIOKeys.Topology, topologyResult.Value));
 
         metadata = metadata.WithCommand(mouldDefinition with { TargetMeshId = meshId });
-        metadata = metadata.WithBaseMesh(mesh.Metadata.BaseMesh.GetValueOrDefault(mesh));
+        metadata = metadata.WithPropagatedBaseMesh(mesh);
 
         var finalMesh = mouldMesh.WithMetadata(metadata);
 

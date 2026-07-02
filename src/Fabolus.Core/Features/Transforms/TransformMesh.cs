@@ -72,6 +72,9 @@ public sealed class TransformMesh {
             quaternion = quaternion * rotationResult.Value ;
         }
 
+        // transformedMesh.Metadata.BaseMesh was already correctly established by
+        // GeometryTransforms.Rotate (unconditionally, no early-return paths to fall through),
+        // so it just needs to be carried forward here, not re-derived.
         var metadata = transformedMesh.Metadata.WithCommand(new RotateCommand(quaternion));
         transformedMesh = transformedMesh.WithMetadata(metadata);
 

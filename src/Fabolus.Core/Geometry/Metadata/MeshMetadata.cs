@@ -162,6 +162,17 @@ public sealed record MeshMetadata {
     public MeshMetadata WithBaseMesh(IMesh mesh) => WithProperty(CoreKeys.BaseMesh, mesh);
 
     /// <summary>
+    /// Propagates BaseMesh from an ancestor mesh: if the ancestor already has one, carries it
+    /// forward as-is (it's already an independent copy, safe to keep sharing). Otherwise this
+    /// is the first derivation, so clones the ancestor itself rather than storing a reference
+    /// to it directly - callers routinely replace/remove the ancestor's own Workspace entry
+    /// afterward (Workspace.UpdateMesh/RemoveMesh dispose whatever they replace), which would
+    /// otherwise leave BaseMesh pointing at disposed native memory.
+    /// </summary>
+    public MeshMetadata WithPropagatedBaseMesh(IMesh ancestor) =>
+        WithBaseMesh(ancestor.Metadata.BaseMesh.HasValue ? ancestor.Metadata.BaseMesh.Value : ancestor.Clone());
+
+    /// <summary>
     /// Creates a base metadata instance from a given file path (typically used for imports).
     /// Automatically generates an ID and sets the CreatedBy property to "Import".
     /// </summary>

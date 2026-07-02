@@ -137,8 +137,7 @@ internal sealed class GeometryTransforms : IGeometryTransforms
 
         // Propagate the transitive root ancestor, matching every other geometry operation -
         // previously this set the immediate pre-rotation mesh instead of the true root.
-        var baseMesh = source.Metadata.BaseMesh.GetValueOrDefault(source);
-        var newMetadata = source.Metadata.WithBaseMesh(baseMesh);
+        var newMetadata = source.Metadata.WithPropagatedBaseMesh(source);
 
         return Result<IMesh>.Success(new MRMesh(clone, newMetadata));
     }

@@ -121,10 +121,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     private void PublishInfo(IMesh activeMesh) {
         var items = new List<MeshInfoItem>();
 
-        var originalResult = activeMesh.Metadata.DerivedFrom;
-        if (originalResult.HasValue) {
-            var originalMesh = Workspace.GetMesh(originalResult.Value).Value;
-            var originalStats = _engine.Evaluators.GetStatistics(originalMesh).Value;
+        var baseMeshResult = activeMesh.Metadata.BaseMesh;
+        if (baseMeshResult.HasValue) {
+            var originalStats = _engine.Evaluators.GetStatistics(baseMeshResult.Value).Value;
             items.Add(new TitleInfoItem { Label = "Original Mesh" });
             items.Add(new TextInfoItem { Label = "Volume", Value = $"{originalStats.Volume:N2} mL" });
             items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(originalStats.SurfaceArea/100):N2} mm²" });

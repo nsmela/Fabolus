@@ -1,4 +1,6 @@
-﻿using Fabolus.Core.Common;
+using System.Linq;
+using Fabolus.Core.Common;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
 
 namespace Fabolus.Core.Features.Smoothing;
@@ -10,6 +12,11 @@ public sealed class ResetSmoothing {
         _engine = engine;
     }
 
+    /// <summary>
+    /// Undoes smoothing in place: replays this mesh's own Commands (minus SmoothSettings)
+    /// against its BaseMesh, so any other applied operations (e.g. a prior rotation) are
+    /// preserved. No separate Workspace entry to remove or reactivate - Smoothing never forks.
+    /// </summary>
     public Result<Workspace> Execute(Workspace workspace) {
         var getMeshResult = workspace.GetActiveMesh();
         if (getMeshResult.IsFailure) return getMeshResult.Error;
@@ -18,25 +25,26 @@ public sealed class ResetSmoothing {
 
         var smoothResult = activeMesh.Metadata.GetSmoothing();
         if (smoothResult.HasNoValue) return workspace;
-        var settings = smoothResult.Value;
 
-        var currentId = activeMesh.Metadata.Id;
-        var derivedResult = activeMesh.Metadata.DerivedFrom;
-        if (derivedResult.HasNoValue) return SmoothMeshErrors.NoDerived;
+        var baseMesh = activeMesh.Metadata.BaseMesh.GetValueOrDefault(activeMesh);
+        var remainingCommands = activeMesh.Metadata.Commands.Where(c => c is not SmoothSettings).ToList();
 
-        var derivedId = derivedResult.Value;
-        var activeResult = workspace.SetActiveMesh(derivedId);
-        if (activeResult.IsFailure) {
-            return activeResult.Error;
+        IMesh currentMesh = baseMesh;
+        foreach (var command in remainingCommands) {
+            var applyResult = command.Apply(_engine, currentMesh);
+            if (applyResult.IsFailure) return applyResult.Error;
+
+            currentMesh = applyResult.Value;
         }
 
-        workspace = activeResult.Value;
-        var id = currentId;
-        return workspace.RemoveMesh(id);
-    }
-}
+        var topology = _engine.Evaluators.ValidateTopology(currentMesh).Value;
+        var stats = _engine.Evaluators.GetStatistics(currentMesh).Value;
+        var metadata = activeMesh.Metadata.WithProperties(m => m
+            .Set(MeshIOKeys.Stats, stats)
+            .Set(MeshIOKeys.Topology, topology));
+        metadata = metadata.WithoutCommand<SmoothSettings>();
 
-public static class SmoothMeshErrors {
-    public static readonly Error NoSmoothing = new("Smoothing.None", "The active mesh is not smoothed.");
-    public static readonly Error NoDerived = new("Smoothing.NoOriginal", "The smoothed mesh has no parent mesh!");
+        var finalMesh = currentMesh.WithMetadata(metadata);
+        return workspace.UpdateMesh(finalMesh);
+    }
 }

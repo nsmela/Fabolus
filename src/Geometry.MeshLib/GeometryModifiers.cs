@@ -31,7 +31,7 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Offset ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"Offset({offsetDistance})"));
-            newMetadata = newMetadata.WithBaseMesh(input.Metadata.BaseMesh.GetValueOrDefault(input));
+            newMetadata = newMetadata.WithPropagatedBaseMesh(input);
 
             return _engine.CreateMesh(result, newMetadata);
         }
@@ -71,7 +71,7 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"DoubleOffset ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"OffsetDouble({offsetDistance}, {iterations})"));
-            newMetadata = newMetadata.WithBaseMesh(input.Metadata.BaseMesh.GetValueOrDefault(input));
+            newMetadata = newMetadata.WithPropagatedBaseMesh(input);
 
             return _engine.CreateMesh(currentMesh, newMetadata);
         }
@@ -105,7 +105,7 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = mrMesh.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Resized ({mrMesh.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"Resize({targetTriangleCount})"));
-            newMetadata = newMetadata.WithBaseMesh(mrMesh.Metadata.BaseMesh.GetValueOrDefault(mrMesh));
+            newMetadata = newMetadata.WithPropagatedBaseMesh(mrMesh);
 
             return _engine.CreateMesh(clone, newMetadata);
         }
@@ -129,7 +129,7 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Repaired ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, "Repair"));
-            newMetadata = newMetadata.WithBaseMesh(input.Metadata.BaseMesh.GetValueOrDefault(input));
+            newMetadata = newMetadata.WithPropagatedBaseMesh(input);
 
             return _engine.CreateMesh(mesh, newMetadata);
         }
@@ -152,7 +152,7 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Repaired SI ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, "RepairSelfIntersections"));
-            newMetadata = newMetadata.WithBaseMesh(input.Metadata.BaseMesh.GetValueOrDefault(input));
+            newMetadata = newMetadata.WithPropagatedBaseMesh(input);
 
             return _engine.CreateMesh(mesh, newMetadata);
         }
