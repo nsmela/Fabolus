@@ -1,4 +1,5 @@
 using Fabolus.Core.Common;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using System.Numerics;
@@ -15,6 +16,12 @@ public sealed class TransformMesh {
         _engine = engine;
     }
 
+    /// <summary>
+    /// Translates in place: composes the new delta with any existing net translation, then
+    /// replays the full updated Commands list against BaseMesh - not just re-translating
+    /// whatever the current geometry happens to be, which would be wrong if another command
+    /// (e.g. a generated Mould) now sits on top of this one.
+    /// </summary>
     public Result<Workspace> Translate(Workspace workspace, Guid meshId, float deltaX, float deltaY, float deltaZ) {
         var getMeshResult = workspace.GetMesh(meshId);
         if (getMeshResult.IsFailure)
@@ -28,30 +35,25 @@ public sealed class TransformMesh {
             vector += translateResult.Value; // add vectors to stack
         }
 
-        var targetMesh = mesh;
-        var derivedResult = mesh.Metadata.DerivedFrom;
-        if (translateResult.HasValue && derivedResult.HasValue) {
-            getMeshResult = workspace.GetMesh(derivedResult.Value);
-            if (getMeshResult.IsFailure)
-                return getMeshResult.Error;
+        var baseMesh = mesh.Metadata.BaseMesh.GetValueOrDefault(mesh);
+        var updatedMetadata = mesh.Metadata.WithCommand(new TranslateCommand(vector));
 
-            targetMesh = getMeshResult.Value;
-        }
+        var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
+        if (replayResult.IsFailure) return replayResult.Error;
 
-        var transformedResult = _engine.Transforms.Translate(targetMesh, vector.X, vector.Y, vector.Z);
-        if (transformedResult.IsFailure)
-            return transformedResult.Error;
-
-        var transformedMesh = transformedResult.Value;
-        var metadata = targetMesh.Metadata.WithProperties(m =>
-            m.Set(CoreKeys.DerivedFrom, targetMesh.Metadata.Id)
-        );
-        metadata = metadata.WithCommand(new TranslateCommand(vector));
+        var transformedMesh = replayResult.Value;
+        var metadata = updatedMetadata.WithPropagatedBaseMesh(mesh);
         transformedMesh = transformedMesh.WithMetadata(metadata);
 
         return workspace.UpdateMesh(transformedMesh);
     }
 
+    /// <summary>
+    /// Rotates in place: composes the new rotation with any existing net rotation, then
+    /// replays the full updated Commands list against BaseMesh - not just re-rotating
+    /// whatever the current geometry happens to be, which would be wrong if another command
+    /// (e.g. a generated Mould) now sits on top of this one.
+    /// </summary>
     public Result<Workspace> Rotate(Workspace workspace, Guid meshId, float angleRadians, Vector3 axis) {
         var getMeshResult = workspace.GetMesh(meshId);
         if (getMeshResult.IsFailure)
@@ -61,29 +63,30 @@ public sealed class TransformMesh {
 
         var quaternion = Quaternion.CreateFromAxisAngle(axis, angleRadians);
 
-        var transformedResult = _engine.Transforms.Rotate(mesh, quaternion);
-        if (transformedResult.IsFailure)
-            return transformedResult.Error;
-
-        var transformedMesh = transformedResult.Value;
-
         var rotationResult = mesh.Metadata.Rotation();
         if (rotationResult.HasValue) {
-            quaternion = quaternion * rotationResult.Value ;
+            quaternion = quaternion * rotationResult.Value;
         }
 
-        // transformedMesh.Metadata.BaseMesh was already correctly established by
-        // GeometryTransforms.Rotate (unconditionally, no early-return paths to fall through),
-        // so it just needs to be carried forward here, not re-derived.
-        var metadata = transformedMesh.Metadata.WithCommand(new RotateCommand(quaternion));
+        var baseMesh = mesh.Metadata.BaseMesh.GetValueOrDefault(mesh);
+        var updatedMetadata = mesh.Metadata.WithCommand(new RotateCommand(quaternion));
+
+        var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
+        if (replayResult.IsFailure) return replayResult.Error;
+
+        var transformedMesh = replayResult.Value;
+        var metadata = updatedMetadata.WithPropagatedBaseMesh(mesh);
         transformedMesh = transformedMesh.WithMetadata(metadata);
 
         return workspace.UpdateMesh(transformedMesh);
     }
 
     /// <summary>
-    /// Reverts to the original geometry by discarding the current derived mesh 
-    /// and restoring the parent mesh.
+    /// Undoes rotation in place: replays this mesh's own Commands (minus RotateCommand, and
+    /// anything higher-priority that depended on it, e.g. a generated Mould) against its
+    /// BaseMesh. Inverting the current geometry directly would be wrong once something can sit
+    /// on top of a rotation (e.g. a Mould shell) - that would rotate the shell back, not recover
+    /// the pre-rotation solid.
     /// </summary>
     public Result<Workspace> ClearRotation(Workspace workspace, Guid meshId) {
         var getMeshResult = workspace.GetMesh(meshId);
@@ -92,24 +95,27 @@ public sealed class TransformMesh {
 
         var mesh = getMeshResult.Value;
 
-        var metadata = mesh.Metadata;
-        var rotationResult = metadata.Rotation();
+        var rotationResult = mesh.Metadata.Rotation();
         if (rotationResult.HasNoValue) {
             return workspace; // no rotation to remove
         }
 
-        var quaternion = rotationResult.Value;
+        var baseMesh = mesh.Metadata.BaseMesh.GetValueOrDefault(mesh);
+        var revertedMetadata = mesh.Metadata.WithoutCommand<RotateCommand>();
 
-        // reverse rotation by multiplying by inverse
-        quaternion = Quaternion.Conjugate(quaternion);
+        var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
+        if (replayResult.IsFailure) return replayResult.Error;
 
-        var transformedResult = _engine.Transforms.Rotate(mesh, quaternion);
-        if (transformedResult.IsFailure)
-            return transformedResult.Error;
+        var currentMesh = replayResult.Value;
 
-        var transformedMesh = transformedResult.Value;
-        transformedMesh = transformedMesh.WithMetadata(metadata.WithoutCommand<RotateCommand>());
-        return workspace.UpdateMesh(transformedMesh);
+        var topology = _engine.Evaluators.ValidateTopology(currentMesh).Value;
+        var stats = _engine.Evaluators.GetStatistics(currentMesh).Value;
+        var metadata = revertedMetadata.WithProperties(m => m
+            .Set(MeshIOKeys.Stats, stats)
+            .Set(MeshIOKeys.Topology, topology));
+
+        var finalMesh = currentMesh.WithMetadata(metadata);
+        return workspace.UpdateMesh(finalMesh);
     }
 
 }

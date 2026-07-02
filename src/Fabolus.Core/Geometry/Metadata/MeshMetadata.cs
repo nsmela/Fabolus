@@ -135,18 +135,32 @@ public sealed record MeshMetadata {
     /// runtime type is replaced (not stacked) and the new one moved to the end of the order -
     /// this mirrors today's "one net value per feature" behavior (e.g. rotations compose into a
     /// single net Quaternion) while still preserving relative order across different features.
+    /// Also clears any existing command with a strictly greater <see cref="IMeshCommand.Priority"/>
+    /// - it depended on geometry this command just changed, so it's now stale (e.g. recording a
+    /// new Rotate clears a previously-generated Mould).
     /// </summary>
     public MeshMetadata WithCommand(IMeshCommand command) {
-        var updated = Commands.Where(c => c.GetType() != command.GetType()).ToList();
+        var updated = Commands
+            .Where(c => c.GetType() != command.GetType())
+            .Where(c => c.Priority <= command.Priority)
+            .ToList();
         updated.Add(command);
         return WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)updated);
     }
 
     /// <summary>
-    /// Removes any command of the given runtime type from the ordered list.
+    /// Removes any command of the given runtime type from the ordered list, cascading to also
+    /// remove anything with a strictly greater <see cref="IMeshCommand.Priority"/> (it depended
+    /// on geometry this removal just changed). A no-op if the type isn't present.
     /// </summary>
     public MeshMetadata WithoutCommand<TCommand>() where TCommand : IMeshCommand {
-        var updated = Commands.Where(c => c is not TCommand).ToList();
+        var removed = Commands.OfType<TCommand>().FirstOrDefault();
+        if (removed is null) return this;
+
+        var updated = Commands
+            .Where(c => c is not TCommand)
+            .Where(c => c.Priority <= removed.Priority)
+            .ToList();
         return WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)updated);
     }
 

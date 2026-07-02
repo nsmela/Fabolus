@@ -1,0 +1,16 @@
+namespace Fabolus.Core.Geometry.Metadata;
+
+/// <summary>
+/// Static pipeline-stage values for <see cref="IMeshCommand"/> types. Recording a command
+/// clears any existing commands with a strictly greater priority, since they depended on
+/// geometry this command just changed. Gaps are left deliberately so future commands can be
+/// inserted without renumbering (e.g. an engraving feature might land between Transform and
+/// Mould, or after Mould, depending on which geometry it targets).
+/// </summary>
+public static class CommandPriority {
+    /// <summary>Rotate, Translate, Smoothing - siblings, none depends on the others.</summary>
+    public const int Transform = 10;
+
+    /// <summary>Depends on whatever geometry the Transform-stage commands produced.</summary>
+    public const int Mould = 20;
+}

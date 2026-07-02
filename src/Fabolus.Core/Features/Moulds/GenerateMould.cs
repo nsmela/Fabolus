@@ -26,31 +26,28 @@ public sealed class GenerateMould
 
         var mouldMesh = applyResult.Value;
 
-        // Boolean operations hand back bare metadata (just Id/Name/CreatedBy) - every other
-        // consumer (Mesh Manager, etc.) expects Stats/Topology to already be populated, and
-        // this mesh's own Commands history needs to be seeded from the source mesh since
-        // boolean ops don't carry any of the source's metadata forward.
+        // Boolean operations hand back bare metadata (just Id/Name/CreatedBy), so the final
+        // metadata is built from the source mesh's own metadata instead (mesh.Metadata, not
+        // mouldMesh.Metadata) - Id/Commands/BaseMesh all carry forward automatically, same as
+        // Smoothing and Rotate/Translate now that Mould operates in place too.
         var statsResult = _geometryEngine.Evaluators.GetStatistics(mouldMesh);
         if (statsResult.IsFailure) return statsResult.Error;
 
         var topologyResult = _geometryEngine.Evaluators.ValidateTopology(mouldMesh);
         if (topologyResult.IsFailure) return topologyResult.Error;
 
-        var metadata = mouldMesh.Metadata.WithProperties(m => m
-            .Set(CoreKeys.Name, $"{mesh.Metadata.Name} (Mould)")
-            .Set(CoreKeys.DerivedFrom, meshId)
-            .Set(CoreKeys.Commands, mesh.Metadata.Commands)
+        var metadata = mesh.Metadata.WithProperties(m => m
             .Set(MeshIOKeys.Stats, statsResult.Value)
             .Set(MeshIOKeys.Topology, topologyResult.Value));
 
         metadata = metadata.WithCommand(mouldDefinition with { TargetMeshId = meshId });
+        // First-ever command on this mesh still needs to establish BaseMesh before UpdateMesh
+        // disposes the pre-mould `mesh` object below - same disposal hazard SmoothMesh guards
+        // against (WithPropagatedBaseMesh is a no-op if BaseMesh was already set upstream).
         metadata = metadata.WithPropagatedBaseMesh(mesh);
 
         var finalMesh = mouldMesh.WithMetadata(metadata);
 
-        var addResult = workspace.AddMesh(finalMesh);
-        if (addResult.IsFailure) return addResult;
-        
-        return addResult.Value.SetActiveMesh(finalMesh.Metadata.Id);
+        return workspace.UpdateMesh(finalMesh);
     }
 }

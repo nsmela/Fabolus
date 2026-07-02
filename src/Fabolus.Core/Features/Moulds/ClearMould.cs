@@ -3,20 +3,20 @@ using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 
-namespace Fabolus.Core.Features.Smoothing;
+namespace Fabolus.Core.Features.Moulds;
 
-public sealed class ResetSmoothing {
+public sealed class ClearMould {
     private readonly IGeometryEngine _engine;
 
-    public ResetSmoothing(IGeometryEngine engine) {
+    public ClearMould(IGeometryEngine engine) {
         _engine = engine;
     }
 
     /// <summary>
-    /// Undoes smoothing in place: replays this mesh's own Commands (minus SmoothSettings, and
-    /// anything higher-priority that depended on it, e.g. a generated Mould) against its
-    /// BaseMesh, so any other applied operations (e.g. a prior rotation) are preserved. No
-    /// separate Workspace entry to remove or reactivate - Smoothing never forks.
+    /// Undoes mould generation in place: replays this mesh's own Commands (minus the
+    /// MouldDefinition) against its BaseMesh, so any other applied operations (e.g. a prior
+    /// rotation) are preserved. No separate Workspace entry to remove or reactivate - Mould
+    /// never forks.
     /// </summary>
     public Result<Workspace> Execute(Workspace workspace) {
         var getMeshResult = workspace.GetActiveMesh();
@@ -24,11 +24,11 @@ public sealed class ResetSmoothing {
 
         var activeMesh = getMeshResult.Value;
 
-        var smoothResult = activeMesh.Metadata.GetSmoothing();
-        if (smoothResult.HasNoValue) return workspace;
+        var mouldResult = activeMesh.Metadata.MouldDefinition();
+        if (mouldResult.HasNoValue) return workspace;
 
         var baseMesh = activeMesh.Metadata.BaseMesh.GetValueOrDefault(activeMesh);
-        var revertedMetadata = activeMesh.Metadata.WithoutCommand<SmoothSettings>();
+        var revertedMetadata = activeMesh.Metadata.WithoutCommand<MouldDefinition>();
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;

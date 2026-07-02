@@ -97,6 +97,30 @@ public class SmoothingTests
     }
 
     [Fact]
+    public void Smooth_AfterTranslate_PreservesTranslationInFinalGeometry()
+    {
+        var workspace = Workspace.CreateEmpty();
+        var mesh = _fixture.LoadStl("sphere.stl");
+        var baseId = mesh.Metadata.Id;
+        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+
+        var originalStats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
+
+        var transformFeature = new TransformMesh(_fixture.Engine);
+        workspace = transformFeature.Translate(workspace, baseId, 50, 0, 0).Value;
+
+        var result = _smoothingFeature.Execute(workspace, new SmoothSettings());
+
+        result.IsSuccess.Should().BeTrue();
+        var smoothedMesh = result.Value.GetActiveMesh().Value;
+        var smoothedStats = _fixture.Engine.Evaluators.GetStatistics(smoothedMesh).Value;
+
+        // Smoothing must replay on top of the translation (re-deriving straight from the
+        // untranslated BaseMesh would silently discard it).
+        (smoothedStats.MinX - originalStats.MinX).Should().BeApproximately(50, 2.0);
+    }
+
+    [Fact]
     public void ResetSmoothing_RemovesSmoothingButKeepsOtherCommands()
     {
         var workspace = Workspace.CreateEmpty();

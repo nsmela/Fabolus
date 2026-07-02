@@ -11,10 +11,18 @@ namespace Fabolus.Tests.Core;
 public class MeshMetadataTests
 {
     private sealed record FakeCommandA : IMeshCommand {
+        public int Priority => CommandPriority.Transform;
         public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) => Result<IMesh>.Success(mesh);
     }
 
     private sealed record FakeCommandB : IMeshCommand {
+        public int Priority => CommandPriority.Transform;
+        public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) => Result<IMesh>.Success(mesh);
+    }
+
+    // Priority 20 (like Mould), representing something downstream of the priority-10 fakes.
+    private sealed record FakeDownstreamCommand : IMeshCommand {
+        public int Priority => CommandPriority.Mould;
         public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) => Result<IMesh>.Success(mesh);
     }
 
@@ -116,5 +124,56 @@ public class MeshMetadataTests
             .WithoutCommand<FakeCommandA>();
 
         metadata.Commands.Should().ContainSingle().Which.Should().BeOfType<FakeCommandB>();
+    }
+
+    [Fact]
+    public void WithCommand_ClearsExistingHigherPriorityCommand()
+    {
+        var metadata = new MeshMetadata()
+            .WithCommand(new FakeCommandA())
+            .WithCommand(new FakeDownstreamCommand())
+            .WithCommand(new FakeCommandB());
+
+        // Recording FakeCommandB (priority 10) invalidates the downstream (priority 20)
+        // command that depended on the geometry it just changed.
+        metadata.Commands.Should().HaveCount(2);
+        metadata.Commands.Should().Contain(c => c is FakeCommandA);
+        metadata.Commands.Should().Contain(c => c is FakeCommandB);
+        metadata.Commands.Should().NotContain(c => c is FakeDownstreamCommand);
+    }
+
+    [Fact]
+    public void WithCommand_DoesNotClearSamePriorityCommands()
+    {
+        var metadata = new MeshMetadata()
+            .WithCommand(new FakeCommandA())
+            .WithCommand(new FakeCommandB());
+
+        // Both priority 10 - siblings, neither invalidates the other.
+        metadata.Commands.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void WithoutCommand_CascadesToHigherPriorityCommands()
+    {
+        var metadata = new MeshMetadata()
+            .WithCommand(new FakeCommandA())
+            .WithCommand(new FakeDownstreamCommand())
+            .WithoutCommand<FakeCommandA>();
+
+        metadata.Commands.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void WithoutCommand_NoOpWhenTypeNotPresent()
+    {
+        var metadata = new MeshMetadata()
+            .WithCommand(new FakeCommandB())
+            .WithCommand(new FakeDownstreamCommand());
+
+        var updated = metadata.WithoutCommand<FakeCommandA>();
+
+        updated.Should().BeSameAs(metadata);
+        updated.Commands.Should().HaveCount(2);
     }
 }

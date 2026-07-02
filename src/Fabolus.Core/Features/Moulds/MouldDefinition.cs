@@ -10,6 +10,8 @@ public abstract record MouldDefinition : IMeshCommand
     public Guid TargetMeshId { get; init; }
     public IReadOnlyList<AirChannelModel> AirChannels { get; init; } = Array.Empty<AirChannelModel>();
 
+    public int Priority => CommandPriority.Mould;
+
     /// <summary>
     /// Generates just the mould shell shape (no boolean subtraction) - cheap enough for
     /// live preview while the user is still adjusting settings.

@@ -10,6 +10,13 @@ namespace Fabolus.Core.Geometry.Metadata;
 /// </summary>
 public interface IMeshCommand {
     /// <summary>
+    /// Static per-type pipeline stage (see <see cref="CommandPriority"/>). Recording a command
+    /// clears any existing commands with a strictly greater priority, since they depended on
+    /// state this command just changed. Commands sharing a priority don't clear each other.
+    /// </summary>
+    int Priority { get; }
+
+    /// <summary>
     /// Applies this command to the given mesh, returning the resulting mesh.
     /// Does not touch the Workspace or decide fork-vs-in-place - callers (the feature's
     /// Execute/orchestrator class) own that decision.

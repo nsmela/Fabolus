@@ -11,10 +11,12 @@ namespace Fabolus.Core.Features.Smoothing;
 /// </summary>
 public sealed class SmoothMesh(IGeometryEngine Engine) {
     /// <summary>
-    /// Smooths the specified mesh in place. Always re-derives from BaseMesh (the mesh's own
-    /// pristine ancestor) rather than the currently-smoothed geometry, so repeat Apply calls
-    /// don't stack/degrade - and never forks a new mesh, so there's only ever one Workspace
-    /// entry for this mesh, matching Rotate/Translate.
+    /// Smooths the specified mesh in place. Records the new SmoothSettings (replacing any
+    /// prior one - overwrite, not stack) and replays the full updated Commands list against
+    /// BaseMesh, so any sibling command already applied (e.g. a prior Rotate) is preserved in
+    /// the result instead of being silently discarded, and repeat Apply calls don't
+    /// stack/degrade. Never forks a new mesh, so there's only ever one Workspace entry for
+    /// this mesh, matching Rotate/Translate.
     /// </summary>
     /// <param name="workspace">The current workspace.</param>
     /// <param name="settings">The smoothing parameters to apply.</param>
@@ -27,23 +29,22 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
 
         var activeMesh = getMeshResult.Value;
         var baseMesh = activeMesh.Metadata.BaseMesh.GetValueOrDefault(activeMesh);
+        var updatedMetadata = activeMesh.Metadata.WithCommand(settings);
 
-        var applyResult = settings.Apply(Engine, baseMesh);
-        if (applyResult.IsFailure) return applyResult.Error;
+        var replayResult = CommandReplay.Apply(Engine, baseMesh, updatedMetadata.Commands);
+        if (replayResult.IsFailure) return replayResult.Error;
 
-        // Finalize metadata and update workspace
-        var finalMesh = applyResult.Value;
+        var finalMesh = replayResult.Value;
 
         var topology = Engine.Evaluators.ValidateTopology(finalMesh).Value;
         var stats = Engine.Evaluators.GetStatistics(finalMesh).Value;
-        var metadata = activeMesh.Metadata.WithProperties(m => m
+        var metadata = updatedMetadata.WithProperties(m => m
             .Set(MeshIOKeys.Stats, stats)
             .Set(MeshIOKeys.Topology, topology));
-        metadata = metadata.WithCommand(settings);
-        // Deliberately propagates from activeMesh, not from the pipeline's own BaseMesh
-        // output: the pipeline's input was baseMesh itself (a clone, once one exists), whose
-        // own metadata never records "I am a base" - checking it would re-clone on every
-        // repeat Apply instead of reusing the one already established on activeMesh.
+        // Deliberately propagates from activeMesh, not from the replay's own BaseMesh output:
+        // the replay's input was baseMesh itself (a clone, once one exists), whose own
+        // metadata never records "I am a base" - checking it would re-clone on every repeat
+        // Apply instead of reusing the one already established on activeMesh.
         metadata = metadata.WithPropagatedBaseMesh(activeMesh);
 
         finalMesh = finalMesh.WithMetadata(metadata);

@@ -21,30 +21,32 @@ public class TransformMeshTests
     }
 
     [Fact]
-    public void Translate_ValidMesh_ForksAndTranslates()
+    public void Translate_ValidMesh_TranslatesInPlace()
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
         var baseId = mesh.Metadata.Id;
         workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
 
+        // Capture stats before Translate - Execute updates this mesh's Workspace entry in
+        // place, which disposes the original native mesh.
+        var originalStats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
+
         var result = _transformFeature.Translate(workspace, baseId, 10, 20, 30);
 
         result.IsSuccess.Should().BeTrue();
         var updatedWorkspace = result.Value;
 
-        // Base mesh + forked mesh
-        updatedWorkspace.Meshes.Count.Should().Be(2);
-        updatedWorkspace.ActiveMeshId.Should().NotBe(baseId);
+        // No fork - still just one mesh, same id, only its geometry changed.
+        updatedWorkspace.Meshes.Count.Should().Be(1);
+        updatedWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        var forkedMesh = updatedWorkspace.GetActiveMesh().Value;
-        forkedMesh.Metadata.DerivedFrom.HasValue.Should().BeTrue();
-        forkedMesh.Metadata.DerivedFrom.Value.Should().Be(baseId);
-        var translate = forkedMesh.Metadata.Translation().Value;
+        var translatedMesh = updatedWorkspace.GetActiveMesh().Value;
+        translatedMesh.Metadata.Id.Should().Be(baseId);
+        var translate = translatedMesh.Metadata.Translation().Value;
         translate.Should().NotBeNull();
 
-        var stats = _fixture.Engine.Evaluators.GetStatistics(forkedMesh).Value;
-        var originalStats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
+        var stats = _fixture.Engine.Evaluators.GetStatistics(translatedMesh).Value;
 
         (stats.MinX - originalStats.MinX).Should().BeApproximately(10, 0.01);
         (stats.MinY - originalStats.MinY).Should().BeApproximately(20, 0.01);
@@ -52,7 +54,7 @@ public class TransformMeshTests
     }
 
     [Fact]
-    public void Rotate_ValidMesh_ForksAndRotates()
+    public void Rotate_ValidMesh_RotatesInPlace()
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
@@ -64,9 +66,9 @@ public class TransformMeshTests
         var result = _transformFeature.Rotate(workspace, baseId, angleRadians, Vector3.UnitZ);
 
         result.IsSuccess.Should().BeTrue();
-        var forkedMesh = result.Value.GetActiveMesh().Value;
+        var rotatedMesh = result.Value.GetActiveMesh().Value;
 
-        var rotation = forkedMesh.Metadata.Rotation().Value;
+        var rotation = rotatedMesh.Metadata.Rotation().Value;
         rotation.Should().NotBeNull();
     }
 
@@ -95,25 +97,25 @@ public class TransformMeshTests
     }
 
     [Fact]
-    public void ClearTransforms_OnDerivedMesh_RestoresBaseMesh()
+    public void ClearRotation_RestoresPreRotationGeometry()
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
         var baseId = mesh.Metadata.Id;
         workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
 
-        workspace = _transformFeature.Translate(workspace, baseId, 10, 0, 0).Value;
-        var forkedId = workspace.ActiveMeshId;
+        workspace = _transformFeature.Rotate(workspace, baseId, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
 
-        // Ensure we are working with the fork
-        workspace.Meshes.Count.Should().Be(2);
-
-        var result = _transformFeature.ClearRotation(workspace, forkedId);
+        var result = _transformFeature.ClearRotation(workspace, baseId);
 
         result.IsSuccess.Should().BeTrue();
         var restoredWorkspace = result.Value;
 
+        // No fork - stays on the same mesh entry throughout.
         restoredWorkspace.Meshes.Count.Should().Be(1);
         restoredWorkspace.ActiveMeshId.Should().Be(baseId);
+
+        var restoredMesh = restoredWorkspace.GetActiveMesh().Value;
+        restoredMesh.Metadata.Rotation().HasNoValue.Should().BeTrue();
     }
 }
