@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Common;
+using Fabolus.Core.Common;
 using Fabolus.Core.Common.Interfaces;
 using Microsoft.Win32;
 using System.Windows;
@@ -11,6 +11,16 @@ public sealed class DialogueSystem : IDialogueSystem {
     public bool ShowConfirmation(string title, string message) =>
         MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)
             == MessageBoxResult.Yes;
+
+    public Maybe<string> ShowOpenFolderDialogue(string initialDirectory = "") {
+        var dialog = new OpenFolderDialog {
+            InitialDirectory = initialDirectory
+        };
+
+        return dialog.ShowDialog() == true
+            ? Maybe<string>.Some(dialog.FolderName)
+            : Maybe<string>.None();
+    }
 
     public Maybe<string> ShowOpenFileDialog(string filter) {
         var dialog = new OpenFileDialog {
