@@ -93,6 +93,7 @@ public class SmoothingSceneManager : ISceneManager
         {
             Geometry = geometry,
             Material = material,
+            CullMode = SharpDX.Direct3D11.CullMode.Back,
         };
         _activeId = model.GUID;
 

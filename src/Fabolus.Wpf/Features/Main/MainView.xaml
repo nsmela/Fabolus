@@ -236,10 +236,7 @@
         </Border>
 
         <!--  MeshView -->
-        <Grid Grid.Column="1" Grid.Row="1" Background="{DynamicResource Brush.Viewport}">
-            <viewport:ViewportControl SceneManager="{Binding SceneManager}"  />
-            
-        </Grid>
+        <viewport:ViewportControl Grid.Column="1" Grid.Row="1" SceneManager="{Binding SceneManager}"  />
 
         <GridSplitter Grid.Row="1" Grid.Column="1"
               HorizontalAlignment="Left" VerticalAlignment="Stretch"

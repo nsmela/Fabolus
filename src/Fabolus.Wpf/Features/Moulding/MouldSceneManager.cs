@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
 using Fabolus.Core.Common;
@@ -76,14 +76,9 @@ public class MouldSceneManager : ISceneManager
             // Once generated, the target mesh IS the mould result - keep it in the same
             // skin the preview used, rather than reverting to the plain target colour.
             Material = IsMouldGenerated ? _mouldSkin : _targetSkin,
+            IsTransparent = IsMouldGenerated,
+            CullMode = SharpDX.Direct3D11.CullMode.None,
         };
-
-        if (IsMouldGenerated)
-        {
-            // Boolean-subtracted geometry (cavities, channels) can have inward-facing
-            // surfaces that back-face culling would hide - show both sides.
-            model.CullMode = SharpDX.Direct3D11.CullMode.None;
-        }
 
         _targetMeshId = model.GUID;
         VisualAddedOrUpdated?.Invoke(model);

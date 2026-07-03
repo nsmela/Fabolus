@@ -7,11 +7,19 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
-        <hx:Viewport3DX
-            x:Name="MainViewport"
-            EnableCursorPosition="True"
+        <Grid>
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#FF1A1A1D" Offset="0.0" />
+                    <GradientStop Color="#FF2D2D35" Offset="1.0" />
+                </LinearGradientBrush>
+            </Grid.Background>
+            <hx:Viewport3DX x:Name="MainViewport"
             Background="Transparent"
             BackgroundColor="#00000000"
+            OITRenderMode="SinglePassWeighted"
+            EnableSwapChainRendering="False"
+
             
             MSAA="Eight"
 
@@ -37,12 +45,13 @@
             KeyDown="MainViewport_KeyDown"
             KeyUp="MainViewport_KeyUp">
 
-            <hx:Viewport3DX.InputBindings>
-                <MouseBinding Command="hx:ViewportCommands.Rotate" Gesture="RightClick" />
-                <MouseBinding Command="hx:ViewportCommands.Pan"    Gesture="MiddleClick" />
-                <KeyBinding   Command="hx:ViewportCommands.ZoomExtents" Gesture="Control+E" />
-            </hx:Viewport3DX.InputBindings>
+                <hx:Viewport3DX.InputBindings>
+                    <MouseBinding Command="hx:ViewportCommands.Rotate" Gesture="RightClick" />
+                    <MouseBinding Command="hx:ViewportCommands.Pan"    Gesture="MiddleClick" />
+                    <KeyBinding   Command="hx:ViewportCommands.ZoomExtents" Gesture="Control+E" />
+                </hx:Viewport3DX.InputBindings>
 
-        </hx:Viewport3DX>
+            </hx:Viewport3DX>
+        </Grid>
     </Grid>
 </UserControl>
