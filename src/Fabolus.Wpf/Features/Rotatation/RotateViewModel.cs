@@ -1,8 +1,9 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.Transforms;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Viewport;
@@ -92,10 +93,19 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     private void UpdateWorkspace(Workspace workspace) {
         Workspace = workspace;
 
-        var meshResult = Workspace.GetActiveMesh();
-        if (meshResult.IsFailure) return;
+        var activeMeshResult = Workspace.GetActiveMesh();
+        if (activeMeshResult.IsFailure) return;
+        var activeMesh = activeMeshResult.Value;
 
-        _sceneManager.UpdateMesh(meshResult.Value);
+        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
+        if (stageResult.IsFailure) return;
+        var mesh = stageResult.Value;
+
+        _sceneManager.UpdateMesh(mesh);
+
+        if (!ReferenceEquals(mesh, activeMesh)) {
+            mesh.Dispose();
+        }
     }
 
     private void ShowAxisRotation(Vector3 axis) {

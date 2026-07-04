@@ -99,9 +99,13 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     private void UpdateWorkspace(Workspace workspace) {
         Workspace = workspace;
 
-        var meshResult = Workspace.GetActiveMesh();
-        if (meshResult.IsFailure) return;
-        var mesh = meshResult.Value;
+        var activeMeshResult = Workspace.GetActiveMesh();
+        if (activeMeshResult.IsFailure) return;
+        var activeMesh = activeMeshResult.Value;
+
+        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
+        if (stageResult.IsFailure) return;
+        var mesh = stageResult.Value;
 
         // Comparison views (heatmap, cross-section) compare against the mesh's aligned
         // "unsmoothed twin" - BaseMesh with the remaining commands (e.g. a rotation) replayed
@@ -133,6 +137,10 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         // BaseMesh itself, which must not be disposed.
         if (unsmoothedMesh is not null && !ReferenceEquals(unsmoothedMesh, mesh.Metadata.BaseMesh.Value)) {
             unsmoothedMesh.Dispose();
+        }
+
+        if (!ReferenceEquals(mesh, activeMesh)) {
+            mesh.Dispose();
         }
     }
 

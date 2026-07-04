@@ -20,4 +20,19 @@ public static class CommandReplay {
 
         return Result<IMesh>.Success(current);
     }
+
+    /// <summary>
+    /// Computes the mesh exactly as it was at the specified pipeline stage, by replaying only
+    /// commands up to that priority level. If no higher-priority commands exist, returns the
+    /// mesh unmodified. Callers who dispose the result must check ReferenceEquals against the
+    /// input mesh to avoid destroying the active workspace instance.
+    /// </summary>
+    public static Result<IMesh> GetMeshAtStage(IGeometryEngine engine, IMesh currentMesh, int priorityLevel) {
+        if (!currentMesh.Metadata.Commands.Any(c => c.Priority > priorityLevel)) {
+            return Result<IMesh>.Success(currentMesh);
+        }
+
+        var allowedCommands = currentMesh.Metadata.Commands.Where(c => c.Priority <= priorityLevel).ToList();
+        return Apply(engine, currentMesh.Metadata.BaseMesh.Value, allowedCommands);
+    }
 }
