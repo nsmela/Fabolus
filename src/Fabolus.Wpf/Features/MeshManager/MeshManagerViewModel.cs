@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+ï»¿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
@@ -14,7 +14,7 @@ using static MR;
 namespace Fabolus.Wpf.Features.MeshManager;
 
 public partial class MeshManagerViewModel : ObservableObject, IViewState {
-    private const string FILTER = "STL Files (*.stl)|*.stl|All Files (*.*)|*.*";
+    private const string FILTER = "3D Models (*.stl;*.3mf;*.obj;*.off;*.ply)|*.stl;*.3mf;*.obj;*.off;*.ply|STL Files (*.stl)|*.stl|3MF Files (*.3mf)|*.3mf|All Files (*.*)|*.*";
 
     private readonly IDialogueSystem _dialogue;
     private readonly IAlertDialog _alertDialog;
@@ -120,7 +120,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         if (ActiveStats != null) {
             items.Add(new TitleInfoItem { Label = "MESH STATISTICS" });
             items.Add(new TextInfoItem { Label = "Triangles", Value = ActiveStats.TriangleCount.ToString("N0") });
-            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{ActiveStats.SurfaceArea:F2} mm²" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{ActiveStats.SurfaceArea:F2} mmï¿½" });
             items.Add(new TextInfoItem { Label = "Volume", Value = $"{ActiveStats.Volume:F2} mL" });
             
             double width = ActiveStats.MaxX - ActiveStats.MinX;

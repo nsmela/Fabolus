@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Text.Json.Serialization;
 using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 
@@ -18,6 +19,9 @@ public enum AirChannelRenderMode
     Full
 }
 
+[JsonDerivedType(typeof(StraightAirChannel), "straight")]
+[JsonDerivedType(typeof(AngledAirChannel), "angled")]
+[JsonDerivedType(typeof(PaintedAirChannel), "painted")]
 public interface IAirChannel
 {
     IAirChannel SetPreview(Vector3 startPoint, Vector3 direction);

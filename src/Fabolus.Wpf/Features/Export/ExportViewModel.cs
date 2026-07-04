@@ -23,7 +23,11 @@ public partial class ExportViewModel : ObservableObject, IViewState {
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
 
     [ObservableProperty] private bool _isBinary = true;
-    [ObservableProperty] private string _fileFormat = "STL - triangle mesh";
+    [ObservableProperty] private string _fileFormat = "STL · triangle mesh";
+    public string[] AvailableFormats { get; } = [
+        "STL · triangle mesh",
+        "3MF · 3D Manufacturing Format"
+    ];
     [ObservableProperty] private string _destinationFolder;
     [ObservableProperty] private int _fileCount;
     [ObservableProperty] private string _exportButtonText = "Export 0 files";
@@ -50,6 +54,25 @@ public partial class ExportViewModel : ObservableObject, IViewState {
         
         FileCount = workspace.MeshCount;
         ExportButtonText = $"Export {FileCount} {(FileCount == 1 ? "file" : "files")}";
+
+        var meshResult = workspace.GetActiveMesh();
+        if (meshResult.IsSuccess) {
+            var mesh = meshResult.Value;
+            var statsResult = _engine.Evaluators.GetStatistics(mesh);
+            var items = new System.Collections.Generic.List<Fabolus.Wpf.Features.Main.MeshInfoItem> {
+                new Fabolus.Wpf.Features.Main.TitleInfoItem { Label = mesh.Metadata.Name }
+            };
+
+            if (statsResult.IsSuccess) {
+                var stats = statsResult.Value;
+                items.Add(new Fabolus.Wpf.Features.Main.TextInfoItem { Label = "Volume", Value = $"{stats.Volume:N2} mm³" });
+                items.Add(new Fabolus.Wpf.Features.Main.TextInfoItem { Label = "Surface Area", Value = $"{stats.SurfaceArea:N2} mm²" });
+            }
+
+            _messenger.Send(new Fabolus.Wpf.Features.Main.UpdateMeshInfoMessage(items));
+        } else {
+            _messenger.Send(new Fabolus.Wpf.Features.Main.UpdateMeshInfoMessage([]));
+        }
     }
 
     public Workspace Deactivate() => Workspace;
@@ -75,10 +98,12 @@ public partial class ExportViewModel : ObservableObject, IViewState {
             return;
         }
 
+        string extension = FileFormat.StartsWith("3MF", StringComparison.OrdinalIgnoreCase) ? ".3mf" : ".stl";
+
         foreach (var kvp in Workspace.Meshes) {
             var mesh = kvp.Value;
-            // Just saving as STL for now, ignoring Binary/ASCII toggle since it's not supported by engine currently
-            var filename = $"{mesh.Metadata.Name}.stl";
+            // Just saving ignoring Binary/ASCII toggle since it's not supported by engine currently
+            var filename = $"{mesh.Metadata.Name}{extension}";
             var filepath = Path.Combine(DestinationFolder, filename);
 
             var result = _exportFeature.Execute(mesh, filepath, true);

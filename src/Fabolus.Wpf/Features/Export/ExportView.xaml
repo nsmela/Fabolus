@@ -62,17 +62,13 @@
             <StackPanel Orientation="Vertical" Grid.Row="0">
                 <TextBlock Text="FILE FORMAT" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
                 
-                <ComboBox SelectedItem="{Binding FileFormat}" Margin="0,0,0,8" Height="32">
-                    <ComboBoxItem Content="STL · triangle mesh" IsSelected="True" />
-                </ComboBox>
+                <ComboBox ItemsSource="{Binding AvailableFormats}" SelectedItem="{Binding FileFormat}" Margin="0,0,0,8" Height="32" />
                 
                 <Border Background="#FFE6EAED" CornerRadius="7" Padding="3" Margin="0,0,0,24">
-                    <UniformGrid Columns="2">
+                    <UniformGrid Columns="1">
                         <RadioButton Content="Binary" GroupName="FileType"
                                      Style="{StaticResource SegmentButton}"
                                      IsChecked="{Binding IsBinary}" />
-                        <RadioButton Content="ASCII" GroupName="FileType"
-                                     Style="{StaticResource SegmentButton}" />
                     </UniformGrid>
                 </Border>
 

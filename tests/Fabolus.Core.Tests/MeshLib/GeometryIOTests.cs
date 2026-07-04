@@ -1,7 +1,9 @@
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Features.Transforms;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
 using System.IO;
+using System.Numerics;
 using Xunit;
 
 namespace Fabolus.Tests.MeshLib;
@@ -74,6 +76,64 @@ public class GeometryIOTests
             // Export existing with overwrite: true should succeed
             var successExport = _fixture.Engine.IO.Export(original, exportPath, overwrite: true);
             successExport.IsSuccess.Should().BeTrue();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void Export_3MF_PreservesMetadata_RoundTripsSuccessfully()
+    {
+        var original = _fixture.LoadStl("sphere.stl");
+        
+        // Add metadata
+        var command = new TranslateCommand(new Vector3(10, 20, 30));
+        
+        // Create a distinctly different base mesh so we can detect if they get swapped
+        var baseMesh = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 50, 32).Value;
+        
+        var metadata = original.Metadata
+            .WithCommand(command)
+            .WithBaseMesh(baseMesh);
+        var meshWithMetadata = original.WithMetadata(metadata);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        
+        try
+        {
+            var exportPath = Path.Combine(tempDir, "export_test.3mf");
+            
+            // Export
+            var exportResult = _fixture.Engine.IO.Export(meshWithMetadata, exportPath);
+            exportResult.IsSuccess.Should().BeTrue();
+
+            // Re-import
+            var importResult = _fixture.Engine.IO.Import(exportPath);
+            if (!importResult.IsSuccess)
+            {
+                throw new System.Exception($"Import failed: {importResult.Error?.Description}");
+            }
+            
+            var imported = importResult.Value;
+            imported.VertexCount.Should().Be(original.VertexCount);
+            imported.TriangleCount.Should().Be(original.TriangleCount);
+            
+            // Verify Metadata
+            imported.Metadata.Commands.Should().HaveCount(1);
+            var importedCommand = imported.Metadata.Commands[0] as TranslateCommand;
+            importedCommand.Should().NotBeNull();
+            importedCommand.Translation.Should().Be(new Vector3(10, 20, 30));
+
+            imported.Metadata.BaseMesh.HasValue.Should().BeTrue();
+            var importedBaseMesh = imported.Metadata.BaseMesh.Value;
+            importedBaseMesh.VertexCount.Should().Be(baseMesh.VertexCount);
+            importedBaseMesh.TriangleCount.Should().Be(baseMesh.TriangleCount);
         }
         finally
         {
