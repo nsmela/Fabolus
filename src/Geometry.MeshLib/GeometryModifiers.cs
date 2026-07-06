@@ -41,7 +41,9 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
     public Result<IMesh> OffsetDouble(IMesh input, float offsetDistance, int iterations = 1, float cellSize = 0.0f)
     {
-        if (iterations < 1) return Result.Success(input);
+        // Even the no-op path returns a new mesh - modifiers never return their input
+        // instance, so callers can dispose pipeline intermediates unconditionally.
+        if (iterations < 1) return Result.Success(input.Clone());
         if (input is not MRMesh mrMesh) return GeometryErrors.InvalidMeshType;
 
         try
@@ -87,8 +89,10 @@ public sealed class GeometryModifiers : IGeometryModifiers
             int currentTriangles = (int)clone.topology.getValidFaces().count();
             if (currentTriangles <= targetTriangleCount)
             {
-                clone.Dispose();
-                return Result.Success(mesh);
+                // Already at/below target: nothing to decimate, but still hand back a new
+                // mesh (the clone just made) - modifiers never return their input instance,
+                // so callers can dispose pipeline intermediates unconditionally.
+                return _engine.CreateMesh(clone, mrMesh.Metadata);
             }
 
             int toDelete = currentTriangles - targetTriangleCount;

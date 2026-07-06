@@ -26,10 +26,9 @@ public static class CommandReplay {
                 return result.Error;
             }
 
-            // A command may hand back its input unchanged (e.g. Resize below target count).
-            if (!ReferenceEquals(result.Value, current)) {
-                current.Dispose();
-            }
+            // Commands always return a new mesh (engine ops never return their input),
+            // so the previous link in the chain can be disposed unconditionally.
+            current.Dispose();
             current = result.Value;
         }
 

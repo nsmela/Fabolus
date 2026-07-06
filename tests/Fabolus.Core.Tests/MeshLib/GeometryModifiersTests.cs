@@ -54,6 +54,19 @@ public class GeometryModifiersTests
     }
 
     [Fact]
+    public void OffsetDouble_ZeroIterations_ReturnsEquivalentNewMesh()
+    {
+        var sphere = _fixture.LoadStl("sphere.stl");
+
+        var result = _fixture.Engine.Modifiers.OffsetDouble(sphere, 2.0f, iterations: 0);
+
+        result.IsSuccess.Should().BeTrue();
+        // No-op path still hands back a new mesh - modifiers never return their input.
+        result.Value.Should().NotBeSameAs(sphere);
+        result.Value.TriangleCount.Should().Be(sphere.TriangleCount);
+    }
+
+    [Fact]
     public void Resize_TargetBelowCurrent_ReducesTriangleCount()
     {
         var sphere = _fixture.LoadStl("sphere.stl");
@@ -66,7 +79,7 @@ public class GeometryModifiersTests
     }
 
     [Fact]
-    public void Resize_TargetAboveCurrent_ReturnsInputUnchanged()
+    public void Resize_TargetAboveCurrent_ReturnsEquivalentNewMesh()
     {
         var sphere = _fixture.LoadStl("sphere.stl");
         int target = sphere.TriangleCount * 2;
@@ -74,7 +87,12 @@ public class GeometryModifiersTests
         var result = _fixture.Engine.Modifiers.Resize(sphere, target);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeSameAs(sphere);
+        // Geometry is unchanged (nothing to decimate), but the instance is a new mesh -
+        // modifiers never return their input, so callers can dispose intermediates
+        // unconditionally.
+        result.Value.Should().NotBeSameAs(sphere);
+        result.Value.TriangleCount.Should().Be(sphere.TriangleCount);
+        result.Value.VertexCount.Should().Be(sphere.VertexCount);
     }
 
     [Fact]

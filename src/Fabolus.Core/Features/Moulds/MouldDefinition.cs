@@ -31,13 +31,9 @@ public abstract record MouldDefinition : IMeshCommand
         var mouldMesh = generateResult.Value;
 
         var targetSubtractedResult = engine.Booleans.Subtract(mouldMesh, mesh);
-        if (targetSubtractedResult.IsFailure)
-        {
-            mouldMesh.Dispose();
-            return targetSubtractedResult.Error;
-        }
+        mouldMesh.Dispose();
+        if (targetSubtractedResult.IsFailure) return targetSubtractedResult.Error;
 
-        if (!ReferenceEquals(targetSubtractedResult.Value, mouldMesh)) mouldMesh.Dispose();
         mouldMesh = targetSubtractedResult.Value;
 
         foreach (var channel in AirChannels)
@@ -51,13 +47,9 @@ public abstract record MouldDefinition : IMeshCommand
 
             using var channelMesh = channelMeshResult.Value;
             var subtractedResult = engine.Booleans.Subtract(mouldMesh, channelMesh);
-            if (subtractedResult.IsFailure)
-            {
-                mouldMesh.Dispose();
-                return subtractedResult.Error;
-            }
+            mouldMesh.Dispose();
+            if (subtractedResult.IsFailure) return subtractedResult.Error;
 
-            if (!ReferenceEquals(subtractedResult.Value, mouldMesh)) mouldMesh.Dispose();
             mouldMesh = subtractedResult.Value;
         }
 
