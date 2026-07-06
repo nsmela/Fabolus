@@ -27,7 +27,8 @@ internal class MeshManagerSceneManager : ISceneManager {
         var activeMeshResult = workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure) return;
 
-        IMesh mesh = activeMeshResult.Value;
+        // Owned copy - converted to render geometry immediately, then released.
+        using IMesh mesh = activeMeshResult.Value;
 
         MeshGeometry3D geometry = mesh.ToHelixMesh(_engine).Value;
         var model = new MeshGeometryModel3D {

@@ -30,24 +30,11 @@ internal sealed class GeometryTransforms : IGeometryTransforms
         }
         clone.invalidateCaches();
 
-        IMesh? transformedBase = null;
-        var baseMesh = source.Metadata.BaseMesh;
-        if (baseMesh.HasValue)
-        {
-            var baseResult = Translate(baseMesh.Value, deltaX, deltaY, deltaZ);
-            if (baseResult.IsSuccess)
-            {
-                transformedBase = baseResult.Value;
-            }
-        }
-
+        // BaseMesh (if present in the metadata) rides along untouched - it stays pristine by
+        // design; the feature layer owns replay/propagation, not the engine.
         var newMetadata = source.Metadata.WithProperties(m =>
             m.Set(CoreKeys.Name, $"Translated ({source.Metadata.Name})")
              .Set(CoreKeys.CreatedBy, $"Translate({deltaX}, {deltaY}, {deltaZ})"));
-        if (transformedBase is not null)
-        {
-            newMetadata = newMetadata.WithBaseMesh(transformedBase);
-        }
 
         return new MRMesh(clone, newMetadata);
     }
@@ -73,24 +60,11 @@ internal sealed class GeometryTransforms : IGeometryTransforms
         }
         clone.invalidateCaches();
 
-        IMesh? transformedBase = null;
-        var baseMesh = source.Metadata.BaseMesh;
-        if (baseMesh.HasValue)
-        {
-            var baseResult = Scale(baseMesh.Value, scaleX, scaleY, scaleZ);
-            if (baseResult.IsSuccess)
-            {
-                transformedBase = baseResult.Value;
-            }
-        }
-
+        // BaseMesh (if present in the metadata) rides along untouched - it stays pristine by
+        // design; the feature layer owns replay/propagation, not the engine.
         var newMetadata = source.Metadata.WithProperties(m =>
             m.Set(CoreKeys.Name, $"Scaled ({source.Metadata.Name})")
              .Set(CoreKeys.CreatedBy, $"Scale({scaleX}, {scaleY}, {scaleZ})"));
-        if (transformedBase is not null)
-        {
-            newMetadata = newMetadata.WithBaseMesh(transformedBase);
-        }
 
         return new MRMesh(clone, newMetadata);
     }
@@ -135,11 +109,9 @@ internal sealed class GeometryTransforms : IGeometryTransforms
         var transform = AffineXf3f.linear(rotationMatrix);
         clone.transform(transform);
 
-        // Propagate the transitive root ancestor, matching every other geometry operation -
-        // previously this set the immediate pre-rotation mesh instead of the true root.
-        var newMetadata = source.Metadata.WithPropagatedBaseMesh(source);
-
-        return Result<IMesh>.Success(new MRMesh(clone, newMetadata));
+        // BaseMesh (if present in the metadata) rides along untouched - it stays pristine by
+        // design; the feature layer owns replay/propagation, not the engine.
+        return Result<IMesh>.Success(new MRMesh(clone, source.Metadata));
     }
 
 }

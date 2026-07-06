@@ -34,10 +34,10 @@ public class MeshIOTests
         result.IsSuccess.Should().BeTrue();
         var updatedWorkspace = result.Value;
 
-        updatedWorkspace.Meshes.Count.Should().Be(1);
+        updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().NotBe(System.Guid.Empty);
 
-        var mesh = updatedWorkspace.GetActiveMesh().Value;
+        using var mesh = updatedWorkspace.GetActiveMesh().Value;
         
         // Ensure topology is validated
         mesh.Metadata.Topology().HasValue.Should().BeTrue();
@@ -78,7 +78,7 @@ public class MeshIOTests
         var result = _repairFeature.Execute(workspace, mesh.Metadata.Id, fixSelfIntersections: false);
 
         result.IsSuccess.Should().BeTrue();
-        var repairedMesh = result.Value.GetActiveMesh().Value;
+        using var repairedMesh = result.Value.GetActiveMesh().Value;
 
         repairedMesh.Metadata.Topology().HasValue.Should().BeTrue();
         repairedMesh.Metadata.Topology().Value.IsWatertight.Should().BeTrue();

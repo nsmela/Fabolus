@@ -76,7 +76,10 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         _messenger.Send(new UpdateMeshInfoMessage([]));
     }
 
-    public Workspace Deactivate() => Workspace;
+    public Workspace Deactivate() {
+        _sceneManager.ReleaseMesh();
+        return Workspace;
+    }
 
     private void SendTempRotation(Vector3 axis, float degrees) {
         if (_isLocked) return;
@@ -95,17 +98,15 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
         var activeMeshResult = Workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure) return;
-        var activeMesh = activeMeshResult.Value;
+        using var activeMesh = activeMeshResult.Value;
 
+        // GetMeshAtStage always returns an owned mesh (the view shows the model as it was
+        // before any mould was cut); the scene manager takes ownership of it, since it
+        // re-renders the mesh on every temp-rotation/overhang change.
         var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
         if (stageResult.IsFailure) return;
-        var mesh = stageResult.Value;
 
-        _sceneManager.UpdateMesh(mesh);
-
-        if (!ReferenceEquals(mesh, activeMesh)) {
-            mesh.Dispose();
-        }
+        _sceneManager.UpdateMesh(stageResult.Value);
     }
 
     private void ShowAxisRotation(Vector3 axis) {

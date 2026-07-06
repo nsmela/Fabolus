@@ -29,19 +29,25 @@ internal sealed class GeometryIO : IGeometryIO
         XElement baseObject = null;
         XNamespace ns = "http://schemas.microsoft.com/3dmanufacturing/core/2015/02";
 
-        // 1. If base mesh exists, extract its <object>
-        if (mesh.Metadata.BaseMesh.HasValue && mesh.Metadata.BaseMesh.Value is MRMesh baseMrMesh)
+        // 1. If base mesh exists, extract its <object>. GetBaseMeshCopy hands out an owned
+        // copy (never the stored instance), disposed as soon as it's been written out.
+        var baseCopyResult = mesh.Metadata.GetBaseMeshCopy();
+        if (baseCopyResult.HasValue)
         {
-            baseTempFile = Path.GetTempFileName() + ".3mf";
-            MR.MeshSave.toAnySupportedFormat(baseMrMesh.Mesh, baseTempFile, null);
-            using (var baseArchive = ZipFile.OpenRead(baseTempFile))
+            using var baseCopy = baseCopyResult.Value;
+            if (baseCopy is MRMesh baseMrMesh)
             {
-                var modelEntry = baseArchive.GetEntry("3D/3dmodel.model");
-                if (modelEntry != null)
+                baseTempFile = Path.GetTempFileName() + ".3mf";
+                MR.MeshSave.toAnySupportedFormat(baseMrMesh.Mesh, baseTempFile, null);
+                using (var baseArchive = ZipFile.OpenRead(baseTempFile))
                 {
-                    using var stream = modelEntry.Open();
-                    var xdoc = XDocument.Load(stream);
-                    baseObject = xdoc.Root?.Element(ns + "resources")?.Element(ns + "object");
+                    var modelEntry = baseArchive.GetEntry("3D/3dmodel.model");
+                    if (modelEntry != null)
+                    {
+                        using var stream = modelEntry.Open();
+                        var xdoc = XDocument.Load(stream);
+                        baseObject = xdoc.Root?.Element(ns + "resources")?.Element(ns + "object");
+                    }
                 }
             }
         }

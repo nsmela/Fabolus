@@ -165,26 +165,35 @@ public sealed record MeshMetadata {
     }
 
     /// <summary>
-    /// Gets the pristine mesh this one was derived from, before any of <see cref="Commands"/>
-    /// were applied, if one has been recorded.
+    /// Whether a pristine base mesh has been recorded for this mesh.
     /// </summary>
-    public Maybe<IMesh> BaseMesh => GetProperty(CoreKeys.BaseMesh);
+    public bool HasBaseMesh => GetProperty(CoreKeys.BaseMesh).HasValue;
 
     /// <summary>
-    /// Creates a new metadata instance recording the pristine base mesh.
+    /// Returns an owned copy of the pristine mesh this one was derived from, before any of
+    /// <see cref="Commands"/> were applied. The caller owns the copy and must dispose it.
+    /// The stored instance itself never crosses this boundary - it is disposed only by
+    /// <see cref="Workspace.RemoveMesh"/> when its mesh's lineage ends.
+    /// </summary>
+    public Maybe<IMesh> GetBaseMeshCopy() => BaseMeshInstance.Map(m => m.Clone());
+
+    /// <summary>
+    /// Metadata of the stored base mesh (e.g. its import-time stats). Metadata is a value
+    /// object - safe to share, nothing to dispose - so no geometry copy is needed to read it.
+    /// </summary>
+    public Maybe<MeshMetadata> BaseMeshMetadata => BaseMeshInstance.Map(m => m.Metadata);
+
+    /// <summary>
+    /// The live stored base mesh instance. Internal so only lifetime owners (Workspace) can
+    /// reach it; everyone else goes through <see cref="GetBaseMeshCopy"/>.
+    /// </summary>
+    internal Maybe<IMesh> BaseMeshInstance => GetProperty(CoreKeys.BaseMesh);
+
+    /// <summary>
+    /// Creates a new metadata instance recording the pristine base mesh. The metadata takes
+    /// ownership of the instance - callers must not dispose it afterward.
     /// </summary>
     public MeshMetadata WithBaseMesh(IMesh mesh) => WithProperty(CoreKeys.BaseMesh, mesh);
-
-    /// <summary>
-    /// Propagates BaseMesh from an ancestor mesh: if the ancestor already has one, carries it
-    /// forward as-is (it's already an independent copy, safe to keep sharing). Otherwise this
-    /// is the first derivation, so clones the ancestor itself rather than storing a reference
-    /// to it directly - callers routinely replace/remove the ancestor's own Workspace entry
-    /// afterward (Workspace.UpdateMesh/RemoveMesh dispose whatever they replace), which would
-    /// otherwise leave BaseMesh pointing at disposed native memory.
-    /// </summary>
-    public MeshMetadata WithPropagatedBaseMesh(IMesh ancestor) =>
-        WithBaseMesh(ancestor.Metadata.BaseMesh.HasValue ? ancestor.Metadata.BaseMesh.Value : ancestor.Clone());
 
     /// <summary>
     /// Creates a base metadata instance from a given file path (typically used for imports).

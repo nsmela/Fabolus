@@ -38,12 +38,12 @@ public class SmoothingTests
         var updatedWorkspace = result.Value;
 
         // No fork - still just one mesh, same id, only its geometry changed.
-        updatedWorkspace.Meshes.Count.Should().Be(1);
+        updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        var smoothedMesh = updatedWorkspace.GetActiveMesh().Value;
+        using var smoothedMesh = updatedWorkspace.GetActiveMesh().Value;
         smoothedMesh.Metadata.Id.Should().Be(baseId);
-        smoothedMesh.Metadata.BaseMesh.HasValue.Should().BeTrue();
+        smoothedMesh.Metadata.HasBaseMesh.Should().BeTrue();
         smoothedMesh.Metadata.GetSmoothing().HasValue.Should().BeTrue();
     }
 
@@ -79,7 +79,7 @@ public class SmoothingTests
 
         // Smooth once
         workspace = _smoothingFeature.Execute(workspace, new SmoothSettings()).Value;
-        var firstBaseMesh = workspace.GetActiveMesh().Value.Metadata.BaseMesh.Value;
+        var firstBaseMesh = workspace.GetActiveMeshMetadata().Value.BaseMeshInstance.Value;
 
         // Smooth again with different settings
         var result = _smoothingFeature.Execute(workspace, new SmoothSettings(Iterations: 2));
@@ -88,12 +88,13 @@ public class SmoothingTests
         var finalWorkspace = result.Value;
 
         // Still only one mesh, same id - never forks.
-        finalWorkspace.Meshes.Count.Should().Be(1);
+        finalWorkspace.MeshCount.Should().Be(1);
         finalWorkspace.ActiveMeshId.Should().Be(baseId);
 
         // Re-derives from the same pristine BaseMesh both times (doesn't stack smoothing on
         // top of already-smoothed geometry, and doesn't re-clone on the second Apply).
-        finalWorkspace.GetActiveMesh().Value.Metadata.BaseMesh.Value.Should().BeSameAs(firstBaseMesh);
+        // BaseMeshInstance (internal) sees the stored instance itself, so BeSameAs holds.
+        finalWorkspace.GetActiveMeshMetadata().Value.BaseMeshInstance.Value.Should().BeSameAs(firstBaseMesh);
     }
 
     [Fact]
@@ -134,15 +135,16 @@ public class SmoothingTests
         var transformFeature = new TransformMesh(_fixture.Engine);
         workspace = transformFeature.Translate(workspace, baseId, 50, 0, 0).Value;
 
-        var currentMesh = workspace.GetActiveMesh().Value;
+        using var currentMesh = workspace.GetActiveMesh().Value;
         var result = _resetFeature.ComputeUnsmoothedMesh(currentMesh);
 
         result.IsSuccess.Should().BeTrue();
-        var unsmoothed = result.Value;
+        using var unsmoothed = result.Value;
 
+        using var baseCopy = currentMesh.Metadata.GetBaseMeshCopy().Value;
         var currentStats = _fixture.Engine.Evaluators.GetStatistics(currentMesh).Value;
         var unsmoothedStats = _fixture.Engine.Evaluators.GetStatistics(unsmoothed).Value;
-        var baseStats = _fixture.Engine.Evaluators.GetStatistics(currentMesh.Metadata.BaseMesh.Value).Value;
+        var baseStats = _fixture.Engine.Evaluators.GetStatistics(baseCopy).Value;
 
         // Aligned with the (translated, smoothed) current mesh...
         var currentCentreX = (currentStats.MinX + currentStats.MaxX) / 2;
@@ -155,21 +157,28 @@ public class SmoothingTests
     }
 
     [Fact]
-    public void ComputeUnsmoothedMesh_NoOtherCommands_ReturnsBaseMeshInstance()
+    public void ComputeUnsmoothedMesh_NoOtherCommands_ReturnsOwnedCopy_DisposalIsSafe()
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
         workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
 
         workspace = _smoothingFeature.Execute(workspace, new SmoothSettings()).Value;
-        var currentMesh = workspace.GetActiveMesh().Value;
+        using var currentMesh = workspace.GetActiveMesh().Value;
 
         var result = _resetFeature.ComputeUnsmoothedMesh(currentMesh);
 
         result.IsSuccess.Should().BeTrue();
-        // With nothing left to replay, the twin IS the stored BaseMesh - callers rely on this
-        // to know when disposing the result would destroy the metadata-held BaseMesh.
-        result.Value.Should().BeSameAs(currentMesh.Metadata.BaseMesh.Value);
+        // Even with nothing left to replay, the twin must be an owned copy - never the
+        // stored BaseMesh instance, which callers would then dispose out from under the
+        // workspace (the original disposal bug this guards against).
+        result.Value.Should().NotBeSameAs(currentMesh.Metadata.BaseMeshInstance.Value);
+        result.Value.Dispose();
+
+        // The stored BaseMesh must still be usable after disposing the copy: resetting
+        // smoothing replays from it.
+        var reset = _resetFeature.Execute(workspace);
+        reset.IsSuccess.Should().BeTrue();
     }
 
     [Fact]
@@ -190,10 +199,10 @@ public class SmoothingTests
         var resetWorkspace = result.Value;
 
         // Still no fork - reverting stays on the same mesh entry.
-        resetWorkspace.Meshes.Count.Should().Be(1);
+        resetWorkspace.MeshCount.Should().Be(1);
         resetWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        var resetMesh = resetWorkspace.GetActiveMesh().Value;
+        using var resetMesh = resetWorkspace.GetActiveMesh().Value;
         resetMesh.Metadata.GetSmoothing().HasNoValue.Should().BeTrue();
         resetMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
     }

@@ -25,7 +25,7 @@ public class MouldSceneManager : ISceneManager
     private readonly Material _selectedChannelSkin = DiffuseMaterials.Pearl;
     private readonly Material _previewChannelSkin = DiffuseMaterials.Pearl;
 
-    private IMesh TargetMesh { get; set; }
+    private IMesh? TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];
     private IAirChannel PreviewChannel { get; set; }
 
@@ -59,11 +59,17 @@ public class MouldSceneManager : ISceneManager
         _grid = SceneHelpers.GenerateGrid();
     }
 
+    /// <summary>
+    /// Takes ownership of <paramref name="mesh"/>: it's retained for mould previews and
+    /// channel generation, and disposed when replaced or on <see cref="ReleaseMesh"/>.
+    /// </summary>
     public Result UpdateMesh(IMesh mesh)
     {
         if (_targetMeshId != Guid.Empty)
             VisualRemovedById?.Invoke(_targetMeshId);
 
+        if (TargetMesh is not null && !ReferenceEquals(TargetMesh, mesh))
+            TargetMesh.Dispose();
         TargetMesh = mesh;
 
         var geometryResult = TargetMesh.ToHelixMesh(_engine);
@@ -120,6 +126,16 @@ public class MouldSceneManager : ISceneManager
         VisualAddedOrUpdated?.Invoke(_mouldModel);
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Disposes the retained target mesh. Called when the owning view deactivates - the
+    /// scene manager dies with its view model, so nothing else will release it.
+    /// </summary>
+    public void ReleaseMesh()
+    {
+        TargetMesh?.Dispose();
+        TargetMesh = null;
     }
 
     // Called once the mould has actually been generated: the mould shell and channel

@@ -31,8 +31,6 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Offset ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"Offset({offsetDistance})"));
-            newMetadata = newMetadata.WithPropagatedBaseMesh(input);
-
             return _engine.CreateMesh(result, newMetadata);
         }
         catch (Exception ex)
@@ -71,8 +69,6 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"DoubleOffset ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"OffsetDouble({offsetDistance}, {iterations})"));
-            newMetadata = newMetadata.WithPropagatedBaseMesh(input);
-
             return _engine.CreateMesh(currentMesh, newMetadata);
         }
         catch (Exception ex)
@@ -105,8 +101,6 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = mrMesh.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Resized ({mrMesh.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"Resize({targetTriangleCount})"));
-            newMetadata = newMetadata.WithPropagatedBaseMesh(mrMesh);
-
             return _engine.CreateMesh(clone, newMetadata);
         }
         catch (Exception ex)
@@ -129,8 +123,6 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Repaired ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, "Repair"));
-            newMetadata = newMetadata.WithPropagatedBaseMesh(input);
-
             return _engine.CreateMesh(mesh, newMetadata);
         }
         catch (Exception ex)
@@ -152,8 +144,6 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Repaired SI ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, "RepairSelfIntersections"));
-            newMetadata = newMetadata.WithPropagatedBaseMesh(input);
-
             return _engine.CreateMesh(mesh, newMetadata);
         }
         catch (Exception ex)

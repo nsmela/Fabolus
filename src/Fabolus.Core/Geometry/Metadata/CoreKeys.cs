@@ -35,6 +35,8 @@ public static class CoreKeys {
     /// The pristine mesh this one was derived from, before any of <see cref="Commands"/> were applied.
     /// Held as a live mesh (not a Workspace lookup) so a command can be edited/removed and the
     /// result rebuilt without needing another live mesh instance elsewhere.
+    /// Internal so the stored instance can't be fished out of the property bag - access goes
+    /// through MeshMetadata.GetBaseMeshCopy/HasBaseMesh, which never leak the shared instance.
     /// </summary>
-    public static readonly MetadataKey<IMesh> BaseMesh = new("Base Mesh");
+    internal static readonly MetadataKey<IMesh> BaseMesh = new("Base Mesh");
 }

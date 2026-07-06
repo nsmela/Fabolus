@@ -136,9 +136,9 @@ public class MouldsTests
         result.IsSuccess.Should().BeTrue();
         var updatedWorkspace = result.Value;
 
-        updatedWorkspace.Meshes.Count.Should().Be(1);
+        updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().Be(baseId);
-        updatedWorkspace.GetActiveMesh().Value.Metadata.Id.Should().Be(baseId);
+        updatedWorkspace.GetActiveMeshMetadata().Value.Id.Should().Be(baseId);
     }
 
     [Fact]
@@ -161,10 +161,10 @@ public class MouldsTests
         var clearedWorkspace = result.Value;
 
         // Still no fork - clearing stays on the same mesh entry.
-        clearedWorkspace.Meshes.Count.Should().Be(1);
+        clearedWorkspace.MeshCount.Should().Be(1);
         clearedWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        var clearedMesh = clearedWorkspace.GetActiveMesh().Value;
+        using var clearedMesh = clearedWorkspace.GetActiveMesh().Value;
         clearedMesh.Metadata.MouldDefinition().HasNoValue.Should().BeTrue();
         clearedMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
     }

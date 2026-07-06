@@ -42,19 +42,29 @@ public sealed class ImportMesh {
         foreach (var meshToProcess in importedMeshes) {
             var mesh = meshToProcess;
 
-            // Center the mesh at the origin upon import and attach mesh stats
+            // Center the mesh at the origin upon import and attach mesh stats. The stats are
+            // attached even if centering fails - meshes without cached Stats force every
+            // consumer to handle their absence, so only a stats failure itself leaves them out.
+            var originalMetadata = mesh.Metadata;
             var statsResult = _geometryEngine.Evaluators.GetStatistics(mesh);
             if (statsResult.IsSuccess) {
                 var stats = statsResult.Value;
                 var centre = stats.Centre;
 
                 var transformResult = _geometryEngine.Transforms.Translate(mesh, -centre.X, -centre.Y, -centre.Z);
-                    if (transformResult.IsSuccess) {
-                    stats = _geometryEngine.Evaluators.GetStatistics(transformResult.Value).Value;
-                    var statsMeta = mesh.Metadata.WithMeshStats(stats);
-                    mesh = transformResult.Value.WithMetadata(statsMeta);
+                if (transformResult.IsSuccess) {
+                    if (!ReferenceEquals(transformResult.Value, mesh)) {
+                        mesh.Dispose();
+                    }
+                    mesh = transformResult.Value;
+
+                    var recomputed = _geometryEngine.Evaluators.GetStatistics(mesh);
+                    if (recomputed.IsSuccess) stats = recomputed.Value;
                 }
-                
+
+                // Built from the pre-translate metadata: the engine's Translate rewrites
+                // Name/CreatedBy, which must not stick on an imported mesh.
+                mesh = mesh.WithMetadata(originalMetadata.WithMeshStats(stats));
             }
 
             // Validate topology (IO already does this, but we ensure it's up to date)

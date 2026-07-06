@@ -81,12 +81,12 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         _selectedMesh = null; // to prevent triggering a workspace update again
 
 
-        MeshItems = Workspace.Meshes.Values
-            .Select(mesh => new MeshItem(
-                mesh.Metadata.Id,
-                mesh.Metadata.Name,
-                mesh.Metadata.Id == id,
-                mesh.Metadata.Topology().Value.IsNotValid))
+        MeshItems = Workspace.MeshMetadataList
+            .Select(metadata => new MeshItem(
+                metadata.Id,
+                metadata.Name,
+                metadata.Id == id,
+                metadata.Topology().Value.IsNotValid))
             .ToList();
 
         SetActiveMesh();
@@ -97,12 +97,12 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     }
 
     private void SetActiveMesh() {
-        var activeMeshResult = Workspace.GetActiveMesh();
+        // Metadata-only read - no geometry copy needed to fill the info panel.
+        var metadataResult = Workspace.GetActiveMeshMetadata();
 
-        if (activeMeshResult.IsSuccess) {
-            var activeMesh = activeMeshResult.Value;
-            SelectedMesh = MeshItems.FirstOrDefault(x => x.Id == activeMesh.Metadata.Id);
-            ActiveMetadata = activeMesh.Metadata;
+        if (metadataResult.IsSuccess) {
+            ActiveMetadata = metadataResult.Value;
+            SelectedMesh = MeshItems.FirstOrDefault(x => x.Id == ActiveMetadata.Id);
             ActiveStats = ActiveMetadata.MeshStats().Value;
             ActiveTopology = ActiveMetadata.Topology().Value;
         } else {
@@ -219,17 +219,17 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
 
     [RelayCommand]
     public void ExportMesh(Guid id) {
-        var meshResult = Workspace.GetMesh(id);
+        var saveFileResult = _dialogue.ShowSaveFileDialog(FILTER, ".stl");
+        if (saveFileResult.HasNoValue) return;
 
+        var meshResult = Workspace.GetMesh(id);
         if (meshResult.IsFailure) {
             _alertDialog.ShowError(meshResult.Error.Description);
             return;
         }
 
-        var saveFileResult = _dialogue.ShowSaveFileDialog(FILTER, ".stl");
-        if (saveFileResult.HasNoValue) return;
-
-        var result = _exportFeature.Execute(meshResult.Value, saveFileResult.Value, true);
+        using var mesh = meshResult.Value;
+        var result = _exportFeature.Execute(mesh, saveFileResult.Value, true);
         if (result.IsFailure) {
             _alertDialog.ShowError(result.Error.Description);
         }

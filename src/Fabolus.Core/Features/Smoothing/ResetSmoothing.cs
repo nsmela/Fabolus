@@ -18,12 +18,14 @@ public sealed class ResetSmoothing {
     /// the current geometry - comparing against raw BaseMesh instead would drift out of
     /// alignment as soon as any transform is applied after smoothing, since BaseMesh stays
     /// pristine and never rotates/translates.
-    /// May return the BaseMesh instance itself (when no other commands exist) - callers who
-    /// dispose the result must check for that, or they'd destroy the metadata-held BaseMesh.
+    /// Always returns an owned mesh the caller must dispose - never a shared instance.
     /// </summary>
     public Result<IMesh> ComputeUnsmoothedMesh(IMesh mesh) {
+        var baseCopy = mesh.Metadata.GetBaseMeshCopy();
+        if (baseCopy.HasNoValue) return MetadataErrors.MissingBaseMesh;
+
         var revertedMetadata = mesh.Metadata.WithoutCommand<SmoothSettings>();
-        return CommandReplay.Apply(_engine, mesh.Metadata.BaseMesh.Value, revertedMetadata.Commands);
+        return CommandReplay.Apply(_engine, baseCopy.Value, revertedMetadata.Commands);
     }
 
     /// <summary>
@@ -36,7 +38,7 @@ public sealed class ResetSmoothing {
         var getMeshResult = workspace.GetActiveMesh();
         if (getMeshResult.IsFailure) return getMeshResult.Error;
 
-        var activeMesh = getMeshResult.Value;
+        using var activeMesh = getMeshResult.Value;
 
         var smoothResult = activeMesh.Metadata.GetSmoothing();
         if (smoothResult.HasNoValue) return workspace;

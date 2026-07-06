@@ -27,12 +27,12 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
         var getMeshResult = workspace.GetActiveMesh();
         if (getMeshResult.IsFailure) return getMeshResult.Error;
 
-        var activeMesh = getMeshResult.Value;
-        // BaseMesh is guaranteed present - Workspace.AddMesh establishes it for every mesh
-        // the moment it enters the workspace.
-        var baseMesh = activeMesh.Metadata.BaseMesh.Value;
+        using var activeMesh = getMeshResult.Value;
         var updatedMetadata = activeMesh.Metadata.WithCommand(settings);
 
+        // BaseMesh is guaranteed present - Workspace.AddMesh establishes it for every mesh
+        // the moment it enters the workspace. The copy is consumed by the replay.
+        var baseMesh = activeMesh.Metadata.GetBaseMeshCopy().Value;
         var replayResult = CommandReplay.Apply(Engine, baseMesh, updatedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
