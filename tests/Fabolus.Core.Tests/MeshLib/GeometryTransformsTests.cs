@@ -75,7 +75,7 @@ public class GeometryTransformsTests
         var original = _fixture.UnitCube();
         var originalStats = _engine.Evaluators.GetStatistics(original).Value;
 
-        var result = _fixture.Engine.Transforms.Rotate(original, new Quaternion((float)(Math.PI / 2), 0, 0, 1));
+        var result = _fixture.Engine.Transforms.Rotate(original, Quaternion.CreateFromAxisAngle(Vector3.UnitZ, (float)(Math.PI / 2)));
 
         result.IsSuccess.Should().BeTrue();
         var transformedStats = _engine.Evaluators.GetStatistics(result.Value).Value;
@@ -91,14 +91,14 @@ public class GeometryTransformsTests
         var originalStats = _engine.Evaluators.GetStatistics(original).Value;
 
         // Attach a base explicitly (Workspace.AddMesh normally does this on entry).
-        var withBase = original.WithMetadata(original.Metadata.WithBaseMesh(original.Clone()));
+        var withBase = original.WithMetadata(original.Metadata.WithBaseMesh(original));
 
         var transformed = _fixture.Engine.Transforms.Translate(withBase, 1, 1, 1).Value;
 
         // BaseMesh rides along in the metadata but stays pristine - the engine must not
         // translate it with the mesh; replay depends on it never moving.
         transformed.Metadata.HasBaseMesh.Should().BeTrue();
-        using var baseCopy = transformed.Metadata.GetBaseMeshCopy().Value;
+        var baseCopy = transformed.Metadata.GetBaseMesh().Value;
         var baseStats = _engine.Evaluators.GetStatistics(baseCopy).Value;
 
         baseStats.MinX.Should().BeApproximately(originalStats.MinX, 1e-3);

@@ -131,7 +131,7 @@ public class GeometryIOTests
             importedCommand.Translation.Should().Be(new Vector3(10, 20, 30));
 
             imported.Metadata.HasBaseMesh.Should().BeTrue();
-            using var importedBaseMesh = imported.Metadata.GetBaseMeshCopy().Value;
+            var importedBaseMesh = imported.Metadata.GetBaseMesh().Value;
             importedBaseMesh.VertexCount.Should().Be(baseMesh.VertexCount);
             importedBaseMesh.TriangleCount.Should().Be(baseMesh.TriangleCount);
         }

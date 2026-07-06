@@ -121,7 +121,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         var activeMeshResult = Workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure) return;
-        using var activeMesh = activeMeshResult.Value;
+        var activeMesh = activeMeshResult.Value;
 
         var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
         if (stageResult.IsFailure) return;
@@ -169,9 +169,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     }
 
     private void ReleaseCachedMeshes() {
-        _stagedMesh?.Dispose();
         _stagedMesh = null;
-        _unsmoothedTwin?.Dispose();
         _unsmoothedTwin = null;
         _originalStats = null;
     }

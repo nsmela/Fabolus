@@ -14,6 +14,8 @@ public class WorkspaceTests
         public int VertexCount => 0;
         public int TriangleCount => 0;
         public bool IsEmpty => true;
+        public System.Numerics.Vector3[] Vertices => Array.Empty<System.Numerics.Vector3>();
+        public int[] Triangles => Array.Empty<int>();
 
         public MockMesh(Guid id)
         {

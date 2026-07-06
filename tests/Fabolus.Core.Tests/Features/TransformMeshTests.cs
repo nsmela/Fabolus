@@ -42,7 +42,7 @@ public class TransformMeshTests
         updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        using var translatedMesh = updatedWorkspace.GetActiveMesh().Value;
+        var translatedMesh = updatedWorkspace.GetActiveMesh().Value;
         translatedMesh.Metadata.Id.Should().Be(baseId);
         var translate = translatedMesh.Metadata.Translation().Value;
         translate.Should().NotBeNull();

@@ -53,9 +53,6 @@ public sealed class ImportMesh {
 
                 var transformResult = _geometryEngine.Transforms.Translate(mesh, -centre.X, -centre.Y, -centre.Z);
                 if (transformResult.IsSuccess) {
-                    if (!ReferenceEquals(transformResult.Value, mesh)) {
-                        mesh.Dispose();
-                    }
                     mesh = transformResult.Value;
 
                     var recomputed = _geometryEngine.Evaluators.GetStatistics(mesh);

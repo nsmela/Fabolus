@@ -164,7 +164,7 @@ public class MouldsTests
         clearedWorkspace.MeshCount.Should().Be(1);
         clearedWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        using var clearedMesh = clearedWorkspace.GetActiveMesh().Value;
+        var clearedMesh = clearedWorkspace.GetActiveMesh().Value;
         clearedMesh.Metadata.MouldDefinition().HasNoValue.Should().BeTrue();
         clearedMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
     }

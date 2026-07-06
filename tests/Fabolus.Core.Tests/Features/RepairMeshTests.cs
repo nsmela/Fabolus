@@ -29,7 +29,7 @@ public class RepairMeshTests
         var result = _repairFeature.Execute(workspace, id);
 
         result.IsSuccess.Should().BeTrue();
-        using var repaired = result.Value.GetActiveMesh().Value;
+        var repaired = result.Value.GetActiveMesh().Value;
 
         // Repair changes geometry, so the cached Stats/Topology must be recomputed - UI
         // consumers (hover paths, info panels) read these instead of re-deriving.

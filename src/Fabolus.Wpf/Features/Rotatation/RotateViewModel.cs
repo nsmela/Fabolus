@@ -98,7 +98,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
         var activeMeshResult = Workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure) return;
-        using var activeMesh = activeMeshResult.Value;
+        var activeMesh = activeMeshResult.Value;
 
         // GetMeshAtStage always returns an owned mesh (the view shows the model as it was
         // before any mould was cut); the scene manager takes ownership of it, since it

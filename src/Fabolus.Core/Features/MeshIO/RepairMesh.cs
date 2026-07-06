@@ -16,7 +16,7 @@ public sealed class RepairMesh {
     public Result<Workspace> Execute(Workspace workspace, Guid meshId, bool fixSelfIntersections = false) {
         var meshResult = workspace.GetMesh(meshId);
         if (meshResult.IsFailure) return meshResult.Error;
-        using var mesh = meshResult.Value;
+        var mesh = meshResult.Value;
 
         Result<IMesh> repairResult;
         if (fixSelfIntersections)

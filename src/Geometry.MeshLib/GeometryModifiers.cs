@@ -15,23 +15,21 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
     public Result<IMesh> Offset(IMesh input, float offsetDistance, float cellSize = 0.0f)
     {
-        if (input is not MRMesh mrMesh) return GeometryErrors.InvalidMeshType;
-
         try
         {
-            using var model = new MR.Mesh(mrMesh.Mesh); // Deep copy
+            using var model = input.ToMRMesh();
             using var mp = new MR.MeshPart(model);
             using var parms = new MR.OffsetParameters()
             {
                 voxelSize = cellSize > 0 ? cellSize : MR.suggestVoxelSize(mp, 1e6f),
             };
 
-            var result = MR.offsetMesh(mp, offsetDistance, parms);
+            using var result = MR.offsetMesh(mp, offsetDistance, parms);
             
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Offset ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"Offset({offsetDistance})"));
-            return _engine.CreateMesh(result, newMetadata);
+            return Result.Success(result.ToIMesh(newMetadata));
         }
         catch (Exception ex)
         {
@@ -41,14 +39,11 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
     public Result<IMesh> OffsetDouble(IMesh input, float offsetDistance, int iterations = 1, float cellSize = 0.0f)
     {
-        // Even the no-op path returns a new mesh - modifiers never return their input
-        // instance, so callers can dispose pipeline intermediates unconditionally.
-        if (iterations < 1) return Result.Success(input.Clone());
-        if (input is not MRMesh mrMesh) return GeometryErrors.InvalidMeshType;
-
+        if (iterations < 1) return Result.Success(input);
+        
         try
         {
-            var currentMesh = new MR.Mesh(mrMesh.Mesh); // Deep copy
+            var currentMesh = input.ToMRMesh();
             
             for (int i = 0; i < iterations; i++)
             {
@@ -71,7 +66,10 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"DoubleOffset ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"OffsetDouble({offsetDistance}, {iterations})"));
-            return _engine.CreateMesh(currentMesh, newMetadata);
+                 
+            var result = Result.Success(currentMesh.ToIMesh(newMetadata));
+            currentMesh.Dispose();
+            return result;
         }
         catch (Exception ex)
         {
@@ -81,18 +79,13 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
     public Result<IMesh> Resize(IMesh mesh, int targetTriangleCount)
     {
-        if (mesh is not MRMesh mrMesh) return GeometryErrors.InvalidMeshType;
-
         try
         {
-            var clone = new MR.Mesh(mrMesh.Mesh);
+            using var clone = mesh.ToMRMesh();
             int currentTriangles = (int)clone.topology.getValidFaces().count();
             if (currentTriangles <= targetTriangleCount)
             {
-                // Already at/below target: nothing to decimate, but still hand back a new
-                // mesh (the clone just made) - modifiers never return their input instance,
-                // so callers can dispose pipeline intermediates unconditionally.
-                return _engine.CreateMesh(clone, mrMesh.Metadata);
+                return Result.Success(mesh);
             }
 
             int toDelete = currentTriangles - targetTriangleCount;
@@ -102,10 +95,10 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
             MR.decimateMesh(clone, settings);
 
-            var newMetadata = mrMesh.Metadata.WithProperties(m =>
-                m.Set(CoreKeys.Name, $"Resized ({mrMesh.Metadata.Name})")
+            var newMetadata = mesh.Metadata.WithProperties(m =>
+                m.Set(CoreKeys.Name, $"Resized ({mesh.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, $"Resize({targetTriangleCount})"));
-            return _engine.CreateMesh(clone, newMetadata);
+            return Result.Success(clone.ToIMesh(newMetadata));
         }
         catch (Exception ex)
         {
@@ -115,11 +108,9 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
     public Result<IMesh> Repair(IMesh input)
     {
-        if (input is not MRMesh mrMesh) return GeometryErrors.InvalidMeshType;
-
         try
         {
-            var mesh = new MR.Mesh(mrMesh.Mesh);
+            using var mesh = input.ToMRMesh();
             using var parms = new MR.FixMeshDegeneraciesParams();
             MR.fixMeshDegeneracies(mesh, parms);
             MR.fixMultipleEdges(mesh);
@@ -127,7 +118,7 @@ public sealed class GeometryModifiers : IGeometryModifiers
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Repaired ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, "Repair"));
-            return _engine.CreateMesh(mesh, newMetadata);
+            return Result.Success(mesh.ToIMesh(newMetadata));
         }
         catch (Exception ex)
         {
@@ -137,18 +128,16 @@ public sealed class GeometryModifiers : IGeometryModifiers
 
     public Result<IMesh> RepairSelfIntersections(IMesh input)
     {
-        if (input is not MRMesh mrMesh) return GeometryErrors.InvalidMeshType;
-
         try
         {
-            var mesh = new MR.Mesh(mrMesh.Mesh);
+            using var mesh = input.ToMRMesh();
             using var settings = new MR.SelfIntersections.Settings();
             MR.SelfIntersections.fix(mesh, settings);
 
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Repaired SI ({input.Metadata.Name})")
                  .Set(CoreKeys.CreatedBy, "RepairSelfIntersections"));
-            return _engine.CreateMesh(mesh, newMetadata);
+            return Result.Success(mesh.ToIMesh(newMetadata));
         }
         catch (Exception ex)
         {

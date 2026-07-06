@@ -14,15 +14,11 @@ public class GeometryEvaluators : IGeometryEvaluators {
     }
 
     public Result<IReadOnlyList<Vector3>> ComputeVertexNormals(IMesh mesh) {
-        if (mesh is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
-
-        var mlMesh = mrMesh.Mesh;
+        using var mlMesh = mesh.ToMRMesh();
         using var validVerts = mlMesh.topology.getValidVerts();
         var pts = mlMesh.points.vec;
         ulong ptsCount = pts.size();
 
-        // Same iteration order as GetRenderData, so colours align with render vertices.
         using var normalsVec = MR.computePerVertNormals(mlMesh);
 
         var normals = new List<Vector3>((int)validVerts.count());
@@ -40,10 +36,7 @@ public class GeometryEvaluators : IGeometryEvaluators {
     }
 
     public Result<TopologyValidation> ValidateTopology(IMesh mesh) {
-        if (mesh is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
-
-        var mlMesh = mrMesh.Mesh;
+        using var mlMesh = mesh.ToMRMesh();
 
         int selfInts = 0;
         int nonManifoldEdges = 0;
@@ -98,10 +91,7 @@ public class GeometryEvaluators : IGeometryEvaluators {
     }
 
     public Result<MeshStatistics> GetStatistics(IMesh mesh) {
-        if (mesh is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
-
-        var mlMesh = mrMesh.Mesh;
+        using var mlMesh = mesh.ToMRMesh();
         using var validVerts = mlMesh.topology.getValidVerts();
         using var validFaces = mlMesh.topology.getValidFaces();
 
@@ -137,10 +127,7 @@ public class GeometryEvaluators : IGeometryEvaluators {
     }
 
     public Result<RenderData> GetRenderData(IMesh mesh) {
-        if (mesh is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
-
-        var mlMesh = mrMesh.Mesh;
+        using var mlMesh = mesh.ToMRMesh();
         using var validVerts = mlMesh.topology.getValidVerts();
         using var validFaces = mlMesh.topology.getValidFaces();
         
@@ -202,11 +189,8 @@ public class GeometryEvaluators : IGeometryEvaluators {
     }
 
     public Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 0.4) {
-        if (current is not MRMesh currentMR || original is not MRMesh originalMR)
-            return GeometryErrors.InvalidMeshType;
-
-        var currentMesh = currentMR.Mesh;
-        var originalMesh = originalMR.Mesh;
+        using var currentMesh = current.ToMRMesh();
+        using var originalMesh = original.ToMRMesh();
 
         using var validVerts = currentMesh.topology.getValidVerts();
         int activeVerts = (int)validVerts.count();
@@ -244,14 +228,10 @@ public class GeometryEvaluators : IGeometryEvaluators {
     }
 
     public Result<bool> HasMultipleComponents(IMesh mesh) {
-        if (mesh is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
-
-        var mlMesh = mrMesh.Mesh;
-
         try {
-            var part = new MR.MeshPart(mlMesh);
-            var comps = MR.MeshComponents.getAllComponents(part, null, null);
+            using var mlMesh = mesh.ToMRMesh();
+            using var part = new MR.MeshPart(mlMesh);
+            using var comps = MR.MeshComponents.getAllComponents(part, null, null);
 
             return comps.size() > 1;
         } catch (Exception ex) {
@@ -262,25 +242,21 @@ public class GeometryEvaluators : IGeometryEvaluators {
     public Result<IEnumerable<IMesh>> SeparateComponents(IMesh mesh) {
         const double minVolume = 0.1;
 
-        if (mesh is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
-
-        var mlMesh = mrMesh.Mesh;
-
         try {
-            var part = new MR.MeshPart(mlMesh);
-            var comps = MR.MeshComponents.getAllComponents(part, null, null);
+            using var mlMesh = mesh.ToMRMesh();
+            using var part = new MR.MeshPart(mlMesh);
+            using var comps = MR.MeshComponents.getAllComponents(part, null, null);
             if (comps.size() <= 1)
                 return Result.Success<IEnumerable<IMesh>>(new[] { mesh });
 
             var resultMeshes = new List<IMesh>();
-            var validFaces = mlMesh.topology.getValidFaces();
+            using var validFaces = mlMesh.topology.getValidFaces();
 
             for (uint i = 0; i < comps.size(); i++) {
-                var compFaces = comps[(ulong)i];
-                var subMesh = new MR.Mesh(mlMesh); // copy constructor
+                using var compFaces = comps[(ulong)i];
+                using var subMesh = new MR.Mesh(mlMesh); // copy constructor
 
-                var facesToDelete = validFaces - compFaces;
+                using var facesToDelete = validFaces - compFaces;
 
                 subMesh.deleteFaces(facesToDelete, null);
                 subMesh.pack();
@@ -290,9 +266,9 @@ public class GeometryEvaluators : IGeometryEvaluators {
 
                 var newMetadata = new MeshMetadata().WithProperties(m =>
                     m.Set(CoreKeys.Id, Guid.NewGuid())
-                     .Set(CoreKeys.Name, $"{mrMesh.Metadata.Name} Component {i + 1}"));
+                     .Set(CoreKeys.Name, $"{mesh.Metadata.Name} Component {i + 1}"));
 
-                resultMeshes.Add(new MRMesh(subMesh, newMetadata));
+                resultMeshes.Add(subMesh.ToIMesh(newMetadata));
             }
             return Result.Success<IEnumerable<IMesh>>(resultMeshes);
         } catch (Exception ex) {

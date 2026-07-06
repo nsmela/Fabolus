@@ -170,28 +170,18 @@ public sealed record MeshMetadata {
     public bool HasBaseMesh => GetProperty(CoreKeys.BaseMesh).HasValue;
 
     /// <summary>
-    /// Returns an owned copy of the pristine mesh this one was derived from, before any of
-    /// <see cref="Commands"/> were applied. The caller owns the copy and must dispose it.
-    /// The stored instance itself never crosses this boundary - it is disposed only by
-    /// <see cref="Workspace.RemoveMesh"/> when its mesh's lineage ends.
+    /// Returns the pristine base mesh this one was derived from, before any of
+    /// <see cref="Commands"/> were applied. Returns None if there is no base mesh.
     /// </summary>
-    public Maybe<IMesh> GetBaseMeshCopy() => BaseMeshInstance.Map(m => m.Clone());
+    public Maybe<IMesh> GetBaseMesh() => GetProperty(CoreKeys.BaseMesh);
 
     /// <summary>
-    /// Metadata of the stored base mesh (e.g. its import-time stats). Metadata is a value
-    /// object - safe to share, nothing to dispose - so no geometry copy is needed to read it.
+    /// Metadata of the base mesh (e.g. its import-time stats).
     /// </summary>
-    public Maybe<MeshMetadata> BaseMeshMetadata => BaseMeshInstance.Map(m => m.Metadata);
+    public Maybe<MeshMetadata> BaseMeshMetadata => GetProperty(CoreKeys.BaseMesh).Map(m => m.Metadata);
 
     /// <summary>
-    /// The live stored base mesh instance. Internal so only lifetime owners (Workspace) can
-    /// reach it; everyone else goes through <see cref="GetBaseMeshCopy"/>.
-    /// </summary>
-    internal Maybe<IMesh> BaseMeshInstance => GetProperty(CoreKeys.BaseMesh);
-
-    /// <summary>
-    /// Creates a new metadata instance recording the pristine base mesh. The metadata takes
-    /// ownership of the instance - callers must not dispose it afterward.
+    /// Creates a new metadata instance recording the pristine base mesh.
     /// </summary>
     public MeshMetadata WithBaseMesh(IMesh mesh) => WithProperty(CoreKeys.BaseMesh, mesh);
 

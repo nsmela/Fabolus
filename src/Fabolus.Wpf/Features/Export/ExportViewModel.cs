@@ -109,7 +109,7 @@ public partial class ExportViewModel : ObservableObject, IViewState {
                 return;
             }
 
-            using var mesh = meshResult.Value;
+            var mesh = meshResult.Value;
             // Just saving ignoring Binary/ASCII toggle since it's not supported by engine currently
             var filename = $"{metadata.Name}{extension}";
             var filepath = Path.Combine(DestinationFolder, filename);

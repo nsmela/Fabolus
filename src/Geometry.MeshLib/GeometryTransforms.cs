@@ -17,26 +17,21 @@ internal sealed class GeometryTransforms : IGeometryTransforms
 
     public Result<IMesh> Translate(IMesh source, double deltaX, double deltaY, double deltaZ)
     {
-        if (source is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
-
-        var clone = new MR.Mesh(mrMesh.Mesh);
-        var pts = clone.points.vec;
+        using var mrMesh = source.ToMRMesh();
+        var pts = mrMesh.points.vec;
         ulong size = pts.size();
         for (ulong i = 0; i < size; i++)
         {
             var p = pts[i];
             pts[i] = new MR.Vector3f(p.x + (float)deltaX, p.y + (float)deltaY, p.z + (float)deltaZ);
         }
-        clone.invalidateCaches();
+        mrMesh.invalidateCaches();
 
-        // BaseMesh (if present in the metadata) rides along untouched - it stays pristine by
-        // design; the feature layer owns replay/propagation, not the engine.
         var newMetadata = source.Metadata.WithProperties(m =>
             m.Set(CoreKeys.Name, $"Translated ({source.Metadata.Name})")
              .Set(CoreKeys.CreatedBy, $"Translate({deltaX}, {deltaY}, {deltaZ})"));
 
-        return new MRMesh(clone, newMetadata);
+        return Result.Success(mrMesh.ToIMesh(newMetadata));
     }
 
     public Result<IMesh> Scale(IMesh source, double scaleFactor) =>
@@ -47,44 +42,39 @@ internal sealed class GeometryTransforms : IGeometryTransforms
         if (scaleX <= 0 || scaleY <= 0 || scaleZ <= 0)
             return GeometryErrors.InvalidScale;
 
-        if (source is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
-
-        var clone = new MR.Mesh(mrMesh.Mesh);
-        var pts = clone.points.vec;
+        using var mrMesh = source.ToMRMesh();
+        var pts = mrMesh.points.vec;
         ulong size = pts.size();
         for (ulong i = 0; i < size; i++)
         {
             var p = pts[i];
             pts[i] = new MR.Vector3f(p.x * (float)scaleX, p.y * (float)scaleY, p.z * (float)scaleZ);
         }
-        clone.invalidateCaches();
+        mrMesh.invalidateCaches();
 
-        // BaseMesh (if present in the metadata) rides along untouched - it stays pristine by
-        // design; the feature layer owns replay/propagation, not the engine.
         var newMetadata = source.Metadata.WithProperties(m =>
             m.Set(CoreKeys.Name, $"Scaled ({source.Metadata.Name})")
              .Set(CoreKeys.CreatedBy, $"Scale({scaleX}, {scaleY}, {scaleZ})"));
 
-        return new MRMesh(clone, newMetadata);
+        return Result.Success(mrMesh.ToIMesh(newMetadata));
     }
 
     public Result<IMesh> Rotate(IMesh source, Quaternion q) {
-        if (source is not MRMesh mrMesh)
-            return GeometryErrors.InvalidMeshType;
+        using var mrMesh = source.ToMRMesh();
 
-        var clone = new MR.Mesh(mrMesh.Mesh);
+        // Normalize the quaternion to ensure no scaling is applied
+        var nq = Quaternion.Normalize(q);
 
         // Calculate quaternion component products
-        float xx = q.X * q.X;
-        float yy = q.Y * q.Y;
-        float zz = q.Z * q.Z;
-        float xy = q.X * q.Y;
-        float xz = q.X * q.Z;
-        float yz = q.Y * q.Z;
-        float wx = q.W * q.X;
-        float wy = q.W * q.Y;
-        float wz = q.W * q.Z;
+        float xx = nq.X * nq.X;
+        float yy = nq.Y * nq.Y;
+        float zz = nq.Z * nq.Z;
+        float xy = nq.X * nq.Y;
+        float xz = nq.X * nq.Z;
+        float yz = nq.Y * nq.Z;
+        float wx = nq.W * nq.X;
+        float wy = nq.W * nq.Y;
+        float wz = nq.W * nq.Z;
 
         // Convert quaternion to a 3x3 rotation matrix (row by row)
         var rowX = new Vector3f(
@@ -107,11 +97,9 @@ internal sealed class GeometryTransforms : IGeometryTransforms
 
         var rotationMatrix = new Matrix3f(rowX, rowY, rowZ);
         var transform = AffineXf3f.linear(rotationMatrix);
-        clone.transform(transform);
+        mrMesh.transform(transform);
 
-        // BaseMesh (if present in the metadata) rides along untouched - it stays pristine by
-        // design; the feature layer owns replay/propagation, not the engine.
-        return Result<IMesh>.Success(new MRMesh(clone, source.Metadata));
+        return Result.Success(mrMesh.ToIMesh(source.Metadata));
     }
 
 }

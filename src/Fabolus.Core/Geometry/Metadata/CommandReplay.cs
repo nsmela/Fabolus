@@ -22,13 +22,9 @@ public static class CommandReplay {
         foreach (var command in commands) {
             var result = command.Apply(engine, current);
             if (result.IsFailure) {
-                current.Dispose();
                 return result.Error;
             }
 
-            // Commands always return a new mesh (engine ops never return their input),
-            // so the previous link in the chain can be disposed unconditionally.
-            current.Dispose();
             current = result.Value;
         }
 
@@ -42,10 +38,10 @@ public static class CommandReplay {
     /// </summary>
     public static Result<IMesh> GetMeshAtStage(IGeometryEngine engine, IMesh currentMesh, int priorityLevel) {
         if (!currentMesh.Metadata.Commands.Any(c => c.Priority > priorityLevel)) {
-            return Result<IMesh>.Success(currentMesh.Clone());
+            return Result<IMesh>.Success(currentMesh);
         }
 
-        var baseCopy = currentMesh.Metadata.GetBaseMeshCopy();
+        var baseCopy = currentMesh.Metadata.GetBaseMesh();
         if (baseCopy.HasNoValue) {
             return MetadataErrors.MissingBaseMesh;
         }

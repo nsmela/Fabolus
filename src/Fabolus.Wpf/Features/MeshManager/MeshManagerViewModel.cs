@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
@@ -228,7 +228,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
             return;
         }
 
-        using var mesh = meshResult.Value;
+        var mesh = meshResult.Value;
         var result = _exportFeature.Execute(mesh, saveFileResult.Value, true);
         if (result.IsFailure) {
             _alertDialog.ShowError(result.Error.Description);

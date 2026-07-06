@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Features.MeshIO;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Overhangs;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
@@ -110,9 +110,6 @@ internal class RotateSceneManager : ISceneManager {
     /// overhang re-renders, and disposed when replaced or on <see cref="ReleaseMesh"/>.
     /// </summary>
     public void UpdateMesh(IMesh mesh) {
-        if (ActiveMesh is not null && !ReferenceEquals(ActiveMesh, mesh)) {
-            ActiveMesh.Dispose();
-        }
         ActiveMesh = mesh;
 
         RenderActiveMesh();
@@ -123,7 +120,6 @@ internal class RotateSceneManager : ISceneManager {
     /// manager dies with its view model, so nothing else will release it.
     /// </summary>
     public void ReleaseMesh() {
-        ActiveMesh?.Dispose();
         ActiveMesh = null;
     }
 

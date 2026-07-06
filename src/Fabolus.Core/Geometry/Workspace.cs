@@ -69,13 +69,8 @@ public sealed class Workspace
         if (_meshes.ContainsKey(meshId))
             return WorkspaceErrors.DuplicateMesh(mesh.Metadata.Name);
 
-        // Establish BaseMesh exactly once, here, at the single point every mesh enters a
-        // Workspace - so every command (Smooth, Rotate, Translate, Mould) can rely on it
-        // already being present instead of each lazily cloning it on its own first command.
-        // Must clone (not just point at itself): this same mesh object will eventually be
-        // disposed by UpdateMesh/RemoveMesh when a command replaces it.
         if (!mesh.Metadata.HasBaseMesh)
-            mesh = mesh.WithMetadata(mesh.Metadata.WithBaseMesh(mesh.Clone()));
+            mesh = mesh.WithMetadata(mesh.Metadata.WithBaseMesh(mesh));
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes) { [meshId] = mesh };
 
@@ -85,8 +80,7 @@ public sealed class Workspace
     }
 
     /// <summary>
-    /// Removes a mesh from the workspace, disposing both the stored mesh and its recorded
-    /// BaseMesh - this is the end of the mesh's lineage, so nothing can still need the base.
+    /// Removes a mesh from the workspace.
     /// Clears active selection if the removed mesh was active.
     /// </summary>
     public Result<Workspace> RemoveMesh(Guid meshId)
@@ -95,25 +89,14 @@ public sealed class Workspace
             return WorkspaceErrors.MeshNotFound(meshId);
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
-        if (newMeshes.TryGetValue(meshId, out var existingMesh))
-        {
-            var baseInstance = existingMesh.Metadata.BaseMeshInstance;
-            existingMesh.Dispose();
-            if (baseInstance.HasValue)
-            {
-                baseInstance.Value.Dispose();
-            }
-            newMeshes.Remove(meshId);
-        }
+        newMeshes.Remove(meshId);
 
         var newActiveMeshId = meshId == ActiveMeshId ? Guid.Empty : ActiveMeshId;
         return new Workspace(newMeshes, newActiveMeshId);
     }
 
     /// <summary>
-    /// Updates an existing mesh, taking ownership of <paramref name="updatedMesh"/> and
-    /// disposing the entry it replaces. The replaced entry's BaseMesh is NOT disposed - the
-    /// successor carries the same instance forward in its metadata (lineage continues).
+    /// Updates an existing mesh, replacing the old entry.
     /// </summary>
     public Result<Workspace> UpdateMesh(IMesh updatedMesh)
     {
@@ -125,10 +108,6 @@ public sealed class Workspace
             return WorkspaceErrors.MeshNotFound(updatedMesh.Metadata.Name);
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
-        if (newMeshes.TryGetValue(meshId, out var existingMesh))
-        {
-            existingMesh.Dispose();
-        }
         newMeshes[meshId] = updatedMesh;
         return new Workspace(newMeshes, ActiveMeshId);
     }
@@ -148,8 +127,7 @@ public sealed class Workspace
     }
 
     /// <summary>
-    /// Gets an owned copy of the currently active mesh. The caller must dispose it.
-    /// For metadata-only reads, use <see cref="GetActiveMeshMetadata"/> instead (no copy).
+    /// Gets the currently active mesh.
     /// </summary>
     public Result<IMesh> GetActiveMesh()
     {
@@ -159,17 +137,16 @@ public sealed class Workspace
         if (!_meshes.TryGetValue(ActiveMeshId, out var mesh))
             return WorkspaceErrors.ActiveMeshNotFound;
 
-        return Result.Success(mesh.Clone());
+        return Result.Success(mesh);
     }
 
     /// <summary>
-    /// Gets an owned copy of a mesh by ID. The caller must dispose it.
-    /// For metadata-only reads, use <see cref="GetMeshMetadata"/> instead (no copy).
+    /// Gets a mesh by ID.
     /// </summary>
     public Result<IMesh> GetMesh(Guid meshId)
     {
         if (_meshes.TryGetValue(meshId, out var mesh))
-            return Result.Success(mesh.Clone());
+            return Result.Success(mesh);
 
         return WorkspaceErrors.MeshNotFound(meshId);
     }

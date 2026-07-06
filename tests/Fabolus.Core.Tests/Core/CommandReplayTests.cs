@@ -20,23 +20,22 @@ public class CommandReplayTests
     }
 
     [Fact]
-    public void GetMeshAtStage_NoHigherPriorityCommands_ReturnsOwnedCopy()
+    public void GetMeshAtStage_NoHigherPriorityCommands_ReturnsSameInstance()
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
         workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
 
-        using var activeMesh = workspace.GetActiveMesh().Value;
+        var activeMesh = workspace.GetActiveMesh().Value;
+
         var result = CommandReplay.GetMeshAtStage(_fixture.Engine, activeMesh, CommandPriority.Transform);
 
         result.IsSuccess.Should().BeTrue();
-        // Never the input instance - the caller owns the result unconditionally.
-        result.Value.Should().NotBeSameAs(activeMesh);
-        result.Value.Dispose();
+        result.Value.Should().BeSameAs(activeMesh);
     }
 
     [Fact]
-    public void GetMeshAtStage_MouldOnlyCommands_DisposingResultLeavesBaseMeshUsable()
+    public void GetMeshAtStage_MouldOnlyCommands_ReturnsBaseMeshInstance()
     {
         // Regression: a mesh whose ONLY command is a mould (never rotated/smoothed) made
         // GetMeshAtStage(Transform) replay an empty command list, which used to hand back
@@ -51,14 +50,12 @@ public class CommandReplayTests
         var generateMould = new GenerateMould(_fixture.Engine);
         workspace = generateMould.Execute(workspace, baseId, new ContouredMouldDefinition(OffsetXY: 2.0)).Value;
 
-        using (var activeMesh = workspace.GetActiveMesh().Value)
-        {
-            var stageResult = CommandReplay.GetMeshAtStage(_fixture.Engine, activeMesh, CommandPriority.Transform);
+        var activeMesh = workspace.GetActiveMesh().Value;
+        
+        var stageResult = CommandReplay.GetMeshAtStage(_fixture.Engine, activeMesh, CommandPriority.Transform);
 
-            stageResult.IsSuccess.Should().BeTrue();
-            stageResult.Value.Should().NotBeSameAs(activeMesh.Metadata.BaseMeshInstance.Value);
-            stageResult.Value.Dispose(); // owned - must be safe
-        }
+        stageResult.IsSuccess.Should().BeTrue();
+        stageResult.Value.Should().BeSameAs(activeMesh.Metadata.GetBaseMesh().Value);
 
         // The stored BaseMesh must still be alive: clearing the mould replays from it.
         var clearResult = new ClearMould(_fixture.Engine).Execute(workspace);

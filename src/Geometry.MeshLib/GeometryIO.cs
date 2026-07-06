@@ -29,25 +29,22 @@ internal sealed class GeometryIO : IGeometryIO
         XElement baseObject = null;
         XNamespace ns = "http://schemas.microsoft.com/3dmanufacturing/core/2015/02";
 
-        // 1. If base mesh exists, extract its <object>. GetBaseMeshCopy hands out an owned
-        // copy (never the stored instance), disposed as soon as it's been written out.
-        var baseCopyResult = mesh.Metadata.GetBaseMeshCopy();
+        // 1. If base mesh exists, extract its <object>. 
+        var baseCopyResult = mesh.Metadata.GetBaseMesh();
         if (baseCopyResult.HasValue)
         {
-            using var baseCopy = baseCopyResult.Value;
-            if (baseCopy is MRMesh baseMrMesh)
+            var baseCopy = baseCopyResult.Value;
+            using var baseMrMesh = baseCopy.ToMRMesh();
+            baseTempFile = Path.GetTempFileName() + ".3mf";
+            MR.MeshSave.toAnySupportedFormat(baseMrMesh, baseTempFile, null);
+            using (var baseArchive = ZipFile.OpenRead(baseTempFile))
             {
-                baseTempFile = Path.GetTempFileName() + ".3mf";
-                MR.MeshSave.toAnySupportedFormat(baseMrMesh.Mesh, baseTempFile, null);
-                using (var baseArchive = ZipFile.OpenRead(baseTempFile))
+                var modelEntry = baseArchive.GetEntry("3D/3dmodel.model");
+                if (modelEntry != null)
                 {
-                    var modelEntry = baseArchive.GetEntry("3D/3dmodel.model");
-                    if (modelEntry != null)
-                    {
-                        using var stream = modelEntry.Open();
-                        var xdoc = XDocument.Load(stream);
-                        baseObject = xdoc.Root?.Element(ns + "resources")?.Element(ns + "object");
-                    }
+                    using var stream = modelEntry.Open();
+                    var xdoc = XDocument.Load(stream);
+                    baseObject = xdoc.Root?.Element(ns + "resources")?.Element(ns + "object");
                 }
             }
         }
@@ -213,7 +210,7 @@ internal sealed class GeometryIO : IGeometryIO
             try
             {
                 WriteObjectToObj(mainObject, ns, mainTemp);
-                var loadedMesh = MR.MeshLoad.fromAnySupportedFormat(mainTemp, null);
+                using var loadedMesh = MR.MeshLoad.fromAnySupportedFormat(mainTemp, null);
                 if (loadedMesh is null) return IOErrors.NoMeshData;
                 loadedMesh.pack();
                 
@@ -224,11 +221,11 @@ internal sealed class GeometryIO : IGeometryIO
                     try
                     {
                         WriteObjectToObj(baseObject, ns, baseTemp);
-                        var baseLoadedMesh = MR.MeshLoad.fromAnySupportedFormat(baseTemp, null);
+                        using var baseLoadedMesh = MR.MeshLoad.fromAnySupportedFormat(baseTemp, null);
                         if (baseLoadedMesh is not null)
                         {
                             baseLoadedMesh.pack();
-                            metadata = metadata.WithBaseMesh(new MRMesh(baseLoadedMesh, MeshMetadata.FromFileName("BaseMesh")));
+                            metadata = metadata.WithBaseMesh(baseLoadedMesh.ToIMesh(MeshMetadata.FromFileName("BaseMesh")));
                         }
                     }
                     finally
@@ -237,21 +234,21 @@ internal sealed class GeometryIO : IGeometryIO
                     }
                 }
 
-                var mrMesh = new MRMesh(loadedMesh, metadata);
-                var validation = _engine.Evaluators.ValidateTopology(mrMesh);
+                var iMesh = loadedMesh.ToIMesh(metadata);
+                var validation = _engine.Evaluators.ValidateTopology(iMesh);
                 if (validation.IsSuccess)
                 {
-                    mrMesh = (MRMesh)mrMesh.WithMetadata(metadata.WithTopology(validation.Value));
+                    iMesh = iMesh.WithMetadata(metadata.WithTopology(validation.Value));
                 }
 
-                return Result.Success<IMesh>(mrMesh);
+                return Result.Success(iMesh);
             }
             finally
             {
                 if (File.Exists(mainTemp)) File.Delete(mainTemp);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw;
         }
@@ -307,24 +304,24 @@ internal sealed class GeometryIO : IGeometryIO
                 return Import3MF(filePath);
             }
 
-            var loadedMesh = MR.MeshLoad.fromAnySupportedFormat(filePath, null);
+            using var loadedMesh = MR.MeshLoad.fromAnySupportedFormat(filePath, null);
             if (loadedMesh is null)
                 return IOErrors.NoMeshData;
 
             loadedMesh.pack();
 
             var metadata = MeshMetadata.FromFileName(filePath);
-            var mrMesh = new MRMesh(loadedMesh, metadata);
+            var iMesh = loadedMesh.ToIMesh(metadata);
 
-            var validation = _engine.Evaluators.ValidateTopology(mrMesh);
+            var validation = _engine.Evaluators.ValidateTopology(iMesh);
             if (validation.IsSuccess)
             {
-                mrMesh = (MRMesh)mrMesh.WithMetadata(metadata.WithTopology(validation.Value));
+                iMesh = iMesh.WithMetadata(metadata.WithTopology(validation.Value));
             }
 
-            return Result.Success<IMesh>(mrMesh);
+            return Result.Success(iMesh);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw;
         }
@@ -332,9 +329,6 @@ internal sealed class GeometryIO : IGeometryIO
 
     public Result Export(IMesh mesh, string filePath, bool overwrite = false)
     {
-        if (mesh is not MRMesh mrMesh)
-            return IOErrors.InvalidMeshType;
-
         if (_fileSystem.Exists(filePath) && !overwrite)
             return IOErrors.FileExists(filePath);
 
@@ -349,7 +343,8 @@ internal sealed class GeometryIO : IGeometryIO
             string tempFile = Path.GetTempFileName() + Path.GetExtension(filePath);
             try
             {
-                MR.MeshSave.toAnySupportedFormat(mrMesh.Mesh, tempFile, null);
+                using var mrMesh = mesh.ToMRMesh();
+                MR.MeshSave.toAnySupportedFormat(mrMesh, tempFile, null);
                 
                 if (filePath.EndsWith(".3mf", StringComparison.OrdinalIgnoreCase))
                 {

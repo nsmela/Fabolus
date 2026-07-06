@@ -68,8 +68,6 @@ public class MouldSceneManager : ISceneManager
         if (_targetMeshId != Guid.Empty)
             VisualRemovedById?.Invoke(_targetMeshId);
 
-        if (TargetMesh is not null && !ReferenceEquals(TargetMesh, mesh))
-            TargetMesh.Dispose();
         TargetMesh = mesh;
 
         var geometryResult = TargetMesh.ToHelixMesh(_engine);
@@ -107,7 +105,7 @@ public class MouldSceneManager : ISceneManager
         if (generateResult.IsFailure)
             return Result.Success(); // Invalid parameters mid-drag; just skip the preview silently.
 
-        using var mouldMesh = generateResult.Value;
+        var mouldMesh = generateResult.Value;
 
         var geometryResult = mouldMesh.ToHelixMesh(_engine);
         if (geometryResult.IsFailure)
@@ -134,7 +132,6 @@ public class MouldSceneManager : ISceneManager
     /// </summary>
     public void ReleaseMesh()
     {
-        TargetMesh?.Dispose();
         TargetMesh = null;
     }
 
@@ -194,7 +191,7 @@ public class MouldSceneManager : ISceneManager
             if (generateResult.IsFailure)
                 continue;
 
-            using var channelMesh = generateResult.Value;
+            var channelMesh = generateResult.Value;
             var geometryResult = channelMesh.ToHelixMesh(_engine);
             if (geometryResult.IsFailure)
                 continue;
@@ -242,7 +239,7 @@ public class MouldSceneManager : ISceneManager
         if (generateResult.IsFailure)
             return;
 
-        using var previewMesh = generateResult.Value;
+        var previewMesh = generateResult.Value;
         var geometryResult = previewMesh.ToHelixMesh(_engine);
         if (geometryResult.IsFailure)
             return;

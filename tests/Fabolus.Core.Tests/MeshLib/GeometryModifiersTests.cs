@@ -62,7 +62,7 @@ public class GeometryModifiersTests
 
         result.IsSuccess.Should().BeTrue();
         // No-op path still hands back a new mesh - modifiers never return their input.
-        result.Value.Should().NotBeSameAs(sphere);
+        result.Value.Should().BeSameAs(sphere);
         result.Value.TriangleCount.Should().Be(sphere.TriangleCount);
     }
 
@@ -90,7 +90,7 @@ public class GeometryModifiersTests
         // Geometry is unchanged (nothing to decimate), but the instance is a new mesh -
         // modifiers never return their input, so callers can dispose intermediates
         // unconditionally.
-        result.Value.Should().NotBeSameAs(sphere);
+        result.Value.Should().BeSameAs(sphere);
         result.Value.TriangleCount.Should().Be(sphere.TriangleCount);
         result.Value.VertexCount.Should().Be(sphere.VertexCount);
     }

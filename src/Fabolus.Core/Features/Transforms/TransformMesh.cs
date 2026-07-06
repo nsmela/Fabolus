@@ -27,7 +27,7 @@ public sealed class TransformMesh {
         if (getMeshResult.IsFailure)
             return getMeshResult.Error;
 
-        using var mesh = getMeshResult.Value;
+        var mesh = getMeshResult.Value;
 
         var vector = new Vector3(deltaX, deltaY, deltaZ);
         var translateResult = mesh.Metadata.Translation();
@@ -39,7 +39,7 @@ public sealed class TransformMesh {
         // the moment it enters the workspace - and carries forward automatically below since
         // updatedMetadata is built from mesh.Metadata, which already has it. The copy is
         // consumed by the replay.
-        var baseMesh = mesh.Metadata.GetBaseMeshCopy().Value;
+        var baseMesh = mesh.Metadata.GetBaseMesh().Value;
         var updatedMetadata = mesh.Metadata.WithCommand(new TranslateCommand(vector));
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
@@ -68,7 +68,7 @@ public sealed class TransformMesh {
         if (getMeshResult.IsFailure)
             return getMeshResult.Error;
 
-        using var mesh = getMeshResult.Value;
+        var mesh = getMeshResult.Value;
 
         var quaternion = Quaternion.CreateFromAxisAngle(axis, angleRadians);
 
@@ -81,7 +81,7 @@ public sealed class TransformMesh {
         // the moment it enters the workspace - and carries forward automatically below since
         // updatedMetadata is built from mesh.Metadata, which already has it. The copy is
         // consumed by the replay.
-        var baseMesh = mesh.Metadata.GetBaseMeshCopy().Value;
+        var baseMesh = mesh.Metadata.GetBaseMesh().Value;
         var updatedMetadata = mesh.Metadata.WithCommand(new RotateCommand(quaternion));
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
@@ -111,14 +111,14 @@ public sealed class TransformMesh {
         if (getMeshResult.IsFailure)
             return getMeshResult.Error;
 
-        using var mesh = getMeshResult.Value;
+        var mesh = getMeshResult.Value;
 
         var rotationResult = mesh.Metadata.Rotation();
         if (rotationResult.HasNoValue) {
             return workspace; // no rotation to remove
         }
 
-        var baseMesh = mesh.Metadata.GetBaseMeshCopy().Value;
+        var baseMesh = mesh.Metadata.GetBaseMesh().Value;
         var revertedMetadata = mesh.Metadata.WithoutCommand<RotateCommand>();
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);

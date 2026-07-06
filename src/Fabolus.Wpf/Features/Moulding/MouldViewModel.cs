@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.AirChannels;
@@ -315,8 +315,6 @@ public partial class MouldViewModel : ObservableObject, IViewState
         var result = Workspace.UpdateMesh(updatedMesh);
         if (result.IsSuccess)
             Workspace = result.Value;
-        else
-            updatedMesh.Dispose();
     }
 
     private MouldDefinition BuildMouldDefinition() => SelectedMouldType switch

@@ -23,14 +23,12 @@ public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float I
         var currentMesh = offsetResult.Value;
 
         if (currentMesh.TriangleCount == 0) {
-            currentMesh.Dispose();
             return new Error("Smoothing.OverEroded", "The mesh collapsed due to high intensity. Try reducing Iterations or Intensity.");
         }
 
         // optional inflation
         if (Math.Abs(Inflation) > 0.001) {
             var inflationResult = engine.Modifiers.Offset(currentMesh, Inflation, Resolution);
-            currentMesh.Dispose();
             if (inflationResult.IsFailure) return inflationResult.Error;
             currentMesh = inflationResult.Value;
         }
@@ -38,7 +36,6 @@ public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float I
         // Resize (Decimation)
         int targetTriangleCount = (int)(baseTriangleCount * Math.Max(RemeshRatio, 1.0));
         var resizeResult = engine.Modifiers.Resize(currentMesh, targetTriangleCount);
-        currentMesh.Dispose();
 
         return resizeResult;
     }
