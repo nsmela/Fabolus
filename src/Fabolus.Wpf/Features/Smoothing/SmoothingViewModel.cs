@@ -80,10 +80,6 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
                 : new SmoothSettings();
 
             UpdateSettings(settings);
-            
-            if (!settingsResult.HasValue) {
-                ApplySmoothing();
-            }
         }
     }
 
