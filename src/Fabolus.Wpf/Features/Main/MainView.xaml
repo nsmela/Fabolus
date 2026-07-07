@@ -12,6 +12,7 @@
         xmlns:rotate="clr-namespace:Fabolus.Wpf.Features.Rotatation"
         xmlns:mould="clr-namespace:Fabolus.Wpf.Features.Moulding"
         xmlns:export="clr-namespace:Fabolus.Wpf.Features.Export"
+        xmlns:controls="clr-namespace:Fabolus.Wpf.Features.Main.Controls"
         mc:Ignorable="d"
         Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -231,15 +232,15 @@
             </Border>
 
             <!-- Tools View  -->
-            <Border Grid.Row="1" Grid.Column="0"
-        Background="{DynamicResource Brush.Surface}"
-        BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,1,0">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="10" ShadowDepth="0" Direction="0"
-                          Opacity="0.12" Color="#FF141E28"/>
-                </Border.Effect>
-                <ContentControl Content="{Binding CurrentView}" Margin="14,16"/>
-            </Border>
+        <Border Grid.Row="1" Grid.Column="0"
+            Background="{DynamicResource Brush.Surface}"
+            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,1,0">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="0" Direction="0"
+                        Opacity="0.12" Color="#FF141E28"/>
+            </Border.Effect>
+            <ContentControl Content="{Binding CurrentView}" Margin="14,16"/>
+        </Border>
 
             <!-- Information bar View -->
         <Border Grid.Row="2" Grid.ColumnSpan="2"
@@ -265,6 +266,8 @@
 
         <!--  MeshView -->
         <viewport:ViewportControl Grid.Column="1" Grid.Row="1" SceneManager="{Binding SceneManager}"  />
+
+        <controls:LoadingOverlay Grid.Column="1" Grid.Row="1" IsLoading="{Binding IsLoading}" />
 
         <GridSplitter Grid.Row="1" Grid.Column="1"
               HorizontalAlignment="Left" VerticalAlignment="Stretch"

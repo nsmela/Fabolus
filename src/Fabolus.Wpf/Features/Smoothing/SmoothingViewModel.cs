@@ -67,8 +67,8 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
     public ISceneManager SceneManager => _sceneManager;
 
-    public void Activate(Workspace workspace) {
-        UpdateWorkspace(workspace);
+    public async Task ActivateAsync(Workspace workspace) {
+        await UpdateWorkspaceAsync(workspace);
 
         var metadataResult = Workspace.GetActiveMeshMetadata();
         if (metadataResult.IsSuccess) {
@@ -83,9 +83,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         }
     }
 
-    public Workspace Deactivate() {
+    public Task<Workspace> DeactivateAsync() {
         ReleaseCachedMeshes();
-        return Workspace;
+        return Task.FromResult(Workspace);
     }
 
     partial void OnDisplayModeChanged(SmoothDisplayMode value) {
@@ -105,9 +105,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         RenderViewport();
     }
 
-    private void UpdateWorkspace(Workspace workspace) {
+    private async Task UpdateWorkspaceAsync(Workspace workspace) {
         Workspace = workspace;
-        RefreshMeshes();
+        await Task.Run(() => RefreshMeshes());
         RenderViewport();
     }
 
@@ -200,7 +200,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     }
 
     [RelayCommand]
-    public void ApplySmoothing() {
+    public async Task ApplySmoothingAsync() {
+        _messenger.Send(new IsLoadingMessage(true));
+
         var settings = new SmoothSettings(
             Iterations,
             Intensity,
@@ -208,24 +210,27 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
             RemeshRatio,
             Resolution);
 
-        var result = _smoothFeature.Execute(Workspace, settings);
+        var result = await Task.Run(() => _smoothFeature.Execute(Workspace, settings));
         if (result.IsFailure) {
             _alert.ShowError(result.Error.Description);
+            _messenger.Send(new IsLoadingMessage(false));
             return;
         }
        
-        UpdateWorkspace(result.Value);
+        await UpdateWorkspaceAsync(result.Value);
+
+        _messenger.Send(new IsLoadingMessage(false));
     }
 
     [RelayCommand]
-    public void ResetSmoothing() {
+    public async Task ResetSmoothingAsync() {
         var result = _resetFeature.Execute(Workspace);
         if (result.IsFailure) {
             _alert.ShowError(result.Error.Description);
             return;
         }
 
-        UpdateWorkspace(result.Value);
+        await UpdateWorkspaceAsync(result.Value);
     }
 }
 
