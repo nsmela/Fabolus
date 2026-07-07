@@ -104,6 +104,69 @@ public class MouldsTests
     }
 
     [Fact]
+    public void GenerateMould_Convex_SubtractsPaintedChannel()
+    {
+        var workspace = Workspace.CreateEmpty();
+        var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
+        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+
+        var mouldDef = new ConvexMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0);
+        var withoutChannel = _generateMouldFeature.Execute(workspace, mesh.Metadata.Id, mouldDef);
+        withoutChannel.IsSuccess.Should().BeTrue();
+        var baseVolume = _fixture.Engine.Evaluators.GetStatistics(withoutChannel.Value.GetActiveMesh().Value).Value.Volume;
+
+        // A stroke painted across the top of the sphere.
+        var painted = new PaintedAirChannel(
+            new[] { new Vector3(-3, 0, 9.5f), new Vector3(0, 0, 10f), new Vector3(3, 0, 9.5f) },
+            Radius: 2.0f,
+            TotalLength: 12.0f,
+            PenetrationDepth: 1.0f);
+        var channel = new AirChannelModel(System.Guid.NewGuid(), AirChannelType.Painted, 2.0, 4.0, 5.0, painted);
+
+        var withChannel = _generateMouldFeature.Execute(workspace, mesh.Metadata.Id, mouldDef with { AirChannels = new[] { channel } });
+
+        withChannel.IsSuccess.Should().BeTrue();
+        var channelVolume = _fixture.Engine.Evaluators.GetStatistics(withChannel.Value.GetActiveMesh().Value).Value.Volume;
+
+        // The painted channel carves a void through the mould's top.
+        channelVolume.Should().BeLessThan(baseVolume);
+    }
+
+    [Fact]
+    public void MouldDefinition_JsonRoundTrip_PreservesPaintedChannelPath()
+    {
+        var path = new List<Vector3> { new(0, 0, 5), new(5, 2, 6), new(10, -1, 5.5f) };
+        var channel = new AirChannelModel(
+            System.Guid.NewGuid(), AirChannelType.Painted, 2.0, 5.0, 5.0,
+            new PaintedAirChannel(path, 2.5f, 12f, 1f));
+        var mouldDef = new ConcaveMouldDefinition(OffsetXY: 3.0, OffsetBottom: 4.0, OffsetTop: 5.0)
+        {
+            AirChannels = new[] { channel }
+        };
+
+        // Mirror the exact serializer options GeometryIO uses for 3MF command metadata:
+        // export serializes the runtime type as object, import deserializes to the
+        // concrete command type by name.
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            (object)mouldDef,
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = false, IncludeFields = true });
+        var restored = (ConcaveMouldDefinition?)System.Text.Json.JsonSerializer.Deserialize(
+            json, typeof(ConcaveMouldDefinition),
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true, IncludeFields = true });
+
+        restored.Should().NotBeNull();
+        restored!.AirChannels.Should().HaveCount(1);
+        var restoredChannel = restored.AirChannels[0];
+        restoredChannel.Type.Should().Be(AirChannelType.Painted);
+
+        var restoredPainted = restoredChannel.DomainModel.Should().BeOfType<PaintedAirChannel>().Subject;
+        restoredPainted.Path.Should().Equal(path);
+        restoredPainted.Radius.Should().Be(2.5f);
+        restoredPainted.TotalLength.Should().Be(12f);
+        restoredPainted.PenetrationDepth.Should().Be(1f);
+    }
+
+    [Fact]
     public void GenerateMould_Concave_GeneratesMould()
     {
         var workspace = Workspace.CreateEmpty();

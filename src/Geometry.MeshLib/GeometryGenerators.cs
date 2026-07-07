@@ -600,6 +600,42 @@ internal sealed class GeometryGenerators : IGeometryGenerators
         return new Polygon2D { OuterBoundary = resampled.Vertices.Select(v => new Vector2((float)v.x, (float)v.y)).ToList() };
     }
 
+    public Result<IReadOnlyList<Vector3>> ResampleOpenPath(IReadOnlyList<Vector3> path, float targetSpacing, int smoothingIterations = 2)
+    {
+        if (path is null || path.Count == 0)
+            return GeometryErrors.InvalidPath;
+
+        if (path.Count < 3 || targetSpacing <= 0)
+            return Result<IReadOnlyList<Vector3>>.Success(path);
+
+        var first = path[0];
+        var last = path[^1];
+
+        var pts = path.Select(p => new g3.Vector3d(p.X, p.Y, p.Z)).ToList();
+        var curve = new g3.DCurve3(pts, false);
+
+        var resampler = new g3.CurveResampler();
+        var newPoints = resampler.SplitCollapseResample(curve, targetSpacing, targetSpacing / 4.0f);
+        if (newPoints is not null && newPoints.Count >= 2)
+            curve = new g3.DCurve3(newPoints, false);
+
+        if (smoothingIterations > 0 && curve.VertexCount > 2)
+        {
+            var smoother = new g3.InPlaceIterativeCurveSmooth(curve, 0.15f);
+            smoother.UpdateDeformation(smoothingIterations);
+            curve = smoother.Curve;
+        }
+
+        var result = curve.Vertices.Select(v => new Vector3((float)v.x, (float)v.y, (float)v.z)).ToList();
+
+        // The smoother moves every vertex; the stroke must still start and end exactly
+        // where the user painted.
+        result[0] = first;
+        result[^1] = last;
+
+        return Result<IReadOnlyList<Vector3>>.Success(result);
+    }
+
     private static g3.Polygon2d Resample(g3.Polygon2d polygon) {
         var pts3d = polygon.Vertices.Select(v => new g3.Vector3d(v.x, v.y, 0)).ToList();
         g3.DCurve3 hullCurve = new(pts3d, true);

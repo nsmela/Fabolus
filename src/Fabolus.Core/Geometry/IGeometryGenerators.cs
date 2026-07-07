@@ -93,6 +93,13 @@ public interface IGeometryGenerators
     Result<IMesh> GenerateExtrudedPath(ExtrudedPathParameters parameters);
 
     /// <summary>
+    /// Resamples an open 3D polyline to a uniform spacing and lightly smooths out jitter.
+    /// The first and last points are preserved exactly. Paths with fewer than three
+    /// points are returned unchanged.
+    /// </summary>
+    Result<IReadOnlyList<Vector3>> ResampleOpenPath(IReadOnlyList<Vector3> path, float targetSpacing, int smoothingIterations = 2);
+
+    /// <summary>
     /// Gets the exact 2D projection outline (shadow) of the mesh.
     /// </summary>
     Result<Polygon2D> GetMeshShadow(IMesh mesh);

@@ -37,7 +37,9 @@ public abstract record MouldDefinition : IMeshCommand
 
         foreach (var channel in AirChannels)
         {
-            var channelMeshResult = channel.DomainModel.Generate(engine, AirChannelRenderMode.Full);
+            // Pass the target mesh so channels that snap to the surface (painted paths)
+            // bake with the same raycast-fitted bottom the live preview showed.
+            var channelMeshResult = channel.DomainModel.Generate(engine, AirChannelRenderMode.Full, mesh);
             if (channelMeshResult.IsFailure)
             {
                 return channelMeshResult.Error;

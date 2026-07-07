@@ -24,7 +24,6 @@ public enum AirChannelRenderMode
 [JsonDerivedType(typeof(PaintedAirChannel), "painted")]
 public interface IAirChannel
 {
-    IAirChannel SetPreview(Vector3 startPoint, Vector3 direction);
     Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null);
 }
 
@@ -36,9 +35,6 @@ public sealed record StraightAirChannel(
     float CylinderDiameter,
     float PenetrationDepth = 1.0f) : IAirChannel
 {
-    public IAirChannel SetPreview(Vector3 startPoint, Vector3 direction) =>
-    this with { StartPoint = startPoint };
-
     public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null) => renderMode switch
     {
         AirChannelRenderMode.Full => GenerateFull(engine),
@@ -84,9 +80,6 @@ public sealed record AngledAirChannel(
     float Radius,
     float PenetrationDepth = 1.0f) : IAirChannel
 {
-    public IAirChannel SetPreview(Vector3 startPoint, Vector3 direction) =>
-        this with { StartPoint = startPoint, Normal = direction };
-
     public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null)
     {
         var normal = Vector3.Normalize(Normal);
@@ -155,9 +148,6 @@ public sealed record PaintedAirChannel(
     float TotalLength,
     float PenetrationDepth) : IAirChannel
 {
-    public IAirChannel SetPreview(Vector3 startPoint, Vector3 direction) =>
-        this with { Path = new[] { startPoint } };
-
     public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null)
     {
         if (Path.Count == 0)
@@ -165,7 +155,8 @@ public sealed record PaintedAirChannel(
             return new Error("PaintedAirChannel.InvalidPath", "Path is empty.");
         }
 
-        if (Path.Count == 1 || renderMode == AirChannelRenderMode.Point)
+        if (renderMode == AirChannelRenderMode.Point ||
+            (Path.Count == 1 && renderMode != AirChannelRenderMode.Full))
         {
             // Point mode or just hovering: show diameter as a sphere
             return engine.Generators.GenerateSphere(Path.Last(), Radius, 16);
@@ -185,10 +176,16 @@ public sealed record PaintedAirChannel(
             });
         }
 
-        // Full mode: extruded solid contoured along the path
+        // Full mode: extruded solid contoured along the path. A single click without a
+        // drag leaves one point; pad it so the round offset still yields a disc (a small
+        // round vertical channel) rather than failing the min-point check.
+        var path = Path.Count == 1
+            ? new[] { Path[0], Path[0] + new Vector3(0.01f, 0f, 0f) }
+            : Path;
+
         var parameters = new ExtrudedPathParameters
         {
-            Path = Path,
+            Path = path,
             Radius = Radius,
             ZMin = PenetrationDepth, // passed as depth
             ZMax = Path[0].Z + TotalLength,  // pass absolute Z for the top
