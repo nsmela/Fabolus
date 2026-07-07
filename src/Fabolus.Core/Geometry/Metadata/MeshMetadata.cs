@@ -165,26 +165,25 @@ public sealed record MeshMetadata {
     }
 
     /// <summary>
-    /// Gets the pristine mesh this one was derived from, before any of <see cref="Commands"/>
-    /// were applied, if one has been recorded.
+    /// Whether a pristine base mesh has been recorded for this mesh.
     /// </summary>
-    public Maybe<IMesh> BaseMesh => GetProperty(CoreKeys.BaseMesh);
+    public bool HasBaseMesh => GetProperty(CoreKeys.BaseMesh).HasValue;
+
+    /// <summary>
+    /// Returns the pristine base mesh this one was derived from, before any of
+    /// <see cref="Commands"/> were applied. Returns None if there is no base mesh.
+    /// </summary>
+    public Maybe<IMesh> GetBaseMesh() => GetProperty(CoreKeys.BaseMesh);
+
+    /// <summary>
+    /// Metadata of the base mesh (e.g. its import-time stats).
+    /// </summary>
+    public Maybe<MeshMetadata> BaseMeshMetadata => GetProperty(CoreKeys.BaseMesh).Map(m => m.Metadata);
 
     /// <summary>
     /// Creates a new metadata instance recording the pristine base mesh.
     /// </summary>
     public MeshMetadata WithBaseMesh(IMesh mesh) => WithProperty(CoreKeys.BaseMesh, mesh);
-
-    /// <summary>
-    /// Propagates BaseMesh from an ancestor mesh: if the ancestor already has one, carries it
-    /// forward as-is (it's already an independent copy, safe to keep sharing). Otherwise this
-    /// is the first derivation, so clones the ancestor itself rather than storing a reference
-    /// to it directly - callers routinely replace/remove the ancestor's own Workspace entry
-    /// afterward (Workspace.UpdateMesh/RemoveMesh dispose whatever they replace), which would
-    /// otherwise leave BaseMesh pointing at disposed native memory.
-    /// </summary>
-    public MeshMetadata WithPropagatedBaseMesh(IMesh ancestor) =>
-        WithBaseMesh(ancestor.Metadata.BaseMesh.HasValue ? ancestor.Metadata.BaseMesh.Value : ancestor.Clone());
 
     /// <summary>
     /// Creates a base metadata instance from a given file path (typically used for imports).

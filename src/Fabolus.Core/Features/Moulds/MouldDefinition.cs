@@ -20,7 +20,8 @@ public abstract record MouldDefinition : IMeshCommand
 
     /// <summary>
     /// The full committed pipeline: the shell from <see cref="Generate"/>, then subtract the
-    /// target mesh, then subtract each air channel.
+    /// target mesh, then subtract each air channel. Does not take ownership of
+    /// <paramref name="mesh"/>; intermediates created along the way are disposed here.
     /// </summary>
     public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh)
     {
@@ -37,9 +38,13 @@ public abstract record MouldDefinition : IMeshCommand
         foreach (var channel in AirChannels)
         {
             var channelMeshResult = channel.DomainModel.Generate(engine, AirChannelRenderMode.Full);
-            if (channelMeshResult.IsFailure) return channelMeshResult.Error;
+            if (channelMeshResult.IsFailure)
+            {
+                return channelMeshResult.Error;
+            }
 
-            var subtractedResult = engine.Booleans.Subtract(mouldMesh, channelMeshResult.Value);
+            var channelMesh = channelMeshResult.Value;
+            var subtractedResult = engine.Booleans.Subtract(mouldMesh, channelMesh);
             if (subtractedResult.IsFailure) return subtractedResult.Error;
 
             mouldMesh = subtractedResult.Value;

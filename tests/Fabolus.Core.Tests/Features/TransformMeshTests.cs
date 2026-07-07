@@ -39,7 +39,7 @@ public class TransformMeshTests
         var updatedWorkspace = result.Value;
 
         // No fork - still just one mesh, same id, only its geometry changed.
-        updatedWorkspace.Meshes.Count.Should().Be(1);
+        updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().Be(baseId);
 
         var translatedMesh = updatedWorkspace.GetActiveMesh().Value;
@@ -107,18 +107,18 @@ public class TransformMeshTests
 
         float angleRadians = (float)(System.Math.PI / 4.0f);
         workspace = _transformFeature.Rotate(workspace, baseId, angleRadians, Vector3.UnitZ).Value;
-        var onceRotated = workspace.GetActiveMesh().Value;
+        var onceRotated = workspace.GetActiveMeshMetadata().Value;
 
-        onceRotated.Metadata.BaseMesh.HasValue.Should().BeTrue();
-        onceRotated.Metadata.BaseMesh.Value.Metadata.Id.Should().Be(baseId);
+        onceRotated.HasBaseMesh.Should().BeTrue();
+        onceRotated.BaseMeshMetadata.Value.Id.Should().Be(baseId);
 
         // Rotate again on the same (in-place) mesh - BaseMesh must still point at the true
         // original, not the once-rotated intermediate state (the bug this fixes).
-        workspace = _transformFeature.Rotate(workspace, onceRotated.Metadata.Id, angleRadians, Vector3.UnitZ).Value;
-        var twiceRotated = workspace.GetActiveMesh().Value;
+        workspace = _transformFeature.Rotate(workspace, onceRotated.Id, angleRadians, Vector3.UnitZ).Value;
+        var twiceRotated = workspace.GetActiveMeshMetadata().Value;
 
-        twiceRotated.Metadata.BaseMesh.HasValue.Should().BeTrue();
-        twiceRotated.Metadata.BaseMesh.Value.Metadata.Id.Should().Be(baseId);
+        twiceRotated.HasBaseMesh.Should().BeTrue();
+        twiceRotated.BaseMeshMetadata.Value.Id.Should().Be(baseId);
     }
 
     [Fact]
@@ -137,10 +137,9 @@ public class TransformMeshTests
         var restoredWorkspace = result.Value;
 
         // No fork - stays on the same mesh entry throughout.
-        restoredWorkspace.Meshes.Count.Should().Be(1);
+        restoredWorkspace.MeshCount.Should().Be(1);
         restoredWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        var restoredMesh = restoredWorkspace.GetActiveMesh().Value;
-        restoredMesh.Metadata.Rotation().HasNoValue.Should().BeTrue();
+        restoredWorkspace.GetActiveMeshMetadata().Value.Rotation().HasNoValue.Should().BeTrue();
     }
 }

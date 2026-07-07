@@ -63,7 +63,37 @@
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type local:TitleInfoItem}">
-            <TextBlock Text="{Binding Label}" Style="{StaticResource Text.CardHeader}"/>
+            <TextBlock Text="{Binding Label}" Style="{StaticResource Text.CardHeader}" Margin="0,0,0,10"/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type local:OutputHeaderInfoItem}">
+            <Grid Margin="0,0,0,14">
+                <TextBlock Text="{Binding Label}" Style="{StaticResource Text.CardHeader}" VerticalAlignment="Center"/>
+                <Border Background="#E0F7FA" CornerRadius="4" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding PillText}" FontSize="10" FontWeight="SemiBold" FontFamily="Consolas" Foreground="#0097A7"/>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type local:FileDetailsInfoItem}">
+            <Grid Margin="0,4,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Path Data="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" Fill="#0097A7" Width="12" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1" Text="{Binding FileName}" FontFamily="Consolas" FontSize="13" Foreground="#1B2227" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="2" Text="{Binding FileSize}" FontFamily="Consolas" FontSize="12" Foreground="#5E6B73" VerticalAlignment="Center" FontWeight="SemiBold" Margin="10,0,0,0"/>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type local:SeparatorInfoItem}">
+            <Border Height="1" Background="#E2E7EA" Margin="0,4,0,12"/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type local:SubtitleInfoItem}">
+            <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#8C9CA6" FontWeight="SemiBold" Margin="0,0,0,10"/>
         </DataTemplate>
     </UserControl.Resources>
     
@@ -90,11 +120,6 @@
                       BlurRadius="24" ShadowDepth="8" Direction="270"/>
         </Border.Effect>
 
-        <HeaderedContentControl Style="{StaticResource InfoCard}">
-            <HeaderedContentControl.Header>
-                <TextBlock Text="MESH INFO" Style="{StaticResource Text.CardHeader}"/>
-            </HeaderedContentControl.Header>
-            <ItemsControl ItemsSource="{Binding InfoItems}"/>
-        </HeaderedContentControl>
+        <ItemsControl ItemsSource="{Binding InfoItems}"/>
     </Border>
 </UserControl>

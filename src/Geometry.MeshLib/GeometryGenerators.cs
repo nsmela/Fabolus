@@ -337,9 +337,9 @@ internal sealed class GeometryGenerators : IGeometryGenerators
         var bottomMap = new int[ptsCount];
         var topMap = new int[ptsCount];
 
-        var mrTargetMesh = parameters.TargetMesh as MRMesh;
-        using var spatial = (mrTargetMesh is not null && mrTargetMesh.Mesh is not null) ? new MR.ObjectMesh() : null;
-        using var sharedPtr = (mrTargetMesh is not null && mrTargetMesh.Mesh is not null) ? new MR.Std.SharedPtr_MRMesh(mrTargetMesh.Mesh) : null;
+        using var mlTargetMesh = parameters.TargetMesh?.ToMRMesh();
+        using var spatial = mlTargetMesh is not null ? new MR.ObjectMesh() : null;
+        using var sharedPtr = mlTargetMesh is not null ? new MR.Std.SharedPtr_MRMesh(mlTargetMesh) : null;
         if (spatial != null)
         {
             spatial.setMesh(sharedPtr);
@@ -522,11 +522,10 @@ internal sealed class GeometryGenerators : IGeometryGenerators
 
     public Result<Polygon2D> GetMeshShadow(IMesh mesh)
     {
-        if (mesh is not MRMesh mrTargetMesh || mrTargetMesh.Mesh is null)
-            return GeometryErrors.InvalidMesh;
+        if (mesh is null) return GeometryErrors.InvalidMesh;
 
-        var model = mrTargetMesh.Mesh;
-        var validVerts = model.topology.getValidVerts();
+        using var model = mesh.ToMRMesh();
+        using var validVerts = model.topology.getValidVerts();
         var pts = model.points.vec;
 
         NetTopologySuite.Geometries.GeometryFactory factory = new();
@@ -564,11 +563,10 @@ internal sealed class GeometryGenerators : IGeometryGenerators
 
     public Result<Polygon2D> GetConvexHull(IMesh mesh)
     {
-        if (mesh is not MRMesh mrTargetMesh || mrTargetMesh.Mesh is null)
-            return GeometryErrors.InvalidMesh;
+        if (mesh is null) return GeometryErrors.InvalidMesh;
 
-        var model = mrTargetMesh.Mesh;
-        var validVerts = model.topology.getValidVerts();
+        using var model = mesh.ToMRMesh();
+        using var validVerts = model.topology.getValidVerts();
         var pts = model.points.vec;
 
         NetTopologySuite.Geometries.GeometryFactory factory = new();

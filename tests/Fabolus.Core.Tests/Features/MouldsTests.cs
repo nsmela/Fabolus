@@ -136,9 +136,9 @@ public class MouldsTests
         result.IsSuccess.Should().BeTrue();
         var updatedWorkspace = result.Value;
 
-        updatedWorkspace.Meshes.Count.Should().Be(1);
+        updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().Be(baseId);
-        updatedWorkspace.GetActiveMesh().Value.Metadata.Id.Should().Be(baseId);
+        updatedWorkspace.GetActiveMeshMetadata().Value.Id.Should().Be(baseId);
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class MouldsTests
         var clearedWorkspace = result.Value;
 
         // Still no fork - clearing stays on the same mesh entry.
-        clearedWorkspace.Meshes.Count.Should().Be(1);
+        clearedWorkspace.MeshCount.Should().Be(1);
         clearedWorkspace.ActiveMeshId.Should().Be(baseId);
 
         var clearedMesh = clearedWorkspace.GetActiveMesh().Value;
@@ -206,7 +206,7 @@ public class MouldsTests
         workspace = smoothFeature.Execute(workspace, new SmoothSettings()).Value;
 
         var mouldDef = new ContouredMouldDefinition(OffsetXY: 2.0);
-        workspace = _generateMouldFeature.Execute(workspace, baseId, mouldDef).Value;
+        workspace = _generateMouldFeature.Execute(workspace, workspace.ActiveMeshId, mouldDef).Value;
 
         // Rotate and Smoothing are siblings (same priority) - generating the mould doesn't
         // clear either of them.

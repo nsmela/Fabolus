@@ -1,3 +1,4 @@
+using System.Numerics;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 
@@ -9,37 +10,23 @@ namespace GeometryMeshLib;
 /// </summary>
 internal sealed class MRMesh : IMesh
 {
-    internal MR.Mesh Mesh { get; }
-
+    public Vector3[] Vertices { get; }
+    public int[] Triangles { get; }
     public MeshMetadata Metadata { get; }
 
-    public int VertexCount => (int)Mesh.topology.getValidVerts().count();
+    public int VertexCount => Vertices.Length;
+    public int TriangleCount => Triangles.Length / 3;
+    public bool IsEmpty => VertexCount == 0 || TriangleCount == 0;
 
-    public int TriangleCount => (int)Mesh.topology.getValidFaces().count();
-
-    public bool IsEmpty => throw new NotImplementedException();
-
-    private readonly bool _ownsNativeMesh;
-    private bool _disposed;
-
-    internal MRMesh(MR.Mesh mesh, MeshMetadata metadata, bool ownsNativeMesh = true)
+    internal MRMesh(Vector3[] vertices, int[] triangles, MeshMetadata metadata)
     {
-        Mesh = mesh ?? throw new ArgumentNullException(nameof(mesh));
-        Metadata = metadata ?? throw new ArgumentNullException(nameof(metadata));
-        _ownsNativeMesh = ownsNativeMesh;
+        Vertices = vertices;
+        Triangles = triangles;
+        Metadata = metadata;
     }
 
-    public IMesh Clone() => new MRMesh(new MR.Mesh(Mesh), Metadata, ownsNativeMesh: true);
-
-    public IMesh WithMetadata(MeshMetadata metadata) => new MRMesh(Mesh, metadata, ownsNativeMesh: false);
-    
-    public void Dispose()
+    public IMesh WithMetadata(MeshMetadata metadata)
     {
-        if (_disposed) return;
-        if (_ownsNativeMesh)
-        {
-            Mesh?.Dispose();
-        }
-        _disposed = true;
+        return new MRMesh(Vertices, Triangles, metadata);
     }
 }

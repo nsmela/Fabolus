@@ -1,7 +1,8 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.AirChannels;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
@@ -23,6 +24,11 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     private List<AirChannelModel> Channels { get; set; } = [];
     public int ChannelCount => Channels.Count;
+
+    // Stats of the mesh currently handed to the scene manager, cached so the hover path
+    // (ComputeTotalLength runs on every mouse-move over the target) reads a value instead
+    // of fetching a mesh and recomputing statistics per event.
+    private MeshStatistics? _targetStats;
 
     // Last point/normal the mouse hovered on the target mesh, so switching channel type
     // rebuilds the preview in place instead of resetting it to the origin.
@@ -52,6 +58,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // True while the parameter fields are being populated *from* the selected channel,
     // so those assignments don't immediately turn around and rewrite the channel.
     private bool _syncingSelection;
+    private bool _isActivating;
 
     partial void OnSelectedChannelIdChanged(Guid value)
     {
@@ -215,12 +222,16 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     public void Activate(Workspace workspace)
     {
-        Workspace = workspace;
+        _isActivating = true;
+        try
+        {
+            Workspace = workspace;
 
         var activeMeshResult = Workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure)
             return;
 
+        // An owned copy; ownership transfers to the scene manager in SetSceneTarget below.
         IMesh mesh = activeMeshResult.Value;
 
         // MouldDefinition is only ever set on an actual generated-mould result (by
@@ -258,18 +269,41 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         // The scene manager only ever renders the active mesh, so that's all it gets -
         // the Workspace itself stays here in the view model.
-        var result = _sceneManager.UpdateMesh(mesh);
-        if (result.IsFailure)
-            _alert.ShowError(result.Error.Description);
+        SetSceneTarget(mesh);
 
-        _sceneManager.UpdateChannels(Channels);
-        UpdateMould();
+        if (!IsGenerated)
+        {
+            _sceneManager.UpdateChannels(Channels);
+            UpdateMould();
+        }
+        else
+        {
+            _sceneManager.ClearPreviews();
+        }
+        }
+        finally
+        {
+            _isActivating = false;
+        }
     }
 
     public Workspace Deactivate()
     {
         PersistUncommittedMouldState();
+        _sceneManager.ReleaseMesh();
         return Workspace;
+    }
+
+    // Hands the mesh to the scene manager (which takes ownership of it) and caches the
+    // stats the hover path needs.
+    private void SetSceneTarget(IMesh mesh)
+    {
+        var statsResult = mesh.Metadata.MeshStats();
+        _targetStats = statsResult.HasValue ? statsResult.Value : null;
+
+        var result = _sceneManager.UpdateMesh(mesh);
+        if (result.IsFailure)
+            _alert.ShowError(result.Error.Description);
     }
 
     // The mould/channel settings only live here in the ViewModel until Generate is
@@ -289,6 +323,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
         if (meshResult.IsFailure)
             return;
 
+        // WithMetadata transfers native ownership from the fetched copy to updatedMesh,
+        // and UpdateMesh consumes updatedMesh - nothing left to dispose on success.
         var mesh = meshResult.Value;
         var updatedMesh = mesh.WithMetadata(mesh.Metadata.WithPendingMouldDefinition(BuildMouldDefinition()));
 
@@ -306,6 +342,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     private void UpdateMould()
     {
+        if (_isActivating) return;
+
         EnsureNotGenerated();
 
         var result = _sceneManager.UpdateMould(BuildMouldDefinition());
@@ -319,16 +357,13 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     private float ComputeTotalLength(float startZ)
     {
-        var meshResult = Workspace.GetActiveMesh();
-        if (meshResult.IsFailure)
-            return TipLength;
-
-        var statsResult = _engine.Evaluators.GetStatistics(meshResult.Value);
-        if (statsResult.IsFailure)
+        // Runs on every mouse-move over the target mesh - reads the stats cached in
+        // SetSceneTarget instead of fetching a mesh copy and recomputing per event.
+        if (_targetStats is null)
             return TipLength;
 
         var topOffset = SelectedMouldType == MouldShapeType.Contoured ? WallThickness : BaseHeight;
-        var mouldTopZ = statsResult.Value.MaxZ + topOffset;
+        var mouldTopZ = _targetStats.MaxZ + topOffset;
         var totalLength = (float)(mouldTopZ + MouldClearance) - startZ;
 
         // Never let the total length come out shorter than the cone/tip itself.
@@ -432,7 +467,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         var meshResult = Workspace.GetActiveMesh();
         if (meshResult.IsSuccess)
-            _sceneManager.UpdateMesh(meshResult.Value);
+            SetSceneTarget(meshResult.Value);
         _messenger.Send(new WorkspaceChangedMessage(Workspace));
     }
 
@@ -453,11 +488,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         var meshResult = Workspace.GetActiveMesh();
         if (meshResult.IsSuccess)
-        {
-            var updateResult = _sceneManager.UpdateMesh(meshResult.Value);
-            if (updateResult.IsFailure)
-                _alert.ShowError(updateResult.Error.Description);
-        }
+            SetSceneTarget(meshResult.Value);
 
         _sceneManager.UpdateChannels(Channels);
         if (SelectedChannelId != Guid.Empty)

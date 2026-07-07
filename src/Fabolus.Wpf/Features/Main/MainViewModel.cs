@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using System.Windows;
@@ -12,6 +12,7 @@ using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Rotatation;
 using Fabolus.Wpf.Features.Moulding;
+using Fabolus.Wpf.Features.Export;
 
 namespace Fabolus.Wpf.Features.Main;
 public partial class MainViewModel : ObservableObject {
@@ -56,7 +57,8 @@ public partial class MainViewModel : ObservableObject {
     private void WorkspaceUpdated(Workspace workspace) {
         Workspace = workspace;
 
-        var result = Workspace.GetActiveMesh();
+        // Metadata-only read - only the name is needed here.
+        var result = Workspace.GetActiveMeshMetadata();
 
         if (result.IsFailure && result.Error == WorkspaceErrors.NoActiveMesh) {
             MeshLoaded = false;
@@ -71,10 +73,8 @@ public partial class MainViewModel : ObservableObject {
             return;
         }
 
-        var mesh = result.Value;
-
         MeshLoaded = Workspace.ActiveMeshId != Guid.Empty;
-        MeshName = MeshLoaded ? mesh.Metadata.Name : "No mesh selected";
+        MeshName = MeshLoaded ? result.Value.Name : "No mesh selected";
     }
 
     //[RelayCommand] public void ToggleWireframe() => _messenger.Send(new WireframeToggleMessage());
@@ -175,6 +175,24 @@ public partial class MainViewModel : ObservableObject {
 
         CurrentViewTitle = "mould";
         CurrentView = new MouldViewModel(_messenger, _alertDialog, _engine);
+        SceneManager = CurrentView.SceneManager;
+
+        CurrentView.Activate(Workspace);
+    }
+
+    [RelayCommand]
+    public void SwitchToExportView()
+    {
+        if (CurrentView is ExportViewModel)
+            return;
+
+        if (CurrentView is not null)
+        {
+            WorkspaceUpdated(CurrentView.Deactivate());
+        }
+
+        CurrentViewTitle = "export";
+        CurrentView = new ExportViewModel(_messenger, _alertDialog, _engine, _dialogueSystem);
         SceneManager = CurrentView.SceneManager;
 
         CurrentView.Activate(Workspace);

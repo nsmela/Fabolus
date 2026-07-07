@@ -19,18 +19,26 @@ public sealed class RepairMesh {
         var mesh = meshResult.Value;
 
         Result<IMesh> repairResult;
-        if (fixSelfIntersections) 
+        if (fixSelfIntersections)
             repairResult = _geometryEngine.Modifiers.RepairSelfIntersections(mesh);
-        else 
+        else
             repairResult = _geometryEngine.Modifiers.Repair(mesh);
-        
+
 
         if (repairResult.IsFailure) return repairResult.Error;
         var repairedMesh = repairResult.Value;
 
-        // Re-audit after repair
+        // Re-audit after repair. Repair changes geometry (fills holes, removes degenerate
+        // faces), so the cached Stats must be refreshed too - consumers size UI from them.
+        var metadata = repairedMesh.Metadata;
+
         var audit = _geometryEngine.Evaluators.ValidateTopology(repairedMesh);
-        if (audit.IsSuccess) repairedMesh = repairedMesh.WithMetadata(repairedMesh.Metadata.WithTopology(audit.Value));
+        if (audit.IsSuccess) metadata = metadata.WithTopology(audit.Value);
+
+        var stats = _geometryEngine.Evaluators.GetStatistics(repairedMesh);
+        if (stats.IsSuccess) metadata = metadata.WithMeshStats(stats.Value);
+
+        repairedMesh = repairedMesh.WithMetadata(metadata);
 
         return workspace.UpdateMesh(repairedMesh);
     }

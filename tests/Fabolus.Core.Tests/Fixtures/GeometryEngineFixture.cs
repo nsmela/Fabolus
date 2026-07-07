@@ -29,7 +29,12 @@ public class GeometryEngineFixture
 
     public string GetAssetPath(string name)
     {
-        return Path.Combine(AppContext.BaseDirectory, name);
+        var path = Path.Combine(AppContext.BaseDirectory, name);
+        if (!File.Exists(path))
+        {
+            path = Path.Combine(AppContext.BaseDirectory, "../../../../files", name);
+        }
+        return Path.GetFullPath(path);
     }
 
     public IMesh UnitCube()

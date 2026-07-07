@@ -18,7 +18,7 @@ public sealed class GenerateMould
     {
         var meshResult = workspace.GetMesh(meshId);
         if (meshResult.IsFailure) return meshResult.Error;
-        
+
         var mesh = meshResult.Value;
 
         var applyResult = mouldDefinition.Apply(_geometryEngine, mesh);

@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Features.MeshIO;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Overhangs;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
@@ -67,9 +67,7 @@ internal class RotateSceneManager : ISceneManager {
         var rotation = new AxisAngleRotation3D(axis, degree);
         TempRotation = new RotateTransform3D(rotation);
 
-        if (ActiveMesh is not null) {
-            UpdateMesh(ActiveMesh);
-        }
+        RenderActiveMesh();
     }
 
     /// <summary>
@@ -104,17 +102,36 @@ internal class RotateSceneManager : ISceneManager {
             MinAngleDegrees: 0f,
             MaxAngleDegrees: 90f);
 
-        if (ActiveMesh is not null) {
-            UpdateMesh(ActiveMesh);
-        }
+        RenderActiveMesh();
     }
 
+    /// <summary>
+    /// Takes ownership of <paramref name="mesh"/>: it's retained for temp-rotation and
+    /// overhang re-renders, and disposed when replaced or on <see cref="ReleaseMesh"/>.
+    /// </summary>
     public void UpdateMesh(IMesh mesh) {
+        ActiveMesh = mesh;
+
+        RenderActiveMesh();
+    }
+
+    /// <summary>
+    /// Disposes the retained mesh. Called when the owning view deactivates - the scene
+    /// manager dies with its view model, so nothing else will release it.
+    /// </summary>
+    public void ReleaseMesh() {
+        ActiveMesh = null;
+    }
+
+    private void RenderActiveMesh() {
+        if (ActiveMesh is null) {
+            return;
+        }
+        var mesh = ActiveMesh;
+
         if (_activeId != Guid.Empty) {
             VisualRemovedById?.Invoke(_activeId);
         }
-
-        ActiveMesh = mesh;
 
         var matrix = TempRotation.Value;
         matrix.Invert();

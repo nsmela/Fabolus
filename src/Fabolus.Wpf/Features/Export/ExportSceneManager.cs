@@ -3,10 +3,11 @@ using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Input;
+using System;
 
-namespace Fabolus.Wpf.Features.MeshManager;
+namespace Fabolus.Wpf.Features.Export;
 
-internal class MeshManagerSceneManager : ISceneManager {
+internal class ExportSceneManager : ISceneManager {
     private readonly IGeometryEngine _engine;
 
     public event Action<Element3D> VisualAddedOrUpdated;
@@ -16,7 +17,7 @@ internal class MeshManagerSceneManager : ISceneManager {
     private readonly Element3D _grid;
     private Guid _activeId = Guid.Empty;
 
-    public MeshManagerSceneManager(IGeometryEngine engine) {
+    public ExportSceneManager(IGeometryEngine engine) {
         _engine = engine;
         _grid = SceneHelpers.GenerateGrid();
     }
@@ -55,5 +56,4 @@ internal class MeshManagerSceneManager : ISceneManager {
     public bool OnMouseMove(HitTestResult? hit) => false;
 
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
-
 }

@@ -1,8 +1,9 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.Transforms;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Viewport;
@@ -75,7 +76,10 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         _messenger.Send(new UpdateMeshInfoMessage([]));
     }
 
-    public Workspace Deactivate() => Workspace;
+    public Workspace Deactivate() {
+        _sceneManager.ReleaseMesh();
+        return Workspace;
+    }
 
     private void SendTempRotation(Vector3 axis, float degrees) {
         if (_isLocked) return;
@@ -92,10 +96,17 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     private void UpdateWorkspace(Workspace workspace) {
         Workspace = workspace;
 
-        var meshResult = Workspace.GetActiveMesh();
-        if (meshResult.IsFailure) return;
+        var activeMeshResult = Workspace.GetActiveMesh();
+        if (activeMeshResult.IsFailure) return;
+        var activeMesh = activeMeshResult.Value;
 
-        _sceneManager.UpdateMesh(meshResult.Value);
+        // GetMeshAtStage always returns an owned mesh (the view shows the model as it was
+        // before any mould was cut); the scene manager takes ownership of it, since it
+        // re-renders the mesh on every temp-rotation/overhang change.
+        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
+        if (stageResult.IsFailure) return;
+
+        _sceneManager.UpdateMesh(stageResult.Value);
     }
 
     private void ShowAxisRotation(Vector3 axis) {

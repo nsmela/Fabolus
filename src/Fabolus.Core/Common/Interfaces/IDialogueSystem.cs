@@ -20,6 +20,12 @@ public interface IDialogueSystem
     bool ShowConfirmation(string title, string message);
 
     /// <summary>
+    /// Shows an open-folder dialog.
+    /// Returns the selected folder path, or None if the user cancelled.
+    /// </summary>
+    Maybe<string> ShowOpenFolderDialogue(string initialDirectory = "");
+
+    /// <summary>
     /// Shows an open-file dialog filtered to the given file type string.
     /// Returns the selected file path, or None if the user cancelled.
     /// </summary>

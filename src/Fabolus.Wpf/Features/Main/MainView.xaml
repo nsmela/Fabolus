@@ -1,4 +1,4 @@
-﻿<mah:MetroWindow x:Class="Fabolus.Wpf.Features.Main.MainView"
+<mah:MetroWindow x:Class="Fabolus.Wpf.Features.Main.MainView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -11,6 +11,7 @@
         xmlns:smooth="clr-namespace:Fabolus.Wpf.Features.Smoothing"
         xmlns:rotate="clr-namespace:Fabolus.Wpf.Features.Rotatation"
         xmlns:mould="clr-namespace:Fabolus.Wpf.Features.Moulding"
+        xmlns:export="clr-namespace:Fabolus.Wpf.Features.Export"
         mc:Ignorable="d"
         Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -38,6 +39,10 @@
 
         <DataTemplate DataType="{x:Type mould:MouldViewModel }">
             <mould:MouldView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type export:ExportViewModel }">
+            <export:ExportView />
         </DataTemplate>
         
         <Style x:Key="CaptionButton" TargetType="Button">
@@ -199,6 +204,29 @@
                     </Button.Style>
                 </Button>
                     
+                <Button Command="{Binding SwitchToExportViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <Path Data="{DynamicResource Icon.Export}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="export" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="export">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
             </StackPanel>
             </Border>
 

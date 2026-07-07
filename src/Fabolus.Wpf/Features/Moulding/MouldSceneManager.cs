@@ -25,7 +25,7 @@ public class MouldSceneManager : ISceneManager
     private readonly Material _selectedChannelSkin = DiffuseMaterials.Pearl;
     private readonly Material _previewChannelSkin = DiffuseMaterials.Pearl;
 
-    private IMesh TargetMesh { get; set; }
+    private IMesh? TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];
     private IAirChannel PreviewChannel { get; set; }
 
@@ -59,6 +59,10 @@ public class MouldSceneManager : ISceneManager
         _grid = SceneHelpers.GenerateGrid();
     }
 
+    /// <summary>
+    /// Takes ownership of <paramref name="mesh"/>: it's retained for mould previews and
+    /// channel generation, and disposed when replaced or on <see cref="ReleaseMesh"/>.
+    /// </summary>
     public Result UpdateMesh(IMesh mesh)
     {
         if (_targetMeshId != Guid.Empty)
@@ -101,7 +105,7 @@ public class MouldSceneManager : ISceneManager
         if (generateResult.IsFailure)
             return Result.Success(); // Invalid parameters mid-drag; just skip the preview silently.
 
-        using var mouldMesh = generateResult.Value;
+        var mouldMesh = generateResult.Value;
 
         var geometryResult = mouldMesh.ToHelixMesh(_engine);
         if (geometryResult.IsFailure)
@@ -120,6 +124,15 @@ public class MouldSceneManager : ISceneManager
         VisualAddedOrUpdated?.Invoke(_mouldModel);
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Disposes the retained target mesh. Called when the owning view deactivates - the
+    /// scene manager dies with its view model, so nothing else will release it.
+    /// </summary>
+    public void ReleaseMesh()
+    {
+        TargetMesh = null;
     }
 
     // Called once the mould has actually been generated: the mould shell and channel
@@ -178,7 +191,7 @@ public class MouldSceneManager : ISceneManager
             if (generateResult.IsFailure)
                 continue;
 
-            using var channelMesh = generateResult.Value;
+            var channelMesh = generateResult.Value;
             var geometryResult = channelMesh.ToHelixMesh(_engine);
             if (geometryResult.IsFailure)
                 continue;
@@ -226,7 +239,7 @@ public class MouldSceneManager : ISceneManager
         if (generateResult.IsFailure)
             return;
 
-        using var previewMesh = generateResult.Value;
+        var previewMesh = generateResult.Value;
         var geometryResult = previewMesh.ToHelixMesh(_engine);
         if (geometryResult.IsFailure)
             return;

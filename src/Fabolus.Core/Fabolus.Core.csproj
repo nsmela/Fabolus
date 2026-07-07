@@ -24,6 +24,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- White-box assertions on BaseMesh lifetime (MeshMetadata.BaseMeshInstance). -->
+    <InternalsVisibleTo Include="Fabolus.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Clipper2" Version="1.5.4" />
     <PackageReference Include="geometry3Sharp" Version="1.0.324" />
     <PackageReference Include="MeshLib" Version="3.1.2.192" />
