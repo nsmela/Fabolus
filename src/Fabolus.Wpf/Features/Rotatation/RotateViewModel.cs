@@ -64,21 +64,21 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
     public RotateViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryEngine(new FileSystem())) { }
 
-    public void Activate(Workspace workspace) {
+    public async Task ActivateAsync(Workspace workspace) {
         // Seed the gradient from the current slider values before the first render,
         // so the initial frame matches the warning/critical thresholds. The scene
         // manager skips rendering here because it has no mesh yet.
         _sceneManager.SetOverhangs(WarningAngle, CriticalAngle);
 
-        UpdateWorkspace(workspace);
+        await UpdateWorkspaceAsync(workspace);
 
         // clear mesh info
         _messenger.Send(new UpdateMeshInfoMessage([]));
     }
 
-    public Workspace Deactivate() {
+    public Task<Workspace> DeactivateAsync() {
         _sceneManager.ReleaseMesh();
-        return Workspace;
+        return Task.FromResult(Workspace);
     }
 
     private void SendTempRotation(Vector3 axis, float degrees) {
@@ -93,7 +93,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
     // The scene manager only ever renders the active mesh, so that's all it gets -
     // the Workspace itself stays here in the view model.
-    private void UpdateWorkspace(Workspace workspace) {
+    private async Task UpdateWorkspaceAsync(Workspace workspace) {
         Workspace = workspace;
 
         var activeMeshResult = Workspace.GetActiveMesh();
@@ -103,7 +103,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         // GetMeshAtStage always returns an owned mesh (the view shows the model as it was
         // before any mould was cut); the scene manager takes ownership of it, since it
         // re-renders the mesh on every temp-rotation/overhang change.
-        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
+        var stageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform));
         if (stageResult.IsFailure) return;
 
         _sceneManager.UpdateMesh(stageResult.Value);
@@ -119,7 +119,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     [RelayCommand] public void HideAxisRotation() => ShowAxisRotation(Vector3.Zero);
 
     [RelayCommand]
-    public void SaveAxisRotation() {
+    public async Task SaveAxisRotationAsync() {
         //which axis?
         Vector3 axis;
         float degrees;
@@ -148,13 +148,17 @@ public partial class RotateViewModel : ObservableObject, IViewState {
             return;
         }
 
-        UpdateWorkspace(result.Value);
+        _messenger.Send(new IsLoadingMessage(true));
+
+        await UpdateWorkspaceAsync(result.Value);
+
+        _messenger.Send(new IsLoadingMessage(false));
 
         ResetValues();
     }
 
     [RelayCommand]
-    public void ClearRotations() {
+    public async Task ClearRotationsAsync() {
         var activeId = Workspace.ActiveMeshId;
         var result = _transformsFeature.ClearRotation(Workspace, Workspace.ActiveMeshId);
 
@@ -163,7 +167,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
             return;
         }
 
-        UpdateWorkspace(result.Value);
+        await UpdateWorkspaceAsync(result.Value);
 
         ResetValues();
     }
