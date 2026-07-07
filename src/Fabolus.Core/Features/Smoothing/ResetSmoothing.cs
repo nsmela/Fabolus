@@ -43,20 +43,13 @@ public sealed class ResetSmoothing {
         var smoothResult = activeMesh.Metadata.GetSmoothing();
         if (smoothResult.HasNoValue) return workspace;
 
-        var revertedMetadata = activeMesh.Metadata.WithoutCommand<SmoothSettings>();
+        if (activeMesh.Metadata.DerivedFrom.HasValue) {
+            var parentId = activeMesh.Metadata.DerivedFrom.Value;
+            var workspaceResult = workspace.RemoveMesh(activeMesh.Metadata.Id);
+            if (workspaceResult.IsFailure) return workspaceResult.Error;
+            return workspaceResult.Value.SetActiveMesh(parentId);
+        }
 
-        var replayResult = ComputeUnsmoothedMesh(activeMesh);
-        if (replayResult.IsFailure) return replayResult.Error;
-
-        var currentMesh = replayResult.Value;
-
-        var topology = _engine.Evaluators.ValidateTopology(currentMesh).Value;
-        var stats = _engine.Evaluators.GetStatistics(currentMesh).Value;
-        var metadata = revertedMetadata.WithProperties(m => m
-            .Set(MeshIOKeys.Stats, stats)
-            .Set(MeshIOKeys.Topology, topology));
-
-        var finalMesh = currentMesh.WithMetadata(metadata);
-        return workspace.UpdateMesh(finalMesh);
+        return workspace;
     }
 }

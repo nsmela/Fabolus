@@ -206,7 +206,7 @@ public class MouldsTests
         workspace = smoothFeature.Execute(workspace, new SmoothSettings()).Value;
 
         var mouldDef = new ContouredMouldDefinition(OffsetXY: 2.0);
-        workspace = _generateMouldFeature.Execute(workspace, baseId, mouldDef).Value;
+        workspace = _generateMouldFeature.Execute(workspace, workspace.ActiveMeshId, mouldDef).Value;
 
         // Rotate and Smoothing are siblings (same priority) - generating the mould doesn't
         // clear either of them.

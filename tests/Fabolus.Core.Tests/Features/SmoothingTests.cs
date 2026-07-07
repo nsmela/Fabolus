@@ -37,12 +37,13 @@ public class SmoothingTests
         result.IsSuccess.Should().BeTrue();
         var updatedWorkspace = result.Value;
 
-        // No fork - still just one mesh, same id, only its geometry changed.
-        updatedWorkspace.MeshCount.Should().Be(1);
-        updatedWorkspace.ActiveMeshId.Should().Be(baseId);
+        // Fork - one original mesh, one smoothed mesh.
+        updatedWorkspace.MeshCount.Should().Be(2);
+        updatedWorkspace.ActiveMeshId.Should().NotBe(baseId);
 
         var smoothedMesh = updatedWorkspace.GetActiveMesh().Value;
-        smoothedMesh.Metadata.Id.Should().Be(baseId);
+        smoothedMesh.Metadata.Id.Should().NotBe(baseId);
+        smoothedMesh.Metadata.DerivedFrom.Value.Should().Be(baseId);
         smoothedMesh.Metadata.HasBaseMesh.Should().BeTrue();
         smoothedMesh.Metadata.GetSmoothing().HasValue.Should().BeTrue();
     }
@@ -87,9 +88,9 @@ public class SmoothingTests
         result.IsSuccess.Should().BeTrue();
         var finalWorkspace = result.Value;
 
-        // Still only one mesh, same id - never forks.
-        finalWorkspace.MeshCount.Should().Be(1);
-        finalWorkspace.ActiveMeshId.Should().Be(baseId);
+        // Fork happens on the first apply. The second apply updates the smoothed mesh in-place.
+        finalWorkspace.MeshCount.Should().Be(2);
+        finalWorkspace.ActiveMeshId.Should().NotBe(baseId);
 
         // Re-derives from the same pristine BaseMesh both times (doesn't stack smoothing on
         // top of already-smoothed geometry, and doesn't re-clone on the second Apply).
@@ -132,8 +133,9 @@ public class SmoothingTests
         // Smooth, then translate - the comparison reference shown in the Smoothing view must
         // follow the mesh to its new position, not sit back at BaseMesh's original spot.
         workspace = _smoothingFeature.Execute(workspace, new SmoothSettings()).Value;
+        var smoothedId = workspace.ActiveMeshId;
         var transformFeature = new TransformMesh(_fixture.Engine);
-        workspace = transformFeature.Translate(workspace, baseId, 50, 0, 0).Value;
+        workspace = transformFeature.Translate(workspace, smoothedId, 50, 0, 0).Value;
 
         var currentMesh = workspace.GetActiveMesh().Value;
 
@@ -195,7 +197,7 @@ public class SmoothingTests
         result.IsSuccess.Should().BeTrue();
         var resetWorkspace = result.Value;
 
-        // Still no fork - reverting stays on the same mesh entry.
+        // Fork occurs upon smoothing. Reverting deletes the smoothed mesh and activates parent.
         resetWorkspace.MeshCount.Should().Be(1);
         resetWorkspace.ActiveMeshId.Should().Be(baseId);
 

@@ -267,8 +267,15 @@ public partial class MouldViewModel : ObservableObject, IViewState
         // the Workspace itself stays here in the view model.
         SetSceneTarget(mesh);
 
-        _sceneManager.UpdateChannels(Channels);
-        UpdateMould();
+        if (!IsGenerated)
+        {
+            _sceneManager.UpdateChannels(Channels);
+            UpdateMould();
+        }
+        else
+        {
+            _sceneManager.ClearPreviews();
+        }
     }
 
     public Workspace Deactivate()
