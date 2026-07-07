@@ -55,7 +55,7 @@ public class CommandReplayTests
         var stageResult = CommandReplay.GetMeshAtStage(_fixture.Engine, activeMesh, CommandPriority.Transform);
 
         stageResult.IsSuccess.Should().BeTrue();
-        stageResult.Value.Should().BeSameAs(activeMesh.Metadata.GetBaseMesh().Value);
+        stageResult.Value.Should().NotBeSameAs(activeMesh.Metadata.GetBaseMesh().Value);
 
         // The stored BaseMesh must still be alive: clearing the mould replays from it.
         var clearResult = new ClearMould(_fixture.Engine).Execute(workspace);

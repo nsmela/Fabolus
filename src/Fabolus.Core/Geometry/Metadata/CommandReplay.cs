@@ -47,6 +47,14 @@ public static class CommandReplay {
         }
 
         var allowedCommands = currentMesh.Metadata.Commands.Where(c => c.Priority <= priorityLevel).ToList();
-        return Apply(engine, baseCopy.Value, allowedCommands);
+        
+        var cloneResult = engine.CloneMesh(baseCopy.Value);
+        if (cloneResult.IsFailure) return cloneResult.Error;
+
+        var applyResult = Apply(engine, cloneResult.Value, allowedCommands);
+        if (applyResult.IsFailure) return applyResult;
+
+        var stagedMetadata = currentMesh.Metadata.WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)allowedCommands);
+        return Result<IMesh>.Success(applyResult.Value.WithMetadata(stagedMetadata));
     }
 }
