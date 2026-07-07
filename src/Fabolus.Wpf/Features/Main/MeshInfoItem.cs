@@ -26,3 +26,16 @@ public partial class ProgressInfoItem : MeshInfoItem {
 }
 
 public partial class TitleInfoItem : MeshInfoItem { }
+
+public partial class OutputHeaderInfoItem : MeshInfoItem {
+    [ObservableProperty] private string _pillText = string.Empty;
+}
+
+public partial class FileDetailsInfoItem : MeshInfoItem {
+    [ObservableProperty] private string _fileName = string.Empty;
+    [ObservableProperty] private string _fileSize = string.Empty;
+}
+
+public partial class SeparatorInfoItem : MeshInfoItem { }
+
+public partial class SubtitleInfoItem : MeshInfoItem { }
