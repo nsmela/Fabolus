@@ -9,6 +9,9 @@ public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float I
 
     /// <summary>
     /// Runs the volumetric Erosion-Dilation-Resize smoothing pipeline against <paramref name="mesh"/>.
+    /// Does not take ownership of <paramref name="mesh"/>; intermediates it creates along the
+    /// way are disposed here. Engine modifiers never return their input instance, so every
+    /// stage's output is a fresh mesh this pipeline owns until it's replaced or returned.
     /// </summary>
     public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) {
         int baseTriangleCount = mesh.TriangleCount;
@@ -17,10 +20,11 @@ public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float I
         var offsetResult = engine.Modifiers.OffsetDouble(mesh, Intensity, Iterations, Resolution);
         if (offsetResult.IsFailure) return offsetResult.Error;
 
-        if (offsetResult.Value.TriangleCount == 0)
-            return new Error("Smoothing.OverEroded", "The mesh collapsed due to high intensity. Try reducing Iterations or Intensity.");
-
         var currentMesh = offsetResult.Value;
+
+        if (currentMesh.TriangleCount == 0) {
+            return new Error("Smoothing.OverEroded", "The mesh collapsed due to high intensity. Try reducing Iterations or Intensity.");
+        }
 
         // optional inflation
         if (Math.Abs(Inflation) > 0.001) {
@@ -31,6 +35,8 @@ public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float I
 
         // Resize (Decimation)
         int targetTriangleCount = (int)(baseTriangleCount * Math.Max(RemeshRatio, 1.0));
-        return engine.Modifiers.Resize(currentMesh, targetTriangleCount);
+        var resizeResult = engine.Modifiers.Resize(currentMesh, targetTriangleCount);
+
+        return resizeResult;
     }
 }

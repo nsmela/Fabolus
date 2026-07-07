@@ -55,15 +55,17 @@ public partial class ExportViewModel : ObservableObject, IViewState {
         FileCount = workspace.MeshCount;
         ExportButtonText = $"Export {FileCount} {(FileCount == 1 ? "file" : "files")}";
 
-        var meshResult = workspace.GetActiveMesh();
-        if (meshResult.IsSuccess) {
-            var mesh = meshResult.Value;
-            var statsResult = _engine.Evaluators.GetStatistics(mesh);
+        // Info-panel values come from metadata (the features keep the cached stats fresh) -
+        // no need to copy geometry just to display numbers.
+        var metadataResult = workspace.GetActiveMeshMetadata();
+        if (metadataResult.IsSuccess) {
+            var metadata = metadataResult.Value;
             var items = new System.Collections.Generic.List<Fabolus.Wpf.Features.Main.MeshInfoItem> {
-                new Fabolus.Wpf.Features.Main.TitleInfoItem { Label = mesh.Metadata.Name }
+                new Fabolus.Wpf.Features.Main.TitleInfoItem { Label = metadata.Name }
             };
 
-            if (statsResult.IsSuccess) {
+            var statsResult = metadata.MeshStats();
+            if (statsResult.HasValue) {
                 var stats = statsResult.Value;
                 items.Add(new Fabolus.Wpf.Features.Main.TextInfoItem { Label = "Volume", Value = $"{stats.Volume:N2} mm³" });
                 items.Add(new Fabolus.Wpf.Features.Main.TextInfoItem { Label = "Surface Area", Value = $"{stats.SurfaceArea:N2} mm²" });
@@ -100,10 +102,16 @@ public partial class ExportViewModel : ObservableObject, IViewState {
 
         string extension = FileFormat.StartsWith("3MF", StringComparison.OrdinalIgnoreCase) ? ".3mf" : ".stl";
 
-        foreach (var kvp in Workspace.Meshes) {
-            var mesh = kvp.Value;
+        foreach (var metadata in Workspace.MeshMetadataList) {
+            var meshResult = Workspace.GetMesh(metadata.Id);
+            if (meshResult.IsFailure) {
+                _alert.ShowError($"Failed to export {metadata.Name}: {meshResult.Error.Description}");
+                return;
+            }
+
+            var mesh = meshResult.Value;
             // Just saving ignoring Binary/ASCII toggle since it's not supported by engine currently
-            var filename = $"{mesh.Metadata.Name}{extension}";
+            var filename = $"{metadata.Name}{extension}";
             var filepath = Path.Combine(DestinationFolder, filename);
 
             var result = _exportFeature.Execute(mesh, filepath, true);

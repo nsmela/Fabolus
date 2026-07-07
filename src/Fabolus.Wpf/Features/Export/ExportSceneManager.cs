@@ -28,6 +28,7 @@ internal class ExportSceneManager : ISceneManager {
         var activeMeshResult = workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure) return;
 
+        // Owned copy - converted to render geometry immediately, then released.
         IMesh mesh = activeMeshResult.Value;
 
         MeshGeometry3D geometry = mesh.ToHelixMesh(_engine).Value;

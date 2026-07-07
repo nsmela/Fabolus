@@ -34,7 +34,7 @@ public class MeshIOTests
         result.IsSuccess.Should().BeTrue();
         var updatedWorkspace = result.Value;
 
-        updatedWorkspace.Meshes.Count.Should().Be(1);
+        updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().NotBe(System.Guid.Empty);
 
         var mesh = updatedWorkspace.GetActiveMesh().Value;

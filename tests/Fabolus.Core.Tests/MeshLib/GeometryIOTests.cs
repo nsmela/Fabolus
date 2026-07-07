@@ -130,8 +130,8 @@ public class GeometryIOTests
             importedCommand.Should().NotBeNull();
             importedCommand.Translation.Should().Be(new Vector3(10, 20, 30));
 
-            imported.Metadata.BaseMesh.HasValue.Should().BeTrue();
-            var importedBaseMesh = imported.Metadata.BaseMesh.Value;
+            imported.Metadata.HasBaseMesh.Should().BeTrue();
+            var importedBaseMesh = imported.Metadata.GetBaseMesh().Value;
             importedBaseMesh.VertexCount.Should().Be(baseMesh.VertexCount);
             importedBaseMesh.TriangleCount.Should().Be(baseMesh.TriangleCount);
         }

@@ -1,19 +1,26 @@
 using Fabolus.Core.Common;
+using Fabolus.Core.Geometry.Metadata;
 
 namespace Fabolus.Core.Geometry;
 
 /// <summary>
 /// Immutable aggregate root representing a CAD workspace.
 /// Manages meshes and maintains consistency.
+/// Ownership contract: the Workspace owns its stored meshes (and their recorded BaseMesh)
+/// for the duration of each mesh's lineage. Meshes passed in (AddMesh/UpdateMesh) are
+/// consumed; meshes handed out (GetMesh/GetActiveMesh) are owned copies the caller must
+/// dispose. Read-only info paths should use the metadata accessors instead - metadata is a
+/// value object with nothing to dispose.
 /// </summary>
 public sealed class Workspace
 {
     private readonly IReadOnlyDictionary<Guid, IMesh> _meshes;
 
     /// <summary>
-    /// All meshes currently loaded in the workspace.
+    /// Metadata of all meshes currently loaded, for listing/display. Safe to hold - no
+    /// geometry crosses this boundary. Use <see cref="GetMesh"/> when geometry is needed.
     /// </summary>
-    public IReadOnlyDictionary<Guid, IMesh> Meshes => _meshes;
+    public IReadOnlyList<MeshMetadata> MeshMetadataList => _meshes.Values.Select(m => m.Metadata).ToList();
 
     /// <summary>
     /// ID of the currently active (selected) mesh.
@@ -47,8 +54,8 @@ public sealed class Workspace
         new(new Dictionary<Guid, IMesh>());
 
     /// <summary>
-    /// Adds a mesh to the workspace.
-    /// Mesh ID comes from IMesh.Id property.
+    /// Adds a mesh to the workspace, which takes ownership of it - the caller must not
+    /// dispose it afterward. Mesh ID comes from IMesh.Id property.
     /// </summary>
     public Result<Workspace> AddMesh(IMesh mesh, bool setActive = true)
     {
@@ -62,13 +69,8 @@ public sealed class Workspace
         if (_meshes.ContainsKey(meshId))
             return WorkspaceErrors.DuplicateMesh(mesh.Metadata.Name);
 
-        // Establish BaseMesh exactly once, here, at the single point every mesh enters a
-        // Workspace - so every command (Smooth, Rotate, Translate, Mould) can rely on it
-        // already being present instead of each lazily cloning it on its own first command.
-        // Must clone (not just point at itself): this same mesh object will eventually be
-        // disposed by UpdateMesh/RemoveMesh when a command replaces it.
-        if (mesh.Metadata.BaseMesh.HasNoValue)
-            mesh = mesh.WithMetadata(mesh.Metadata.WithBaseMesh(mesh.Clone()));
+        if (!mesh.Metadata.HasBaseMesh)
+            mesh = mesh.WithMetadata(mesh.Metadata.WithBaseMesh(mesh));
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes) { [meshId] = mesh };
 
@@ -87,18 +89,14 @@ public sealed class Workspace
             return WorkspaceErrors.MeshNotFound(meshId);
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
-        if (newMeshes.TryGetValue(meshId, out var existingMesh))
-        {
-            existingMesh.Dispose();
-            newMeshes.Remove(meshId);
-        }
+        newMeshes.Remove(meshId);
 
         var newActiveMeshId = meshId == ActiveMeshId ? Guid.Empty : ActiveMeshId;
         return new Workspace(newMeshes, newActiveMeshId);
     }
 
     /// <summary>
-    /// Updates an existing mesh.
+    /// Updates an existing mesh, replacing the old entry.
     /// </summary>
     public Result<Workspace> UpdateMesh(IMesh updatedMesh)
     {
@@ -110,10 +108,6 @@ public sealed class Workspace
             return WorkspaceErrors.MeshNotFound(updatedMesh.Metadata.Name);
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
-        if (newMeshes.TryGetValue(meshId, out var existingMesh))
-        {
-            existingMesh.Dispose();
-        }
         newMeshes[meshId] = updatedMesh;
         return new Workspace(newMeshes, ActiveMeshId);
     }
@@ -153,6 +147,31 @@ public sealed class Workspace
     {
         if (_meshes.TryGetValue(meshId, out var mesh))
             return Result.Success(mesh);
+
+        return WorkspaceErrors.MeshNotFound(meshId);
+    }
+
+    /// <summary>
+    /// Gets the metadata of the currently active mesh - a value object, safe to hold.
+    /// </summary>
+    public Result<MeshMetadata> GetActiveMeshMetadata()
+    {
+        if (ActiveMeshId == Guid.Empty)
+            return WorkspaceErrors.NoActiveMesh;
+
+        if (!_meshes.TryGetValue(ActiveMeshId, out var mesh))
+            return WorkspaceErrors.ActiveMeshNotFound;
+
+        return Result.Success(mesh.Metadata);
+    }
+
+    /// <summary>
+    /// Gets the metadata of a mesh by ID - a value object, safe to hold.
+    /// </summary>
+    public Result<MeshMetadata> GetMeshMetadata(Guid meshId)
+    {
+        if (_meshes.TryGetValue(meshId, out var mesh))
+            return Result.Success(mesh.Metadata);
 
         return WorkspaceErrors.MeshNotFound(meshId);
     }

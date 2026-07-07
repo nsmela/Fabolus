@@ -57,7 +57,8 @@ public partial class MainViewModel : ObservableObject {
     private void WorkspaceUpdated(Workspace workspace) {
         Workspace = workspace;
 
-        var result = Workspace.GetActiveMesh();
+        // Metadata-only read - only the name is needed here.
+        var result = Workspace.GetActiveMeshMetadata();
 
         if (result.IsFailure && result.Error == WorkspaceErrors.NoActiveMesh) {
             MeshLoaded = false;
@@ -72,10 +73,8 @@ public partial class MainViewModel : ObservableObject {
             return;
         }
 
-        var mesh = result.Value;
-
         MeshLoaded = Workspace.ActiveMeshId != Guid.Empty;
-        MeshName = MeshLoaded ? mesh.Metadata.Name : "No mesh selected";
+        MeshName = MeshLoaded ? result.Value.Name : "No mesh selected";
     }
 
     //[RelayCommand] public void ToggleWireframe() => _messenger.Send(new WireframeToggleMessage());

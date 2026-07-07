@@ -24,6 +24,13 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     private Workspace Workspace { get; set; }
     private Guid ActiveMeshId { get; set; }
 
+    // Owned meshes cached between workspace changes, so display-only changes (heatmap
+    // toggle, sensitivity/comparison sliders) re-render from them instead of re-fetching
+    // and re-replaying per slider tick. Disposed on refresh and on Deactivate.
+    private IMesh? _stagedMesh;
+    private IMesh? _unsmoothedTwin;
+    private MeshStatistics? _originalStats;
+
     [ObservableProperty] private int _iterations = 1;
     [ObservableProperty] private float _intensity = 1.5f;
     [ObservableProperty] private float _inflation = 0.2f;
@@ -63,21 +70,23 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     public void Activate(Workspace workspace) {
         UpdateWorkspace(workspace);
 
-        var activeMeshResult = Workspace.GetActiveMesh();
-        if (activeMeshResult.IsSuccess) {
+        var metadataResult = Workspace.GetActiveMeshMetadata();
+        if (metadataResult.IsSuccess) {
 
-            var settingsResult = activeMeshResult.Value.Metadata.GetSmoothing();
+            var settingsResult = metadataResult.Value.GetSmoothing();
 
             var settings = settingsResult.HasValue
                 ? settingsResult.Value
                 : new SmoothSettings();
 
             UpdateSettings(settings);
-
         }
     }
 
-    public Workspace Deactivate() => Workspace;
+    public Workspace Deactivate() {
+        ReleaseCachedMeshes();
+        return Workspace;
+    }
 
     partial void OnDisplayModeChanged(SmoothDisplayMode value) {
         _sceneManager.SetDisplayMode(value);
@@ -93,11 +102,21 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     }
 
     private void UpdateViewport() {
-        UpdateWorkspace(Workspace);
+        RenderViewport();
     }
 
     private void UpdateWorkspace(Workspace workspace) {
         Workspace = workspace;
+        RefreshMeshes();
+        RenderViewport();
+    }
+
+    // Re-derives the cached meshes from the current workspace: the staged mesh shown in the
+    // viewport (the model as it was before any mould was cut) and the original-mesh stats
+    // for the info panel. The comparison twin is computed lazily in RenderViewport, since
+    // it's only needed when a comparison display mode is active.
+    private void RefreshMeshes() {
+        ReleaseCachedMeshes();
 
         var activeMeshResult = Workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure) return;
@@ -105,65 +124,76 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
         if (stageResult.IsFailure) return;
-        var mesh = stageResult.Value;
+        _stagedMesh = stageResult.Value;
+
+        // The base mesh's stats were cached on its metadata at import time and it never
+        // changes afterward - no geometry copy needed to read them.
+        var baseMetadata = activeMesh.Metadata.BaseMeshMetadata;
+        if (baseMetadata.HasValue) {
+            var statsResult = baseMetadata.Value.MeshStats();
+            if (statsResult.HasValue) _originalStats = statsResult.Value;
+        }
+    }
+
+    private void RenderViewport() {
+        if (_stagedMesh is null) return;
 
         // Comparison views (heatmap, cross-section) compare against the mesh's aligned
         // "unsmoothed twin" - BaseMesh with the remaining commands (e.g. a rotation) replayed
         // on top - NOT raw BaseMesh, which stays pristine and never rotates, so it drifts out
         // of alignment as soon as the mesh is transformed after smoothing.
         IMesh? unsmoothedMesh = null;
-        if (DisplayMode != SmoothDisplayMode.None && mesh.Metadata.GetSmoothing().HasValue) {
-            var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(mesh);
-            if (unsmoothedResult.IsSuccess) {
-                unsmoothedMesh = unsmoothedResult.Value;
+        if (DisplayMode != SmoothDisplayMode.None && _stagedMesh.Metadata.GetSmoothing().HasValue) {
+            if (_unsmoothedTwin is null) {
+                var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(_stagedMesh);
+                if (unsmoothedResult.IsSuccess) {
+                    _unsmoothedTwin = unsmoothedResult.Value;
+                }
             }
+            unsmoothedMesh = _unsmoothedTwin;
         }
 
         double[]? heatmapColors = null;
         if (DisplayMode == SmoothDisplayMode.Heatmap && unsmoothedMesh is not null) {
-            var colorResult = _engine.Evaluators.CalculateDeviationColors(mesh, unsmoothedMesh, HeatmapSensitivity);
+            var colorResult = _engine.Evaluators.CalculateDeviationColors(_stagedMesh, unsmoothedMesh, HeatmapSensitivity);
             if (colorResult.IsSuccess) {
                 heatmapColors = colorResult.Value;
             }
         }
 
-        PublishInfo(mesh);
-        // The scene manager only ever renders the active mesh, so that's all it gets -
-        // the Workspace itself stays here in the view model.
-        _sceneManager.UpdateMesh(mesh, unsmoothedMesh, heatmapColors);
-
-        // The twin is a scratch mesh and the scene manager has already converted it to render
-        // geometry - but when no other commands existed, the replay hands back the stored
-        // BaseMesh itself, which must not be disposed.
-        if (unsmoothedMesh is not null && !ReferenceEquals(unsmoothedMesh, mesh.Metadata.BaseMesh.Value)) {
-            unsmoothedMesh.Dispose();
-        }
-
-        if (!ReferenceEquals(mesh, activeMesh)) {
-            mesh.Dispose();
-        }
+        PublishInfo();
+        // The scene manager only borrows the meshes for this call (it converts them to
+        // render geometry immediately); ownership stays here with the cache.
+        _sceneManager.UpdateMesh(_stagedMesh, unsmoothedMesh, heatmapColors);
     }
 
-    private void PublishInfo(IMesh activeMesh) {
+    private void ReleaseCachedMeshes() {
+        _stagedMesh = null;
+        _unsmoothedTwin = null;
+        _originalStats = null;
+    }
+
+    private void PublishInfo() {
         var items = new List<MeshInfoItem>();
 
-        var baseMeshResult = activeMesh.Metadata.BaseMesh;
-        if (baseMeshResult.HasValue) {
-            var originalStats = _engine.Evaluators.GetStatistics(baseMeshResult.Value).Value;
+        if (_originalStats is not null) {
             items.Add(new TitleInfoItem { Label = "Original Mesh" });
-            items.Add(new TextInfoItem { Label = "Volume", Value = $"{originalStats.Volume:N2} mL" });
-            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(originalStats.SurfaceArea/100):N2} mm²" });
-            items.Add(new TextInfoItem { Label = "Triangles", Value = originalStats.TriangleCount.ToString("N0") });
+            items.Add(new TextInfoItem { Label = "Volume", Value = $"{_originalStats.Volume:N2} mL" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(_originalStats.SurfaceArea/100):N2} mm²" });
+            items.Add(new TextInfoItem { Label = "Triangles", Value = _originalStats.TriangleCount.ToString("N0") });
         }
 
-        var settingsResult = activeMesh.Metadata.GetSmoothing();
-        if (settingsResult.HasValue) 
+        var metadataResult = Workspace.GetActiveMeshMetadata();
+        if (metadataResult.IsSuccess && metadataResult.Value.GetSmoothing().HasValue)
         {
-            var stats = activeMesh.Metadata.MeshStats().Value;
-            items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
-            items.Add(new TextInfoItem { Label = "Volume", Value = $"{stats.Volume:N2} mL" });
-            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(stats.SurfaceArea / 100):N2} mm²" });
-            items.Add(new TextInfoItem { Label = "Triangles", Value = stats.TriangleCount.ToString("N0") });
+            var statsResult = metadataResult.Value.MeshStats();
+            if (statsResult.HasValue) {
+                var stats = statsResult.Value;
+                items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
+                items.Add(new TextInfoItem { Label = "Volume", Value = $"{stats.Volume:N2} mL" });
+                items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(stats.SurfaceArea / 100):N2} mm²" });
+                items.Add(new TextInfoItem { Label = "Triangles", Value = stats.TriangleCount.ToString("N0") });
+            }
         }
 
         _messenger.Send(new UpdateMeshInfoMessage(items));

@@ -10,4 +10,9 @@ public static class MetadataErrors {
     /// Error returned when a requested metadata key is not present in the dictionary.
     /// </summary>
     public static readonly Error KeyNotFound = new("Metadata.NotFound", "The key used is not found in the metadata");
+
+    /// <summary>
+    /// Error returned when an operation needs the recorded base mesh but none exists.
+    /// </summary>
+    public static readonly Error MissingBaseMesh = new("Metadata.MissingBaseMesh", "The mesh has no recorded base mesh to replay from");
 }

@@ -4,6 +4,8 @@ namespace Fabolus.Core.Geometry;
 
 /// <summary>
 /// Provides operations to modify mesh topology and structure (e.g., smoothing, decimation, subdivision).
+/// Every operation returns a NEW mesh the caller owns - never its input instance, even when
+/// the operation is a no-op - so callers can dispose pipeline intermediates unconditionally.
 /// </summary>
 public interface IGeometryModifiers
 {

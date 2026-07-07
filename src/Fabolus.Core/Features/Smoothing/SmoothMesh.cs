@@ -28,26 +28,40 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
         if (getMeshResult.IsFailure) return getMeshResult.Error;
 
         var activeMesh = getMeshResult.Value;
-        // BaseMesh is guaranteed present - Workspace.AddMesh establishes it for every mesh
-        // the moment it enters the workspace.
-        var baseMesh = activeMesh.Metadata.BaseMesh.Value;
-        var updatedMetadata = activeMesh.Metadata.WithCommand(settings);
+        var hasSmoothing = activeMesh.Metadata.GetSmoothing().HasValue;
 
+        var updatedMetadata = activeMesh.Metadata.WithCommand(settings);
+        var baseMesh = activeMesh.Metadata.GetBaseMesh().Value;
         var replayResult = CommandReplay.Apply(Engine, baseMesh, updatedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
         var finalMesh = replayResult.Value;
-
         var topology = Engine.Evaluators.ValidateTopology(finalMesh).Value;
         var stats = Engine.Evaluators.GetStatistics(finalMesh).Value;
-        // BaseMesh carries forward automatically here (updatedMetadata was built from
-        // activeMesh.Metadata, which already has it).
-        var metadata = updatedMetadata.WithProperties(m => m
-            .Set(MeshIOKeys.Stats, stats)
-            .Set(MeshIOKeys.Topology, topology));
 
-        finalMesh = finalMesh.WithMetadata(metadata);
+        if (hasSmoothing)
+        {
+            var metadata = updatedMetadata.WithProperties(m => m
+                .Set(MeshIOKeys.Stats, stats)
+                .Set(MeshIOKeys.Topology, topology));
 
-        return workspace.UpdateMesh(finalMesh);
+            finalMesh = finalMesh.WithMetadata(metadata);
+            return workspace.UpdateMesh(finalMesh);
+        }
+        else
+        {
+            var metadata = updatedMetadata.WithProperties(m => m
+                .Set(CoreKeys.Id, Guid.NewGuid())
+                .Set(CoreKeys.Name, activeMesh.Metadata.Name + " (Smoothed)")
+                .Set(CoreKeys.DerivedFrom, activeMesh.Metadata.Id)
+                .Set(MeshIOKeys.Stats, stats)
+                .Set(MeshIOKeys.Topology, topology));
+            
+            finalMesh = finalMesh.WithMetadata(metadata);
+            var addResult = workspace.AddMesh(finalMesh);
+            if (addResult.IsFailure) return addResult.Error;
+
+            return addResult.Value.SetActiveMesh(finalMesh.Metadata.Id);
+        }
     }
 }

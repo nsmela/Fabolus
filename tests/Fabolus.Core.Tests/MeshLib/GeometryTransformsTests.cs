@@ -75,7 +75,7 @@ public class GeometryTransformsTests
         var original = _fixture.UnitCube();
         var originalStats = _engine.Evaluators.GetStatistics(original).Value;
 
-        var result = _fixture.Engine.Transforms.Rotate(original, new Quaternion((float)(Math.PI / 2), 0, 0, 1));
+        var result = _fixture.Engine.Transforms.Rotate(original, Quaternion.CreateFromAxisAngle(Vector3.UnitZ, (float)(Math.PI / 2)));
 
         result.IsSuccess.Should().BeTrue();
         var transformedStats = _engine.Evaluators.GetStatistics(result.Value).Value;
@@ -85,20 +85,22 @@ public class GeometryTransformsTests
     }
 
     [Fact]
-    public void Transforms_PropagateBaseMesh()
+    public void Transforms_LeaveBaseMeshPristine()
     {
         var original = _fixture.UnitCube();
-        // create a derived mesh
-        var derived = _fixture.Engine.Modifiers.Offset(original, 0.1f).Value;
-
-        var transformed = _fixture.Engine.Transforms.Translate(derived, 1, 1, 1).Value;
-
-        transformed.Metadata.BaseMesh.HasValue.Should().BeTrue();
-        transformed.Metadata.BaseMesh.Value.Should().NotBeSameAs(original); // Should be a translated copy of original
-
-        var originalOfTransformedStats = _engine.Evaluators.GetStatistics(transformed.Metadata.BaseMesh.Value).Value;
         var originalStats = _engine.Evaluators.GetStatistics(original).Value;
 
-        originalOfTransformedStats.MinX.Should().BeApproximately(originalStats.MinX + 1, 1e-3);
+        // Attach a base explicitly (Workspace.AddMesh normally does this on entry).
+        var withBase = original.WithMetadata(original.Metadata.WithBaseMesh(original));
+
+        var transformed = _fixture.Engine.Transforms.Translate(withBase, 1, 1, 1).Value;
+
+        // BaseMesh rides along in the metadata but stays pristine - the engine must not
+        // translate it with the mesh; replay depends on it never moving.
+        transformed.Metadata.HasBaseMesh.Should().BeTrue();
+        var baseCopy = transformed.Metadata.GetBaseMesh().Value;
+        var baseStats = _engine.Evaluators.GetStatistics(baseCopy).Value;
+
+        baseStats.MinX.Should().BeApproximately(originalStats.MinX, 1e-3);
     }
 }

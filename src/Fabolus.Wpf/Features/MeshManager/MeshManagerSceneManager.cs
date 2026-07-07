@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
@@ -27,6 +27,7 @@ internal class MeshManagerSceneManager : ISceneManager {
         var activeMeshResult = workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure) return;
 
+        // Owned copy - converted to render geometry immediately, then released.
         IMesh mesh = activeMeshResult.Value;
 
         MeshGeometry3D geometry = mesh.ToHelixMesh(_engine).Value;

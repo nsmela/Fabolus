@@ -8,10 +8,10 @@ internal sealed class Booleans : IBooleans
 {
     private Result<IMesh> DoBoolean(IMesh meshA, IMesh meshB, MR.BooleanOperation op)
     {
-        if (meshA is not MRMesh mrA || meshB is not MRMesh mrB)
-            return GeometryErrors.InvalidMeshType;
-
-        using var result = MR.boolean(mrA.Mesh, mrB.Mesh, op, null);
+        using var mrA = meshA.ToMRMesh();
+        using var mrB = meshB.ToMRMesh();
+        
+        using var result = MR.boolean(mrA, mrB, op, null);
 
         if (result is null)
             return new Error("MRBooleans.OperationFailed", "Boolean operation returned null result.");
@@ -31,7 +31,7 @@ internal sealed class Booleans : IBooleans
              .Set(CoreKeys.Name, $"{meshA.Metadata.Name} {op} {meshB.Metadata.Name}")
              .Set(CoreKeys.CreatedBy, "BooleanOperation"));
 
-        return new MRMesh(new MR.Mesh(result.mesh), metadata);
+        return Result.Success(result.mesh.ToIMesh(metadata));
     }
 
     public Result<IMesh> Intersect(IMesh meshA, IMesh meshB) =>
