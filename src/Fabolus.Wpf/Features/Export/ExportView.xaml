@@ -6,43 +6,38 @@
              xmlns:local="clr-namespace:Fabolus.Wpf.Features.Export"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance local:ExportViewModel, IsDesignTimeCreatable=True}"
-             d:DesignHeight="450" d:DesignWidth="240">
+             d:DesignHeight="600" d:DesignWidth="240">
     <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
             <Setter Property="FontSize" Value="11" />
-
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
         </Style>
 
-        <Style x:Key="SegmentButton" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
-            <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="FontWeight" Value="Medium" />
+        <Style x:Key="FormatRadioButton" TargetType="RadioButton">
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="SnapsToDevicePixels" Value="True" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="seg" CornerRadius="5" Background="Transparent" Padding="0,6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Border x:Name="border" CornerRadius="6" BorderThickness="1" BorderBrush="{DynamicResource Brush.Border}" Background="{DynamicResource Brush.Surface}" Padding="0,10">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock x:Name="header" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                <TextBlock x:Name="sub" Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" FontSize="10" Opacity="0.7" FontFamily="{StaticResource Font.Mono}" HorizontalAlignment="Center"/>
+                            </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
-                            </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="seg" Property="Background" Value="{DynamicResource Brush.Card}" />
-                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
-                                <Setter Property="FontWeight" Value="SemiBold" />
-                                <Setter TargetName="seg" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="2" ShadowDepth="1" Direction="270"
-                                                          Opacity="0.12" Color="#FF141E28" />
-                                    </Setter.Value>
-                                </Setter>
+                                <Setter TargetName="border" Property="Background" Value="#17A2B8" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="#17A2B8" />
+                                <Setter TargetName="header" Property="Foreground" Value="White" />
+                                <Setter TargetName="sub" Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="False">
+                                <Setter TargetName="header" Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                                <Setter TargetName="sub" Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -60,25 +55,79 @@
             </Grid.RowDefinitions>
 
             <StackPanel Orientation="Vertical" Grid.Row="0">
-                <TextBlock Text="FILE FORMAT" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
+                <TextBlock Text="FILE FORMAT" Style="{StaticResource FieldLabel}" Margin="0,0,0,10" />
                 
-                <ComboBox ItemsSource="{Binding AvailableFormats}" SelectedItem="{Binding FileFormat}" Margin="0,0,0,8" Height="32" />
-                
-                <Border Background="#FFE6EAED" CornerRadius="7" Padding="3" Margin="0,0,0,24">
-                    <UniformGrid Columns="1">
-                        <RadioButton Content="Binary" GroupName="FileType"
-                                     Style="{StaticResource SegmentButton}"
-                                     IsChecked="{Binding IsBinary}" />
-                    </UniformGrid>
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <RadioButton Grid.Column="0" Content="STL" Tag="triangle mesh" Style="{StaticResource FormatRadioButton}" IsChecked="{Binding IsStlSelected}" />
+                    <RadioButton Grid.Column="2" Content="3MF" Tag="package" Style="{StaticResource FormatRadioButton}" IsChecked="{Binding Is3mfSelected}" />
+                </Grid>
+
+                <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,20" Background="{DynamicResource Brush.Surface}" Visibility="{Binding Is3mfSelected, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,8">
+                            <TextBlock Text="BAKED OPERATIONS" Style="{StaticResource FieldLabel}" VerticalAlignment="Center"/>
+                            <Border Background="#E0F2F1" CornerRadius="4" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="{Binding HasBakedOperations, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding BakedOperationsText}" FontSize="10" Foreground="#00796B" FontWeight="Medium"/>
+                            </Border>
+                        </Grid>
+                        
+                        <ItemsControl ItemsSource="{Binding BakedOperations}" Margin="0,0,0,10" Visibility="{Binding HasBakedOperations, Converter={StaticResource BoolToVis}}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontSize="11" Foreground="{DynamicResource Brush.Text.Primary}" LineHeight="18">
+                                        <Run Text="• " /><Run Text="{Binding Name}" /> <Run Foreground="{DynamicResource Brush.Text.Muted}" FontFamily="{StaticResource Font.Mono}" Text="{Binding Value, StringFormat='({0})'}" />
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        
+                        <TextBlock Text="None" FontSize="11" Foreground="{DynamicResource Brush.Text.Muted}" Margin="8,0,0,10">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasBakedOperations}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        
+                        <Border Background="#E0F7FA" CornerRadius="4" Padding="8,6">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                                <Path Data="M6 1C3.24 1 1 3.24 1 6s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm.5 7.5h-1v-4h1v4zm0-5h-1v-1h1v1z" Fill="#0097A7" Width="10" Height="10" Stretch="Uniform" Margin="0,2,6,0" VerticalAlignment="Top"/>
+                                <TextBlock FontSize="10" Foreground="#006064" VerticalAlignment="Top" TextWrapping="Wrap" Width="160">
+                                    The <Run Text="{Binding PrintableMeshName}" FontWeight="SemiBold"/> is the printable item. Other components are included as non-build references.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="FILE NAME" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
+                <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource Brush.Surface}" Margin="0,0,0,24">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding FileName, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Padding="10,8" FontFamily="{StaticResource Font.Mono}" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource Brush.Text.Primary}" />
+                        <TextBlock Grid.Column="1" Text="{Binding FileExtension}" Foreground="{DynamicResource Brush.Text.Muted}" FontFamily="{StaticResource Font.Mono}" FontSize="13" VerticalAlignment="Center" Padding="0,0,10,0" />
+                    </Grid>
                 </Border>
 
                 <TextBlock Text="DESTINATION" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
-                
                 <Button Command="{Binding BrowseDestinationCommand}" 
                         Background="{DynamicResource Brush.Surface}" 
                         BorderBrush="{DynamicResource Brush.Border}" 
                         BorderThickness="1" 
-                        Padding="8"
+                        Padding="10,8"
                         Cursor="Hand">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
@@ -90,8 +139,8 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <Path Grid.Column="0" Data="M1.5 3.5v13h17v-10h-7.5l-2-3h-7.5z" Stroke="{DynamicResource Brush.Text.Muted}" StrokeThickness="1.5" Fill="Transparent" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <TextBlock Grid.Column="1" Text="{Binding DestinationFolder}" TextTrimming="CharacterEllipsis" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center" Foreground="{DynamicResource Brush.Text.Primary}" />
-                                    <TextBlock Grid.Column="2" Text="Browse" Foreground="#0097A7" FontWeight="Medium" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding DestinationFolder}" TextTrimming="CharacterEllipsis" FontFamily="{StaticResource Font.Mono}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Brush.Text.Primary}" />
+                                    <TextBlock Grid.Column="2" Text="Browse" Foreground="#0097A7" FontWeight="Medium" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0" />
                                 </Grid>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -111,7 +160,7 @@
                     Height="40">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Path Data="{DynamicResource Icon.Export}" Stroke="{DynamicResource Brush.Text.OnAccent}" StrokeThickness="1.8" Fill="Transparent" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
-                    <TextBlock Text="{Binding ExportButtonText}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ExportButtonText}" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13" />
                 </StackPanel>
             </Button>
         </Grid>
