@@ -50,6 +50,21 @@ public sealed class ResetSmoothing {
             return workspaceResult.Value.SetActiveMesh(parentId);
         }
 
-        return workspace;
+        // Legacy behavior for meshes smoothed before the fork-on-smooth update
+        var revertedMetadata = activeMesh.Metadata.WithoutCommand<SmoothSettings>();
+
+        var replayResult = ComputeUnsmoothedMesh(activeMesh);
+        if (replayResult.IsFailure) return replayResult.Error;
+
+        var currentMesh = replayResult.Value;
+
+        var topology = _engine.Evaluators.ValidateTopology(currentMesh).Value;
+        var stats = _engine.Evaluators.GetStatistics(currentMesh).Value;
+        var metadata = revertedMetadata.WithProperties(m => m
+            .Set(MeshIOKeys.Stats, stats)
+            .Set(MeshIOKeys.Topology, topology));
+
+        var finalMesh = currentMesh.WithMetadata(metadata);
+        return workspace.UpdateMesh(finalMesh);
     }
 }

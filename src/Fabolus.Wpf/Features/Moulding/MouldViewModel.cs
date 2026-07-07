@@ -58,6 +58,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // True while the parameter fields are being populated *from* the selected channel,
     // so those assignments don't immediately turn around and rewrite the channel.
     private bool _syncingSelection;
+    private bool _isActivating;
 
     partial void OnSelectedChannelIdChanged(Guid value)
     {
@@ -221,7 +222,10 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     public void Activate(Workspace workspace)
     {
-        Workspace = workspace;
+        _isActivating = true;
+        try
+        {
+            Workspace = workspace;
 
         var activeMeshResult = Workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure)
@@ -275,6 +279,11 @@ public partial class MouldViewModel : ObservableObject, IViewState
         else
         {
             _sceneManager.ClearPreviews();
+        }
+        }
+        finally
+        {
+            _isActivating = false;
         }
     }
 
@@ -333,6 +342,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     private void UpdateMould()
     {
+        if (_isActivating) return;
+
         EnsureNotGenerated();
 
         var result = _sceneManager.UpdateMould(BuildMouldDefinition());
