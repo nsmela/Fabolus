@@ -35,6 +35,9 @@ public partial class MainViewModel : ObservableObject {
     [ObservableProperty] private bool _showSplitView;
     [ObservableProperty] private InfoPanelViewModel _infoViewModel;
 
+    // loading display
+    [ObservableProperty] private bool _isLoading = false;
+
     // Stores: passively monitor messages to store or retreive data for multiple views
     private AppPreferencesStore AppPreferences { get; } = new();
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
@@ -48,10 +51,12 @@ public partial class MainViewModel : ObservableObject {
 
         _messenger.Register<PreferencesSetSplitViewMessage>(this, (r, m) => ShowSplitView = m.SplitViewEnabled);
         _messenger.Register<WorkspaceChangedMessage>(this, (r, m) => WorkspaceUpdated(m.Workspace));
+        _messenger.Register<IsLoadingMessage>(this, (r,m) =>  IsLoading = m.IsLoading);
 
         ShowSplitView = _messenger.Send(new PreferencesSplitViewRequest()).Response;
 
-        SwitchToMeshManagerView();
+        _ = SwitchToMeshManagerViewAsync();
+
     }
 
     private void WorkspaceUpdated(Workspace workspace) {
@@ -80,29 +85,11 @@ public partial class MainViewModel : ObservableObject {
     //[RelayCommand] public void ToggleWireframe() => _messenger.Send(new WireframeToggleMessage());
 
     [RelayCommand] public void CaptureScreenshot() {
-        //var viewport = _messenger.Send(new ViewportRequestMessage()).Response;
-        //var bitmap = ViewportExtensions.RenderBitmap(viewport);
-
-        //var info = _messenger.Send(new MeshInfoRequestMessage()).Response;
-        //RenderTargetBitmap renderInfo = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-        //renderInfo.Render(info);
-
-        DrawingVisual visual = new();
-        //using (DrawingContext context = visual.RenderOpen()) {
-        //    context.DrawImage(bitmap, new Rect(0, 0, viewport.ActualWidth, viewport.ActualHeight));
-        //    context.DrawImage(renderInfo, new Rect(0, 0, viewport.ActualWidth, viewport.ActualHeight));
-        //}
-
-        //RenderTargetBitmap result = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-       // result.Render(visual);
-
         try {
-            Clipboard.Clear();
-        //    Clipboard.SetImage(result);
+            _messenger.Send(new CaptureScreenshotMessage());
         } catch (Exception e) {
-            DebugText = $"Error copying screenshot to clipboard: {e.Message}";
+            DebugText = $"Error triggering screenshot: {e.Message}";
         }
-
     }
 
     [RelayCommand]
@@ -118,83 +105,107 @@ public partial class MainViewModel : ObservableObject {
     }
 
     [RelayCommand]
-    public void SwitchToMeshManagerView() {
+    public async Task SwitchToMeshManagerViewAsync() {
         if (CurrentView is MeshManagerViewModel) return;
 
+        IsLoading = true;
+
         if(CurrentView is not null) {
-            WorkspaceUpdated(CurrentView.Deactivate());
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
         }
 
         CurrentViewTitle = "meshes";
-        CurrentView = new MeshManagerViewModel(_messenger, _dialogueSystem, _alertDialog, _engine);
-        SceneManager = CurrentView.SceneManager;
 
-        CurrentView.Activate(Workspace);
+        var newView = new MeshManagerViewModel(_messenger, _dialogueSystem, _alertDialog, _engine);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
     }
 
     [RelayCommand]
-    public void SwitchToSmoothingView() {
+    public async Task SwitchToSmoothingViewAsync() {
         if (CurrentView is SmoothingViewModel) return;
 
+        IsLoading = true;
+
         if (CurrentView is not null) {
-            WorkspaceUpdated(CurrentView.Deactivate());
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
         }
 
         CurrentViewTitle = "smooth";
-        CurrentView = new SmoothingViewModel(_messenger, _alertDialog, _engine);
-        SceneManager = CurrentView.SceneManager;
 
-        CurrentView.Activate(Workspace);
+        var newView = new SmoothingViewModel(_messenger, _alertDialog, _engine);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
     }
 
     [RelayCommand]
-    public void SwitchToRotateView() {
+    public async Task SwitchToRotateViewAsync() {
         if (CurrentView is RotateViewModel) return;
 
+        IsLoading = true;
+
         if (CurrentView is not null) {
-            WorkspaceUpdated(CurrentView.Deactivate());
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
         }
 
         CurrentViewTitle = "rotate";
-        CurrentView = new RotateViewModel(_messenger, _alertDialog, _engine);
-        SceneManager = CurrentView.SceneManager;
 
-        CurrentView.Activate(Workspace);
+        var newView = new RotateViewModel(_messenger, _alertDialog, _engine);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
     }
 
     [RelayCommand]
-    public void SwitchToMouldView()
+    public async Task SwitchToMouldViewAsync()
     {
-        if (CurrentView is MouldViewModel)
-            return;
+        if (CurrentView is MouldViewModel) return;
+
+        IsLoading = true;
 
         if (CurrentView is not null)
         {
-            WorkspaceUpdated(CurrentView.Deactivate());
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
         }
 
         CurrentViewTitle = "mould";
-        CurrentView = new MouldViewModel(_messenger, _alertDialog, _engine);
-        SceneManager = CurrentView.SceneManager;
 
-        CurrentView.Activate(Workspace);
+        var newView = new MouldViewModel(_messenger, _alertDialog, _engine);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
     }
 
     [RelayCommand]
-    public void SwitchToExportView()
+    public async Task SwitchToExportViewAsync()
     {
-        if (CurrentView is ExportViewModel)
-            return;
+        if (CurrentView is ExportViewModel) return;
+
+        IsLoading = true;
 
         if (CurrentView is not null)
         {
-            WorkspaceUpdated(CurrentView.Deactivate());
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
         }
 
         CurrentViewTitle = "export";
-        CurrentView = new ExportViewModel(_messenger, _alertDialog, _engine, _dialogueSystem);
-        SceneManager = CurrentView.SceneManager;
 
-        CurrentView.Activate(Workspace);
+        var newView = new ExportViewModel(_messenger, _alertDialog, _engine, _dialogueSystem);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
     }
+
 }

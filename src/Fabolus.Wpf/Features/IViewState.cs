@@ -1,11 +1,11 @@
-﻿using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Features.Viewport;
 
 namespace Fabolus.Wpf.Features;
 
 public interface IViewState {
-    void Activate(Workspace workspace);
-    Workspace Deactivate();
+    Task ActivateAsync(Workspace workspace);
+    Task<Workspace> DeactivateAsync();
 
     ISceneManager SceneManager { get; }
 }

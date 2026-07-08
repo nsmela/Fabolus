@@ -1,4 +1,4 @@
-﻿using HelixToolkit.Wpf.SharpDX;
+using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Media3D;
@@ -85,6 +85,9 @@ public partial class ViewportControl : UserControl, IDisposable {
             visual.Dispose(); // Memory safety!
         }
     }));
+
+    public System.Windows.Media.Imaging.BitmapSource RenderBitmap() => 
+        HelixToolkit.Wpf.SharpDX.ViewportExtensions.RenderBitmap(MainViewport);
 
     // --- INPUT ROUTING (From XAML events) ---
 

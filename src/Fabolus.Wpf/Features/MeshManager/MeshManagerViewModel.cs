@@ -65,10 +65,13 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         UpdateWorkspace(result.Value);
     }
 
-    public void Activate(Workspace workspace) => UpdateWorkspace(workspace);
+    public async Task ActivateAsync(Workspace workspace) {
+        await Task.Yield();
+        UpdateWorkspace(workspace);
+    }
 
-    public Workspace Deactivate() {
-        return Workspace;
+    public Task<Workspace> DeactivateAsync() {
+        return Task.FromResult(Workspace);
     }
 
     public ISceneManager SceneManager => _sceneManager;
@@ -178,19 +181,24 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     }
 
     [RelayCommand]
-    public void ImportFile() {
+    public async Task ImportFileAsync() {
         var openFileResult = _dialogue.ShowOpenFileDialog(FILTER);
 
         if (openFileResult.HasNoValue) return;
 
-        var result = _importFeature.Execute(Workspace, openFileResult.Value);
+        _messenger.Send(new IsLoadingMessage(true));
+
+        var result = await Task.Run(() => _importFeature.Execute(Workspace, openFileResult.Value));
 
         if (result.IsFailure) {
             _alertDialog.ShowError(result.Error.Description);
+            _messenger.Send(new IsLoadingMessage(false));
             return;
         }
 
         UpdateWorkspace(result.Value);
+
+        _messenger.Send(new IsLoadingMessage(false));
     }
 
     [RelayCommand]

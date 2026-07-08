@@ -42,7 +42,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
         OnPropertyChanged(nameof(IsStlSelected));
         ExportButtonText = value ? "Export package" : "Export file";
         FileExtension = value ? ".3mf" : ".stl";
-        UpdateInfoPanel();
+        UpdateInfoPanelAsync();
     }
 
     public bool IsStlSelected { get => !Is3mfSelected; set => Is3mfSelected = !value; }
@@ -51,7 +51,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
 
     partial void OnFileNameChanged(string value)
     {
-        UpdateInfoPanel();
+        UpdateInfoPanelAsync();
     }
     [ObservableProperty] private string _fileExtension = ".3mf";
     [ObservableProperty] private string _destinationFolder;
@@ -80,8 +80,10 @@ public partial class ExportViewModel : ObservableObject, IViewState
 
     }
 
-    public void Activate(Workspace workspace)
+    public async Task ActivateAsync(Workspace workspace)
     {
+        await Task.Yield();
+
         Workspace = workspace;
         _sceneManager.UpdateWorkspace(workspace);
 
@@ -142,10 +144,10 @@ public partial class ExportViewModel : ObservableObject, IViewState
             PrintableMeshName = "base mesh";
         }
 
-        UpdateInfoPanel();
+        await UpdateInfoPanelAsync();
     }
 
-    private void UpdateInfoPanel()
+    private async Task UpdateInfoPanelAsync()
     {
         var activeMeshResult = Workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure)
@@ -196,7 +198,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
             items.Add(new SubtitleInfoItem { Label = "Measured from base mesh" });
         }
 
-        var transformStageResult = CommandReplay.GetMeshAtStage(_engine, mesh, CommandPriority.Transform);
+        var transformStageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, mesh, CommandPriority.Transform));
         stats = transformStageResult.IsSuccess
             ? _engine.Evaluators.GetStatistics(transformStageResult.Value).Value
             : activeStatsResult.Value;
@@ -208,7 +210,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
 
     }
 
-    public Workspace Deactivate() => Workspace;
+    public Task<Workspace> DeactivateAsync() => Task.FromResult(Workspace);
 
     [RelayCommand]
     public void BrowseDestination()

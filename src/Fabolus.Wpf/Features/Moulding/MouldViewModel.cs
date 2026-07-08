@@ -251,14 +251,16 @@ public partial class MouldViewModel : ObservableObject, IViewState
         AddChannel(new AirChannelModel(Guid.NewGuid(), AirChannelType.Painted, TipDiameter, ChannelDiameter, TipLength, domainModel));
     }
 
-    public void Activate(Workspace workspace)
+    public async Task ActivateAsync(Workspace workspace)
     {
         _isActivating = true;
         try
         {
+            await Task.Yield(); // Allow UI to render loading screen
+
             Workspace = workspace;
 
-        var activeMeshResult = Workspace.GetActiveMesh();
+            var activeMeshResult = Workspace.GetActiveMesh();
         if (activeMeshResult.IsFailure)
             return;
 
@@ -305,7 +307,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
         if (!IsGenerated)
         {
             _sceneManager.UpdateChannels(Channels);
-            UpdateMould();
+
         }
         else
         {
@@ -316,13 +318,17 @@ public partial class MouldViewModel : ObservableObject, IViewState
         {
             _isActivating = false;
         }
+        if (!IsGenerated)
+        {
+            UpdateMould();
+        }
     }
 
-    public Workspace Deactivate()
+    public Task<Workspace> DeactivateAsync()
     {
         PersistUncommittedMouldState();
         _sceneManager.ReleaseMesh();
-        return Workspace;
+        return Task.FromResult(Workspace);
     }
 
     // Hands the mesh to the scene manager (which takes ownership of it) and caches the
