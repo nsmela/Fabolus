@@ -99,6 +99,12 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         Intensity = settings.Intensity;
         RemeshRatio = settings.RemeshRatio;
         Resolution = settings.Resolution;
+        
+        OnPropertyChanged(nameof(Iterations));
+        OnPropertyChanged(nameof(Inflation));
+        OnPropertyChanged(nameof(Intensity));
+        OnPropertyChanged(nameof(RemeshRatio));
+        OnPropertyChanged(nameof(Resolution));
     }
 
     private void UpdateViewport() {

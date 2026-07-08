@@ -85,29 +85,11 @@ public partial class MainViewModel : ObservableObject {
     //[RelayCommand] public void ToggleWireframe() => _messenger.Send(new WireframeToggleMessage());
 
     [RelayCommand] public void CaptureScreenshot() {
-        //var viewport = _messenger.Send(new ViewportRequestMessage()).Response;
-        //var bitmap = ViewportExtensions.RenderBitmap(viewport);
-
-        //var info = _messenger.Send(new MeshInfoRequestMessage()).Response;
-        //RenderTargetBitmap renderInfo = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-        //renderInfo.Render(info);
-
-        DrawingVisual visual = new();
-        //using (DrawingContext context = visual.RenderOpen()) {
-        //    context.DrawImage(bitmap, new Rect(0, 0, viewport.ActualWidth, viewport.ActualHeight));
-        //    context.DrawImage(renderInfo, new Rect(0, 0, viewport.ActualWidth, viewport.ActualHeight));
-        //}
-
-        //RenderTargetBitmap result = new((int)viewport.ActualWidth, (int)viewport.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-       // result.Render(visual);
-
         try {
-            Clipboard.Clear();
-        //    Clipboard.SetImage(result);
+            _messenger.Send(new CaptureScreenshotMessage());
         } catch (Exception e) {
-            DebugText = $"Error copying screenshot to clipboard: {e.Message}";
+            DebugText = $"Error triggering screenshot: {e.Message}";
         }
-
     }
 
     [RelayCommand]
@@ -225,4 +207,5 @@ public partial class MainViewModel : ObservableObject {
 
         IsLoading = false;
     }
+
 }
