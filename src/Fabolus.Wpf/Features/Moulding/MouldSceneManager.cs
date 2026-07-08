@@ -37,6 +37,19 @@ public class MouldSceneManager : ISceneManager
     private bool _mouldHiddenForHover;
     private bool _mouseOverTarget;
 
+    // Painted-channel stroke capture: non-null while the left button is held and the user
+    // is dragging a stroke across the target mesh.
+    private List<Vector3>? _strokePoints;
+    private bool StrokeActive => _strokePoints is not null;
+
+    // Input decimation only - keeps a long drag to a manageable point count. The real
+    // smoothing/resampling happens once, on commit, in the view model.
+    private const float MinStrokePointDistance = 0.75f;
+
+    // Which channel type the user has selected in the panel; left-down on the target mesh
+    // starts a paint stroke for Painted and places a channel immediately for the others.
+    public AirChannelType ActiveChannelType { get; set; } = AirChannelType.Straight;
+
     // While a mould has been generated, the target mesh IS the final result - channel
     // placement/selection/preview are all disabled until the user clears it.
     public bool IsMouldGenerated { get; set; }
@@ -52,6 +65,9 @@ public class MouldSceneManager : ISceneManager
     public event Action<Guid> ChannelSelected;
     public event Action<Vector3, Vector3> ChannelHovered;
     public event Action DeleteSelectedChannelRequested;
+
+    public event Action<IReadOnlyList<Vector3>> StrokeUpdated;
+    public event Action<IReadOnlyList<Vector3>> StrokeCompleted;
 
     public MouldSceneManager(IGeometryEngine engine)
     {
@@ -160,6 +176,10 @@ public class MouldSceneManager : ISceneManager
             _previewChannelId = Guid.Empty;
         }
         PreviewChannel = null;
+
+        // A stroke whose release was never observed (left the viewport) must not survive
+        // mould generation - it would commit as a surprise channel on a later mouse move.
+        _strokePoints = null;
     }
 
     private void SetMouldHiddenForHover(bool hidden)
@@ -232,10 +252,18 @@ public class MouldSceneManager : ISceneManager
             _previewChannelId = Guid.Empty;
         }
 
-        if (IsMouldGenerated || PreviewChannel is null || !_mouseOverTarget)
+        if (IsMouldGenerated || PreviewChannel is null || !(_mouseOverTarget || StrokeActive))
             return;
 
-        var generateResult = PreviewChannel.Generate(_engine, AirChannelRenderMode.Full, TargetMesh);
+        // The full extruded solid is too expensive to rebuild on every mouse event: show a
+        // cheap swept tube along the stroke while dragging, and a plain sphere marker for a
+        // single-point painted hover (Full would run the whole extrude+raycast pipeline,
+        // including a fresh spatial index over the target mesh, per mouse move).
+        var renderMode = StrokeActive ? AirChannelRenderMode.Cone
+            : PreviewChannel is PaintedAirChannel { Path.Count: 1 } ? AirChannelRenderMode.Point
+            : AirChannelRenderMode.Full;
+
+        var generateResult = PreviewChannel.Generate(_engine, renderMode, TargetMesh);
         if (generateResult.IsFailure)
             return;
 
@@ -266,6 +294,12 @@ public class MouldSceneManager : ISceneManager
 
     public bool OnKeyDown(Key key)
     {
+        if (StrokeActive && key == Key.Escape)
+        {
+            CancelStroke();
+            return true;
+        }
+
         if (!IsMouldGenerated && key == Key.Delete && _selectedChannelId != Guid.Empty)
         {
             DeleteSelectedChannelRequested?.Invoke();
@@ -300,6 +334,16 @@ public class MouldSceneManager : ISceneManager
             var point = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
             var normal = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
 
+            if (ActiveChannelType == AirChannelType.Painted)
+            {
+                // Painted channels are placed by dragging a stroke, not a single click;
+                // the channel is committed on mouse-up.
+                _strokePoints = [point];
+                SetMouldHiddenForHover(true);
+                StrokeUpdated?.Invoke(_strokePoints);
+                return true;
+            }
+
             ChannelPlaced?.Invoke(point, normal);
             return true;
         }
@@ -322,6 +366,35 @@ public class MouldSceneManager : ISceneManager
 
         bool overTarget = hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId;
 
+        if (StrokeActive)
+        {
+            // Safety net: if the release happened outside the viewport, MouseUp3D never
+            // fired - commit on the first move back over the viewport.
+            if (Mouse.LeftButton == MouseButtonState.Released)
+            {
+                CommitStroke();
+                return true;
+            }
+
+            // Moves that miss the target mesh (drag slipped off the silhouette, or crossed
+            // another visual) are skipped; the gap is bridged by a straight segment when
+            // the stroke re-enters the mesh.
+            if (overTarget)
+            {
+                var strokePoint = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
+                if (Vector3.DistanceSquared(strokePoint, _strokePoints[^1]) >
+                    MinStrokePointDistance * MinStrokePointDistance)
+                {
+                    _strokePoints.Add(strokePoint);
+                    StrokeUpdated?.Invoke(_strokePoints);
+                }
+            }
+
+            // No ChannelHovered here: the hover handler rebuilds a single-point preview
+            // and would clobber the stroke preview.
+            return true;
+        }
+
         SetMouldHiddenForHover(overTarget);
         _mouseOverTarget = overTarget;
 
@@ -336,11 +409,44 @@ public class MouldSceneManager : ISceneManager
 
         // Total length depends on the mould's bounds and this point's own Z, so the
         // preview is rebuilt in full via ChannelHovered rather than just repositioned -
-        // a plain SetPreview would move the start point but leave a stale total length.
+        // merely moving the start point would leave a stale total length.
         ChannelHovered?.Invoke(point, normal);
 
         return true;
     }
 
-    public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
+    public bool OnMouseUp(MouseUp3DEventArgs eventArgs)
+    {
+        if (!StrokeActive)
+            return false;
+
+        // A right/middle release mid-stroke (camera gesture) must not end the stroke.
+        if (eventArgs.OriginalInputEventArgs is not System.Windows.Input.MouseButtonEventArgs { ChangedButton: System.Windows.Input.MouseButton.Left })
+            return false;
+
+        // Commit uses the accumulated points, not the up-hit, so releasing off-mesh
+        // still places the painted channel.
+        CommitStroke();
+        return true;
+    }
+
+    private void CommitStroke()
+    {
+        var points = _strokePoints!;
+        _strokePoints = null;
+        // Drop the cone drag-preview before the committed channel renders, or it lingers
+        // on top of the new channel until the next mouse move rebuilds the hover preview.
+        PreviewChannel = null;
+        RenderPreviewChannel();
+        StrokeCompleted?.Invoke(points);
+    }
+
+    private void CancelStroke()
+    {
+        _strokePoints = null;
+        // The preview still holds the cancelled stroke's path; with the stroke no longer
+        // active it would re-render in Full mode as a placed-looking solid.
+        PreviewChannel = null;
+        RenderPreviewChannel();
+    }
 }

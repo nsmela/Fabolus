@@ -24,9 +24,4 @@ public record AirChannelModel(
         PaintedAirChannel p => p.Path.Count > 1 ? Vector3.Normalize(p.Path[1] - p.Path[0]) : Vector3.UnitZ,
         _ => Vector3.UnitZ
     };
-
-    public AirChannelModel SetPreview(Vector3 position, Vector3 direction)
-    {
-        return this with { DomainModel = DomainModel.SetPreview(position, direction) };
-    }
 }

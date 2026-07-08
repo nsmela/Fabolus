@@ -90,6 +90,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     partial void OnChannelTypeChanged(AirChannelType value)
     {
+        _sceneManager.ActiveChannelType = value;
+
         OnPropertyChanged(nameof(IsStraightType));
         OnPropertyChanged(nameof(IsAngledType));
         OnPropertyChanged(nameof(IsPathType));
@@ -154,7 +156,12 @@ public partial class MouldViewModel : ObservableObject, IViewState
         IAirChannel domainModel = ChannelType switch
         {
             AirChannelType.Angled => new AngledAirChannel(position, direction, TipLength, totalLength, TipDiameter, ChannelDiameter / 2f, TipDepth),
-            AirChannelType.Painted => new PaintedAirChannel([position], ChannelDiameter / 2f, totalLength, TipDepth),
+            // Preserve the painted path when only parameters change; the single-point
+            // fallback covers converting a Straight/Angled channel to Path (a disc
+            // channel at its old position).
+            AirChannelType.Painted => new PaintedAirChannel(
+                existing.DomainModel is PaintedAirChannel painted ? painted.Path : [position],
+                ChannelDiameter / 2f, totalLength, TipDepth),
             _ => new StraightAirChannel(position, TipLength, totalLength, TipDiameter, ChannelDiameter, TipDepth)
         };
 
@@ -181,7 +188,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         AirChannelType.Straight => "Drops straight down from the click point.",
         AirChannelType.Angled => "Follows the surface normal at the click point.",
-        AirChannelType.Painted => "Traces a path painted across the surface.",
+        AirChannelType.Painted => "Hold the left mouse button and drag across the surface to paint a path; release to place the channel. Esc cancels.",
         _ => string.Empty
     };
 
@@ -218,6 +225,30 @@ public partial class MouldViewModel : ObservableObject, IViewState
             UpdatePreviewChannel(); // rebuilds so the total length tracks this point's Z
         };
         _sceneManager.DeleteSelectedChannelRequested += DeleteSelectedChannel;
+        _sceneManager.ActiveChannelType = ChannelType;
+        _sceneManager.StrokeUpdated += OnStrokeUpdated;
+        _sceneManager.StrokeCompleted += OnStrokeCompleted;
+    }
+
+    private void OnStrokeUpdated(IReadOnlyList<Vector3> points)
+    {
+        // Copy the list - the scene manager keeps mutating its accumulator.
+        var path = points.ToList();
+        var preview = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength(path[0].Z), TipDepth);
+        _sceneManager.UpdatePreviewChannel(preview);
+    }
+
+    private void OnStrokeCompleted(IReadOnlyList<Vector3> points)
+    {
+        EnsureNotGenerated();
+
+        // Decimated raw input is still jittery; store the resampled/smoothed path so
+        // persistence and every later regeneration work from the clean stroke.
+        var resampleResult = _engine.Generators.ResampleOpenPath(points, targetSpacing: 2.0f);
+        var path = resampleResult.IsSuccess ? resampleResult.Value : points;
+
+        var domainModel = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength(path[0].Z), TipDepth);
+        AddChannel(new AirChannelModel(Guid.NewGuid(), AirChannelType.Painted, TipDiameter, ChannelDiameter, TipLength, domainModel));
     }
 
     public async Task ActivateAsync(Workspace workspace)
@@ -392,6 +423,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
         _sceneManager.UpdatePreviewChannel(preview);
     }
 
+    // Painted channels never arrive here - the scene manager routes their left-clicks
+    // into a paint stroke, committed via OnStrokeCompleted.
     private void OnChannelPlaced(Vector3 point, Vector3 normal)
     {
         var totalLength = ComputeTotalLength(point.Z);
@@ -399,12 +432,14 @@ public partial class MouldViewModel : ObservableObject, IViewState
         IAirChannel domainModel = ChannelType switch
         {
             AirChannelType.Angled => new AngledAirChannel(point, normal, TipLength, totalLength, TipDiameter, ChannelDiameter / 2f, TipDepth),
-            AirChannelType.Painted => new PaintedAirChannel([point], ChannelDiameter / 2f, totalLength, TipDepth),
             _ => new StraightAirChannel(point, TipLength, totalLength, TipDiameter, ChannelDiameter, TipDepth)
         };
 
-        var channel = new AirChannelModel(Guid.NewGuid(), ChannelType, TipDiameter, ChannelDiameter, TipLength, domainModel);
+        AddChannel(new AirChannelModel(Guid.NewGuid(), ChannelType, TipDiameter, ChannelDiameter, TipLength, domainModel));
+    }
 
+    private void AddChannel(AirChannelModel channel)
+    {
         Channels = [.. Channels, channel];
         OnPropertyChanged(nameof(ChannelCount));
 
