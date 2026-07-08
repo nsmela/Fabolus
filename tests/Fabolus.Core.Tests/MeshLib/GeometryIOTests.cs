@@ -92,7 +92,7 @@ public class GeometryIOTests
         var original = _fixture.LoadStl("sphere.stl");
         
         // Add metadata
-        var command = new TranslateCommand(new Vector3(10, 20, 30));
+        var command = new Fabolus.Core.Features.Smoothing.SmoothSettings(5, 3.5f, 0.2f, 1.5f, 0.5f);
         
         // Create a distinctly different base mesh so we can detect if they get swapped
         var baseMesh = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 50, 32).Value;
@@ -126,9 +126,13 @@ public class GeometryIOTests
             
             // Verify Metadata
             imported.Metadata.Commands.Should().HaveCount(1);
-            var importedCommand = imported.Metadata.Commands[0] as TranslateCommand;
+            var importedCommand = imported.Metadata.Commands[0] as Fabolus.Core.Features.Smoothing.SmoothSettings;
             importedCommand.Should().NotBeNull();
-            importedCommand.Translation.Should().Be(new Vector3(10, 20, 30));
+            importedCommand.Iterations.Should().Be(5);
+            importedCommand.Intensity.Should().Be(3.5f);
+            importedCommand.Inflation.Should().Be(0.2f);
+            importedCommand.RemeshRatio.Should().Be(1.5f);
+            importedCommand.Resolution.Should().Be(0.5f);
 
             imported.Metadata.HasBaseMesh.Should().BeTrue();
             var importedBaseMesh = imported.Metadata.GetBaseMesh().Value;

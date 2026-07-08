@@ -276,6 +276,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
         if (!IsGenerated)
         {
             _sceneManager.UpdateChannels(Channels);
+
         }
         else
         {
@@ -286,7 +287,6 @@ public partial class MouldViewModel : ObservableObject, IViewState
         {
             _isActivating = false;
         }
-
         if (!IsGenerated)
         {
             UpdateMould();
