@@ -153,9 +153,6 @@
                         <i:EventTrigger EventName="MouseLeave">
                             <i:InvokeCommandAction Command="{Binding HideAxisRotationCommand}" />
                         </i:EventTrigger>
-                        <i:EventTrigger EventName="LostMouseCapture">
-                            <i:InvokeCommandAction Command="{Binding SaveAxisRotationCommand}" />
-                        </i:EventTrigger>
                     </i:Interaction.Triggers>
                 </Slider>
             </StackPanel>
