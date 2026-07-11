@@ -28,7 +28,6 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
         if (getMeshResult.IsFailure) return getMeshResult.Error;
 
         var activeMesh = getMeshResult.Value;
-        var hasSmoothing = activeMesh.Metadata.GetSmoothing().HasValue;
 
         var updatedMetadata = activeMesh.Metadata.WithCommand(settings);
         var baseMesh = activeMesh.Metadata.GetBaseMesh().Value;
@@ -39,29 +38,11 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
         var topology = Engine.Evaluators.ValidateTopology(finalMesh).Value;
         var stats = Engine.Evaluators.GetStatistics(finalMesh).Value;
 
-        if (hasSmoothing)
-        {
-            var metadata = updatedMetadata.WithProperties(m => m
-                .Set(MeshIOKeys.Stats, stats)
-                .Set(MeshIOKeys.Topology, topology));
+        var metadata = updatedMetadata.WithProperties(m => m
+            .Set(MeshIOKeys.Stats, stats)
+            .Set(MeshIOKeys.Topology, topology));
 
-            finalMesh = finalMesh.WithMetadata(metadata);
-            return workspace.UpdateMesh(finalMesh);
-        }
-        else
-        {
-            var metadata = updatedMetadata.WithProperties(m => m
-                .Set(CoreKeys.Id, Guid.NewGuid())
-                .Set(CoreKeys.Name, activeMesh.Metadata.Name + " (Smoothed)")
-                .Set(CoreKeys.DerivedFrom, activeMesh.Metadata.Id)
-                .Set(MeshIOKeys.Stats, stats)
-                .Set(MeshIOKeys.Topology, topology));
-            
-            finalMesh = finalMesh.WithMetadata(metadata);
-            var addResult = workspace.AddMesh(finalMesh);
-            if (addResult.IsFailure) return addResult.Error;
-
-            return addResult.Value.SetActiveMesh(finalMesh.Metadata.Id);
-        }
+        finalMesh = finalMesh.WithMetadata(metadata);
+        return workspace.UpdateMesh(finalMesh);
     }
 }

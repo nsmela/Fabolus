@@ -37,13 +37,13 @@ public class SmoothingTests
         result.IsSuccess.Should().BeTrue();
         var updatedWorkspace = result.Value;
 
-        // Fork - one original mesh, one smoothed mesh.
-        updatedWorkspace.MeshCount.Should().Be(2);
-        updatedWorkspace.ActiveMeshId.Should().NotBe(baseId);
+        // In-place - one smoothed mesh.
+        updatedWorkspace.MeshCount.Should().Be(1);
+        updatedWorkspace.ActiveMeshId.Should().Be(baseId);
 
         var smoothedMesh = updatedWorkspace.GetActiveMesh().Value;
-        smoothedMesh.Metadata.Id.Should().NotBe(baseId);
-        smoothedMesh.Metadata.DerivedFrom.Value.Should().Be(baseId);
+        smoothedMesh.Metadata.Id.Should().Be(baseId);
+        smoothedMesh.Metadata.DerivedFrom.HasValue.Should().BeFalse();
         smoothedMesh.Metadata.HasBaseMesh.Should().BeTrue();
         smoothedMesh.Metadata.GetSmoothing().HasValue.Should().BeTrue();
     }
@@ -88,9 +88,9 @@ public class SmoothingTests
         result.IsSuccess.Should().BeTrue();
         var finalWorkspace = result.Value;
 
-        // Fork happens on the first apply. The second apply updates the smoothed mesh in-place.
-        finalWorkspace.MeshCount.Should().Be(2);
-        finalWorkspace.ActiveMeshId.Should().NotBe(baseId);
+        // Updates the smoothed mesh in-place.
+        finalWorkspace.MeshCount.Should().Be(1);
+        finalWorkspace.ActiveMeshId.Should().Be(baseId);
 
         // Re-derives from the same pristine BaseMesh both times (doesn't stack smoothing on
         // top of already-smoothed geometry, and doesn't re-clone on the second Apply).
@@ -197,7 +197,7 @@ public class SmoothingTests
         result.IsSuccess.Should().BeTrue();
         var resetWorkspace = result.Value;
 
-        // Fork occurs upon smoothing. Reverting deletes the smoothed mesh and activates parent.
+        // Smoothing updates in place. Reverting just removes smoothing.
         resetWorkspace.MeshCount.Should().Be(1);
         resetWorkspace.ActiveMeshId.Should().Be(baseId);
 

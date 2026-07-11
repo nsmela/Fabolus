@@ -43,14 +43,6 @@ public sealed class ResetSmoothing {
         var smoothResult = activeMesh.Metadata.GetSmoothing();
         if (smoothResult.HasNoValue) return workspace;
 
-        if (activeMesh.Metadata.DerivedFrom.HasValue) {
-            var parentId = activeMesh.Metadata.DerivedFrom.Value;
-            var workspaceResult = workspace.RemoveMesh(activeMesh.Metadata.Id);
-            if (workspaceResult.IsFailure) return workspaceResult.Error;
-            return workspaceResult.Value.SetActiveMesh(parentId);
-        }
-
-        // Legacy behavior for meshes smoothed before the fork-on-smooth update
         var revertedMetadata = activeMesh.Metadata.WithoutCommand<SmoothSettings>();
 
         var replayResult = ComputeUnsmoothedMesh(activeMesh);
