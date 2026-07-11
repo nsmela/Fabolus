@@ -54,7 +54,6 @@ public partial class ExportViewModel : ObservableObject, IViewState
         UpdateInfoPanelAsync();
     }
     [ObservableProperty] private string _fileExtension = ".3mf";
-    [ObservableProperty] private string _destinationFolder;
     [ObservableProperty] private int _fileCount;
     [ObservableProperty] private string _exportButtonText = "Export 0 files";
 
@@ -73,11 +72,8 @@ public partial class ExportViewModel : ObservableObject, IViewState
         _alert = alert;
         _engine = engine;
         _dialogueSystem = dialogueSystem;
-        _sceneManager = new ExportSceneManager(_engine);
+        _sceneManager = new ExportSceneManager(_engine, _messenger);
         _exportFeature = new ExportMesh(_engine);
-
-        DestinationFolder = _messenger.Send(new PreferencesExportFolderRequest()).Response;
-
     }
 
     public async Task ActivateAsync(Workspace workspace)
@@ -213,28 +209,11 @@ public partial class ExportViewModel : ObservableObject, IViewState
     public Task<Workspace> DeactivateAsync() => Task.FromResult(Workspace);
 
     [RelayCommand]
-    public void BrowseDestination()
-    {
-        var folder = _dialogueSystem.ShowOpenFolderDialogue(DestinationFolder);
-        if (folder.HasValue)
-        {
-            DestinationFolder = folder.Value;
-            _messenger.Send(new PreferencesSetExportFolderMessage(DestinationFolder));
-        }
-    }
-
-    [RelayCommand]
     public void ExportFiles()
     {
         if (Workspace.MeshCount == 0)
         {
             _alert.ShowError("No meshes to export.");
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(DestinationFolder) || !Directory.Exists(DestinationFolder))
-        {
-            _alert.ShowError("Invalid destination folder.");
             return;
         }
 
@@ -245,18 +224,22 @@ public partial class ExportViewModel : ObservableObject, IViewState
             return;
         }
 
+        var filter = Is3mfSelected ? "3D Manufacturing Format (*.3mf)|*.3mf" : "STL Files (*.stl)|*.stl";
+        var defaultExt = Is3mfSelected ? ".3mf" : ".stl";
+        
+        var saveResult = _dialogueSystem.ShowSaveFileDialog(filter, defaultExt);
+        if (saveResult.HasNoValue) return;
+
         var mesh = activeMeshResult.Value;
-        // Just saving ignoring Binary/ASCII toggle since it's not supported by engine currently
-        var filename = $"{FileName}{FileExtension}";
-        var filepath = Path.Combine(DestinationFolder, filename);
+        var filepath = saveResult.Value;
 
         var result = _exportFeature.Execute(mesh, filepath, true);
         if (result.IsFailure)
         {
-            _alert.ShowError($"Failed to export {filename}: {result.Error.Description}");
+            _alert.ShowError($"Failed to export: {result.Error.Description}");
             return;
         }
 
-        _alert.ShowInfo($"Successfully exported {filename}.");
+        _alert.ShowInfo($"Successfully exported to {Path.GetFileName(filepath)}.");
     }
 }

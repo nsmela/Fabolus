@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
 using GeometryMeshLib;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +26,7 @@ public partial class App : Application
                 services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
 
                 services.AddSingleton<IAlertDialog, AlertDialog>();
+                services.AddTransient<AppPreferencesStore>();
                 services.AddSingleton<IDialogueSystem, DialogueSystem>();
                 services.AddSingleton<IFileSystem, FileSystem>();
                 services.AddSingleton<IGeometryEngine, GeometryEngine>();

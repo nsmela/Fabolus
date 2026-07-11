@@ -1,6 +1,8 @@
 using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Core.Common;
 using Fabolus.Core.Features.AirChannels;
 using Fabolus.Core.Features.Moulds;
@@ -14,7 +16,7 @@ namespace Fabolus.Wpf.Features.Moulding;
 public class MouldSceneManager : ISceneManager
 {
     private readonly IGeometryEngine _engine;
-    private readonly Element3D _grid;
+    private Element3D _grid;
 
     private readonly Material _targetSkin = DiffuseMaterials.Gray;
 
@@ -69,10 +71,31 @@ public class MouldSceneManager : ISceneManager
     public event Action<IReadOnlyList<Vector3>> StrokeUpdated;
     public event Action<IReadOnlyList<Vector3>> StrokeCompleted;
 
-    public MouldSceneManager(IGeometryEngine engine)
+    private readonly IMessenger _messenger;
+
+    public MouldSceneManager(IGeometryEngine engine, IMessenger messenger)
     {
         _engine = engine;
-        _grid = SceneHelpers.GenerateGrid();
+        _messenger = messenger;
+
+        var width = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
+        var depth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
+        var show = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+        _grid = SceneHelpers.GenerateGrid(width, depth, 10, show);
+
+        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
+            if (m.Key == UISettings.PrintBedWidthLabel || m.Key == UISettings.PrintBedDepthLabel || m.Key == UISettings.ShowBedGridLabel) {
+                var w = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
+                var d = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
+                var s = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+                
+                if (_grid != null) {
+                    VisualRemovedById?.Invoke(_grid.GUID);
+                }
+                _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
+                VisualAddedOrUpdated?.Invoke(_grid);
+            }
+        });
     }
 
     /// <summary>

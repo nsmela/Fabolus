@@ -6,6 +6,8 @@ using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Smoothing;
 
@@ -15,8 +17,9 @@ public class SmoothingSceneManager : ISceneManager
     private readonly Material _smoothSkin = DiffuseMaterials.Emerald;
 
     private readonly IGeometryEngine _engine;
+    private readonly IMessenger _messenger;
 
-    private readonly Element3D _grid;
+    private Element3D _grid;
     private CrossSectionMeshGeometryModel3D? _crossSectionModel;
     private CrossSectionMeshGeometryModel3D? _originalCrossSectionModel;
     private Plane _crossSectionPlane = new Plane { D = 0, Normal = Vector3.UnitZ };
@@ -33,10 +36,30 @@ public class SmoothingSceneManager : ISceneManager
     public event Action<Guid>? VisualRemovedById;
     public event Action? VisualsCleared;
 
-    public SmoothingSceneManager(IGeometryEngine engine)
+    public SmoothingSceneManager(IGeometryEngine engine, IMessenger messenger)
     {
         _engine = engine;
-        _grid = SceneHelpers.GenerateGrid();
+        _messenger = messenger;
+
+        var width = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
+        var depth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
+        var show = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+        _grid = SceneHelpers.GenerateGrid(width, depth, 10, show);
+
+        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
+            if (m.Key == UISettings.PrintBedWidthLabel || m.Key == UISettings.PrintBedDepthLabel || m.Key == UISettings.ShowBedGridLabel) {
+                var w = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
+                var d = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
+                var s = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+                
+                if (_grid != null) {
+                    VisualRemovedById?.Invoke(_grid.GUID);
+                }
+                _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
+                VisualAddedOrUpdated?.Invoke(_grid);
+            }
+        });
+
         _gizmo = CuttingPlane.Create(OnCuttingPlaneHeightChanged, () => _minZ, () => _maxZ);
     }
 

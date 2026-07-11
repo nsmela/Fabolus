@@ -59,7 +59,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         _engine = engine;
 
         _resetFeature = new ResetSmoothing(_engine);
-        _sceneManager = new SmoothingSceneManager(engine);
+        _sceneManager = new SmoothingSceneManager(engine, _messenger);
         _smoothFeature = new SmoothMesh(engine);
     }
 

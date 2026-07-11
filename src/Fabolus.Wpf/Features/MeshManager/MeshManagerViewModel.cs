@@ -40,8 +40,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         _importFeature = new ImportMesh(_engine);
         _repairFeature = new RepairMesh(_engine);
 
-        _sceneManager = new MeshManagerSceneManager(_engine);
-        //ImportFolder = _messenger.Send(new PreferencesImportFolderRequest()).Response;
+        _sceneManager = new MeshManagerSceneManager(_engine, _messenger);
     }
 
     [ObservableProperty] private List<MeshItem> _meshItems = new();

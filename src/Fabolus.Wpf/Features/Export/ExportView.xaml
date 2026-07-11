@@ -110,47 +110,6 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock Text="FILE NAME" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
-                <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource Brush.Surface}" Margin="0,0,0,24">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" Text="{Binding FileName, UpdateSourceTrigger=PropertyChanged}" Background="Transparent" BorderThickness="0" Padding="10,8" FontFamily="{StaticResource Font.Mono}" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource Brush.Text.Primary}" />
-                        <TextBlock Grid.Column="1" Text="{Binding FileExtension}" Foreground="{DynamicResource Brush.Text.Muted}" FontFamily="{StaticResource Font.Mono}" FontSize="13" VerticalAlignment="Center" Padding="0,0,10,0" />
-                    </Grid>
-                </Border>
-
-                <TextBlock Text="DESTINATION" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
-                <Button Command="{Binding BrowseDestinationCommand}" 
-                        Background="{DynamicResource Brush.Surface}" 
-                        BorderBrush="{DynamicResource Brush.Border}" 
-                        BorderThickness="1" 
-                        Padding="10,8"
-                        Cursor="Hand">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border CornerRadius="4" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <Path Grid.Column="0" Data="M1.5 3.5v13h17v-10h-7.5l-2-3h-7.5z" Stroke="{DynamicResource Brush.Text.Muted}" StrokeThickness="1.5" Fill="Transparent" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                    <TextBlock Grid.Column="1" Text="{Binding DestinationFolder}" TextTrimming="CharacterEllipsis" FontFamily="{StaticResource Font.Mono}" FontSize="12" VerticalAlignment="Center" Foreground="{DynamicResource Brush.Text.Primary}" />
-                                    <TextBlock Grid.Column="2" Text="Browse" Foreground="#0097A7" FontWeight="Medium" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0" />
-                                </Grid>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#F5F7F9"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
             </StackPanel>
 
             <Button Grid.Row="2"

@@ -260,3 +260,4 @@ paket-files/
 __pycache__/
 *.pyc
 /Fabolus.Core.Tests/TestAssets/desktop.ini
+.vscode/settings.json
