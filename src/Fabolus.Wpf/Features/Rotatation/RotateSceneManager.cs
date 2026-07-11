@@ -8,12 +8,16 @@ using SharpDX;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Rotatation;
 
 internal class RotateSceneManager : ISceneManager {
     private readonly IGeometryEngine _engine;
-    private readonly Element3D _grid;
+    private readonly IMessenger _messenger;
+    
+    private Element3D _grid;
     private readonly ComputeOverhangColors _overhangFeature;
 
     // Unlit material: renders per-vertex Colors directly, with no lighting term.
@@ -33,9 +37,29 @@ internal class RotateSceneManager : ISceneManager {
     public event Action<Guid> VisualRemovedById;
     public event Action VisualsCleared;
 
-    public RotateSceneManager(IGeometryEngine engine) {
+    public RotateSceneManager(IGeometryEngine engine, IMessenger messenger) {
         _engine = engine;
-        _grid = SceneHelpers.GenerateGrid();
+        _messenger = messenger;
+
+        var width = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
+        var depth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
+        var show = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+        _grid = SceneHelpers.GenerateGrid(width, depth, 10, show);
+
+        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
+            if (m.Key == UISettings.PrintBedWidthLabel || m.Key == UISettings.PrintBedDepthLabel || m.Key == UISettings.ShowBedGridLabel) {
+                var w = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
+                var d = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
+                var s = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+                
+                if (_grid != null) {
+                    VisualRemovedById?.Invoke(_grid.GUID);
+                }
+                _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
+                VisualAddedOrUpdated?.Invoke(_grid);
+            }
+        });
+
         _overhangFeature = new ComputeOverhangColors(_engine);
         OverhangSettings = new OverhangSettings(
             OverhangDirection.MouldDefault,

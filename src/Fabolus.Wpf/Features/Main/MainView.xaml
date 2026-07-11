@@ -265,7 +265,8 @@
         </Border>
 
         <!--  MeshView -->
-        <viewport:ViewportControl x:Name="ViewportControl" Grid.Column="1" Grid.Row="1" SceneManager="{Binding SceneManager}"  />
+        <viewport:ViewportControl x:Name="ViewportControl" Grid.Column="1" Grid.Row="1" 
+                                  SceneManager="{Binding SceneManager}" />
 
         <controls:LoadingOverlay Grid.Column="1" Grid.Row="1" IsLoading="{Binding IsLoading}" />
 

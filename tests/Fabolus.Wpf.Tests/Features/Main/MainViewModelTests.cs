@@ -16,9 +16,11 @@ public class MainViewModelTests
     {
         // Arrange
         var messenger = new StrongReferenceMessenger();
-        messenger.Register<MainViewModelTests, PreferencesSplitViewRequest>(this, (r, m) =>
+        messenger.Register<MainViewModelTests, AppPreferenceRequestMessage>(this, (r, m) =>
         {
-            m.Reply(false); // mock response
+            if (m.Key == UISettings.SplitViewEnabledLabel) {
+                m.Reply(false); // mock response
+            }
         });
 
         var mockEngine = new Mock<IGeometryEngine>();

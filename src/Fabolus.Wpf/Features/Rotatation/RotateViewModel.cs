@@ -58,7 +58,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         _alert = alert;
         _engine = engine;
 
-        _sceneManager = new RotateSceneManager(_engine);
+        _sceneManager = new RotateSceneManager(_engine, _messenger);
         _transformsFeature = new TransformMesh(_engine);
     }
 

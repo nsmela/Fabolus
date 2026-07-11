@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
@@ -59,4 +59,22 @@ public class GreaterThanZeroToVisibilityConverter : IValueConverter {
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+}
+
+public class StringToBrushConverter : IValueConverter {
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) {
+        if (value is string s && !string.IsNullOrWhiteSpace(s)) {
+            try {
+                return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(s));
+            } catch {
+                return Binding.DoNothing;
+            }
+        }
+        return Binding.DoNothing;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) {
+        if (value is System.Windows.Media.SolidColorBrush b) return b.Color.ToString();
+        return Binding.DoNothing;
+    }
 }

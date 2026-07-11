@@ -6,6 +6,7 @@ using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Viewport;
 using System.Numerics;
 
@@ -104,6 +105,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     [ObservableProperty] private float _tipLength = 3.0f;
     [ObservableProperty] private float _tipDepth = 1.0f;
     [ObservableProperty] private float _channelDiameter = 5.0f;
+    [ObservableProperty] private bool _autodetectChannels = true;
 
     partial void OnTipDiameterChanged(float value)
     {
@@ -215,7 +217,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         _generateMouldFeature = new GenerateMould(_engine);
         _clearMouldFeature = new ClearMould(_engine);
-        _sceneManager = new MouldSceneManager(_engine);
+        _sceneManager = new MouldSceneManager(_engine, _messenger);
         _sceneManager.ChannelPlaced += OnChannelPlaced;
         _sceneManager.ChannelSelected += id => SelectedChannelId = id;
         _sceneManager.ChannelHovered += (point, normal) =>
@@ -228,6 +230,19 @@ public partial class MouldViewModel : ObservableObject, IViewState
         _sceneManager.ActiveChannelType = ChannelType;
         _sceneManager.StrokeUpdated += OnStrokeUpdated;
         _sceneManager.StrokeCompleted += OnStrokeCompleted;
+
+        _syncingSelection = true;
+        ChannelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
+        AutodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
+        _syncingSelection = false;
+
+        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
+            if (m.Key == UISettings.ChannelDiameterLabel) {
+                ChannelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
+            } else if (m.Key == UISettings.AutodetectChannelsLabel) {
+                AutodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
+            }
+        });
     }
 
     private void OnStrokeUpdated(IReadOnlyList<Vector3> points)
