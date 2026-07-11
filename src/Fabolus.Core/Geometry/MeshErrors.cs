@@ -23,6 +23,12 @@ public static class MeshErrors
 
     public static readonly Error NotImplemented = new("Feature.NotImplemented", "This feature is not yet implemented.");
 
+    // ===== PARTING LINE / SPLIT =====
+    public static readonly Error InvalidPullDirection = new("PartingLine.InvalidDirection", "Pull direction cannot be zero.");
+    public static readonly Error NoPartingLineDetected = new("PartingLine.NoneDetected", "No parting line could be found for this direction - the mesh may not have a silhouette crossing along it.");
+    public static readonly Error InvalidPartingLine = new("PartingLine.Invalid", "The parting line is empty or has degenerate loops.");
+    public static readonly Error SplitToolGenerationFailed = new("Split.ToolGenerationFailed", "Failed to build the parting tool solid.");
+
     // ===== VALIDATION HELPER =====
     public static Error ValidationFailed(string fileName, string reason) =>
         new("Import.ValidationError", $"Mesh '{fileName}' failed validation: {reason}");

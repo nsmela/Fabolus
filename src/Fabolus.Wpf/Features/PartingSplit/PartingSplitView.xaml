@@ -1,0 +1,102 @@
+<UserControl x:Class="Fabolus.Wpf.Features.PartingSplit.PartingSplitView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.PartingSplit"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="300">
+    <Grid>
+        <!-- Non-mould meshes: parting split doesn't apply -->
+        <Grid>
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsMould}" Value="False">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <StackPanel Margin="16">
+                <TextBlock Text="Parting Split" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="Generate a mould first - parting split works on the mould shell, not the base mesh." TextWrapping="Wrap"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Mould meshes -->
+        <Grid>
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsMould}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <StackPanel Margin="16">
+                <TextBlock Text="Parting Split" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="Drag the gizmo (or set values below) to choose the direction the two halves will be pulled apart along, then generate the parting line." TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Text="Direction X" Margin="0,0,0,4"/>
+                    <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionX}" />
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Text="Direction Y" Margin="0,0,0,4"/>
+                    <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionY}" />
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Direction Z" Margin="0,0,0,4"/>
+                    <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionZ}" />
+                </StackPanel>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Reset Direction" Command="{Binding ResetDirectionCommand}" HorizontalAlignment="Stretch" />
+                    <Button Grid.Column="2" Content="Generate Parting Line" Command="{Binding GeneratePartingLineCommand}" HorizontalAlignment="Stretch" />
+                </Grid>
+
+                <!-- Hole warning -->
+                <Border Background="#332ECC71" BorderBrush="#2ECC71" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,12">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding HasPartingLine}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="{Binding InternalHoleCount, StringFormat='{}{0} internal hole(s) detected - an additional parting mesh will be generated for each.'}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding InternalHoleCount}" Value="0">
+                                        <Setter Property="Text" Value="Parting line generated - no internal holes detected." />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+
+                <Button Content="Apply Split" Command="{Binding ApplySplitCommand}" IsEnabled="{Binding HasPartingLine}" HorizontalAlignment="Stretch" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -36,6 +36,11 @@ public interface IGeometryEngine
     IGeometryEvaluators Evaluators { get; }
 
     /// <summary>
+    /// Provides parting-line/parting-surface generation for mould splitting.
+    /// </summary>
+    IPartingTools PartingTools { get; }
+
+    /// <summary>
     /// Creates a mesh from raw vertex and triangle data.
     /// Performs sanitization (compaction, normal allocation).
     /// </summary>
@@ -45,5 +50,12 @@ public interface IGeometryEngine
     /// Creates a deep copy of a mesh.
     /// </summary>
     Result<IMesh> CloneMesh(IMesh source);
+
+    /// <summary>
+    /// Appends multiple meshes into a single mesh with disjoint components. Does not weld or
+    /// boolean the inputs together - only safe to use when the sources don't overlap in space
+    /// (e.g. combining a dividing tool solid with hole shut-off solids that never touch it).
+    /// </summary>
+    Result<IMesh> CombineMeshes(IEnumerable<IMesh> meshes);
 
 }

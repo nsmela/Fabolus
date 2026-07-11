@@ -18,6 +18,8 @@ public sealed class GeometryEngine : IGeometryEngine
 
     public IGeometryEvaluators Evaluators { get; }
 
+    public IPartingTools PartingTools { get; }
+
     public GeometryEngine(IFileSystem fileSystem)
     {
         IO = new GeometryIO(fileSystem, this);
@@ -26,6 +28,7 @@ public sealed class GeometryEngine : IGeometryEngine
         Modifiers = new GeometryModifiers(this);
         Generators = new GeometryGenerators(this);
         Evaluators = new GeometryEvaluators(this);
+        PartingTools = new PartingTools(this);
     }
 
     internal Result<IMesh> CreateMesh(MR.Mesh mesh, MeshMetadata metadata)
@@ -73,5 +76,45 @@ public sealed class GeometryEngine : IGeometryEngine
         return Result.Success<IMesh>(new MRMesh(source.Vertices, source.Triangles, source.Metadata));
     }
 
+    /// <summary>
+    /// Appends the given meshes' raw vertex/triangle data into a single mesh with disjoint
+    /// components (no welding, no boolean union - callers are responsible for the sources not
+    /// overlapping in space if that matters for what they do with the result afterward).
+    /// </summary>
+    public Result<IMesh> CombineMeshes(IEnumerable<IMesh> meshes)
+    {
+        var sources = (meshes ?? Array.Empty<IMesh>()).Where(m => m is not null && !m.IsEmpty).ToList();
+        if (sources.Count == 0) return GeometryErrors.NullMesh;
+
+        var vertices = new List<double>();
+        var triangles = new List<int>();
+        int vertexOffset = 0;
+
+        foreach (var mesh in sources)
+        {
+            foreach (var v in mesh.Vertices)
+            {
+                vertices.Add(v.X);
+                vertices.Add(v.Y);
+                vertices.Add(v.Z);
+            }
+
+            foreach (var t in mesh.Triangles)
+            {
+                triangles.Add(t + vertexOffset);
+            }
+
+            vertexOffset += mesh.VertexCount;
+        }
+
+        var createResult = CreateMesh(vertices.ToArray().AsSpan(), triangles.ToArray().AsSpan());
+        if (createResult.IsFailure) return createResult.Error;
+
+        var metadata = createResult.Value.Metadata.WithProperties(m => m
+            .Set(CoreKeys.Name, "Combined Mesh")
+            .Set(CoreKeys.CreatedBy, "CombineMeshes"));
+
+        return Result.Success(createResult.Value.WithMetadata(metadata));
+    }
 
 }

@@ -13,4 +13,7 @@ public static class CommandPriority {
 
     /// <summary>Depends on whatever geometry the Transform-stage commands produced.</summary>
     public const int Mould = 20;
+
+    /// <summary>Splits a mould into pieces along a parting line. Depends on the Mould shape.</summary>
+    public const int Split = 30;
 }

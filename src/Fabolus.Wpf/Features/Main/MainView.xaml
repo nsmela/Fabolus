@@ -15,6 +15,7 @@
         xmlns:controls="clr-namespace:Fabolus.Wpf.Features.Main.Controls"
         xmlns:meshManager="clr-namespace:Fabolus.Wpf.Features.MeshManager"
         xmlns:cutSplit="clr-namespace:Fabolus.Wpf.Features.CutSplit"
+        xmlns:partingSplit="clr-namespace:Fabolus.Wpf.Features.PartingSplit"
         mc:Ignorable="d"
         Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -38,6 +39,10 @@
         
         <DataTemplate DataType="{x:Type cutSplit:CutSplitViewModel}">
             <cutSplit:CutSplitView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type partingSplit:PartingSplitViewModel}">
+            <partingSplit:PartingSplitView />
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type rotate:RotateViewModel }">
@@ -166,7 +171,7 @@
                         </Button.Style>
                     </Button>
 
-                    <Button Command="{Binding ShowCutSplitCommand}" IsEnabled="{Binding MeshLoaded}">
+                    <Button Command="{Binding ShowCutSplitCommand}" IsEnabled="{Binding MeshLoaded}" Visibility="{Binding ShowCutView, Converter={StaticResource BoolToVis}}">
                         <Button.Content>
                             <StackPanel Orientation="Horizontal">
                                 <Viewbox Width="16" Height="16" Margin="0,0,7,0">
@@ -179,6 +184,26 @@
                             <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding CurrentViewTitle}" Value="cut / split">
+                                        <Setter Property="Tag" Value="active"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Command="{Binding ShowPartingSplitCommand}" IsEnabled="{Binding MeshLoaded}" Visibility="{Binding ShowSplitView, Converter={StaticResource BoolToVis}}">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                    <TextBlock Text="⑃" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                </Viewbox>
+                                <TextBlock Text="parting split" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button.Content>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentViewTitle}" Value="parting split">
                                         <Setter Property="Tag" Value="active"/>
                                     </DataTrigger>
                                 </Style.Triggers>

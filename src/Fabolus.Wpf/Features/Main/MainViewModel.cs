@@ -15,6 +15,7 @@ using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Pages.Preferences;
 using Fabolus.Wpf.Features.CutSplit;
+using Fabolus.Wpf.Features.PartingSplit;
 
 namespace Fabolus.Wpf.Features.Main;
 
@@ -64,8 +65,19 @@ public partial class MainViewModel : ObservableObject
         _messenger.Register<WorkspaceChangedMessage>(this, (r, m) => WorkspaceUpdated(m.Workspace));
         _messenger.Register<IsLoadingMessage>(this, (r, m) => IsLoading = m.IsLoading);
         _messenger.Register<SwitchToMeshManagerMessage>(this, async (r, m) => await SwitchToMeshManagerViewAsync());
+        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) =>
+        {
+            if (m.Key == UISettings.SplitViewEnabledLabel && m.Value is bool split) ShowSplitView = split;
+            else if (m.Key == UISettings.CutViewEnabledLabel && m.Value is bool cut) ShowCutView = cut;
+        });
 
         PreferencesViewModel = new PreferencesViewModel(_messenger, _appPreferencesStore);
+
+        var splitViewPref = _messenger.Send(new AppPreferenceRequestMessage(UISettings.SplitViewEnabledLabel)).Response;
+        ShowSplitView = splitViewPref is bool sv && sv;
+
+        var cutViewPref = _messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewEnabledLabel)).Response;
+        ShowCutView = cutViewPref is bool cv && cv;
 
         var bgPref = _messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response;
         if (bgPref is string s && Enum.TryParse<ViewportBackground>(s, out var parsedBg))
@@ -273,6 +285,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task ShowCutSplitAsync()
     {
+        if (!ShowCutView) return;
         if (CurrentView is CutSplitViewModel)
             return;
 
@@ -286,6 +299,32 @@ public partial class MainViewModel : ObservableObject
         CurrentViewTitle = "cut / split";
 
         var newView = new CutSplitViewModel(_messenger, _alertDialog, _engine, _dialogueSystem);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
+    }
+
+    // Switching CurrentView always deactivates whatever was active first (see above), so this
+    // and ShowCutSplitAsync are naturally mutually exclusive - only one can ever be CurrentView.
+    [RelayCommand]
+    public async Task ShowPartingSplitAsync()
+    {
+        if (!ShowSplitView) return;
+        if (CurrentView is PartingSplitViewModel)
+            return;
+
+        IsLoading = true;
+
+        if (CurrentView is not null)
+        {
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
+        }
+
+        CurrentViewTitle = "parting split";
+
+        var newView = new PartingSplitViewModel(_messenger, _alertDialog, _engine);
         SceneManager = newView.SceneManager;
         CurrentView = newView;
         await CurrentView.ActivateAsync(Workspace);
