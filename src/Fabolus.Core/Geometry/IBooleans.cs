@@ -1,4 +1,5 @@
-﻿using Fabolus.Core.Common;
+using System.Numerics;
+using Fabolus.Core.Common;
 
 namespace Fabolus.Core.Geometry;
 
@@ -21,4 +22,5 @@ public interface IBooleans
     /// Computes the intersection of two meshes.
     /// </summary>
     Result<IMesh> Intersect(IMesh meshA, IMesh meshB);
+
 }

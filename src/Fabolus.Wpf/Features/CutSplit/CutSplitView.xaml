@@ -1,0 +1,83 @@
+<UserControl x:Class="Fabolus.Wpf.Features.CutSplit.CutSplitView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.CutSplit"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="300">
+    <Grid>
+        <!-- Split View (for Moulds) -->
+        <Grid>
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsMould}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <StackPanel Margin="16">
+                <TextBlock Text="Split View" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="This mesh is a mould. Split by parting line is planned for a future update." TextWrapping="Wrap" Margin="0,0,0,8"/>
+                
+                <Button Content="Split (Not Implemented)" IsEnabled="False" Command="{Binding ApplyCutCommand}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Cut View (for regular meshes) -->
+        <Grid>
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsMould}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <StackPanel Margin="16">
+                <TextBlock Text="Cut View" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16"/>
+                
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Text="Plane X Offset" Margin="0,0,0,4"/>
+                    <Slider Minimum="{Binding PlaneMinX}" Maximum="{Binding PlaneMaxX}" Value="{Binding PlaneX}" />
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Text="Plane Y Offset" Margin="0,0,0,4"/>
+                    <Slider Minimum="{Binding PlaneMinY}" Maximum="{Binding PlaneMaxY}" Value="{Binding PlaneY}" />
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Text="Plane Z Offset" Margin="0,0,0,4"/>
+                    <Slider Minimum="{Binding PlaneMinZ}" Maximum="{Binding PlaneMaxZ}" Value="{Binding PlaneZ}" />
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Text="Plane Pitch (deg)" Margin="0,0,0,4"/>
+                    <Slider Minimum="-180" Maximum="180" Value="{Binding PlanePitch}" />
+                </StackPanel>
+
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Plane Yaw (deg)" Margin="0,0,0,4"/>
+                    <Slider Minimum="-180" Maximum="180" Value="{Binding PlaneYaw}" />
+                </StackPanel>
+                
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Reset Plane" Command="{Binding ResetPlaneCommand}" HorizontalAlignment="Stretch" />
+                    <Button Grid.Column="2" Content="Apply Cut" Command="{Binding ApplyCutCommand}" HorizontalAlignment="Stretch" />
+                </Grid>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

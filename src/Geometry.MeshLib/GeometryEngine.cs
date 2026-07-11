@@ -22,7 +22,7 @@ public sealed class GeometryEngine : IGeometryEngine
     {
         IO = new GeometryIO(fileSystem, this);
         Transforms = new GeometryTransforms(this);
-        Booleans = new Booleans();
+        Booleans = new Booleans(this);
         Modifiers = new GeometryModifiers(this);
         Generators = new GeometryGenerators(this);
         Evaluators = new GeometryEvaluators(this);

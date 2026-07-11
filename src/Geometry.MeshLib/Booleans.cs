@@ -6,6 +6,13 @@ namespace GeometryMeshLib;
 
 internal sealed class Booleans : IBooleans
 {
+    private readonly IGeometryEngine _engine;
+
+    public Booleans(IGeometryEngine engine)
+    {
+        _engine = engine;
+    }
+
     private Result<IMesh> DoBoolean(IMesh meshA, IMesh meshB, MR.BooleanOperation op)
     {
         using var mrA = meshA.ToMRMesh();
@@ -42,4 +49,5 @@ internal sealed class Booleans : IBooleans
 
     public Result<IMesh> Union(IMesh meshA, IMesh meshB) =>
         DoBoolean(meshA, meshB, MR.BooleanOperation.Union);
+
 }
