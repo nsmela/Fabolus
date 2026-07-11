@@ -88,7 +88,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
                 metadata.Id,
                 metadata.Name,
                 metadata.Id == id,
-                metadata.Topology().Value.IsNotValid))
+                metadata.Topology().HasValue ? metadata.Topology().Value.IsNotValid : false))
             .ToList();
 
         SetActiveMesh();
@@ -105,8 +105,8 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         if (metadataResult.IsSuccess) {
             ActiveMetadata = metadataResult.Value;
             SelectedMesh = MeshItems.FirstOrDefault(x => x.Id == ActiveMetadata.Id);
-            ActiveStats = ActiveMetadata.MeshStats().Value;
-            ActiveTopology = ActiveMetadata.Topology().Value;
+            ActiveStats = ActiveMetadata.MeshStats().HasValue ? ActiveMetadata.MeshStats().Value : null;
+            ActiveTopology = ActiveMetadata.Topology().HasValue ? ActiveMetadata.Topology().Value : null;
         } else {
             SelectedMesh = null;
             ActiveMetadata = null;

@@ -14,6 +14,7 @@ using Fabolus.Wpf.Features.Rotatation;
 using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Pages.Preferences;
+using Fabolus.Wpf.Features.CutSplit;
 
 namespace Fabolus.Wpf.Features.Main;
 
@@ -62,6 +63,7 @@ public partial class MainViewModel : ObservableObject
 
         _messenger.Register<WorkspaceChangedMessage>(this, (r, m) => WorkspaceUpdated(m.Workspace));
         _messenger.Register<IsLoadingMessage>(this, (r, m) => IsLoading = m.IsLoading);
+        _messenger.Register<SwitchToMeshManagerMessage>(this, async (r, m) => await SwitchToMeshManagerViewAsync());
 
         PreferencesViewModel = new PreferencesViewModel(_messenger, _appPreferencesStore);
 
@@ -268,4 +270,26 @@ public partial class MainViewModel : ObservableObject
         IsLoading = false;
     }
 
+    [RelayCommand]
+    public async Task ShowCutSplitAsync()
+    {
+        if (CurrentView is CutSplitViewModel)
+            return;
+
+        IsLoading = true;
+
+        if (CurrentView is not null)
+        {
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
+        }
+
+        CurrentViewTitle = "cut / split";
+
+        var newView = new CutSplitViewModel(_messenger, _alertDialog, _engine, _dialogueSystem);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
+    }
 }
