@@ -197,7 +197,7 @@ public class GeometryGeneratorsTests
         };
         var squareWithHole = square with
         {
-            Holes = new[] { (IReadOnlyList<Vector2>)new[] { new Vector2(3, 3), new Vector2(7, 3), new Vector2(7, 7), new Vector2(3, 7) } }
+            Holes = new[] { (IReadOnlyList<Vector2>)new[] { new Vector2(3, 3), new Vector2(3, 7), new Vector2(7, 7), new Vector2(7, 3) } }
         };
 
         var solidResult = _fixture.Engine.Generators.ExtrudePolygon(square, 0f, 10f);
@@ -215,4 +215,6 @@ public class GeometryGeneratorsTests
         var holedStats = _engine.Evaluators.GetStatistics(holedResult.Value).Value;
         holedStats.Volume.Should().BeLessThan(solidStats.Volume, "the hole should carve material out of the extruded solid");
     }
+
+
 }

@@ -73,13 +73,20 @@ internal sealed class PartingTools : IPartingTools
             var pb = pts[(ulong)b];
             var pc = pts[(ulong)c];
 
-            var crossings = new List<Vector3>(2);
+            var crossings = new List<Vector3>(3);
             if (Math.Sign(s0) != Math.Sign(s1)) crossings.Add(Interpolate(pa, pb, s0, s1));
             if (Math.Sign(s1) != Math.Sign(s2)) crossings.Add(Interpolate(pb, pc, s1, s2));
             if (Math.Sign(s2) != Math.Sign(s0)) crossings.Add(Interpolate(pc, pa, s2, s0));
 
-            if (crossings.Count == 2)
-                graph.AddSegment(crossings[0], crossings[1]);
+            var uniqueCrossings = new List<Vector3>(3);
+            foreach (var cr in crossings)
+            {
+                if (!uniqueCrossings.Any(u => Vector3.DistanceSquared(u, cr) < 1e-6f))
+                    uniqueCrossings.Add(cr);
+            }
+
+            if (uniqueCrossings.Count == 2)
+                graph.AddSegment(uniqueCrossings[0], uniqueCrossings[1]);
         }
 
         var loops = graph.ExtractLoops();
@@ -142,19 +149,7 @@ internal sealed class PartingTools : IPartingTools
         // (no cut is needed directly over the body - the mould material there, if any,
         // belongs to whichever internal-hole tool below covers it), extruded from the
         // parting height up to well past the tool bounds.
-        var footprint = new Polygon2D
-        {
-            OuterBoundary = new[]
-            {
-                new Vector2(minLocalX, minLocalY),
-                new Vector2(maxLocalX, minLocalY),
-                new Vector2(maxLocalX, maxLocalY),
-                new Vector2(minLocalX, maxLocalY),
-            },
-            Holes = new[] { (IReadOnlyList<Vector2>)outerLocal.Select(p => new Vector2(p.X, p.Y)).ToList() }
-        };
-
-        var skirtResult = _engine.Generators.ExtrudePolygon(footprint, planeZ, maxLocalZ);
+        var skirtResult = CreateContouredPrism(outerLocal, true, maxLocalZ, toolBounds);
         if (skirtResult.IsFailure) return skirtResult.Error;
 
         var pieces = new List<IMesh> { skirtResult.Value };
@@ -166,14 +161,8 @@ internal sealed class PartingTools : IPartingTools
         foreach (var hole in holeLoops)
         {
             var holeLocal = hole.Select(p => Vector3.Transform(p, inverseRotation)).ToList();
-            float holePlaneZ = holeLocal.Average(p => p.Z);
 
-            var holePolygon = new Polygon2D
-            {
-                OuterBoundary = holeLocal.Select(p => new Vector2(p.X, p.Y)).ToList()
-            };
-
-            var plugResult = _engine.Generators.ExtrudePolygon(holePolygon, holePlaneZ, maxLocalZ);
+            var plugResult = CreateContouredPrism(holeLocal, false, maxLocalZ, toolBounds);
             if (plugResult.IsFailure) return plugResult.Error;
 
             pieces.Add(plugResult.Value);
@@ -191,6 +180,155 @@ internal sealed class PartingTools : IPartingTools
     }
 
     // --- Helpers ---
+
+    private Result<IMesh> CreateContouredPrism(IReadOnlyList<Vector3> localLoop, bool isOuter, float maxLocalZ, MeshStatistics bounds)
+    {
+        using var contours = new MR.Std.Vector_StdVectorMRVector2f();
+
+        float planeZ = localLoop.Average(p => p.Z);
+
+        if (isOuter)
+        {
+            var span = (float)Math.Max(bounds.MaxX - bounds.MinX, Math.Max(bounds.MaxY - bounds.MinY, bounds.MaxZ - bounds.MinZ));
+            var margin = span + 10.0f;
+
+            var minX = (float)bounds.MinX - margin;
+            var maxX = (float)bounds.MaxX + margin;
+            var minY = (float)bounds.MinY - margin;
+            var maxY = (float)bounds.MaxY + margin;
+
+            using var outerContour = new MR.Std.Vector_MRVector2f();
+            outerContour.pushBack(new MR.Vector2f(minX, minY));
+            outerContour.pushBack(new MR.Vector2f(maxX, minY));
+            outerContour.pushBack(new MR.Vector2f(maxX, maxY));
+            outerContour.pushBack(new MR.Vector2f(minX, maxY));
+            outerContour.pushBack(new MR.Vector2f(minX, minY)); // close
+            contours.pushBack(outerContour);
+        }
+
+        double area = 0;
+        for (int i = 0; i < localLoop.Count; i++)
+        {
+            var p0 = localLoop[i];
+            var p1 = localLoop[(i + 1) % localLoop.Count];
+            area += (p0.X * p1.Y) - (p1.X * p0.Y);
+        }
+
+        bool isCcw = area > 0;
+        bool needsReverse = isOuter ? isCcw : !isCcw; // Outer skirt hole must be CW. Inner plug boundary must be CCW.
+
+        var orderedLoop = needsReverse ? localLoop.Reverse().ToList() : localLoop.ToList();
+
+        using var innerContour = new MR.Std.Vector_MRVector2f();
+        foreach (var p in orderedLoop)
+        {
+            innerContour.pushBack(new MR.Vector2f(p.X, p.Y));
+        }
+        innerContour.pushBack(new MR.Vector2f(orderedLoop[0].X, orderedLoop[0].Y)); // close
+        contours.pushBack(innerContour);
+
+        var polyMesh = MR.PlanarTriangulation.triangulateContours(contours, null);
+        if (polyMesh is null || polyMesh.topology.getValidFaces().count() == 0)
+            return new Error("Geometry.TriangulationFailed", "Failed to triangulate parting tool footprint.");
+
+        ulong ptsCount = polyMesh.points.vec.size();
+        var pPts = polyMesh.points.vec;
+        var pVerts = polyMesh.topology.getValidVerts();
+
+        var bottomZ = new float[ptsCount];
+        for (ulong i = 0; i < ptsCount; i++)
+        {
+            var vid = new MR.VertId((int)i);
+            if (!pVerts.test(vid)) continue;
+            var v = pPts[i];
+
+            float bestDistSq = float.MaxValue;
+            float bestZ = planeZ;
+            foreach (var p in localLoop)
+            {
+                float distSq = (p.X - v.x) * (p.X - v.x) + (p.Y - v.y) * (p.Y - v.y);
+                if (distSq < bestDistSq)
+                {
+                    bestDistSq = distSq;
+                    bestZ = p.Z;
+                }
+            }
+
+            // Always use the Z coordinate of the nearest parting line point.
+            // This ensures the parting flange spreads strictly outwards (horizontally in local space),
+            // perpendicular to the pull direction, without slanting up/down to a flat plane.
+            bottomZ[i] = bestZ;
+        }
+
+        var vertices = new List<double>();
+        var triangles = new List<int>();
+
+        var bottomMap = new int[ptsCount];
+        var topMap = new int[ptsCount];
+
+        for (ulong i = 0; i < ptsCount; i++)
+        {
+            var vid = new MR.VertId((int)i);
+            if (!pVerts.test(vid)) continue;
+            var v = pPts[i];
+
+            bottomMap[i] = vertices.Count / 3;
+            vertices.Add(v.x); vertices.Add(v.y); vertices.Add(bottomZ[i]);
+
+            topMap[i] = vertices.Count / 3;
+            vertices.Add(v.x); vertices.Add(v.y); vertices.Add(maxLocalZ);
+        }
+
+        var pFaces = polyMesh.topology.getValidFaces();
+        ulong faceCap = polyMesh.topology.faceCapacity();
+
+        var directedEdges = new HashSet<(int, int)>();
+
+        void AddDirectedEdge(int a, int b)
+        {
+            if (directedEdges.Contains((b, a)))
+                directedEdges.Remove((b, a)); // Internal edge, cancels out
+            else
+                directedEdges.Add((a, b)); // New boundary edge candidate
+        }
+
+        for (ulong i = 0; i < faceCap; i++)
+        {
+            var fid = new MR.FaceId((int)i);
+            if (!pFaces.test(fid)) continue;
+            var tri = polyMesh.topology.getTriVerts(fid);
+            int a = tri.elems._0.get();
+            int b = tri.elems._1.get();
+            int c = tri.elems._2.get();
+
+            // Bottom face (inverted normal so it faces down)
+            triangles.Add(bottomMap[a]); triangles.Add(bottomMap[c]); triangles.Add(bottomMap[b]);
+            // Top face (normal faces up)
+            triangles.Add(topMap[a]); triangles.Add(topMap[b]); triangles.Add(topMap[c]);
+
+            AddDirectedEdge(a, b);
+            AddDirectedEdge(b, c);
+            AddDirectedEdge(c, a);
+        }
+
+        foreach (var edge in directedEdges)
+        {
+            int a = edge.Item1;
+            int b = edge.Item2;
+
+            int bA = bottomMap[a], bB = bottomMap[b];
+            int tA = topMap[a], tB = topMap[b];
+
+            // Triangles for side wall.
+            // edge a -> b has the interior of the polygon to its left.
+            // To make the normal point OUT of the solid (into the hole),
+            // the vertices must be ordered CCW when viewed from outside the solid.
+            triangles.Add(bA); triangles.Add(bB); triangles.Add(tB);
+            triangles.Add(tB); triangles.Add(tA); triangles.Add(bA);
+        }
+        
+        return _engine.CreateMesh(vertices.ToArray().AsSpan(), triangles.ToArray().AsSpan());
+    }
 
     private static Vector3 Interpolate(MR.Vector3f a, MR.Vector3f b, double sa, double sb)
     {

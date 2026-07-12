@@ -33,7 +33,7 @@ public class PartingLineFeatureTests
 
         var loop = result.Value.Loops[0];
         var averageY = loop.Average(p => p.Y);
-        averageY.Should().BeApproximately(0.0, 0.5);
+        Math.Abs(averageY).Should().BeLessThan(0.5f);
     }
 
     [Fact]

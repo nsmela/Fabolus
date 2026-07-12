@@ -21,7 +21,6 @@ namespace Fabolus.Wpf.Features.Main;
 
 public partial class MainViewModel : ObservableObject
 {
-    private readonly AppPreferencesStore _appPreferenceStore;
     private readonly IMessenger _messenger;
     private readonly IGeometryEngine _engine;
     private readonly IDialogueSystem _dialogueSystem;

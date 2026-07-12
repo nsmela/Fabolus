@@ -1,3 +1,4 @@
+using Fabolus.Core.Features.PartingSplit;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
@@ -8,32 +9,39 @@ using System.Linq;
 using System.Windows.Input;
 using System.Windows.Media;
 using CoreVector3 = System.Numerics.Vector3;
+using PartingLine = Fabolus.Core.Geometry.PartingLine;
 
 namespace Fabolus.Wpf.Features.PartingSplit;
 
 /// <summary>
-/// Renders the mesh being split, a rotation-only gizmo for the pull direction, and - once
-/// generated - the parting line loops, a translucent preview of the two resulting regions,
-/// and the combined tool solid used to cut them.
+/// Renders the multi-step parting split view.
 /// </summary>
 public class PartingSplitSceneManager : ISceneManager
 {
     private readonly IGeometryEngine _engine;
-    private readonly Material _meshSkin = new PhongMaterial { DiffuseColor = new Color4(0.75f, 0.78f, 0.82f, 0.55f) };
+    private readonly ComputePartingDirectionColors _colorsFeature;
+
+    private readonly Material _meshSkin = DiffuseMaterials.LightGray;
     private readonly Material _positiveSkin = DiffuseMaterials.SkyBlue;
     private readonly Material _negativeSkin = DiffuseMaterials.Orange;
-    private readonly Material _toolSkin = new PhongMaterial { DiffuseColor = new Color4(0.1f, 0.9f, 0.3f, 0.25f) };
+    private readonly Material _toolSkin = new PhongMaterial { DiffuseColor = new Color4(1.0f, 0.0f, 0.0f, 0.8f) };
+    private readonly Material _heatMapSkin = new VertColorMaterial();
 
     private readonly Element3D _grid;
-    private MeshGeometryModel3D? _meshModel;
+    private MeshGeometryModel3D? _baseMeshModel;
+    private MeshGeometryModel3D? _mouldMeshModel;
     private MeshGeometryModel3D? _positiveRegionModel;
     private MeshGeometryModel3D? _negativeRegionModel;
     private MeshGeometryModel3D? _toolModel;
     private LineGeometryModel3D? _partingLineModel;
+    private MeshGeometryModel3D? _arrowModel;
     private UICompositeManipulator3D? _manipulator;
+    
     private bool _isUpdating;
+    private PartingSplitState _currentState;
 
-    private IMesh? _activeMesh;
+    private IMesh? _activeMouldMesh;
+    private IMesh? _baseTransformMesh;
     private CoreVector3 _direction = CoreVector3.UnitY;
 
     public event Action<Element3D>? VisualAddedOrUpdated;
@@ -43,28 +51,53 @@ public class PartingSplitSceneManager : ISceneManager
     /// <summary>Raised when the user drags the direction gizmo.</summary>
     public event Action<CoreVector3>? DirectionChanged;
 
-    public PartingSplitSceneManager(IGeometryEngine engine)
+    public PartingSplitSceneManager(IGeometryEngine engine, ComputePartingDirectionColors colorsFeature)
     {
         _engine = engine;
+        _colorsFeature = colorsFeature;
         _grid = SceneHelpers.GenerateGrid();
     }
 
-    public void UpdateMesh(IMesh mesh)
+    public void UpdateMeshes(IMesh mouldMesh, IMesh baseTransformMesh)
     {
-        _activeMesh = mesh;
-        RebuildMeshVisual();
+        _activeMouldMesh = mouldMesh;
+        _baseTransformMesh = baseTransformMesh;
+
+        if (_baseMeshModel != null) VisualRemovedById?.Invoke(_baseMeshModel.GUID);
+        if (_mouldMeshModel != null) VisualRemovedById?.Invoke(_mouldMeshModel.GUID);
+
+        var baseGeo = _baseTransformMesh.ToHelixMesh(_engine);
+        if (baseGeo.IsSuccess)
+        {
+            _baseMeshModel = new MeshGeometryModel3D { Geometry = baseGeo.Value, Material = _meshSkin };
+        }
+
+        var mouldGeo = _activeMouldMesh.ToHelixMesh(_engine);
+        if (mouldGeo.IsSuccess)
+        {
+            _mouldMeshModel = new MeshGeometryModel3D { Geometry = mouldGeo.Value, Material = _meshSkin };
+        }
+
+        EnsureManipulator();
+        RecomputeDirectionColors();
     }
 
-    public void ReleaseMesh()
+    public void ReleaseMeshes()
     {
-        _activeMesh = null;
+        _activeMouldMesh = null;
+        _baseTransformMesh = null;
 
-        if (_meshModel != null) VisualRemovedById?.Invoke(_meshModel.GUID);
+        if (_baseMeshModel != null) VisualRemovedById?.Invoke(_baseMeshModel.GUID);
+        if (_mouldMeshModel != null) VisualRemovedById?.Invoke(_mouldMeshModel.GUID);
         if (_manipulator != null) VisualRemovedById?.Invoke(_manipulator.GUID);
+        if (_arrowModel != null) VisualRemovedById?.Invoke(_arrowModel.GUID);
+        
         ClearPartingPreview();
 
-        _meshModel = null;
+        _baseMeshModel = null;
+        _mouldMeshModel = null;
         _manipulator = null;
+        _arrowModel = null;
     }
 
     public void UpdateDirection(CoreVector3 direction)
@@ -72,9 +105,28 @@ public class PartingSplitSceneManager : ISceneManager
         if (direction == CoreVector3.Zero) return;
         _direction = CoreVector3.Normalize(direction);
         UpdateManipulatorTransform();
+        
+        if (_currentState == PartingSplitState.DirectionSelection)
+        {
+            RecomputeDirectionColors();
+        }
     }
 
-    /// <summary>Removes the parting line / region / tool preview visuals, leaving just the mesh and gizmo.</summary>
+    private void RecomputeDirectionColors()
+    {
+        if (_baseTransformMesh == null || _baseMeshModel?.Geometry == null) return;
+        var colorsResult = _colorsFeature.Execute(_baseTransformMesh, _direction);
+        if (colorsResult.IsSuccess && _baseMeshModel.Geometry is MeshGeometry3D geo)
+        {
+            var colors = colorsResult.Value;
+            var colorCollection = new Color4Collection();
+            for (int i = 0; i < colors.Length; i += 3)
+                colorCollection.Add(new Color4((float)colors[i], (float)colors[i + 1], (float)colors[i + 2], 1.0f));
+            
+            geo.Colors = colorCollection;
+        }
+    }
+
     public void ClearPartingPreview()
     {
         if (_partingLineModel != null) { VisualRemovedById?.Invoke(_partingLineModel.GUID); _partingLineModel = null; }
@@ -83,14 +135,9 @@ public class PartingSplitSceneManager : ISceneManager
         if (_toolModel != null) { VisualRemovedById?.Invoke(_toolModel.GUID); _toolModel = null; }
     }
 
-    /// <summary>
-    /// Shows the parting line loops as tubes, the combined tool solid translucently, and (when
-    /// they can be built) the two resulting regions in different colors.
-    /// </summary>
-    public void ShowPartingPreview(PartingLine partingLine, CoreVector3 direction, IMesh? tool, IMesh? positiveRegion, IMesh? negativeRegion)
+    public void SetPreviewData(PartingLine partingLine, IMesh? tool, IMesh? positiveRegion, IMesh? negativeRegion)
     {
         ClearPartingPreview();
-        if (_activeMesh is null) return;
 
         var lineBuilder = new LineBuilder();
         foreach (var loop in partingLine.Loops)
@@ -112,7 +159,6 @@ public class PartingSplitSceneManager : ISceneManager
             Thickness = 2.5,
             IsHitTestVisible = false
         };
-        VisualAddedOrUpdated?.Invoke(_partingLineModel);
 
         if (tool != null)
         {
@@ -124,10 +170,13 @@ public class PartingSplitSceneManager : ISceneManager
                     Geometry = toolGeometry.Value,
                     Material = _toolSkin,
                     IsTransparent = true,
-                    CullMode = SharpDX.Direct3D11.CullMode.None,
+                    CullMode = SharpDX.Direct3D11.CullMode.Back,
                     IsHitTestVisible = false
                 };
-                VisualAddedOrUpdated?.Invoke(_toolModel);
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("FAILED TO CREATE HELIX MESH FOR TOOL");
             }
         }
 
@@ -137,7 +186,6 @@ public class PartingSplitSceneManager : ISceneManager
             if (geo.IsSuccess)
             {
                 _positiveRegionModel = new MeshGeometryModel3D { Geometry = geo.Value, Material = _positiveSkin, IsHitTestVisible = false };
-                VisualAddedOrUpdated?.Invoke(_positiveRegionModel);
             }
         }
 
@@ -147,40 +195,96 @@ public class PartingSplitSceneManager : ISceneManager
             if (geo.IsSuccess)
             {
                 _negativeRegionModel = new MeshGeometryModel3D { Geometry = geo.Value, Material = _negativeSkin, IsHitTestVisible = false };
-                VisualAddedOrUpdated?.Invoke(_negativeRegionModel);
             }
-        }
-
-        // Hide the plain mesh while the colored region preview is showing, to avoid z-fighting.
-        if (_meshModel != null && (_positiveRegionModel != null || _negativeRegionModel != null))
-        {
-            VisualRemovedById?.Invoke(_meshModel.GUID);
         }
     }
 
-    private void RebuildMeshVisual()
+    private void SetVisibility(Element3D? element, bool isVisible)
     {
-        if (_meshModel != null) VisualRemovedById?.Invoke(_meshModel.GUID);
-        if (_activeMesh is null) return;
-
-        var geometryResult = _activeMesh.ToHelixMesh(_engine);
-        if (geometryResult.IsFailure) return;
-
-        _meshModel = new MeshGeometryModel3D
+        if (element != null)
         {
-            Geometry = geometryResult.Value,
-            Material = _meshSkin,
-            IsTransparent = true,
-        };
-        VisualAddedOrUpdated?.Invoke(_meshModel);
+            element.Visibility = isVisible ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            if (element is HelixToolkit.Wpf.SharpDX.GeometryModel3D geom)
+            {
+                geom.IsRendering = isVisible;
+            }
+            else if (element is HelixToolkit.Wpf.SharpDX.UICompositeManipulator3D manip)
+            {
+                manip.IsRendering = isVisible;
+            }
+        }
+    }
 
-        EnsureManipulator();
+    public void UpdateState(PartingSplitState state)
+    {
+        _currentState = state;
+
+        // Ensure all available models are added to the scene (VisualAddedOrUpdated gracefully ignores duplicates).
+        VisualAddedOrUpdated?.Invoke(_grid);
+        if (_baseMeshModel != null) VisualAddedOrUpdated?.Invoke(_baseMeshModel);
+        if (_mouldMeshModel != null) VisualAddedOrUpdated?.Invoke(_mouldMeshModel);
+        if (_manipulator != null) VisualAddedOrUpdated?.Invoke(_manipulator);
+        if (_arrowModel != null) VisualAddedOrUpdated?.Invoke(_arrowModel);
+        if (_partingLineModel != null) VisualAddedOrUpdated?.Invoke(_partingLineModel);
+        if (_toolModel != null) VisualAddedOrUpdated?.Invoke(_toolModel);
+        if (_positiveRegionModel != null) VisualAddedOrUpdated?.Invoke(_positiveRegionModel);
+        if (_negativeRegionModel != null) VisualAddedOrUpdated?.Invoke(_negativeRegionModel);
+
+        // Hide everything initially
+        SetVisibility(_baseMeshModel, false);
+        SetVisibility(_mouldMeshModel, false);
+        SetVisibility(_manipulator, false);
+        SetVisibility(_arrowModel, false);
+        SetVisibility(_partingLineModel, false);
+        SetVisibility(_toolModel, false);
+        SetVisibility(_positiveRegionModel, false);
+        SetVisibility(_negativeRegionModel, false);
+
+        switch (state)
+        {
+            case PartingSplitState.DirectionSelection:
+                if (_baseMeshModel != null)
+                {
+                    _baseMeshModel.Material = _heatMapSkin;
+                    RecomputeDirectionColors();
+                    SetVisibility(_baseMeshModel, true);
+                }
+                SetVisibility(_manipulator, true);
+                SetVisibility(_arrowModel, true);
+                break;
+
+            case PartingSplitState.PartingLinePreview:
+                if (_baseMeshModel != null)
+                {
+                    _baseMeshModel.Material = _meshSkin;
+                    SetVisibility(_baseMeshModel, true);
+                }
+                SetVisibility(_partingLineModel, true);
+                break;
+
+            case PartingSplitState.ToolWithBaseMesh:
+                if (_baseMeshModel != null)
+                {
+                    _baseMeshModel.Material = _meshSkin;
+                    SetVisibility(_baseMeshModel, true);
+                }
+                SetVisibility(_toolModel, true);
+                break;
+
+            case PartingSplitState.ToolWithMould:
+                SetVisibility(_mouldMeshModel, true);
+                SetVisibility(_toolModel, true);
+                break;
+
+            case PartingSplitState.FinalPartedMould:
+                SetVisibility(_positiveRegionModel, true);
+                SetVisibility(_negativeRegionModel, true);
+                break;
+        }
     }
 
     private void EnsureManipulator()
     {
-        if (_activeMesh is null) return;
-
         if (_manipulator == null)
         {
             _manipulator = new UICompositeManipulator3D
@@ -192,6 +296,14 @@ public class PartingSplitSceneManager : ISceneManager
                 CanRotateY = true,
                 CanRotateZ = true,
                 Diameter = 40.0
+            };
+
+            var arrowBuilder = new MeshBuilder();
+            arrowBuilder.AddArrow(Vector3.Zero, new Vector3(0, 40, 0), 2);
+            _arrowModel = new MeshGeometryModel3D
+            {
+                Geometry = arrowBuilder.ToMeshGeometry3D(),
+                Material = DiffuseMaterials.Red
             };
 
             var binding = new System.Windows.Data.Binding(nameof(UICompositeManipulator3D.TargetTransform))
@@ -213,7 +325,6 @@ public class PartingSplitSceneManager : ISceneManager
                 else if (_manipulator.TargetTransform is System.Windows.Media.Media3D.Transform3DGroup tg) m = tg.Value;
                 else return;
 
-                // Rotating the gizmo carries UnitY (our baseline direction) with it.
                 var rotatedY = new CoreVector3((float)m.M21, (float)m.M22, (float)m.M23);
                 if (rotatedY == CoreVector3.Zero) return;
 
@@ -221,8 +332,6 @@ public class PartingSplitSceneManager : ISceneManager
                 DirectionChanged?.Invoke(CoreVector3.Normalize(rotatedY));
                 _isUpdating = false;
             });
-
-            VisualAddedOrUpdated?.Invoke(_manipulator);
         }
 
         UpdateManipulatorTransform();
@@ -245,19 +354,14 @@ public class PartingSplitSceneManager : ISceneManager
         if (!_isUpdating)
         {
             _manipulator.TargetTransform = transform;
+            if (_arrowModel != null) _arrowModel.Transform = transform;
         }
     }
 
     public void OnActivated()
     {
         VisualsCleared?.Invoke();
-        VisualAddedOrUpdated?.Invoke(_grid);
-        if (_meshModel != null) VisualAddedOrUpdated?.Invoke(_meshModel);
-        if (_manipulator != null) VisualAddedOrUpdated?.Invoke(_manipulator);
-        if (_partingLineModel != null) VisualAddedOrUpdated?.Invoke(_partingLineModel);
-        if (_toolModel != null) VisualAddedOrUpdated?.Invoke(_toolModel);
-        if (_positiveRegionModel != null) VisualAddedOrUpdated?.Invoke(_positiveRegionModel);
-        if (_negativeRegionModel != null) VisualAddedOrUpdated?.Invoke(_negativeRegionModel);
+        UpdateState(_currentState);
     }
 
     public void OnDeactivated() { }

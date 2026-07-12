@@ -683,6 +683,7 @@ internal sealed class GeometryGenerators : IGeometryGenerators
         {
             contour.pushBack(new MR.Vector2f(pt.X, pt.Y));
         }
+        contour.pushBack(new MR.Vector2f(polygon.OuterBoundary[0].X, polygon.OuterBoundary[0].Y));
         contours.pushBack(contour);
 
         // Each hole is its own closed contour; triangulateContours treats a contour nested
@@ -695,6 +696,7 @@ internal sealed class GeometryGenerators : IGeometryGenerators
             {
                 holeContour.pushBack(new MR.Vector2f(pt.X, pt.Y));
             }
+            holeContour.pushBack(new MR.Vector2f(hole[0].X, hole[0].Y));
             contours.pushBack(holeContour);
         }
 

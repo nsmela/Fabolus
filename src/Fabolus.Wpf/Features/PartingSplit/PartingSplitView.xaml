@@ -38,46 +38,95 @@
                 </Style>
             </Grid.Style>
             <StackPanel Margin="16">
-                <TextBlock Text="Parting Split" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Text="Drag the gizmo (or set values below) to choose the direction the two halves will be pulled apart along, then generate the parting line." TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <TextBlock Text="Parting Split" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16"/>
+                
+                <!-- Dynamic Header -->
+                <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="DirectionSelection">
+                                    <Setter Property="Text" Value="Step 1: Parting Direction" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="PartingLinePreview">
+                                    <Setter Property="Text" Value="Step 2: Parting Line Preview" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="ToolWithBaseMesh">
+                                    <Setter Property="Text" Value="Step 3: Tool and Original Mesh" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="ToolWithMould">
+                                    <Setter Property="Text" Value="Step 4: Tool and Mould Mesh" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="FinalPartedMould">
+                                    <Setter Property="Text" Value="Step 5: Final Split Regions" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
 
-                <StackPanel Margin="0,0,0,8">
-                    <TextBlock Text="Direction X" Margin="0,0,0,4"/>
-                    <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionX}" />
+                <!-- Dynamic Description -->
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,16">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="DirectionSelection">
+                                    <Setter Property="Text" Value="Drag the gizmo or use sliders to set the pull direction. Red faces will go to the positive half, green faces to the negative half." />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="PartingLinePreview">
+                                    <Setter Property="Text" Value="Review the generated parting line loops (yellow)." />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="ToolWithBaseMesh">
+                                    <Setter Property="Text" Value="Review the generated parting solid (green) against the original mesh." />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="ToolWithMould">
+                                    <Setter Property="Text" Value="Review the generated parting solid (green) against the mould block." />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="FinalPartedMould">
+                                    <Setter Property="Text" Value="Review the final positive (blue) and negative (orange) mould halves." />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!-- Step 1 Only: Sliders -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="DirectionSelection">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="Direction X" Margin="0,0,0,4"/>
+                        <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionX}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="Direction Y" Margin="0,0,0,4"/>
+                        <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionY}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="Direction Z" Margin="0,0,0,4"/>
+                        <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionZ}" />
+                    </StackPanel>
+                    <Button Content="Reset Direction" Command="{Binding ResetDirectionCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,16"/>
                 </StackPanel>
 
-                <StackPanel Margin="0,0,0,8">
-                    <TextBlock Text="Direction Y" Margin="0,0,0,4"/>
-                    <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionY}" />
-                </StackPanel>
-
-                <StackPanel Margin="0,0,0,16">
-                    <TextBlock Text="Direction Z" Margin="0,0,0,4"/>
-                    <Slider Minimum="-1" Maximum="1" Value="{Binding DirectionZ}" />
-                </StackPanel>
-
-                <Grid Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="8" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" Content="Reset Direction" Command="{Binding ResetDirectionCommand}" HorizontalAlignment="Stretch" />
-                    <Button Grid.Column="2" Content="Generate Parting Line" Command="{Binding GeneratePartingLineCommand}" HorizontalAlignment="Stretch" />
-                </Grid>
-
-                <!-- Hole warning -->
-                <Border Background="#332ECC71" BorderBrush="#2ECC71" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,12">
+                <!-- Step 2 Only: Hole Warning -->
+                <Border Background="#332ECC71" BorderBrush="#2ECC71" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,16">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Collapsed" />
                             <Style.Triggers>
-                                <MultiDataTrigger>
-                                    <MultiDataTrigger.Conditions>
-                                        <Condition Binding="{Binding HasPartingLine}" Value="True" />
-                                    </MultiDataTrigger.Conditions>
+                                <DataTrigger Binding="{Binding CurrentState}" Value="PartingLinePreview">
                                     <Setter Property="Visibility" Value="Visible" />
-                                </MultiDataTrigger>
+                                </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
@@ -95,7 +144,57 @@
                     </TextBlock>
                 </Border>
 
-                <Button Content="Apply Split" Command="{Binding ApplySplitCommand}" IsEnabled="{Binding HasPartingLine}" HorizontalAlignment="Stretch" />
+                <!-- Navigation Controls -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Back Button -->
+                    <Button Grid.Column="0" Content="Back" Command="{Binding PreviousStateCommand}" HorizontalAlignment="Stretch">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="DirectionSelection">
+                                        <Setter Property="Visibility" Value="Hidden" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Next Button -->
+                    <Button Grid.Column="2" Content="Next" Command="{Binding NextStateCommand}" HorizontalAlignment="Stretch">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="FinalPartedMould">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    
+                    <!-- Apply Split Button -->
+                    <Button Grid.Column="2" Content="Apply Split" Command="{Binding ApplySplitCommand}" HorizontalAlignment="Stretch">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="FinalPartedMould">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+
             </StackPanel>
         </Grid>
     </Grid>
