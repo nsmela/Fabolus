@@ -34,10 +34,11 @@ public interface IPartingTools
     /// Intersect(mould, tool) for the positive piece, Subtract(mould, tool) for the negative one.
     /// </summary>
     /// <param name="referenceMesh">
-    /// The mesh <paramref name="partingLine"/> was generated from. Not yet used by the current
-    /// (flat dividing plane + per-hole plug) implementation, but kept in the signature so a
-    /// future contour-following tool (matching the body's curvature instead of a flat plane,
-    /// to avoid undercuts on complex shapes) doesn't need a breaking signature change.
+    /// The mesh <paramref name="partingLine"/> was generated from. Not used by the current
+    /// (flat dividing plane + per-hole prism) implementation. The material this splits is soft
+    /// enough to flex out of minor undercuts, so a flat tool is an accepted tradeoff rather than
+    /// a stopgap - this parameter is kept only so a contour-following tool could be added later
+    /// without a breaking signature change, should a stiffer material ever need it.
     /// </param>
     /// <param name="partingLine">The loops to build the tool around.</param>
     /// <param name="pullDirection">The direction that defines which side is "positive".</param>
