@@ -149,7 +149,7 @@ internal sealed class PartingTools : IPartingTools
         // (no cut is needed directly over the body - the mould material there, if any,
         // belongs to whichever internal-hole tool below covers it), extruded from the
         // parting height up to well past the tool bounds.
-        var skirtResult = CreateContouredPrism(outerLocal, true, maxLocalZ, toolBounds);
+        var skirtResult = CreateContouredPrism(outerLocal, true, maxLocalZ, minLocalX, maxLocalX, minLocalY, maxLocalY);
         if (skirtResult.IsFailure) return skirtResult.Error;
 
         var pieces = new List<IMesh> { skirtResult.Value };
@@ -162,7 +162,7 @@ internal sealed class PartingTools : IPartingTools
         {
             var holeLocal = hole.Select(p => Vector3.Transform(p, inverseRotation)).ToList();
 
-            var plugResult = CreateContouredPrism(holeLocal, false, maxLocalZ, toolBounds);
+            var plugResult = CreateContouredPrism(holeLocal, false, maxLocalZ, minLocalX, maxLocalX, minLocalY, maxLocalY);
             if (plugResult.IsFailure) return plugResult.Error;
 
             pieces.Add(plugResult.Value);
@@ -181,7 +181,7 @@ internal sealed class PartingTools : IPartingTools
 
     // --- Helpers ---
 
-    private Result<IMesh> CreateContouredPrism(IReadOnlyList<Vector3> localLoop, bool isOuter, float maxLocalZ, MeshStatistics bounds)
+    private Result<IMesh> CreateContouredPrism(IReadOnlyList<Vector3> localLoop, bool isOuter, float maxLocalZ, float minLocalX, float maxLocalX, float minLocalY, float maxLocalY)
     {
         using var contours = new MR.Std.Vector_StdVectorMRVector2f();
 
@@ -189,20 +189,12 @@ internal sealed class PartingTools : IPartingTools
 
         if (isOuter)
         {
-            var span = (float)Math.Max(bounds.MaxX - bounds.MinX, Math.Max(bounds.MaxY - bounds.MinY, bounds.MaxZ - bounds.MinZ));
-            var margin = span + 10.0f;
-
-            var minX = (float)bounds.MinX - margin;
-            var maxX = (float)bounds.MaxX + margin;
-            var minY = (float)bounds.MinY - margin;
-            var maxY = (float)bounds.MaxY + margin;
-
             using var outerContour = new MR.Std.Vector_MRVector2f();
-            outerContour.pushBack(new MR.Vector2f(minX, minY));
-            outerContour.pushBack(new MR.Vector2f(maxX, minY));
-            outerContour.pushBack(new MR.Vector2f(maxX, maxY));
-            outerContour.pushBack(new MR.Vector2f(minX, maxY));
-            outerContour.pushBack(new MR.Vector2f(minX, minY)); // close
+            outerContour.pushBack(new MR.Vector2f(minLocalX, minLocalY));
+            outerContour.pushBack(new MR.Vector2f(maxLocalX, minLocalY));
+            outerContour.pushBack(new MR.Vector2f(maxLocalX, maxLocalY));
+            outerContour.pushBack(new MR.Vector2f(minLocalX, maxLocalY));
+            outerContour.pushBack(new MR.Vector2f(minLocalX, minLocalY)); // close
             contours.pushBack(outerContour);
         }
 
