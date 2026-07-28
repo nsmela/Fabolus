@@ -1,4 +1,4 @@
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using System.Windows.Media;
 using Fabolus.Core.Features.Smoothing;
 using Fabolus.Core.Geometry;
@@ -8,13 +8,14 @@ using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Common.Helpers;
 
 namespace Fabolus.Wpf.Features.Smoothing;
 
 public class SmoothingSceneManager : ISceneManager
 {
-    private readonly Material _rawSkin = DiffuseMaterials.SkyBlue;
-    private readonly Material _smoothSkin = DiffuseMaterials.Emerald;
+    private readonly Material _rawSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.SkyBlue);
+    private readonly Material _smoothSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Emerald);
 
     private readonly IGeometryEngine _engine;
     private readonly IMessenger _messenger;

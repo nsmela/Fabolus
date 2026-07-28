@@ -17,8 +17,10 @@ public partial class ViewportControl : UserControl, IDisposable {
     public DefaultEffectsManager EffectsManager { get; }
 
     public ViewportControl() {
-        InitializeComponent();
-
+        // Set before InitializeComponent: Camera and EffectsManager are plain CLR properties
+        // with no change notification, so anything in the XAML bound to them - the viewport
+        // itself, and the light directions bound through Camera.LookDirection - resolves once
+        // and never recovers if it happens to resolve while they are still null.
         EffectsManager = new DefaultEffectsManager();
         Camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera {
             Position = new Point3D(0, 0, 100),
@@ -26,6 +28,7 @@ public partial class ViewportControl : UserControl, IDisposable {
             UpDirection = new Vector3D(0, 1, 0)
         };
 
+        InitializeComponent();
     }
 
     public ISceneManager? SceneManager {
@@ -71,11 +74,14 @@ public partial class ViewportControl : UserControl, IDisposable {
     }));
 
     private void OnClearAllVisuals() => Dispatcher.BeginInvoke(new Action(() => {
+        // Remove only what the scene managers put here. MainViewport.Items also holds the
+        // lights declared in XAML, and Items.Clear() destroys those too - after the first
+        // scene change the scene has no lights at all and every Phong material renders black.
         foreach (var visual in _registry.Values) {
+            MainViewport.Items.Remove(visual);
             visual.Dispose();
         }
         _registry.Clear();
-        MainViewport.Items.Clear();
     }));
 
     private void OnRemoveVisualById(Guid id) => Dispatcher.BeginInvoke(new Action(() => {

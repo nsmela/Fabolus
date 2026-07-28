@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.Messaging;
+﻿using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
@@ -6,6 +6,7 @@ using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Input;
 using System;
+using Fabolus.Wpf.Common.Helpers;
 
 namespace Fabolus.Wpf.Features.Export;
 
@@ -56,7 +57,7 @@ internal class ExportSceneManager : ISceneManager {
         MeshGeometry3D geometry = mesh.ToHelixMesh(_engine).Value;
         var model = new MeshGeometryModel3D {
             Geometry = geometry,
-            Material = DiffuseMaterials.Gray,
+            Material = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Gray),
         };
         _activeId = model.GUID;
 

@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -10,6 +10,7 @@ using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
+using Fabolus.Wpf.Common.Helpers;
 
 namespace Fabolus.Wpf.Features.Moulding;
 
@@ -18,14 +19,14 @@ public class MouldSceneManager : ISceneManager
     private readonly IGeometryEngine _engine;
     private Element3D _grid;
 
-    private readonly Material _targetSkin = DiffuseMaterials.Gray;
+    private readonly Material _targetSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Gray);
 
     // The mould is only ever shown as a live preview before generation.
-    private readonly Material _mouldSkin = DiffuseMaterials.Ruby;
+    private readonly Material _mouldSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Ruby);
 
-    private readonly Material _channelSkin = DiffuseMaterials.Emerald;
-    private readonly Material _selectedChannelSkin = DiffuseMaterials.Pearl;
-    private readonly Material _previewChannelSkin = DiffuseMaterials.Pearl;
+    private readonly Material _channelSkin = MaterialsHelper.CreateMaterial(SkinColours.Emerald);
+    private readonly Material _selectedChannelSkin = MaterialsHelper.CreateMaterial(SkinColours.Pearl);
+    private readonly Material _previewChannelSkin = MaterialsHelper.CreateMaterial(SkinColours.Pearl);
 
     private IMesh? TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];

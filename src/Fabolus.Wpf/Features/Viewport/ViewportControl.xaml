@@ -4,8 +4,16 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
-             mc:Ignorable="d" 
+             xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert"
+             mc:Ignorable="d"
              d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <!-- Offsets are deliberately modest. Swinging the key light much further off the view
+             axis leaves obliquely presented meshes almost unlit: at 30/25 a third of the ear
+             bolus falls below byte 60, versus 1.5% here, with no loss of form contrast. -->
+        <conv:LightOffsetConverter x:Key="KeyLightDirection" OffsetDegrees="22" ElevationDegrees="16" />
+        <conv:LightOffsetConverter x:Key="FillLightDirection" OffsetDegrees="-45" ElevationDegrees="-12" />
+    </UserControl.Resources>
     <Grid>
         <Grid>
             <Grid.Background>
@@ -50,6 +58,27 @@
                     <MouseBinding Command="hx:ViewportCommands.Pan"    Gesture="MiddleClick" />
                     <KeyBinding   Command="hx:ViewportCommands.ZoomExtents" Gesture="Control+E" />
                 </hx:Viewport3DX.InputBindings>
+
+                <!-- The scene had no lights at all. That worked only because every skin was a
+                     DiffuseMaterial, and HelixToolkit's diffuse pass ignores lights and fakes
+                     its own shading. Any Phong or PBR material rendered pure black.
+                     Ambient is high because MaterialsHelper sets AmbientColor to 0.3 * diffuse:
+                     at #4A4A52 the shadow side of a mesh drops below the background gradient on
+                     3.7% of its pixels, versus 0.3% here, and form contrast is no worse. -->
+                <hx:AmbientLight3D Color="#FF909099" />
+
+                <!-- Key light, held off the view axis so curvature reads. Pointed straight
+                     along LookDirection it would be a headlight, which flattens form under
+                     any material. -->
+                <hx:DirectionalLight3D
+                    Color="#FFFFFFFF"
+                    Direction="{Binding Camera.LookDirection, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource KeyLightDirection}, FallbackValue='-1,1,-1'}" />
+
+                <!-- Dim fill from the opposite side so surfaces turned away from the key light
+                     still show shape rather than dropping to flat ambient. -->
+                <hx:DirectionalLight3D
+                    Color="#FF90909C"
+                    Direction="{Binding Camera.LookDirection, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource FillLightDirection}, FallbackValue='1,-1,-1'}" />
 
             </hx:Viewport3DX>
         </Grid>
