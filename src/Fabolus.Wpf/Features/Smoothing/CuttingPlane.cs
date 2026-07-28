@@ -1,4 +1,5 @@
 ﻿using HelixToolkit.Wpf.SharpDX;
+using Fabolus.Wpf.Common.Helpers;
 
 namespace Fabolus.Wpf.Features.Smoothing;
 
@@ -7,7 +8,7 @@ public static class CuttingPlane
     public static Element3D Create(Action<double> onHeightChanged, Func<double> getMinZ = null, Func<double> getMaxZ = null) {
         var element = new UITranslateManipulator3D {
             Direction = SharpDX.Vector3.UnitZ,
-            Material = DiffuseMaterials.Pearl,
+            Material = Skins.Primitive.Pearl,
             Offset = SharpDX.Vector3.Zero,
             Length = 10.0,
             Diameter = 5.0

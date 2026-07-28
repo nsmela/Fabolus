@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -10,6 +10,7 @@ using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
+using Fabolus.Wpf.Common.Helpers;
 
 namespace Fabolus.Wpf.Features.Moulding;
 
@@ -18,14 +19,14 @@ public class MouldSceneManager : ISceneManager
     private readonly IGeometryEngine _engine;
     private Element3D _grid;
 
-    private readonly Material _targetSkin = DiffuseMaterials.Gray;
+    private readonly Material _targetSkin = Skins.Surface.Gray;
 
     // The mould is only ever shown as a live preview before generation.
-    private readonly Material _mouldSkin = DiffuseMaterials.Ruby;
+    private readonly Material _mouldSkin = Skins.Surface.Ruby;
 
-    private readonly Material _channelSkin = DiffuseMaterials.Emerald;
-    private readonly Material _selectedChannelSkin = DiffuseMaterials.Pearl;
-    private readonly Material _previewChannelSkin = DiffuseMaterials.Pearl;
+    private readonly Material _channelSkin = Skins.Primitive.Emerald;
+    private readonly Material _selectedChannelSkin = Skins.Primitive.Pearl;
+    private readonly Material _previewChannelSkin = Skins.Primitive.Pearl;
 
     private IMesh? TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];
@@ -58,6 +59,9 @@ public class MouldSceneManager : ISceneManager
 
     private readonly Dictionary<Guid, Guid> _channelVisualToModelId = [];
     private readonly Dictionary<Guid, Guid> _channelModelToVisualId = [];
+
+    // Live channel visuals by channel id, so they can be updated without being re-added.
+    private readonly Dictionary<Guid, MeshGeometryModel3D> _channelVisuals = [];
 
     public event Action<Element3D> VisualAddedOrUpdated;
     public event Action<Guid> VisualRemovedById;
@@ -190,6 +194,7 @@ public class MouldSceneManager : ISceneManager
             VisualRemovedById?.Invoke(visualId);
         _channelVisualToModelId.Clear();
         _channelModelToVisualId.Clear();
+        _channelVisuals.Clear();
         Channels = [];
         _selectedChannelId = Guid.Empty;
 
@@ -219,14 +224,20 @@ public class MouldSceneManager : ISceneManager
         VisualAddedOrUpdated?.Invoke(_mouldModel);
     }
 
+    /// <summary>
+    /// Channel visuals are retained and mutated in place rather than torn down and rebuilt.
+    ///
+    /// A rebuilt visual gets a fresh GUID, and ViewportControl appends any GUID it has not
+    /// seen to the end of MainViewport.Items. That silently moves every channel behind the
+    /// mould in the scene order, and once it is behind the mould it stops drawing inside it -
+    /// only the length sticking out the far side survives. Updating in place keeps both the
+    /// GUIDs and the scene order stable.
+    /// </summary>
     public Result UpdateChannels(IReadOnlyList<AirChannelModel> channels)
     {
-        foreach (var visualId in _channelVisualToModelId.Keys.ToList())
-            VisualRemovedById?.Invoke(visualId);
-
-        _channelVisualToModelId.Clear();
-        _channelModelToVisualId.Clear();
         Channels = channels;
+
+        var stillPresent = new HashSet<Guid>();
 
         foreach (var channel in Channels)
         {
@@ -239,25 +250,57 @@ public class MouldSceneManager : ISceneManager
             if (geometryResult.IsFailure)
                 continue;
 
+            var material = channel.Id == _selectedChannelId ? _selectedChannelSkin : _channelSkin;
+            stillPresent.Add(channel.Id);
+
+            if (_channelVisuals.TryGetValue(channel.Id, out var existing))
+            {
+                existing.Geometry = geometryResult.Value;
+                existing.Material = material;
+                continue;
+            }
+
             var model = new MeshGeometryModel3D
             {
                 Geometry = geometryResult.Value,
-                Material = channel.Id == _selectedChannelId ? _selectedChannelSkin : _channelSkin,
+                Material = material,
                 CullMode = SharpDX.Direct3D11.CullMode.Back,
             };
 
+            _channelVisuals[channel.Id] = model;
             _channelVisualToModelId[model.GUID] = channel.Id;
             _channelModelToVisualId[channel.Id] = model.GUID;
             VisualAddedOrUpdated?.Invoke(model);
         }
 
+        // Only channels that are genuinely gone leave the scene.
+        foreach (var channelId in _channelVisuals.Keys.Where(id => !stillPresent.Contains(id)).ToList())
+            RemoveChannelVisual(channelId);
+
         return Result.Success();
+    }
+
+    private void RemoveChannelVisual(Guid channelId)
+    {
+        if (_channelModelToVisualId.TryGetValue(channelId, out var visualId))
+        {
+            VisualRemovedById?.Invoke(visualId);
+            _channelVisualToModelId.Remove(visualId);
+        }
+
+        _channelModelToVisualId.Remove(channelId);
+        _channelVisuals.Remove(channelId);
     }
 
     public void SelectChannel(Guid channelId)
     {
         _selectedChannelId = channelId;
-        UpdateChannels(Channels);
+
+        // Selection is only a highlight: recolour the live models rather than regenerating
+        // every channel's mesh through UpdateChannels.
+        foreach (var (id, model) in _channelVisuals)
+            model.Material = id == _selectedChannelId ? _selectedChannelSkin : _channelSkin;
+
         ChannelSelected?.Invoke(channelId);
     }
 
