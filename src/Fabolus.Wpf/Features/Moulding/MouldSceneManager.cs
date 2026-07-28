@@ -19,14 +19,14 @@ public class MouldSceneManager : ISceneManager
     private readonly IGeometryEngine _engine;
     private Element3D _grid;
 
-    private readonly Material _targetSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Gray);
+    private readonly Material _targetSkin = Skins.Surface.Gray;
 
     // The mould is only ever shown as a live preview before generation.
-    private readonly Material _mouldSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Ruby);
+    private readonly Material _mouldSkin = Skins.Surface.Ruby;
 
-    private readonly Material _channelSkin = MaterialsHelper.CreateMaterial(SkinColours.Emerald);
-    private readonly Material _selectedChannelSkin = MaterialsHelper.CreateMaterial(SkinColours.Pearl);
-    private readonly Material _previewChannelSkin = MaterialsHelper.CreateMaterial(SkinColours.Pearl);
+    private readonly Material _channelSkin = Skins.Primitive.Emerald;
+    private readonly Material _selectedChannelSkin = Skins.Primitive.Pearl;
+    private readonly Material _previewChannelSkin = Skins.Primitive.Pearl;
 
     private IMesh? TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];

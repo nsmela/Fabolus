@@ -81,3 +81,41 @@ public static class SkinColours
     public static Color4 Red => new(1.0f, 0.0f, 0.0f, 1.0f);              // 255,0,0
     public static Color4 SkyBlue => new(0.529412f, 0.807843f, 0.921569f, 1.0f); // 135,206,235
 }
+
+/// <summary>
+/// Ready-made viewport skins. Use these rather than calling <see cref="MaterialsHelper"/>
+/// directly, so the flat-vs-smooth decision is made once, here, instead of at every site.
+///
+/// The split is by what the geometry IS, not what colour it is. Anything that came out of a
+/// scan or a mesh operation goes under <see cref="Surface"/>; anything the app generated
+/// itself goes under <see cref="Primitive"/>. See
+/// <see cref="MaterialsHelper.CreateSurfaceMaterial"/> for why that distinction matters.
+///
+/// Each property hands back a fresh instance. Cache it in a field if you are going to reuse
+/// it, rather than calling per frame.
+/// </summary>
+public static class Skins
+{
+    /// <summary>
+    /// Scanned or mesh-processed surfaces: the target mesh, a mould, a split region. Flat
+    /// shaded, because their vertex normals are averaged across real creases.
+    /// </summary>
+    public static class Surface
+    {
+        public static PhongMaterial Gray => MaterialsHelper.CreateSurfaceMaterial(SkinColours.Gray);
+        public static PhongMaterial Ruby => MaterialsHelper.CreateSurfaceMaterial(SkinColours.Ruby);
+        public static PhongMaterial Emerald => MaterialsHelper.CreateSurfaceMaterial(SkinColours.Emerald);
+        public static PhongMaterial Orange => MaterialsHelper.CreateSurfaceMaterial(SkinColours.Orange);
+        public static PhongMaterial SkyBlue => MaterialsHelper.CreateSurfaceMaterial(SkinColours.SkyBlue);
+    }
+
+    /// <summary>
+    /// Geometry the app generated: air channel tubes, manipulator handles, markers. Their
+    /// smooth normals are correct, so these are left smooth shaded.
+    /// </summary>
+    public static class Primitive
+    {
+        public static PhongMaterial Emerald => MaterialsHelper.CreateMaterial(SkinColours.Emerald);
+        public static PhongMaterial Pearl => MaterialsHelper.CreateMaterial(SkinColours.Pearl);
+    }
+}

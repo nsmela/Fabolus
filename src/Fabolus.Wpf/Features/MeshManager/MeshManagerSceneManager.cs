@@ -56,7 +56,7 @@ internal class MeshManagerSceneManager : ISceneManager {
         MeshGeometry3D geometry = mesh.ToHelixMesh(_engine).Value;
         var model = new MeshGeometryModel3D {
             Geometry = geometry,
-            Material = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Gray),
+            Material = Skins.Surface.Gray,
         };
         _activeId = model.GUID;
 

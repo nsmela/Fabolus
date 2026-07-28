@@ -14,8 +14,8 @@ namespace Fabolus.Wpf.Features.Smoothing;
 
 public class SmoothingSceneManager : ISceneManager
 {
-    private readonly Material _rawSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.SkyBlue);
-    private readonly Material _smoothSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Emerald);
+    private readonly Material _rawSkin = Skins.Surface.SkyBlue;
+    private readonly Material _smoothSkin = Skins.Surface.Emerald;
 
     private readonly IGeometryEngine _engine;
     private readonly IMessenger _messenger;

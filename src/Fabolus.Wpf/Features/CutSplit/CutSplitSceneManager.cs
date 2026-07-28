@@ -13,8 +13,8 @@ namespace Fabolus.Wpf.Features.CutSplit;
 public class CutSplitSceneManager : ISceneManager
 {
     private readonly IGeometryEngine _engine;
-    private readonly Material _topSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.SkyBlue);
-    private readonly Material _bottomSkin = MaterialsHelper.CreateSurfaceMaterial(SkinColours.Orange);
+    private readonly Material _topSkin = Skins.Surface.SkyBlue;
+    private readonly Material _bottomSkin = Skins.Surface.Orange;
 
     private readonly Element3D _grid;
     private CrossSectionMeshGeometryModel3D? _topModel;
