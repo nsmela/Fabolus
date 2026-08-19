@@ -261,3 +261,6 @@ __pycache__/
 *.pyc
 /Fabolus.Core.Tests/TestAssets/desktop.ini
 .vscode/settings.json
+
+# Publish artifacts produced by build/publish.ps1
+artifacts/
