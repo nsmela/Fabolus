@@ -15,19 +15,33 @@ public class MainViewModelTests
     public void CaptureScreenshotCommand_SendsCaptureScreenshotMessage()
     {
         // Arrange
+        // PreferencesViewModel requests every preference up front and casts each response,
+        // so the stub has to answer all of them with the declared default and exact type.
+        var preferences = new Dictionary<string, object> {
+            [UISettings.DefaultImportFolderLabel] = string.Empty,
+            [UISettings.DefaultExportFolderLabel] = string.Empty,
+            [UISettings.DefaultExportFormatLabel] = ExportFormat.Stl.ToString(),
+            [UISettings.PrintBedWidthLabel] = 250.0f,
+            [UISettings.PrintBedDepthLabel] = 250.0f,
+            [UISettings.PrintBedHeightLabel] = 300.0f,
+            [UISettings.ShowBedGridLabel] = true,
+            [UISettings.AutodetectChannelsLabel] = true,
+            [UISettings.ChannelDiameterLabel] = 4.0f,
+            [UISettings.ViewportBackgroundLabel] = ViewportBackground.Graphite.ToString(),
+            [UISettings.UnitsLabel] = MeasurementUnit.Millimeters.ToString(),
+            [UISettings.SplitViewEnabledLabel] = false,
+            [UISettings.CutViewEnabledLabel] = false,
+        };
+
         var messenger = new StrongReferenceMessenger();
-        messenger.Register<MainViewModelTests, AppPreferenceRequestMessage>(this, (r, m) =>
-        {
-            if (m.Key == UISettings.SplitViewEnabledLabel) {
-                m.Reply(false); // mock response
-            }
-        });
+        messenger.Register<MainViewModelTests, AppPreferenceRequestMessage>(this, (r, m) => m.Reply(preferences[m.Key]));
 
         var mockEngine = new Mock<IGeometryEngine>();
         var mockDialogue = new Mock<IDialogueSystem>();
         var mockAlert = new Mock<IAlertDialog>();
+        var appPreferences = new AppPreferencesStore();
 
-        var viewModel = new MainViewModel(messenger, mockEngine.Object, mockDialogue.Object, mockAlert.Object);
+        var viewModel = new MainViewModel(messenger, mockEngine.Object, mockDialogue.Object, mockAlert.Object, appPreferences);
 
         bool messageReceived = false;
         messenger.Register<CaptureScreenshotMessage>(this, (r, m) =>
