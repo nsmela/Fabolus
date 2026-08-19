@@ -69,7 +69,7 @@ internal sealed class GeometryIO : IGeometryIO
 
                     var commandRecords = mesh.Metadata.Commands.Select(c => new
                     {
-                        Type = c.GetType().Name,
+                        Type = MeshCommandRegistry.GetName(c),
                         Data = (object)c
                     });
                     string json = JsonSerializer.Serialize(commandRecords, new JsonSerializerOptions { WriteIndented = false, IncludeFields = true });
@@ -125,10 +125,6 @@ internal sealed class GeometryIO : IGeometryIO
         try
         {
             var metadata = MeshMetadata.FromFileName(filePath);
-            
-            var commandTypes = typeof(IMeshCommand).Assembly.GetTypes()
-                .Where(t => typeof(IMeshCommand).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
-                .ToDictionary(t => t.Name, t => t);
 
             XNamespace ns = "http://schemas.microsoft.com/3dmanufacturing/core/2015/02";
             XDocument xdoc;
@@ -152,30 +148,48 @@ internal sealed class GeometryIO : IGeometryIO
                 
                 if (metadataElem != null && !string.IsNullOrWhiteSpace(metadataElem.Value))
                 {
+                    // A command that fails to load must not be skipped: the main object's geometry
+                    // already has it baked in, so dropping it leaves the history disagreeing with
+                    // the mesh, and every replay-from-base view (smoothing, rotate, export) would
+                    // silently render a different model than the one that was imported.
+                    JsonElement[]? commandRecords;
                     try
                     {
-                        var commandRecords = JsonSerializer.Deserialize<JsonElement[]>(metadataElem.Value);
-                        if (commandRecords != null)
-                        {
-                            foreach (var record in commandRecords)
-                            {
-                                if (record.TryGetProperty("Type", out var typeElement) &&
-                                    record.TryGetProperty("Data", out var dataElement))
-                                {
-                                    string typeName = typeElement.GetString() ?? "";
-                                    if (commandTypes.TryGetValue(typeName, out var type))
-                                    {
-                                        var cmd = (IMeshCommand?)JsonSerializer.Deserialize(dataElement.GetRawText(), type, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, IncludeFields = true });
-                                        if (cmd != null)
-                                        {
-                                            metadata = metadata.WithCommand(cmd);
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        commandRecords = JsonSerializer.Deserialize<JsonElement[]>(metadataElem.Value);
                     }
-                    catch { /* Ignore parsing errors */ }
+                    catch (JsonException ex)
+                    {
+                        return IOErrors.ReadFailed($"Command history is not valid JSON: {ex.Message}");
+                    }
+
+                    foreach (var record in commandRecords ?? Array.Empty<JsonElement>())
+                    {
+                        if (!record.TryGetProperty("Type", out var typeElement) ||
+                            !record.TryGetProperty("Data", out var dataElement))
+                        {
+                            return IOErrors.ReadFailed("A command history entry is missing its Type or Data.");
+                        }
+
+                        var typeResult = MeshCommandRegistry.ResolveType(typeElement.GetString() ?? string.Empty);
+                        if (typeResult.IsFailure) return typeResult.Error;
+
+                        IMeshCommand? cmd;
+                        try
+                        {
+                            cmd = (IMeshCommand?)JsonSerializer.Deserialize(dataElement.GetRawText(), typeResult.Value, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, IncludeFields = true });
+                        }
+                        catch (JsonException ex)
+                        {
+                            return IOErrors.ReadFailed($"Could not read the '{typeResult.Value.Name}' command: {ex.Message}");
+                        }
+
+                        if (cmd is null)
+                        {
+                            return IOErrors.ReadFailed($"The '{typeResult.Value.Name}' command in the file is empty.");
+                        }
+
+                        metadata = metadata.WithCommand(cmd);
+                    }
                 }
             }
 

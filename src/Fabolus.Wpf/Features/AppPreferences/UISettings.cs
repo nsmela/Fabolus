@@ -11,6 +11,10 @@ public class UISettings : ConfigurationSection {
         set => base[propertyName] = value;
     }
 
+    // Preferences saved by an older build can contain attributes that no longer exist.
+    // Drop them instead of throwing, so a removed setting can't brick startup.
+    protected override bool OnDeserializeUnrecognizedAttribute(string name, string value) => true;
+
     public const string DefaultImportFolderLabel = "default_import_folder";
     public const string DefaultExportFolderLabel = "default_export_folder";
     public const string DefaultExportFormatLabel = "default_export_format";

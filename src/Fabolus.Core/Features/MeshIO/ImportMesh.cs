@@ -1,5 +1,7 @@
 using Fabolus.Core.Common;
+using Fabolus.Core.Features.Transforms;
 using Fabolus.Core.Geometry;
+using System.Numerics;
 
 namespace Fabolus.Core.Features.MeshIO;
 
@@ -45,23 +47,39 @@ public sealed class ImportMesh {
             // Center the mesh at the origin upon import and attach mesh stats. The stats are
             // attached even if centering fails - meshes without cached Stats force every
             // consumer to handle their absence, so only a stats failure itself leaves them out.
-            var originalMetadata = mesh.Metadata;
+            var metadata = mesh.Metadata;
+
+            // A mesh that arrives with its own command history (a Fabolus-saved 3mf) is already
+            // in the frame its BaseMesh replays into, and that history carries the centring
+            // TranslateCommand from when it was first imported. Centring it again would move the
+            // geometry without moving the BaseMesh, so every replay-from-base view (smoothing,
+            // rotate, export) would render it offset from what the viewport shows.
+            var hasOwnHistory = metadata.HasBaseMesh || metadata.Commands.Any();
+
             var statsResult = _geometryEngine.Evaluators.GetStatistics(mesh);
             if (statsResult.IsSuccess) {
                 var stats = statsResult.Value;
-                var centre = stats.Centre;
 
-                var transformResult = _geometryEngine.Transforms.Translate(mesh, -centre.X, -centre.Y, -centre.Z);
-                if (transformResult.IsSuccess) {
-                    mesh = transformResult.Value;
+                if (!hasOwnHistory) {
+                    var centre = stats.Centre;
+                    var centring = new TranslateCommand(new Vector3(-centre.X, -centre.Y, -centre.Z));
 
-                    var recomputed = _geometryEngine.Evaluators.GetStatistics(mesh);
-                    if (recomputed.IsSuccess) stats = recomputed.Value;
+                    var transformResult = centring.Apply(_geometryEngine, mesh);
+                    if (transformResult.IsSuccess) {
+                        // Recorded rather than baked in: BaseMesh stays the pristine imported
+                        // geometry, replay reproduces the centred mesh, and the offset from the
+                        // authored position is persisted with the file for later features to read.
+                        metadata = metadata.WithBaseMesh(mesh).WithCommand(centring);
+                        mesh = transformResult.Value;
+
+                        var recomputed = _geometryEngine.Evaluators.GetStatistics(mesh);
+                        if (recomputed.IsSuccess) stats = recomputed.Value;
+                    }
                 }
 
                 // Built from the pre-translate metadata: the engine's Translate rewrites
                 // Name/CreatedBy, which must not stick on an imported mesh.
-                mesh = mesh.WithMetadata(originalMetadata.WithMeshStats(stats));
+                mesh = mesh.WithMetadata(metadata.WithMeshStats(stats));
             }
 
             // Validate topology (IO already does this, but we ensure it's up to date)
