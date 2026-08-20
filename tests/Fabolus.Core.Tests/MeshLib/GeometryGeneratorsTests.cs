@@ -168,6 +168,92 @@ public class GeometryGeneratorsTests
     }
 
     [Fact]
+    public void OffsetPolygon_NegativeDistance_ReturnsSmallerPolygon()
+    {
+        var square = new Polygon2D
+        {
+            OuterBoundary = new[] { new Vector2(0, 0), new Vector2(10, 0), new Vector2(10, 10), new Vector2(0, 10) }
+        };
+
+        var result = _fixture.Engine.Generators.OffsetPolygon(square, -2.0f);
+
+        result.IsSuccess.Should().BeTrue();
+        var boundary = result.Value.OuterBoundary;
+        boundary.Min(p => p.X).Should().BeApproximately(2.0f, 0.1f);
+        boundary.Max(p => p.X).Should().BeApproximately(8.0f, 0.1f);
+        boundary.Min(p => p.Y).Should().BeApproximately(2.0f, 0.1f);
+        boundary.Max(p => p.Y).Should().BeApproximately(8.0f, 0.1f);
+    }
+
+    [Fact]
+    public void OffsetPolygon_ClockwiseInput_StillGrowsOnPositiveDistance()
+    {
+        // GetMeshShadow and GetConvexHull hand back opposite windings; neither may flip the
+        // meaning of the distance.
+        var clockwise = new Polygon2D
+        {
+            OuterBoundary = new[] { new Vector2(0, 0), new Vector2(0, 10), new Vector2(10, 10), new Vector2(10, 0) }
+        };
+
+        var result = _fixture.Engine.Generators.OffsetPolygon(clockwise, 2.0f);
+
+        result.IsSuccess.Should().BeTrue();
+        var boundary = result.Value.OuterBoundary;
+        boundary.Min(p => p.X).Should().BeApproximately(-2.0f, 0.1f);
+        boundary.Max(p => p.X).Should().BeApproximately(12.0f, 0.1f);
+    }
+
+    [Fact]
+    public void BufferPath_SinglePoint_ReturnsDisc()
+    {
+        var result = _fixture.Engine.Generators.BufferPath(new[] { new Vector2(0, 0) }, 2.0f);
+
+        result.IsSuccess.Should().BeTrue();
+        var boundary = result.Value.OuterBoundary;
+        boundary.Count.Should().BeGreaterThan(4);
+        boundary.Min(p => p.X).Should().BeApproximately(-2.0f, 0.1f);
+        boundary.Max(p => p.X).Should().BeApproximately(2.0f, 0.1f);
+        boundary.Min(p => p.Y).Should().BeApproximately(-2.0f, 0.1f);
+        boundary.Max(p => p.Y).Should().BeApproximately(2.0f, 0.1f);
+    }
+
+    [Fact]
+    public void BufferPath_Polyline_CoversTheWholeRun()
+    {
+        var result = _fixture.Engine.Generators.BufferPath(
+            new[] { new Vector2(0, 0), new Vector2(10, 0) }, 2.0f);
+
+        result.IsSuccess.Should().BeTrue();
+        var boundary = result.Value.OuterBoundary;
+        boundary.Min(p => p.X).Should().BeApproximately(-2.0f, 0.1f);
+        boundary.Max(p => p.X).Should().BeApproximately(12.0f, 0.1f);
+        boundary.Min(p => p.Y).Should().BeApproximately(-2.0f, 0.1f);
+        boundary.Max(p => p.Y).Should().BeApproximately(2.0f, 0.1f);
+    }
+
+    [Fact]
+    public void UnionPolygons_OverlappingSquares_ReturnsOneOutline()
+    {
+        var left = new Polygon2D
+        {
+            OuterBoundary = new[] { new Vector2(0, 0), new Vector2(10, 0), new Vector2(10, 10), new Vector2(0, 10) }
+        };
+        // Wound the other way round, as GetMeshShadow and GetConvexHull disagree in practice.
+        var right = new Polygon2D
+        {
+            OuterBoundary = new[] { new Vector2(5, 0), new Vector2(5, 10), new Vector2(15, 10), new Vector2(15, 0) }
+        };
+
+        var result = _fixture.Engine.Generators.UnionPolygons(new[] { left, right });
+
+        result.IsSuccess.Should().BeTrue();
+        var boundary = result.Value.OuterBoundary;
+        boundary.Min(p => p.X).Should().BeApproximately(0f, 0.01f);
+        boundary.Max(p => p.X).Should().BeApproximately(15f, 0.01f);
+        boundary.Max(p => p.Y).Should().BeApproximately(10f, 0.01f);
+    }
+
+    [Fact]
     public void ExtrudePolygon_ReturnsWatertightMeshInZRange()
     {
         var square = new Polygon2D
