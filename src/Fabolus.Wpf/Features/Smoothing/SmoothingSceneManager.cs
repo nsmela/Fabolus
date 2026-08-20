@@ -119,6 +119,7 @@ public class SmoothingSceneManager : ISceneManager
             Material = material,
             CullMode = SharpDX.Direct3D11.CullMode.Back,
         };
+        SceneVisual.SetIsModelGeometry(model, true);
         _activeId = model.GUID;
 
         bool isSmoothed = mesh.Metadata.GetSmoothing().HasValue;
@@ -185,7 +186,7 @@ public class SmoothingSceneManager : ISceneManager
 
     private CrossSectionMeshGeometryModel3D GenerateCrossSection(MeshGeometry3D geometry, Plane plane, Material material, System.Windows.Media.Color crossSectionColor)
     {
-        return new CrossSectionMeshGeometryModel3D
+        var model = new CrossSectionMeshGeometryModel3D
         {
             Geometry = geometry,
             Material = material,
@@ -197,6 +198,9 @@ public class SmoothingSceneManager : ISceneManager
             CuttingOperation = CuttingOperation.Intersect,
             IsHitTestVisible = false,
         };
+
+        SceneVisual.SetIsModelGeometry(model, true);
+        return model;
     }
 }
 

@@ -97,7 +97,10 @@ public partial class ViewportControl : UserControl, IDisposable {
     // Scene managers build their visuals with no knowledge of the wireframe toggle, so the mode
     // has to be re-applied to everything they hand over, updates included.
     private void ApplyWireframeMode(Element3D visual) {
-        if (visual is not MeshGeometryModel3D mesh) return;
+        // Only the user's own geometry follows the toggle. A type check alone is not enough:
+        // HelixToolkit's manipulators are themselves MeshGeometryModel3D, so the drag handles
+        // would be wireframed and, in Only mode, hidden outright.
+        if (visual is not MeshGeometryModel3D mesh || !SceneVisual.GetIsModelGeometry(mesh)) return;
 
         var id = visual.GUID;
         var intended = _meshVisibility.TryGetValue(id, out var visibility) ? visibility : mesh.Visibility;
@@ -213,7 +216,9 @@ public partial class ViewportControl : UserControl, IDisposable {
 
         // Captured from the incoming visual, which always carries the scene manager's intent -
         // the registered copy may already be hidden by Only mode.
-        _meshVisibility[id] = visual.Visibility;
+        if (SceneVisual.GetIsModelGeometry(visual)) {
+            _meshVisibility[id] = visual.Visibility;
+        }
 
         if (_registry.TryGetValue(id, out var registry)) {
             UpdateProperties(_registry[id], visual);

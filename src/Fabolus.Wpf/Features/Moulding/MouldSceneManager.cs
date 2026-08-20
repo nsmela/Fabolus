@@ -127,6 +127,7 @@ public class MouldSceneManager : ISceneManager
             CullMode = SharpDX.Direct3D11.CullMode.None,
         };
 
+        SceneVisual.SetIsModelGeometry(model, true);
         _targetMeshId = model.GUID;
         VisualAddedOrUpdated?.Invoke(model);
 
@@ -164,6 +165,7 @@ public class MouldSceneManager : ISceneManager
             Visibility = _mouldHiddenForHover ? Visibility.Hidden : Visibility.Visible,
         };
 
+        SceneVisual.SetIsModelGeometry(_mouldModel, true);
         VisualAddedOrUpdated?.Invoke(_mouldModel);
 
         return Result.Success();
@@ -267,6 +269,7 @@ public class MouldSceneManager : ISceneManager
                 CullMode = SharpDX.Direct3D11.CullMode.Back,
             };
 
+            SceneVisual.SetIsModelGeometry(model, true);
             _channelVisuals[channel.Id] = model;
             _channelVisualToModelId[model.GUID] = channel.Id;
             _channelModelToVisualId[channel.Id] = model.GUID;
