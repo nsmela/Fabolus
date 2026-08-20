@@ -209,6 +209,16 @@
     <Geometry x:Key="Icon.Split">M8 1.8 L8 14.2 M3 5 L3 11 M13 5 L13 11</Geometry>
     <Geometry x:Key="Icon.Export">M8 9.4 L8 2.6 M5.4 5.2 L8 2.6 L10.6 5.2 M2.6 10 L2.6 12.4 a1 1 0 0 0 1 1 L12.4 13.4 a1 1 0 0 0 1 -1 L13.4 10</Geometry>
 
+    <!-- Viewport overlay icons (same 16x16 stroke style as the tab strip) -->
+    <!-- One per WireframeMode. An obliquely projected box: silhouette only -> plus the -->
+    <!-- visible edges -> plus the three edges hidden behind it. The projection is oblique -->
+    <!-- rather than isometric so the far corner stays clear of the near one. -->
+    <Geometry x:Key="Icon.Wireframe.None">M2.5 13.5 L2.5 5.5 L5.5 2.5 L13.5 2.5 L13.5 10.5 L10.5 13.5 Z</Geometry>
+    <Geometry x:Key="Icon.Wireframe.Overlay">M2.5 13.5 L2.5 5.5 L5.5 2.5 L13.5 2.5 L13.5 10.5 L10.5 13.5 Z M2.5 5.5 L10.5 5.5 L10.5 13.5 M10.5 5.5 L13.5 2.5</Geometry>
+    <Geometry x:Key="Icon.Wireframe.Only">M2.5 13.5 L2.5 5.5 L5.5 2.5 L13.5 2.5 L13.5 10.5 L10.5 13.5 Z M2.5 5.5 L10.5 5.5 L10.5 13.5 M10.5 5.5 L13.5 2.5 M5.5 2.5 L5.5 10.5 L13.5 10.5 M5.5 10.5 L2.5 13.5</Geometry>
+    <Geometry x:Key="Icon.Screenshot">M1.6 6.2 a1.6 1.6 0 0 1 1.6 -1.6 L5.9 4.6 L7 2.9 L9 2.9 L10.1 4.6 L12.8 4.6 a1.6 1.6 0 0 1 1.6 1.6 L14.4 12 a1.6 1.6 0 0 1 -1.6 1.6 L3.2 13.6 a1.6 1.6 0 0 1 -1.6 -1.6 Z M10.5 9.2 a2.5 2.5 0 1 1 -5 0 a2.5 2.5 0 1 1 5 0</Geometry>
+    <Geometry x:Key="Icon.Preferences">M2 4.4 L4.5 4.4 M7.5 4.4 L14 4.4 M7.5 4.4 a1.5 1.5 0 1 0 -3 0 a1.5 1.5 0 1 0 3 0 M2 8 L9 8 M12 8 L14 8 M12 8 a1.5 1.5 0 1 0 -3 0 a1.5 1.5 0 1 0 3 0 M2 11.6 L4 11.6 M7 11.6 L14 11.6 M7 11.6 a1.5 1.5 0 1 0 -3 0 a1.5 1.5 0 1 0 3 0</Geometry>
+
     <!-- ============================================================ -->
     <!--  COMPONENT STYLES                                            -->
     <!-- ============================================================ -->
