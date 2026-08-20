@@ -3,7 +3,6 @@ using Fabolus.Core.Common;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Wpf.Features.AppPreferences;
 using Microsoft.Win32;
-using System.IO;
 using System.Windows;
 
 namespace Fabolus.Wpf.Common;
@@ -31,9 +30,6 @@ public sealed class DialogueSystem : IDialogueSystem {
         };
 
         if (dialog.ShowDialog() == true) {
-            if (!string.IsNullOrEmpty(dialog.FolderName)) {
-                _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultExportFolderLabel, dialog.FolderName));
-            }
             return Maybe<string>.Some(dialog.FolderName);
         }
         return Maybe<string>.None();
@@ -49,10 +45,6 @@ public sealed class DialogueSystem : IDialogueSystem {
         };
 
         if (dialog.ShowDialog() == true) {
-            var folder = Path.GetDirectoryName(dialog.FileName);
-            if (!string.IsNullOrEmpty(folder)) {
-                _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultImportFolderLabel, folder));
-            }
             return Maybe<string>.Some(dialog.FileName);
         }
         return Maybe<string>.None();
@@ -68,10 +60,6 @@ public sealed class DialogueSystem : IDialogueSystem {
         };
 
         if (dialog.ShowDialog() == true) {
-            var folder = Path.GetDirectoryName(dialog.FileName);
-            if (!string.IsNullOrEmpty(folder)) {
-                _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultExportFolderLabel, folder));
-            }
             return Maybe<string>.Some(dialog.FileName);
         }
         return Maybe<string>.None();

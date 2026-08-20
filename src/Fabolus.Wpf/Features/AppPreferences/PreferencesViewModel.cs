@@ -96,6 +96,18 @@ public partial class PreferencesViewModel : ObservableObject
     }
 
     // ---- Change notifications → store ---------------------------------
+    partial void OnImportFilepathChanged(string oldValue, string newValue)
+    {
+        if (oldValue == newValue) { return; }
+        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultImportFolderLabel, newValue));
+    }
+
+    partial void OnExportFilepathChanged(string oldValue, string newValue)
+    {
+        if (oldValue == newValue) { return; }
+        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultExportFolderLabel, newValue));
+    }
+
     partial void OnExportFormatChanged(ExportFormat value)
         => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultExportFormatLabel, value));
 
@@ -166,9 +178,7 @@ public partial class PreferencesViewModel : ObservableObject
         };
         if (ofd.ShowDialog() != true) { return; }
 
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultImportFolderLabel, ofd.FolderName));
-        var response = _messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultImportFolderLabel)).Response;
-        ImportFilepath = Path.GetFullPath((string)response);
+        ImportFilepath = Path.GetFullPath(ofd.FolderName);
     }
 
     [RelayCommand]
@@ -182,14 +192,14 @@ public partial class PreferencesViewModel : ObservableObject
         };
         if (ofd.ShowDialog() != true) { return; }
 
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultExportFolderLabel, ofd.FolderName));
-        var response = _messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFolderLabel)).Response;
-        ExportFilepath = Path.GetFullPath((string)response);
+        ExportFilepath = Path.GetFullPath(ofd.FolderName);
     }
 
     [RelayCommand]
     private void RestoreDefaults()
     {
+        ImportFilepath = Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments);
+        ExportFilepath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         ExportFormat = ExportFormat.Stl;
         PrintbedWidth = 250.0f;
         PrintbedDepth = 250.0f;

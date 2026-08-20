@@ -324,8 +324,6 @@
                                     <StackPanel Orientation="Horizontal">
                                         <RadioButton Style="{StaticResource Segment}" GroupName="fmt" Content="STL"
                                                      IsChecked="{Binding ExportFormat, Converter={StaticResource EnumMatch}, ConverterParameter=Stl}" />
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="fmt" Content="OBJ"
-                                                     IsChecked="{Binding ExportFormat, Converter={StaticResource EnumMatch}, ConverterParameter=Obj}" />
                                         <RadioButton Style="{StaticResource Segment}" GroupName="fmt" Content="3MF"
                                                      IsChecked="{Binding ExportFormat, Converter={StaticResource EnumMatch}, ConverterParameter=ThreeMF}" />
                                     </StackPanel>

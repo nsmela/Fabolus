@@ -28,7 +28,6 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     private readonly MeshManagerSceneManager _sceneManager;
 
     private Workspace Workspace { get; set; }
-    private string ImportFolder { get; set; }
 
     public MeshManagerViewModel(IMessenger messenger, IDialogueSystem dialogue, IAlertDialog alertDialog, IGeometryEngine engine) {
         _dialogue = dialogue;
