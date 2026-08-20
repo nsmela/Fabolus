@@ -187,6 +187,7 @@ internal class RotateSceneManager : ISceneManager {
             Transform = TempRotation,
         };
 
+        SceneVisual.SetIsModelGeometry(_mesh, true);
         _activeId = _mesh.GUID;
         VisualAddedOrUpdated?.Invoke(_mesh);
     }

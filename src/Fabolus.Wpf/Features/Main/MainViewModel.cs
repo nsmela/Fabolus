@@ -37,6 +37,19 @@ public partial class MainViewModel : ObservableObject
     //debug info
     [ObservableProperty] private string _debugText = NoFileText;
 
+    // wireframe display, cycled by the viewport overlay button
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WireframeToolTip))]
+    private WireframeMode _wireframeMode = WireframeMode.None;
+
+    // describes what the next click does, not the current state
+    public string WireframeToolTip => WireframeMode switch
+    {
+        WireframeMode.None => "Show wireframe over the mesh",
+        WireframeMode.Overlay => "Show wireframe only",
+        _ => "Hide wireframe"
+    };
+
     // display views
     [ObservableProperty] private bool _showSplitView;
     [ObservableProperty] private bool _showCutView;
@@ -131,7 +144,14 @@ public partial class MainViewModel : ObservableObject
         MeshName = MeshLoaded ? result.Value.Name : "No mesh selected";
     }
 
-    //[RelayCommand] public void ToggleWireframe() => _messenger.Send(new WireframeToggleMessage());
+    // Cycles solid -> solid with edges -> edges only -> solid.
+    [RelayCommand]
+    public void ToggleWireframe() => WireframeMode = WireframeMode switch
+    {
+        WireframeMode.None => WireframeMode.Overlay,
+        WireframeMode.Overlay => WireframeMode.Only,
+        _ => WireframeMode.None
+    };
 
     [RelayCommand]
     public void CaptureScreenshot()

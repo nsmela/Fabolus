@@ -233,6 +233,9 @@ public class CutSplitSceneManager : ISceneManager
             IsHitTestVisible = false,
         };
 
+        SceneVisual.SetIsModelGeometry(_topModel, true);
+        SceneVisual.SetIsModelGeometry(_bottomModel, true);
+
         VisualAddedOrUpdated?.Invoke(_topModel);
         VisualAddedOrUpdated?.Invoke(_bottomModel);
     }

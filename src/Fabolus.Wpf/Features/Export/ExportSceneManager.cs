@@ -59,6 +59,7 @@ internal class ExportSceneManager : ISceneManager {
             Geometry = geometry,
             Material = Skins.Surface.Gray,
         };
+        SceneVisual.SetIsModelGeometry(model, true);
         _activeId = model.GUID;
 
         VisualAddedOrUpdated?.Invoke(model);

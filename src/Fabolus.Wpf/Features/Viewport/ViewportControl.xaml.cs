@@ -25,7 +25,17 @@ public partial class ViewportControl : UserControl, IDisposable {
         Camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera {
             Position = new Point3D(0, 0, 100),
             LookDirection = new Vector3D(0, 0, -100),
-            UpDirection = new Vector3D(0, 1, 0)
+            UpDirection = new Vector3D(0, 1, 0),
+
+            // HelixToolkit defaults these to 0.01 and 1000. Depth buffer precision is governed by
+            // the near plane, and a near plane that close to the eye spends nearly the whole
+            // range within a millimetre of the camera: at 0.01 the smallest resolvable depth step
+            // 260mm out is already ~0.4mm, so anything coincident - the wireframe overlay on its
+            // own mesh, the mould against the bolus, the cut plane - dissolves into z-fighting as
+            // soon as you zoom out. Everything here is millimetre-scale and 1mm is closer than
+            // any of these tools need to get, which buys back a factor of 100.
+            NearPlaneDistance = 1.0,
+            FarPlaneDistance = 5000.0
         };
 
         InitializeComponent();
@@ -42,6 +52,145 @@ public partial class ViewportControl : UserControl, IDisposable {
             typeof(ISceneManager),
             typeof(ViewportControl),
             new PropertyMetadata(null, OnSceneManagerChanged));
+
+    public WireframeMode WireframeMode {
+        get => (WireframeMode)GetValue(WireframeModeProperty);
+        set => SetValue(WireframeModeProperty, value);
+    }
+
+    public static readonly DependencyProperty WireframeModeProperty =
+        DependencyProperty.Register(
+            nameof(WireframeMode),
+            typeof(WireframeMode),
+            typeof(ViewportControl),
+            new PropertyMetadata(WireframeMode.None, OnWireframeModeChanged));
+
+    private static void OnWireframeModeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) {
+        if (d is not ViewportControl control) return;
+
+        foreach (var visual in control._registry.Values) {
+            control.ApplyWireframeMode(visual);
+        }
+    }
+
+    // Edges are drawn as their own line geometry rather than with FillMode.Wireframe or
+    // MeshGeometryModel3D.RenderWireframe. Both of those rasterise the triangles themselves, so
+    // every shared edge is drawn twice at identical depth and the two draws z-fight into a
+    // stippled, grainy mess. Deduplicating the edges up front draws each one exactly once, and a
+    // LineGeometryModel3D expands them to screen-space quads, so they get real thickness and
+    // antialiasing instead of ragged one-pixel hairlines.
+    private readonly Dictionary<Guid, WireframeVisual> _wireframes = new();
+
+    private sealed record WireframeVisual(LineGeometryModel3D Visual, HelixToolkit.Wpf.SharpDX.Geometry3D Source);
+
+    // Dark enough to read as topology over the lit skins, light enough to read against the
+    // viewport's dark background when the surfaces are hidden.
+    private static readonly System.Windows.Media.Color WireframeOverlayColor =
+        System.Windows.Media.Color.FromRgb(0x1E, 0x22, 0x28);
+    private static readonly System.Windows.Media.Color WireframeOnlyColor =
+        System.Windows.Media.Color.FromRgb(0x9F, 0xB0, 0xBE);
+
+    // The scene managers' own intent for each mesh, kept because Only mode hides their surfaces
+    // and that has to be undone when the mode is switched off.
+    private readonly Dictionary<Guid, Visibility> _meshVisibility = new();
+
+    // Scene managers build their visuals with no knowledge of the wireframe toggle, so the mode
+    // has to be re-applied to everything they hand over, updates included.
+    private void ApplyWireframeMode(Element3D visual) {
+        // Only the user's own geometry follows the toggle. A type check alone is not enough:
+        // HelixToolkit's manipulators are themselves MeshGeometryModel3D, so the drag handles
+        // would be wireframed and, in Only mode, hidden outright.
+        if (visual is not MeshGeometryModel3D mesh || !SceneVisual.GetIsModelGeometry(mesh)) return;
+
+        var id = visual.GUID;
+        var intended = _meshVisibility.TryGetValue(id, out var visibility) ? visibility : mesh.Visibility;
+
+        // A mesh its own scene manager has hidden stays hidden, wireframe and all.
+        if (WireframeMode == WireframeMode.None || intended != Visibility.Visible) {
+            RemoveWireframe(id);
+            mesh.Visibility = intended;
+            return;
+        }
+
+        mesh.Visibility = WireframeMode == WireframeMode.Only ? Visibility.Collapsed : Visibility.Visible;
+        UpdateWireframe(id, mesh);
+    }
+
+    private void UpdateWireframe(Guid id, MeshGeometryModel3D mesh) {
+        if (mesh.Geometry is not HelixToolkit.Wpf.SharpDX.MeshGeometry3D geometry
+            || geometry.Positions is null
+            || geometry.Indices is null) {
+            RemoveWireframe(id);
+            return;
+        }
+
+        _wireframes.TryGetValue(id, out var existing);
+        var wireframe = existing?.Visual;
+
+        if (wireframe is null) {
+            wireframe = new LineGeometryModel3D {
+                Thickness = 0.8,
+                IsHitTestVisible = false,
+            };
+            MainViewport.Items.Add(wireframe);
+        }
+
+        // Extracting the edges is O(triangles), so only redo it when the geometry itself changes.
+        // Dragging a gizmo republishes the same geometry with a new transform every frame.
+        if (!ReferenceEquals(existing?.Source, geometry)) {
+            wireframe.Geometry = BuildWireframe(geometry);
+        }
+
+        wireframe.Color = WireframeMode == WireframeMode.Only ? WireframeOnlyColor : WireframeOverlayColor;
+        wireframe.Transform = mesh.Transform;
+        wireframe.Visibility = Visibility.Visible;
+
+        _wireframes[id] = new WireframeVisual(wireframe, geometry);
+    }
+
+    // The lines trace edges that lie exactly on the surface, so in Overlay mode they z-fight with
+    // it. Depth bias is the usual cure but it works in depth-buffer units, and the camera's near
+    // plane sits at HelixToolkit's default 0.01 against a far plane of 1000: nearly the whole
+    // depth range is spent within a millimetre of the camera, so a bias big enough to clear the
+    // surface up close drags lines at 100mm about 20mm forward, and the far side of the mesh
+    // punches through the near side. Nudging the vertices along the surface normal instead is a
+    // plain world-space offset that behaves identically everywhere in the scene.
+    private static LineGeometry3D BuildWireframe(HelixToolkit.Wpf.SharpDX.MeshGeometry3D geometry) {
+        var edges = MeshGeometryHelper.FindEdges(geometry);
+        var normals = geometry.Normals;
+
+        if (normals is null || normals.Count != geometry.Positions.Count) {
+            return new LineGeometry3D { Positions = geometry.Positions, Indices = edges };
+        }
+
+        // Proportional to the model, so it stays invisible on a large mesh and still clears the
+        // surface on a small one.
+        var offset = Math.Max(
+            0.01f,
+            (geometry.Bound.Maximum - geometry.Bound.Minimum).Length() * 0.0005f);
+
+        var positions = new HelixToolkit.Wpf.SharpDX.Vector3Collection(geometry.Positions.Count);
+        for (var i = 0; i < geometry.Positions.Count; i++) {
+            positions.Add(geometry.Positions[i] + (normals[i] * offset));
+        }
+
+        return new LineGeometry3D { Positions = positions, Indices = edges };
+    }
+
+    private void RemoveWireframe(Guid id) {
+        if (!_wireframes.Remove(id, out var wireframe)) return;
+
+        MainViewport.Items.Remove(wireframe.Visual);
+        wireframe.Visual.Dispose();
+    }
+
+    private void RemoveAllWireframes() {
+        foreach (var wireframe in _wireframes.Values) {
+            MainViewport.Items.Remove(wireframe.Visual);
+            wireframe.Visual.Dispose();
+        }
+        _wireframes.Clear();
+    }
 
     private static void OnSceneManagerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) {
         if (d is not ViewportControl control) return;
@@ -64,10 +213,19 @@ public partial class ViewportControl : UserControl, IDisposable {
 
     private void OnAddOrUpdateVisual(Element3D visual) => Dispatcher.BeginInvoke(new Action(() => {
         var id = visual.GUID;
+
+        // Captured from the incoming visual, which always carries the scene manager's intent -
+        // the registered copy may already be hidden by Only mode.
+        if (SceneVisual.GetIsModelGeometry(visual)) {
+            _meshVisibility[id] = visual.Visibility;
+        }
+
         if (_registry.TryGetValue(id, out var registry)) {
             UpdateProperties(_registry[id], visual);
+            ApplyWireframeMode(_registry[id]);
         } else {
             _registry[id] = visual;
+            ApplyWireframeMode(visual);
             MainViewport.Items.Add(visual);
             //MainViewport.ZoomExtents();
         }
@@ -82,12 +240,15 @@ public partial class ViewportControl : UserControl, IDisposable {
             visual.Dispose();
         }
         _registry.Clear();
+        _meshVisibility.Clear();
+        RemoveAllWireframes();
     }));
 
     private void OnRemoveVisualById(Guid id) => Dispatcher.BeginInvoke(new Action(() => {
         if (_registry.Remove(id, out var visual)) {
             MainViewport.Items.Remove(visual);
-            _registry.Remove(id);
+            _meshVisibility.Remove(id);
+            RemoveWireframe(id);
             visual.Dispose(); // Memory safety!
         }
     }));
