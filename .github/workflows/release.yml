@@ -1,0 +1,86 @@
+name: Release
+
+# Builds the three release artifacts and attaches them to a draft GitHub release.
+#
+# All build logic lives in build/publish.ps1 so a local run and a CI run produce
+# identical output. This workflow only supplies the version and uploads the results.
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 0.9.4). No release is created for manual runs.'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Ensure Inno Setup
+        shell: pwsh
+        run: |
+          if (Get-Command ISCC.exe -ErrorAction SilentlyContinue) {
+            Write-Host 'Inno Setup already on PATH.'
+          } elseif (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") {
+            Write-Host 'Inno Setup already installed.'
+          } else {
+            choco install innosetup -y --no-progress
+          }
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $version = '${{ inputs.version }}'
+          } else {
+            $version = '${{ github.ref_name }}'
+          }
+          $version = $version.Trim().TrimStart('v', 'V')
+          Write-Host "Building version $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Publish artifacts
+        shell: pwsh
+        run: ./build/publish.ps1 -Version ${{ steps.version.outputs.version }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fabolus-${{ steps.version.outputs.version }}
+          path: artifacts/*
+          if-no-files-found: error
+
+      - name: Create draft release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: Fabolus ${{ steps.version.outputs.version }}
+          files: artifacts/*
+          body: |
+            ## Downloads
+
+            | File | Who it's for | Requires |
+            |---|---|---|
+            | `Fabolus-${{ steps.version.outputs.version }}-setup.exe` | Most people. Installs to your user folder, adds a Start Menu shortcut, uninstalls cleanly. | Nothing |
+            | `Fabolus-${{ steps.version.outputs.version }}-win-x64.zip` | Portable use if you already have .NET. Extract and run `Fabolus.exe`. | [.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) |
+            | `Fabolus-${{ steps.version.outputs.version }}-win-x64-self-contained.zip` | Portable use on a machine with no .NET installed. Larger download. | Nothing |
+
+            Windows 10 or later, 64-bit.

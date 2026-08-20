@@ -30,11 +30,28 @@ public class GeometryEngineFixture
     public string GetAssetPath(string name)
     {
         var path = Path.Combine(AppContext.BaseDirectory, name);
-        if (!File.Exists(path))
+        if (File.Exists(path))
         {
-            path = Path.Combine(AppContext.BaseDirectory, "../../../../files", name);
+            return Path.GetFullPath(path);
         }
-        return Path.GetFullPath(path);
+
+        // Search upward for the shared asset folder rather than hopping a fixed number of
+        // levels: the output layout gains a directory when a platform is set
+        // (bin/Release/net8.0 vs bin/x64/Release/net8.0), which a fixed count gets wrong.
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var candidate = Path.Combine(directory.FullName, "files", name);
+            if (File.Exists(candidate))
+            {
+                return Path.GetFullPath(candidate);
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException(
+            $"Could not find test asset '{name}' in any 'files' folder above '{AppContext.BaseDirectory}'.");
     }
 
     public IMesh UnitCube()

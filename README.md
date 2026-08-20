@@ -3,6 +3,28 @@
 
 This application can import a STL file, smooth it, add airchannels, and create an encompasing mould around the bolus and subtracting the air channels.
 
+## Download and install
+
+Grab the latest files from the [Releases page](https://github.com/nsmela/Fabolus/releases). Fabolus is Windows 10 or later, 64-bit only.
+
+| File | Who it's for | Requires |
+|---|---|---|
+| `Fabolus-<version>-setup.exe` | **Most people.** Installs to your user folder, adds a Start Menu shortcut, and uninstalls cleanly. No admin rights needed. | Nothing |
+| `Fabolus-<version>-win-x64.zip` | Portable use if you already have .NET. Extract anywhere and run `Fabolus.exe`. Smallest download. | [.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) |
+| `Fabolus-<version>-win-x64-self-contained.zip` | Portable use on a machine with no .NET installed. Everything is bundled, so the download is much larger. | Nothing |
+
+## Building a release
+
+All three artifacts are produced by one script:
+
+```powershell
+pwsh ./build/publish.ps1
+```
+
+They land in `artifacts/`. Building the installer needs [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`); pass `-SkipInstaller` to build just the two zips without it. Pushing a `x.y.z` tag runs the same script in GitHub Actions and attaches the results to a draft release.
+
+See [build/publishing.md](build/publishing.md) for the full release process, script options, and known rough edges.
+
 Screenshots:
 
 <img width="800" height="550" alt="2025-09-08_10-14-45" src="https://github.com/user-attachments/assets/8306ff5e-0518-4c20-bc2e-e50954c238e8" />
