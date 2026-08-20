@@ -122,7 +122,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         if (ActiveStats != null) {
             items.Add(new TitleInfoItem { Label = "MESH STATISTICS" });
             items.Add(new TextInfoItem { Label = "Triangles", Value = ActiveStats.TriangleCount.ToString("N0") });
-            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{ActiveStats.SurfaceArea:F2} mm�" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{ActiveStats.SurfaceArea:F2} mm\u00B2" });
             items.Add(new TextInfoItem { Label = "Volume", Value = $"{ActiveStats.Volume:F2} mL" });
             
             double width = ActiveStats.MaxX - ActiveStats.MinX;
