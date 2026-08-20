@@ -655,23 +655,35 @@ internal sealed class GeometryGenerators : IGeometryGenerators
     {
         var paths = new Paths64();
         const double scale = 100000.0;
-        
+
         var path = new Path64();
         foreach (var pt in polygon.OuterBoundary)
         {
             path.Add(new Point64((long)Math.Round(pt.X * scale), (long)Math.Round(pt.Y * scale)));
         }
+
+        // Clipper offsets a closed path according to its winding, so a positive distance
+        // only grows a positively-oriented one. GetMeshShadow and GetConvexHull don't agree
+        // on winding, so it gets normalised here - otherwise a negative distance (the mould
+        // trough insetting its rim) would grow the polygon on half the inputs.
+        if (Clipper.Area(path) < 0)
+            path.Reverse();
+
         paths.Add(path);
 
         var offsetter = new ClipperOffset();
-        offsetter.AddPaths(paths, JoinType.Round, EndType.Round);
+        offsetter.AddPaths(paths, JoinType.Round, EndType.Polygon);
         var solution = new Paths64();
         offsetter.Execute(distance * scale, solution);
 
         if (solution.Count == 0)
             return new Error("Geometry.OffsetFailed", "Failed to generate offset polygon.");
 
-        var finalPoly = new Polygon2D { OuterBoundary = solution[0].Select(pt => new Vector2((float)(pt.X / scale), (float)(pt.Y / scale))).ToList() };
+        // A large enough inset pinches the polygon into separate islands; the callers only
+        // ever want one contour, so keep the biggest.
+        var largest = solution.OrderByDescending(p => Math.Abs(Clipper.Area(p))).First();
+
+        var finalPoly = new Polygon2D { OuterBoundary = largest.Select(pt => new Vector2((float)(pt.X / scale), (float)(pt.Y / scale))).ToList() };
         return Result.Success(finalPoly);
     }
 

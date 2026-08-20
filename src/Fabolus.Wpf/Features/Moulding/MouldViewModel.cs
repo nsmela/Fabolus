@@ -202,9 +202,45 @@ public partial class MouldViewModel : ObservableObject, IViewState
     [ObservableProperty] private double _wallThickness = 2.0;
     [ObservableProperty] private double _baseHeight = 5.0;
 
-    partial void OnSelectedMouldTypeChanged(MouldShapeType value) => UpdateMould();
+    public IReadOnlyList<TroughShapeType> TroughShapeTypes { get; } = Enum.GetValues<TroughShapeType>();
+
+    // The trough is the basin recessed into the top of the mould that excess silicone pools
+    // in while it fills. Depth 0 means no trough - there's no separate toggle.
+    [ObservableProperty] private double _troughHeight;
+    [ObservableProperty] private double _troughOffset = 2.5;
+    [ObservableProperty] private TroughShapeType _selectedTroughShape = TroughShapeType.Footprint;
+
+    // A contoured mould follows the bolus surface, so it has no flat top to recess into.
+    public bool SupportsTrough => SelectedMouldType != MouldShapeType.Contoured;
+    public bool HasTrough => SupportsTrough && TroughHeight > 0;
+
+    public string TroughOffsetHint => SelectedTroughShape == TroughShapeType.Channels
+        ? "How far the pool spreads past the channel exits."
+        : "Rim left standing between the pool and the mould wall.";
+
+    partial void OnSelectedMouldTypeChanged(MouldShapeType value)
+    {
+        OnPropertyChanged(nameof(SupportsTrough));
+        OnPropertyChanged(nameof(HasTrough));
+        UpdateMould();
+    }
+
     partial void OnWallThicknessChanged(double value) => UpdateMould();
     partial void OnBaseHeightChanged(double value) => UpdateMould();
+
+    partial void OnTroughHeightChanged(double value)
+    {
+        OnPropertyChanged(nameof(HasTrough));
+        UpdateMould();
+    }
+
+    partial void OnTroughOffsetChanged(double value) => UpdateMould();
+
+    partial void OnSelectedTroughShapeChanged(TroughShapeType value)
+    {
+        OnPropertyChanged(nameof(TroughOffsetHint));
+        UpdateMould();
+    }
 
     public ISceneManager SceneManager => _sceneManager;
 
@@ -313,6 +349,10 @@ public partial class MouldViewModel : ObservableObject, IViewState
             _ => (WallThickness, BaseHeight)
         };
 
+        TroughHeight = mouldDefinition.TroughHeight;
+        TroughOffset = mouldDefinition.TroughOffset;
+        SelectedTroughShape = mouldDefinition.TroughShape;
+
         UpdatePreviewChannel();
 
         // The scene manager only ever renders the active mesh, so that's all it gets -
@@ -385,12 +425,25 @@ public partial class MouldViewModel : ObservableObject, IViewState
             Workspace = result.Value;
     }
 
-    private MouldDefinition BuildMouldDefinition() => SelectedMouldType switch
+    private MouldDefinition BuildMouldDefinition()
     {
-        MouldShapeType.Convex => new ConvexMouldDefinition(WallThickness, BaseHeight, BaseHeight) { AirChannels = Channels },
-        MouldShapeType.Contoured => new ContouredMouldDefinition(WallThickness) { AirChannels = Channels },
-        _ => new ConcaveMouldDefinition(WallThickness, BaseHeight, BaseHeight) { AirChannels = Channels }
-    };
+        MouldDefinition definition = SelectedMouldType switch
+        {
+            MouldShapeType.Convex => new ConvexMouldDefinition(WallThickness, BaseHeight, BaseHeight),
+            MouldShapeType.Contoured => new ContouredMouldDefinition(WallThickness),
+            _ => new ConcaveMouldDefinition(WallThickness, BaseHeight, BaseHeight)
+        };
+
+        // The trough settings ride along even on a contoured mould (which ignores them), so
+        // switching shape and back doesn't lose what the user had dialled in.
+        return definition with
+        {
+            AirChannels = Channels,
+            TroughHeight = TroughHeight,
+            TroughOffset = TroughOffset,
+            TroughShape = SelectedTroughShape
+        };
+    }
 
     private void UpdateMould()
     {
@@ -415,7 +468,9 @@ public partial class MouldViewModel : ObservableObject, IViewState
             return TipLength;
 
         var topOffset = SelectedMouldType == MouldShapeType.Contoured ? WallThickness : BaseHeight;
-        var mouldTopZ = _targetStats.MaxZ + topOffset;
+        // A trough raises the top of the mould by its depth, and the channel still has to
+        // vent above the rim rather than into the pool.
+        var mouldTopZ = _targetStats.MaxZ + topOffset + (HasTrough ? TroughHeight : 0.0);
         var totalLength = (float)(mouldTopZ + MouldClearance) - startZ;
 
         // Never let the total length come out shorter than the cone/tip itself.

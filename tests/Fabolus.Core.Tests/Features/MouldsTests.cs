@@ -186,6 +186,174 @@ public class MouldsTests
     }
 
     [Fact]
+    public void GenerateMould_Trough_RaisesTheTopAndRecessesABasinIntoIt()
+    {
+        var workspace = SphereWorkspace(out var meshId);
+
+        var plain = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0);
+        var troughed = plain with { TroughHeight = 4.0, TroughOffset = 3.0 };
+
+        // The same mould the trough grows into, left solid - the basin has to come out of
+        // the height the trough added, not out of the cover over the bolus.
+        var solid = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 9.0);
+
+        var troughedStats = GenerateStats(workspace, meshId, troughed);
+        var solidStats = GenerateStats(workspace, meshId, solid);
+
+        troughedStats.MaxZ.Should().BeApproximately(solidStats.MaxZ, 1e-3);
+        troughedStats.Volume.Should().BeGreaterThan(GenerateStats(workspace, meshId, plain).Volume);
+        troughedStats.Volume.Should().BeLessThan(solidStats.Volume);
+    }
+
+    [Fact]
+    public void GenerateMould_Trough_HollowsOutTheAddedHeightAndSpareTheCover()
+    {
+        var workspace = SphereWorkspace(out var meshId);
+
+        // Sphere top is z=10, so the cover over it runs 10..15 and the trough's 4mm sits
+        // above that, 15..19.
+        var troughed = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0)
+        {
+            TroughHeight = 4.0,
+            TroughOffset = 3.0
+        };
+        var solid = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 9.0);
+
+        var troughedMesh = GenerateMesh(workspace, meshId, troughed);
+        var solidMesh = GenerateMesh(workspace, meshId, solid);
+
+        // Above the cover only the rim is left standing.
+        var pooled = SliceVolume(troughedMesh, 16.0f, 18.0f);
+        pooled.Should().BeLessThan(SliceVolume(solidMesh, 16.0f, 18.0f) * 0.5);
+
+        // The cover itself is untouched - the basin bottoms out on it, it isn't thinned.
+        SliceVolume(troughedMesh, 12.0f, 14.0f)
+            .Should().BeApproximately(SliceVolume(solidMesh, 12.0f, 14.0f), 1e-3);
+    }
+
+    [Fact]
+    public void GenerateMould_ChannelTrough_CarvesLessThanAFootprintTrough()
+    {
+        var workspace = SphereWorkspace(out var meshId);
+
+        var channel = new AirChannelModel(
+            System.Guid.NewGuid(),
+            AirChannelType.Straight,
+            2.0, 5.0, 5.0,
+            new StraightAirChannel(new Vector3(0, 0, 10), 5.0f, 20.0f, 2.0f, 5.0f));
+
+        var footprintTrough = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0)
+        {
+            AirChannels = new[] { channel },
+            TroughHeight = 4.0,
+            TroughOffset = 3.0
+        };
+        var channelTrough = footprintTrough with { TroughShape = TroughShapeType.Channels };
+
+        var footprintStats = GenerateStats(workspace, meshId, footprintTrough);
+        var channelStats = GenerateStats(workspace, meshId, channelTrough);
+
+        // Both moulds are the same height; the channel trough only pools around the one
+        // channel, so it leaves more of the top face standing.
+        channelStats.MaxZ.Should().BeApproximately(footprintStats.MaxZ, 1e-3);
+        channelStats.Volume.Should().BeGreaterThan(footprintStats.Volume);
+    }
+
+    [Fact]
+    public void GenerateMould_ChannelTrough_WithoutChannels_LeavesTheMouldUnchanged()
+    {
+        var workspace = SphereWorkspace(out var meshId);
+
+        var plain = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0);
+        var troughed = plain with { TroughHeight = 4.0, TroughShape = TroughShapeType.Channels };
+
+        var plainStats = GenerateStats(workspace, meshId, plain);
+        var troughedStats = GenerateStats(workspace, meshId, troughed);
+
+        // Nothing to pool around: the mould must not grow taller for a basin that can't be
+        // carved.
+        troughedStats.MaxZ.Should().BeApproximately(plainStats.MaxZ, 1e-3);
+        troughedStats.Volume.Should().BeApproximately(plainStats.Volume, 1e-3);
+    }
+
+    [Fact]
+    public void MouldDefinition_JsonRoundTrip_PreservesTroughSettings()
+    {
+        var mouldDef = new ConcaveMouldDefinition(OffsetXY: 3.0, OffsetBottom: 4.0, OffsetTop: 5.0)
+        {
+            TroughHeight = 6.0,
+            TroughOffset = 1.5,
+            TroughShape = TroughShapeType.Channels
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(
+            (object)mouldDef,
+            new System.Text.Json.JsonSerializerOptions { WriteIndented = false, IncludeFields = true });
+        var restored = (ConcaveMouldDefinition?)System.Text.Json.JsonSerializer.Deserialize(
+            json, typeof(ConcaveMouldDefinition),
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true, IncludeFields = true });
+
+        restored.Should().NotBeNull();
+        restored!.TroughHeight.Should().Be(6.0);
+        restored.TroughOffset.Should().Be(1.5);
+        restored.TroughShape.Should().Be(TroughShapeType.Channels);
+    }
+
+    [Fact]
+    public void MouldDefinition_SavedBeforeTroughsExisted_DeserialisesWithNoTrough()
+    {
+        // Mould definitions written into 3MFs by earlier builds carry no trough fields.
+        var json = """{"OffsetXY":3,"OffsetBottom":4,"OffsetTop":5,"AirChannels":[]}""";
+
+        var restored = (ConcaveMouldDefinition?)System.Text.Json.JsonSerializer.Deserialize(
+            json, typeof(ConcaveMouldDefinition),
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true, IncludeFields = true });
+
+        restored.Should().NotBeNull();
+        restored!.TroughHeight.Should().Be(0.0);
+    }
+
+    private Workspace SphereWorkspace(out System.Guid meshId)
+    {
+        var workspace = Workspace.CreateEmpty();
+        var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
+        meshId = mesh.Metadata.Id;
+        return workspace.AddMesh(mesh).Value.SetActiveMesh(meshId).Value;
+    }
+
+    private IMesh GenerateMesh(Workspace workspace, System.Guid meshId, MouldDefinition definition)
+    {
+        var result = _generateMouldFeature.Execute(workspace, meshId, definition);
+        result.IsSuccess.Should().BeTrue(result.IsFailure ? result.Error.Description : string.Empty);
+
+        return result.Value.GetActiveMesh().Value;
+    }
+
+    private MeshStatistics GenerateStats(Workspace workspace, System.Guid meshId, MouldDefinition definition) =>
+        _fixture.Engine.Evaluators.GetStatistics(GenerateMesh(workspace, meshId, definition)).Value;
+
+    /// <summary>
+    /// How much solid material the mesh has between two heights - enough to tell a basin
+    /// recessed into the top from a mould that just grew taller.
+    /// </summary>
+    private double SliceVolume(IMesh mesh, float zMin, float zMax)
+    {
+        var slab = new Polygon2D
+        {
+            OuterBoundary = new[]
+            {
+                new Vector2(-100, -100), new Vector2(100, -100),
+                new Vector2(100, 100), new Vector2(-100, 100)
+            }
+        };
+
+        var slabMesh = _fixture.Engine.Generators.ExtrudePolygon(slab, zMin, zMax).Value;
+        var sliced = _fixture.Engine.Booleans.Intersect(mesh, slabMesh).Value;
+
+        return _fixture.Engine.Evaluators.GetStatistics(sliced).Value.Volume;
+    }
+
+    [Fact]
     public void GenerateMould_DoesNotFork_StaysOnSameMeshEntry()
     {
         var workspace = Workspace.CreateEmpty();
