@@ -55,6 +55,11 @@ UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName} {#AppVersion}
 WizardStyle=modern
 
+; If Fabolus is running, its files are locked and the install would fail part-way.
+; Let the Restart Manager detect and close it first rather than erroring out.
+CloseApplications=yes
+RestartApplications=no
+
 ; The payload is a self-contained .NET build (~280 MB), so compression settings matter.
 Compression=lzma2/max
 SolidCompression=yes
@@ -84,3 +89,117 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
 ; Preferences are written next to the exe at runtime, so remove them on uninstall.
 Type: files; Name: "{app}\Fabolus.dll.config"
 Type: dirifempty; Name: "{app}"
+
+[Code]
+{ Inno matches installs by AppId, so an upgrade already reuses the existing directory
+  and Add/Remove entry. What it does NOT do on its own is tell the user what is about to
+  happen, or stop an older build from silently replacing a newer one. }
+
+const
+  UninstallSubkey =
+    'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8FC8CE15-9EC2-4606-8D9A-F794CC4B0B23}_is1';
+
+var
+  ExistingVersion: String;
+  ExistingScope: String;
+
+{ Look for a previous install: per-user first, then machine-wide in both registry views. }
+function FindExistingInstall: Boolean;
+begin
+  Result := True;
+
+  if RegQueryStringValue(HKEY_CURRENT_USER, UninstallSubkey, 'DisplayVersion', ExistingVersion) then
+  begin
+    ExistingScope := 'for your user account';
+    Exit;
+  end;
+
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, UninstallSubkey, 'DisplayVersion', ExistingVersion) then
+  begin
+    ExistingScope := 'for all users';
+    Exit;
+  end;
+
+  if IsWin64 and RegQueryStringValue(HKLM32, UninstallSubkey, 'DisplayVersion', ExistingVersion) then
+  begin
+    ExistingScope := 'for all users';
+    Exit;
+  end;
+
+  ExistingVersion := '';
+  ExistingScope := '';
+  Result := False;
+end;
+
+{ Negative when the installed build is older than this one, 0 when equal, positive when newer. }
+function CompareWithExisting: Integer;
+var
+  Installed, Incoming: Int64;
+begin
+  Result := 0;
+  if StrToVersion(ExistingVersion, Installed) and StrToVersion('{#AppVersion}', Incoming) then
+    Result := ComparePackedVersion(Installed, Incoming);
+end;
+
+function InitializeSetup: Boolean;
+var
+  Message: String;
+begin
+  Result := True;
+
+  if not FindExistingInstall then
+    Exit;
+
+  { A silent run is scripted, so take it at its word and skip the prompts. }
+  if WizardSilent then
+    Exit;
+
+  case CompareWithExisting of
+    1:
+      begin
+        Message :=
+          'Fabolus ' + ExistingVersion + ' is already installed ' + ExistingScope + ', which is'
+          + ' newer than the Fabolus {#AppVersion} you are about to install.' + #13#10#13#10
+          + 'Continuing will replace it with this older version.' + #13#10#13#10
+          + 'Install the older version anyway?';
+        Result := MsgBox(Message, mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+      end;
+    0:
+      begin
+        Message :=
+          'Fabolus ' + ExistingVersion + ' is already installed ' + ExistingScope + '.'
+          + #13#10#13#10
+          + 'Continuing will reinstall it over the existing copy.' + #13#10#13#10
+          + 'Do you want to continue?';
+        Result := MsgBox(Message, mbConfirmation, MB_YESNO) = IDYES;
+      end;
+  end;
+  { An ordinary upgrade needs no prompt; it is reported on the Ready page instead. }
+end;
+
+{ Surface what is happening to the existing install on the "Ready to Install" page. }
+function UpdateReadyMemo(Space, NewLine, MemoUserInfoInfo, MemoDirInfo, MemoTypeInfo,
+  MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
+var
+  Existing: String;
+begin
+  Result := '';
+
+  if ExistingVersion <> '' then
+  begin
+    case CompareWithExisting of
+      1: Existing := 'Fabolus ' + ExistingVersion + ' (' + ExistingScope + ') will be replaced by'
+                   + ' this older version {#AppVersion}.';
+      0: Existing := 'Fabolus ' + ExistingVersion + ' (' + ExistingScope + ') will be reinstalled.';
+    else
+      Existing := 'Fabolus ' + ExistingVersion + ' (' + ExistingScope + ') will be upgraded to'
+                + ' {#AppVersion}.';
+    end;
+    Result := 'Existing installation:' + NewLine + Space + Existing + NewLine + NewLine;
+  end;
+
+  Result := Result + MemoDirInfo + NewLine + NewLine + MemoGroupInfo;
+
+  if MemoTasksInfo <> '' then
+    Result := Result + NewLine + NewLine + MemoTasksInfo;
+end;

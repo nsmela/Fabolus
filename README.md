@@ -23,6 +23,8 @@ pwsh ./build/publish.ps1
 
 They land in `artifacts/`. Building the installer needs [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`); pass `-SkipInstaller` to build just the two zips without it. Pushing a `x.y.z` tag runs the same script in GitHub Actions and attaches the results to a draft release.
 
+See [build/publishing.md](build/publishing.md) for the full release process, script options, and known rough edges.
+
 Screenshots:
 
 <img width="800" height="550" alt="2025-09-08_10-14-45" src="https://github.com/user-attachments/assets/8306ff5e-0518-4c20-bc2e-e50954c238e8" />

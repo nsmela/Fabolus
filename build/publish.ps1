@@ -103,10 +103,13 @@ function Invoke-Publish {
 
     if ($SelfContained) { $selfContainedArg = 'true' } else { $selfContainedArg = 'false' }
 
+    # Platform is passed explicitly: publishing targets the csproj rather than the solution,
+    # and MSBuild would otherwise default to AnyCPU regardless of <Platforms>x64</Platforms>.
     $arguments = @(
         'publish', $appProject,
         '-c', $Configuration,
         '-r', $Runtime,
+        '-p:Platform=x64',
         '--self-contained', $selfContainedArg,
         "-p:Version=$Version",
         '-p:PublishSingleFile=false',
