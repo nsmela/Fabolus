@@ -40,12 +40,40 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // it there); this mirrors that selection so the parameter panel can edit it.
     [ObservableProperty] private Guid _selectedChannelId = Guid.Empty;
 
+    // The two sections of the tool rail behave as an accordion: opening one closes the
+    // other, so the panel only ever shows one set of controls at a time. Both can still be
+    // closed - collapsing the open section doesn't reopen its neighbour.
+    [ObservableProperty] private bool _isChannelsExpanded = true;
+    [ObservableProperty] private bool _isMouldExpanded;
+
+    partial void OnIsChannelsExpandedChanged(bool value)
+    {
+        if (value) IsMouldExpanded = false;
+    }
+
+    partial void OnIsMouldExpandedChanged(bool value)
+    {
+        if (value) IsChannelsExpanded = false;
+    }
+
     // True once Generate Mould has produced a result from the current settings/channels.
     // Drives the primary button (Generate <-> Clear) and gates the "settings changed"
     // guard below.
     [ObservableProperty] private bool _isGenerated;
 
-    partial void OnIsGeneratedChanged(bool value) => _sceneManager.IsMouldGenerated = value;
+    partial void OnIsGeneratedChanged(bool value)
+    {
+        _sceneManager.IsMouldGenerated = value;
+
+        // The settings are baked into the result now, so both sections fold away and the
+        // rail gets out of the way of the mould itself. Editing any of them clears the
+        // mould first (see EnsureNotGenerated), so nothing here can be changed under it.
+        if (value)
+        {
+            IsChannelsExpanded = false;
+            IsMouldExpanded = false;
+        }
+    }
 
     // Once a mould has been generated, any further settings/channel edit invalidates it -
     // there's no incremental way to update baked-in geometry, so fall back to the
@@ -222,16 +250,18 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         OnPropertyChanged(nameof(SupportsTrough));
         OnPropertyChanged(nameof(HasTrough));
-        UpdateMould();
+        UpdateMouldHeight();
     }
 
-    partial void OnWallThicknessChanged(double value) => UpdateMould();
-    partial void OnBaseHeightChanged(double value) => UpdateMould();
+    // Wall thickness is what the contoured shape offsets its top by, so it moves the top of
+    // the mould too.
+    partial void OnWallThicknessChanged(double value) => UpdateMouldHeight();
+    partial void OnBaseHeightChanged(double value) => UpdateMouldHeight();
 
     partial void OnTroughHeightChanged(double value)
     {
         OnPropertyChanged(nameof(HasTrough));
-        UpdateMould();
+        UpdateMouldHeight();
     }
 
     partial void OnTroughOffsetChanged(double value) => UpdateMould();
@@ -444,6 +474,40 @@ public partial class MouldViewModel : ObservableObject, IViewState
             TroughShape = SelectedTroughShape
         };
     }
+
+    // Every channel is cut to vent just past the top of the mould, and its length is baked
+    // in when it's placed. Anything that moves that top - the shape, the base height, the
+    // trough's depth - has to re-cut the channels already standing, or they finish below the
+    // new top and get sealed in (into the trough's pool, in the case that raises the top
+    // furthest) instead of venting out of it.
+    private void UpdateMouldHeight()
+    {
+        if (_isActivating) return;
+
+        EnsureNotGenerated();
+        UpdateChannelLengths();
+        UpdateMould();
+    }
+
+    private void UpdateChannelLengths()
+    {
+        if (Channels.Count == 0) return;
+
+        Channels = Channels
+            .Select(channel => channel with { DomainModel = Relengthen(channel.DomainModel) })
+            .ToList();
+
+        _sceneManager.UpdateChannels(Channels);
+    }
+
+    private IAirChannel Relengthen(IAirChannel channel) => channel switch
+    {
+        StraightAirChannel s => s with { TotalLength = ComputeTotalLength(s.StartPoint.Z) },
+        AngledAirChannel a => a with { TotalLength = ComputeTotalLength(a.StartPoint.Z) },
+        // A painted channel is extruded from the height its stroke started at.
+        PaintedAirChannel { Path.Count: > 0 } p => p with { TotalLength = ComputeTotalLength(p.Path[0].Z) },
+        _ => channel
+    };
 
     private void UpdateMould()
     {
