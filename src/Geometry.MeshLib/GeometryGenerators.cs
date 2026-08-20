@@ -687,6 +687,89 @@ internal sealed class GeometryGenerators : IGeometryGenerators
         return Result.Success(finalPoly);
     }
 
+    public Result<Polygon2D> BufferPath(IReadOnlyList<Vector2> path, float distance)
+    {
+        if (path is null || path.Count == 0)
+            return GeometryErrors.InvalidPath;
+
+        if (distance <= 0)
+            return new Error("Geometry.OffsetFailed", "A buffered path needs a positive distance.");
+
+        const double scale = 100000.0;
+
+        var points = path;
+        if (points.Count == 1)
+        {
+            // Clipper needs a segment to sweep the round ends along; a hair of length still
+            // rounds off into the disc a single point should buffer to.
+            points = new[] { path[0], path[0] + new Vector2(0.01f, 0f) };
+        }
+
+        var open = new Path64();
+        foreach (var pt in points)
+        {
+            open.Add(new Point64((long)Math.Round(pt.X * scale), (long)Math.Round(pt.Y * scale)));
+        }
+
+        var offsetter = new ClipperOffset();
+        offsetter.AddPath(open, JoinType.Round, EndType.Round);
+        var solution = new Paths64();
+        offsetter.Execute(distance * scale, solution);
+
+        if (solution.Count == 0)
+            return new Error("Geometry.OffsetFailed", "Failed to buffer path.");
+
+        // A path that doubles back on itself can enclose an island; only the outer contour
+        // matters here.
+        var largest = solution.OrderByDescending(p => Math.Abs(Clipper.Area(p))).First();
+
+        return Result.Success(new Polygon2D
+        {
+            OuterBoundary = largest.Select(pt => new Vector2((float)(pt.X / scale), (float)(pt.Y / scale))).ToList()
+        });
+    }
+
+    public Result<Polygon2D> UnionPolygons(IReadOnlyList<Polygon2D> polygons)
+    {
+        if (polygons is null || polygons.Count == 0)
+            return new Error("Geometry.UnionFailed", "No polygons to union.");
+
+        const double scale = 100000.0;
+
+        var subjects = new Paths64();
+        foreach (var polygon in polygons)
+        {
+            var path = new Path64();
+            foreach (var pt in polygon.OuterBoundary)
+            {
+                path.Add(new Point64((long)Math.Round(pt.X * scale), (long)Math.Round(pt.Y * scale)));
+            }
+
+            if (path.Count < 3) continue;
+
+            // The non-zero fill rule cancels overlapping regions wound against each other,
+            // so every contour goes in the same way round.
+            if (Clipper.Area(path) < 0)
+                path.Reverse();
+
+            subjects.Add(path);
+        }
+
+        if (subjects.Count == 0)
+            return new Error("Geometry.UnionFailed", "No polygons with area to union.");
+
+        var solution = Clipper.Union(subjects, FillRule.NonZero);
+        if (solution.Count == 0)
+            return new Error("Geometry.UnionFailed", "Failed to union polygons.");
+
+        var largest = solution.OrderByDescending(p => Math.Abs(Clipper.Area(p))).First();
+
+        return Result.Success(new Polygon2D
+        {
+            OuterBoundary = largest.Select(pt => new Vector2((float)(pt.X / scale), (float)(pt.Y / scale))).ToList()
+        });
+    }
+
     public Result<IMesh> ExtrudePolygon(Polygon2D polygon, float zMin, float zMax)
     {
         using var contours = new MR.Std.Vector_StdVectorMRVector2f();

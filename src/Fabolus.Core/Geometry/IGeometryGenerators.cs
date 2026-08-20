@@ -110,9 +110,22 @@ public interface IGeometryGenerators
     Result<Polygon2D> GetConvexHull(IMesh mesh);
 
     /// <summary>
-    /// Offsets a 2D polygon by the specified distance.
+    /// Offsets a 2D polygon by the specified distance. A negative distance insets it, and
+    /// where that splits the polygon into islands, the largest one is returned.
     /// </summary>
     Result<Polygon2D> OffsetPolygon(Polygon2D polygon, float distance);
+
+    /// <summary>
+    /// Closes an open 2D polyline into the polygon covering everything within
+    /// <paramref name="distance"/> of it. A single-point path buffers into a disc.
+    /// </summary>
+    Result<Polygon2D> BufferPath(IReadOnlyList<Vector2> path, float distance);
+
+    /// <summary>
+    /// Merges overlapping 2D polygons into a single outline. Anything left disjoint is
+    /// dropped - the largest resulting contour is the one returned.
+    /// </summary>
+    Result<Polygon2D> UnionPolygons(IReadOnlyList<Polygon2D> polygons);
 
     /// <summary>
     /// Extrudes a 2D polygon into a 3D mesh.

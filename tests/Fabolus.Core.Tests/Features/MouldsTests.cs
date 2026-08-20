@@ -186,6 +186,71 @@ public class MouldsTests
     }
 
     [Fact]
+    public void GenerateMould_EdgeChannel_WidensTheContourToKeepTheWallClosed()
+    {
+        var workspace = SphereWorkspace(out var meshId);
+
+        var mouldDef = new ConcaveMouldDefinition(OffsetXY: 2.0, OffsetBottom: 5.0, OffsetTop: 5.0);
+
+        // Placed right on the sphere's equator, so the channel rises through what would
+        // otherwise be the outside face of the mould.
+        var channel = new AirChannelModel(
+            System.Guid.NewGuid(),
+            AirChannelType.Straight,
+            2.0, 5.0, 5.0,
+            new StraightAirChannel(new Vector3(10, 0, 0), 5.0f, 25.0f, 2.0f, 5.0f));
+
+        var plainStats = GenerateStats(workspace, meshId, mouldDef);
+        var channelStats = GenerateStats(workspace, meshId, mouldDef with { AirChannels = new[] { channel } });
+
+        // The contour has to reach the channel's own radius (2.5) plus a full wall (2.0)
+        // past its centre, rather than stopping at the bolus wall and letting the channel
+        // slice its way out.
+        channelStats.MaxX.Should().BeApproximately(14.5, 0.2);
+        channelStats.MaxX.Should().BeGreaterThan(plainStats.MaxX + 2.0);
+    }
+
+    [Fact]
+    public void GenerateMould_EdgeAngledChannel_FollowsTheArcOutwards()
+    {
+        var workspace = SphereWorkspace(out var meshId);
+
+        var mouldDef = new ConcaveMouldDefinition(OffsetXY: 2.0, OffsetBottom: 5.0, OffsetTop: 5.0);
+
+        // An angled channel leaves along the surface normal before arcing back to vertical,
+        // so it surfaces further out again than where it was placed.
+        var angled = new AngledAirChannel(new Vector3(10, 0, 0), Vector3.UnitX, 3.0f, 25.0f, 2.0f, 2.5f);
+        var channel = new AirChannelModel(System.Guid.NewGuid(), AirChannelType.Angled, 2.0, 5.0, 3.0, angled);
+
+        var channelStats = GenerateStats(workspace, meshId, mouldDef with { AirChannels = new[] { channel } });
+
+        // Cone end at x=13, then an arc of radius 2.5 back to vertical, plus the channel
+        // radius and the wall on top of that.
+        channelStats.MaxX.Should().BeGreaterThan(17.0);
+    }
+
+    [Fact]
+    public void GenerateMould_CentredChannel_LeavesTheContourAlone()
+    {
+        var workspace = SphereWorkspace(out var meshId);
+
+        var mouldDef = new ConcaveMouldDefinition(OffsetXY: 2.0, OffsetBottom: 5.0, OffsetTop: 5.0);
+        var channel = new AirChannelModel(
+            System.Guid.NewGuid(),
+            AirChannelType.Straight,
+            2.0, 5.0, 5.0,
+            new StraightAirChannel(new Vector3(0, 0, 10), 5.0f, 15.0f, 2.0f, 5.0f));
+
+        var plainStats = GenerateStats(workspace, meshId, mouldDef);
+        var channelStats = GenerateStats(workspace, meshId, mouldDef with { AirChannels = new[] { channel } });
+
+        // A channel well inside the bolus outline is already buried; folding it into the
+        // contour must not pad the mould out.
+        channelStats.MaxX.Should().BeApproximately(plainStats.MaxX, 1e-3);
+        channelStats.MaxY.Should().BeApproximately(plainStats.MaxY, 1e-3);
+    }
+
+    [Fact]
     public void GenerateMould_Trough_RaisesTheTopAndRecessesABasinIntoIt()
     {
         var workspace = SphereWorkspace(out var meshId);

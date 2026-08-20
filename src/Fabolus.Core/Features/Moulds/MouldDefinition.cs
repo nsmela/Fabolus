@@ -109,7 +109,7 @@ public sealed record ConvexMouldDefinition(double OffsetXY = 2.0, double OffsetB
         var hull = engine.Generators.GetConvexHull(mesh);
         if (hull.IsFailure) return hull.Error;
         
-        var offset = engine.Generators.OffsetPolygon(hull.Value, (float)OffsetXY);
+        var offset = MouldFootprint.Build(engine, hull.Value, OffsetXY, AirChannels);
         if (offset.IsFailure) return offset.Error;
 
         return ExtrudeBody(engine, offset.Value,
@@ -131,7 +131,7 @@ public sealed record ConcaveMouldDefinition(double OffsetXY = 2.0, double Offset
         var shadow = engine.Generators.GetMeshShadow(mesh);
         if (shadow.IsFailure) return shadow.Error;
         
-        var offset = engine.Generators.OffsetPolygon(shadow.Value, (float)OffsetXY);
+        var offset = MouldFootprint.Build(engine, shadow.Value, OffsetXY, AirChannels);
         if (offset.IsFailure) return offset.Error;
 
         return ExtrudeBody(engine, offset.Value,

@@ -79,46 +79,12 @@ internal static class MouldTrough
     }
 
     /// <summary>
-    /// Where each channel breaks the top of the mould, in XY. Air channels all finish
-    /// running straight up, so this is the XY the channel occupies at the mould's top face.
+    /// Where the channels break the top of the mould, in XY.
     /// </summary>
-    private static IReadOnlyList<Vector2> ChannelExits(IGeometryEngine engine, IReadOnlyList<AirChannelModel> channels)
-    {
-        var points = new List<Vector2>();
-
-        foreach (var channel in channels)
-        {
-            switch (channel.DomainModel)
-            {
-                case StraightAirChannel straight:
-                    points.Add(Flatten(straight.StartPoint));
-                    break;
-
-                case AngledAirChannel angled:
-                    // An angled channel leaves along the surface normal and only then arcs
-                    // back to vertical, so it surfaces well off the point it was placed at.
-                    // Walking the same arc the channel mesh is built from beats guessing.
-                    var normal = Vector3.Normalize(angled.Normal);
-                    var coneEnd = angled.StartPoint + normal * angled.TipLength;
-                    points.Add(Flatten(coneEnd));
-
-                    var arc = engine.Generators.Arc3d(angled.Radius, coneEnd, normal, Vector3.UnitZ, 16);
-                    if (arc.Count > 0)
-                        points.Add(Flatten(arc[^1]));
-                    break;
-
-                case PaintedAirChannel painted:
-                    // Extrudes straight up from the whole painted path, so all of it counts.
-                    foreach (var point in painted.Path)
-                        points.Add(Flatten(point));
-                    break;
-            }
-        }
-
-        return points;
-    }
-
-    private static Vector2 Flatten(Vector3 point) => new(point.X, point.Y);
+    private static IReadOnlyList<Vector2> ChannelExits(IGeometryEngine engine, IReadOnlyList<AirChannelModel> channels) =>
+        channels
+            .SelectMany(channel => AirChannelFootprints.ExitPoints(engine, channel.DomainModel))
+            .ToList();
 
     /// <summary>
     /// Andrew's monotone chain. Channels placed in a line (or all at one point) have no hull
