@@ -119,130 +119,102 @@ public static class TextMeshBuilder
         var bottomMap = new int[ptCount];
         var topMap = new int[ptCount];
 
-        MR.ObjectMesh? spatial = null;
         MR.Mesh? mlTargetMesh = null;
-        MR.Std.SharedPtr_MRMesh? sharedPtr = null;
         MR.MeshPart? targetPart = null;
+        List<BaselineFrame>? baseline = null;
 
         if (targetMesh != null)
         {
             try
             {
                 mlTargetMesh = targetMesh.ToMRMesh();
-                spatial = new MR.ObjectMesh();
-                sharedPtr = new MR.Std.SharedPtr_MRMesh(mlTargetMesh);
-                spatial.setMesh(sharedPtr);
                 targetPart = new MR.MeshPart(mlTargetMesh);
+
+                float minX = 0f, maxX = 0f;
+                for (int i = 0; i < ptCount; i++)
+                {
+                    if (pts2D[i].X < minX) minX = pts2D[i].X;
+                    if (pts2D[i].X > maxX) maxX = pts2D[i].X;
+                }
+
+                baseline = BuildSurfaceBaseline(mlTargetMesh, targetPart, frame, minX, maxX, stepSize: 0.5f);
             }
             catch
             {
-                spatial = null;
+                mlTargetMesh?.Dispose();
+                targetPart?.Dispose();
+                mlTargetMesh = null;
+                targetPart = null;
+                baseline = null;
             }
         }
 
-        float rayOffset = 100.0f;
-        var rayDir = -frame.N;
-
-        var heights = new float[ptCount];
-        var hasHit = new bool[ptCount];
+        bool hasSurface = baseline != null && !ReferenceEquals(mlTargetMesh, null) && !ReferenceEquals(targetPart, null);
 
         try
         {
-            if (spatial is not null && targetPart is not null && mlTargetMesh is not null)
-            {
-                for (int i = 0; i < ptCount; i++)
-                {
-                    var p = pts2D[i];
-                    var rayOrigin = frame.Origin + p.X * frame.U + p.Y * frame.V + rayOffset * frame.N;
-                    var mrOrigin = new MR.Vector3f(rayOrigin.X, rayOrigin.Y, rayOrigin.Z);
-                    var mrDir = new MR.Vector3f(rayDir.X, rayDir.Y, rayDir.Z);
-
-                    using var line = new MR.Line3f(mrOrigin, mrDir);
-                    using var hit = spatial.worldRayIntersection(line, null);
-
-                    if (hit is not null)
-                    {
-                        float dist = hit.distanceAlongLine;
-                        float h = rayOffset - dist;
-
-                        if (MathF.Abs(h) < 60.0f)
-                        {
-                            var hitPoint = rayOrigin + rayDir * dist;
-                            var ptRef = new MR.Vector3f(hitPoint.X, hitPoint.Y, hitPoint.Z);
-                            using var distResultOpt = MR.findSignedDistance(in ptRef, targetPart, null, null);
-                            if (distResultOpt is not null)
-                            {
-                                using var distResult = distResultOpt.value();
-                                var fid = distResult.proj.face;
-                                if (mlTargetMesh.topology.getValidFaces().test(fid))
-                                {
-                                    var tri = mlTargetMesh.topology.getTriVerts(fid);
-                                    var v0 = mlTargetMesh.points.vec[(ulong)tri.elems._0.get()];
-                                    var v1 = mlTargetMesh.points.vec[(ulong)tri.elems._1.get()];
-                                    var v2 = mlTargetMesh.points.vec[(ulong)tri.elems._2.get()];
-
-                                    var e1 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
-                                    var e2 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
-                                    var cross = Vector3.Cross(e1, e2);
-                                    if (cross.LengthSquared() > 1e-8f)
-                                    {
-                                        var norm = Vector3.Normalize(cross);
-                                        if (Vector3.Dot(norm, frame.N) >= 0.05f)
-                                        {
-                                            heights[i] = h;
-                                            hasHit[i] = true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Extrapolate missing heights from nearest valid hit vertices
-                bool anyHit = false;
-                for (int i = 0; i < ptCount; i++)
-                {
-                    if (hasHit[i]) { anyHit = true; break; }
-                }
-
-                if (anyHit)
-                {
-                    for (int i = 0; i < ptCount; i++)
-                    {
-                        if (!hasHit[i])
-                        {
-                            float bestDistSq = float.MaxValue;
-                            int bestIdx = -1;
-                            for (int j = 0; j < ptCount; j++)
-                            {
-                                if (hasHit[j])
-                                {
-                                    float dSq = Vector2.DistanceSquared(pts2D[i], pts2D[j]);
-                                    if (dSq < bestDistSq)
-                                    {
-                                        bestDistSq = dSq;
-                                        bestIdx = j;
-                                    }
-                                }
-                            }
-                            if (bestIdx >= 0)
-                            {
-                                heights[i] = heights[bestIdx];
-                            }
-                        }
-                    }
-                }
-            }
-
             for (int i = 0; i < ptCount; i++)
             {
                 var p = pts2D[i];
-                float h = heights[i];
+                Vector3 pSurface;
+                Vector3 localNorm;
 
-                var pSurface = frame.Origin + p.X * frame.U + p.Y * frame.V + h * frame.N;
-                var pBot = pSurface + zMin * frame.N;
-                var pTop = pSurface + zMax * frame.N;
+                if (hasSurface)
+                {
+                    var baseFrame = SampleBaseline(baseline!, p.X);
+
+                    if (MathF.Abs(p.Y) < 1e-4f)
+                    {
+                        pSurface = baseFrame.Position;
+                        localNorm = baseFrame.N;
+                    }
+                    else
+                    {
+                        Vector3 proposed = baseFrame.Position + p.Y * baseFrame.V;
+                        var ptRef = new MR.Vector3f(proposed.X, proposed.Y, proposed.Z);
+                        using var distResultOpt = MR.findSignedDistance(in ptRef, targetPart, null, null);
+                        if (distResultOpt is not null)
+                        {
+                            using var distResult = distResultOpt.value();
+                            var fid = distResult.proj.face;
+                            if (fid.valid() && mlTargetMesh!.topology.getValidFaces().test(fid))
+                            {
+                                var tri = mlTargetMesh.topology.getTriVerts(fid);
+                                var v0 = mlTargetMesh.points.vec[(ulong)tri.elems._0.get()];
+                                var v1 = mlTargetMesh.points.vec[(ulong)tri.elems._1.get()];
+                                var v2 = mlTargetMesh.points.vec[(ulong)tri.elems._2.get()];
+
+                                var v0Vec = new Vector3(v0.x, v0.y, v0.z);
+                                var e1 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
+                                var e2 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
+                                var cross = Vector3.Cross(e1, e2);
+                                Vector3 norm = cross.LengthSquared() > 1e-8f ? Vector3.Normalize(cross) : baseFrame.N;
+                                if (Vector3.Dot(norm, baseFrame.N) < 0f) norm = -norm;
+
+                                pSurface = proposed - Vector3.Dot(proposed - v0Vec, norm) * norm;
+                                localNorm = norm;
+                            }
+                            else
+                            {
+                                pSurface = proposed;
+                                localNorm = baseFrame.N;
+                            }
+                        }
+                        else
+                        {
+                            pSurface = proposed;
+                            localNorm = baseFrame.N;
+                        }
+                    }
+                }
+                else
+                {
+                    pSurface = frame.Origin + p.X * frame.U + p.Y * frame.V;
+                    localNorm = frame.N;
+                }
+
+                var pBot = pSurface + zMin * localNorm;
+                var pTop = pSurface + zMax * localNorm;
 
                 bottomMap[i] = vertices.Count / 3;
                 vertices.Add(pBot.X);
@@ -258,8 +230,6 @@ public static class TextMeshBuilder
         finally
         {
             targetPart?.Dispose();
-            sharedPtr?.Dispose();
-            spatial?.Dispose();
             mlTargetMesh?.Dispose();
         }
 
@@ -477,5 +447,190 @@ public static class TextMeshBuilder
         if (createResult.IsFailure) return createResult;
 
         return Result.Success(createResult.Value.WithMetadata(prismMesh.Metadata));
+    }
+
+    private readonly struct BaselineFrame
+    {
+        public readonly float ArcLength;
+        public readonly Vector3 Position;
+        public readonly Vector3 U;
+        public readonly Vector3 V;
+        public readonly Vector3 N;
+
+        public BaselineFrame(float arcLength, Vector3 position, Vector3 u, Vector3 v, Vector3 n)
+        {
+            ArcLength = arcLength;
+            Position = position;
+            U = u;
+            V = v;
+            N = n;
+        }
+    }
+
+    private static List<BaselineFrame> BuildSurfaceBaseline(
+        MR.Mesh mlMesh,
+        MR.MeshPart targetPart,
+        DecalFrame frame,
+        float minX,
+        float maxX,
+        float stepSize = 0.5f)
+    {
+        var frames = new List<BaselineFrame>();
+
+        var centerFrame = new BaselineFrame(0f, frame.Origin, frame.U, frame.V, frame.N);
+
+        // March positive direction (+U)
+        var posFrames = new List<BaselineFrame>();
+        float maxDist = MathF.Max(0f, maxX + 2.0f);
+        int posSteps = (int)MathF.Ceiling(maxDist / stepSize);
+
+        Vector3 currPos = frame.Origin;
+        Vector3 currU = frame.U;
+        Vector3 currV = frame.V;
+        Vector3 currN = frame.N;
+
+        for (int i = 1; i <= posSteps; i++)
+        {
+            float s = i * stepSize;
+            Vector3 proposed = currPos + currU * stepSize;
+            var ptRef = new MR.Vector3f(proposed.X, proposed.Y, proposed.Z);
+            using var distResultOpt = MR.findSignedDistance(in ptRef, targetPart, null, null);
+            if (distResultOpt is not null)
+            {
+                using var distResult = distResultOpt.value();
+                var fid = distResult.proj.face;
+                if (fid.valid() && mlMesh.topology.getValidFaces().test(fid))
+                {
+                    var tri = mlMesh.topology.getTriVerts(fid);
+                    var v0 = mlMesh.points.vec[(ulong)tri.elems._0.get()];
+                    var v1 = mlMesh.points.vec[(ulong)tri.elems._1.get()];
+                    var v2 = mlMesh.points.vec[(ulong)tri.elems._2.get()];
+
+                    var v0Vec = new Vector3(v0.x, v0.y, v0.z);
+                    var e1 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
+                    var e2 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
+                    var cross = Vector3.Cross(e1, e2);
+                    Vector3 norm = cross.LengthSquared() > 1e-8f ? Vector3.Normalize(cross) : currN;
+                    if (Vector3.Dot(norm, currN) < 0f) norm = -norm;
+
+                    Vector3 nextPos = proposed - Vector3.Dot(proposed - v0Vec, norm) * norm;
+                    
+                    var uProj = currU - Vector3.Dot(currU, norm) * norm;
+                    Vector3 nextU = uProj.LengthSquared() > 1e-8f ? Vector3.Normalize(uProj) : currU;
+                    Vector3 nextV = Vector3.Normalize(Vector3.Cross(norm, nextU));
+                    if (Vector3.Dot(nextV, currV) < 0f) nextV = -nextV;
+
+                    currPos = nextPos;
+                    currU = nextU;
+                    currV = nextV;
+                    currN = norm;
+
+                    posFrames.Add(new BaselineFrame(s, currPos, currU, currV, currN));
+                    continue;
+                }
+            }
+
+            currPos = proposed;
+            posFrames.Add(new BaselineFrame(s, currPos, currU, currV, currN));
+        }
+
+        // March negative direction (-U)
+        var negFrames = new List<BaselineFrame>();
+        float minDist = MathF.Min(0f, minX - 2.0f);
+        int negSteps = (int)MathF.Ceiling(MathF.Abs(minDist) / stepSize);
+
+        currPos = frame.Origin;
+        currU = -frame.U;
+        currV = frame.V;
+        currN = frame.N;
+
+        for (int i = 1; i <= negSteps; i++)
+        {
+            float s = -i * stepSize;
+            Vector3 proposed = currPos + currU * stepSize;
+            var ptRef = new MR.Vector3f(proposed.X, proposed.Y, proposed.Z);
+            using var distResultOpt = MR.findSignedDistance(in ptRef, targetPart, null, null);
+            if (distResultOpt is not null)
+            {
+                using var distResult = distResultOpt.value();
+                var fid = distResult.proj.face;
+                if (fid.valid() && mlMesh.topology.getValidFaces().test(fid))
+                {
+                    var tri = mlMesh.topology.getTriVerts(fid);
+                    var v0 = mlMesh.points.vec[(ulong)tri.elems._0.get()];
+                    var v1 = mlMesh.points.vec[(ulong)tri.elems._1.get()];
+                    var v2 = mlMesh.points.vec[(ulong)tri.elems._2.get()];
+
+                    var v0Vec = new Vector3(v0.x, v0.y, v0.z);
+                    var e1 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
+                    var e2 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
+                    var cross = Vector3.Cross(e1, e2);
+                    Vector3 norm = cross.LengthSquared() > 1e-8f ? Vector3.Normalize(cross) : currN;
+                    if (Vector3.Dot(norm, currN) < 0f) norm = -norm;
+
+                    Vector3 nextPos = proposed - Vector3.Dot(proposed - v0Vec, norm) * norm;
+                    
+                    var uProj = currU - Vector3.Dot(currU, norm) * norm;
+                    Vector3 nextU = uProj.LengthSquared() > 1e-8f ? Vector3.Normalize(uProj) : currU;
+                    Vector3 nextV = Vector3.Normalize(Vector3.Cross(norm, -nextU));
+                    if (Vector3.Dot(nextV, currV) < 0f) nextV = -nextV;
+
+                    currPos = nextPos;
+                    currU = nextU;
+                    currV = nextV;
+                    currN = norm;
+
+                    negFrames.Add(new BaselineFrame(s, currPos, -currU, currV, currN));
+                    continue;
+                }
+            }
+
+            currPos = proposed;
+            negFrames.Add(new BaselineFrame(s, currPos, -currU, currV, currN));
+        }
+
+        for (int i = negFrames.Count - 1; i >= 0; i--)
+        {
+            frames.Add(negFrames[i]);
+        }
+        frames.Add(centerFrame);
+        frames.AddRange(posFrames);
+
+        return frames;
+    }
+
+    private static BaselineFrame SampleBaseline(IReadOnlyList<BaselineFrame> frames, float u)
+    {
+        if (frames.Count == 0)
+            return new BaselineFrame(u, Vector3.Zero, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ);
+        if (frames.Count == 1 || u <= frames[0].ArcLength)
+            return frames[0];
+        if (u >= frames[^1].ArcLength)
+            return frames[^1];
+
+        int low = 0, high = frames.Count - 1;
+        while (low <= high)
+        {
+            int mid = (low + high) / 2;
+            if (frames[mid].ArcLength < u)
+                low = mid + 1;
+            else
+                high = mid - 1;
+        }
+
+        int idx0 = Math.Max(0, low - 1);
+        int idx1 = Math.Min(frames.Count - 1, idx0 + 1);
+
+        var f0 = frames[idx0];
+        var f1 = frames[idx1];
+        float span = f1.ArcLength - f0.ArcLength;
+        float t = span > 1e-6f ? Math.Clamp((u - f0.ArcLength) / span, 0f, 1f) : 0f;
+
+        Vector3 pos = Vector3.Lerp(f0.Position, f1.Position, t);
+        Vector3 uDir = Vector3.Normalize(Vector3.Lerp(f0.U, f1.U, t));
+        Vector3 vDir = Vector3.Normalize(Vector3.Lerp(f0.V, f1.V, t));
+        Vector3 nDir = Vector3.Normalize(Vector3.Lerp(f0.N, f1.N, t));
+
+        return new BaselineFrame(u, pos, uDir, vDir, nDir);
     }
 }
