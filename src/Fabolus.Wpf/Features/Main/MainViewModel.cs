@@ -258,7 +258,7 @@ public partial class MainViewModel : ObservableObject
             WorkspaceUpdated(await CurrentView.DeactivateAsync());
         }
 
-        CurrentViewTitle = "text";
+        CurrentViewTitle = "decals";
 
         var newView = new EmbossViewModel(_messenger, _alertDialog, _engine, new WpfGlyphOutlineSource());
         SceneManager = newView.SceneManager;

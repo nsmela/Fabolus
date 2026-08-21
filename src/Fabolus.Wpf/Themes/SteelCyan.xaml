@@ -209,6 +209,7 @@
     <Geometry x:Key="Icon.Split">M8 1.8 L8 14.2 M3 5 L3 11 M13 5 L13 11</Geometry>
     <Geometry x:Key="Icon.Export">M8 9.4 L8 2.6 M5.4 5.2 L8 2.6 L10.6 5.2 M2.6 10 L2.6 12.4 a1 1 0 0 0 1 1 L12.4 13.4 a1 1 0 0 0 1 -1 L13.4 10</Geometry>
     <Geometry x:Key="Icon.Text">M3 4.5 L13 4.5 M8 4.5 L8 13.5 M5.5 13.5 L10.5 13.5</Geometry>
+    <Geometry x:Key="Icon.Decals">M3.5 2.5 L12.5 2.5 a1 1 0 0 1 1 1 L13.5 9.5 L9.5 13.5 L3.5 13.5 a1 1 0 0 1 -1 -1 L2.5 3.5 a1 1 0 0 1 1 -1 Z M9.5 9.5 L13.5 9.5 M9.5 9.5 L9.5 13.5 M5.5 6 L10.5 6 M8 6 L8 10</Geometry>
 
     <!-- Viewport overlay icons (same 16x16 stroke style as the tab strip) -->
     <!-- One per WireframeMode. An obliquely projected box: silhouette only -> plus the -->
