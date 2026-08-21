@@ -21,6 +21,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     private readonly IGeometryEngine _engine;
     private readonly IGlyphOutlineSource _outlineSource;
     private readonly TextEmbossTool _tool;
+    private readonly ClearTextEmboss _clearTextEmboss;
     private readonly EmbossSceneManager _sceneManager;
 
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
@@ -78,6 +79,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _engine = engine;
         _outlineSource = outlineSource;
         _tool = new TextEmbossTool(_outlineSource);
+        _clearTextEmboss = new ClearTextEmboss(_engine);
 
         _sceneManager = new EmbossSceneManager(_engine, _messenger);
         _sceneManager.DecalPlaced += OnDecalPlaced;
@@ -223,7 +225,23 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         var decal = ToDecal();
         var warnings = new List<string>();
 
-        var result = await Task.Run(() => _tool.Apply(_engine, _targetMesh, decal, warnings));
+        // Obtain clean stage mesh if re-applying
+        IMesh sourceMesh = _targetMesh;
+        if (IsApplied && _activeMesh != null)
+        {
+            if (Target == EmbossTarget.Base)
+            {
+                var cleanBase = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
+                if (cleanBase.IsSuccess) sourceMesh = cleanBase.Value;
+            }
+            else if (Target == EmbossTarget.Mould && _mouldMesh != null)
+            {
+                var cleanMould = CommandReplay.GetMeshAtStage(_engine, _mouldMesh, CommandPriority.Mould);
+                if (cleanMould.IsSuccess) sourceMesh = cleanMould.Value;
+            }
+        }
+
+        var result = await Task.Run(() => _tool.Apply(_engine, sourceMesh, decal, warnings));
         if (result.IsFailure)
         {
             ErrorText = result.Error.Description;
@@ -241,7 +259,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         var statsResult = _engine.Evaluators.GetStatistics(newMesh);
         var topoResult = _engine.Evaluators.ValidateTopology(newMesh);
 
-        var metadata = _targetMesh.Metadata.WithProperties(m =>
+        var metadata = sourceMesh.Metadata.WithProperties(m =>
         {
             if (statsResult.IsSuccess) m.Set(MeshIOKeys.Stats, statsResult.Value);
             if (topoResult.IsSuccess) m.Set(MeshIOKeys.Topology, topoResult.Value);
@@ -296,9 +314,59 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     }
 
     [RelayCommand]
+    public void Clear()
+    {
+        if (!IsApplied) return;
+
+        var result = _clearTextEmboss.Execute(Workspace);
+        if (result.IsFailure)
+        {
+            _alert.ShowError(result.Error.Description);
+            return;
+        }
+
+        Workspace = result.Value;
+        IsApplied = false;
+
+        var activeResult = Workspace.GetActiveMesh();
+        if (activeResult.IsSuccess)
+        {
+            _activeMesh = activeResult.Value;
+            var mouldDef = _activeMesh.Metadata.MouldDefinition();
+            if (mouldDef.HasValue)
+            {
+                _mouldMesh = _activeMesh;
+                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
+                _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : _activeMesh;
+            }
+            else
+            {
+                _baseMesh = _activeMesh;
+                _mouldMesh = null;
+            }
+
+            UpdateTargetMesh();
+            Invalidate();
+        }
+
+        OnPropertyChanged(nameof(StatusWord));
+        OnPropertyChanged(nameof(StatusColor));
+        _messenger.Send(new WorkspaceChangedMessage(Workspace));
+    }
+
+    [RelayCommand]
     private void Reset()
     {
+        if (IsApplied)
+        {
+            Clear();
+        }
+
+        LabelText = "FABOLUS";
         Rotation = 0;
+        CapHeight = 6.0f;
+        Depth = 0.8f;
+        Tracking = 0.4f;
         if (_targetMesh != null)
         {
             Anchor = _meshCenter;
@@ -336,7 +404,11 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
             UpdateTargetMesh();
 
-            var savedDecal = _targetMesh?.Metadata.TextDecal() ?? _activeMesh.Metadata.TextDecal();
+            var savedDecal = _activeMesh.Metadata.TextDecal();
+            if (savedDecal.HasNoValue && _targetMesh != null)
+                savedDecal = _targetMesh.Metadata.TextDecal();
+            if (savedDecal.HasNoValue && _baseMesh != null)
+                savedDecal = _baseMesh.Metadata.TextDecal();
             if (savedDecal.HasValue)
             {
                 var d = savedDecal.Value;
@@ -353,6 +425,8 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 Anchor = d.Anchor;
                 AnchorNormal = d.AnchorNormal;
                 IsApplied = true;
+
+                UpdateTargetMesh();
             }
             else
             {
@@ -366,6 +440,12 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
             _metrics = _outlineSource.MeasureText(LabelText, Font, CapHeight, Tracking);
             UpdateUVReadout();
+            OnPropertyChanged(nameof(StatusWord));
+            OnPropertyChanged(nameof(StatusColor));
+            OnPropertyChanged(nameof(TextStatusLine));
+            OnPropertyChanged(nameof(ApplyLabel));
+            OnPropertyChanged(nameof(DepthLabel));
+            OnPropertyChanged(nameof(Footprint));
             ExecutePreviewUpdate();
         }
         finally

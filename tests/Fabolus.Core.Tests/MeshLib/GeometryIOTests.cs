@@ -215,6 +215,54 @@ public class GeometryIOTests
     }
 
     [Fact]
+    public void Export_3MF_RoundTripsTextEmbossCommandValues()
+    {
+        var original = _fixture.LoadStl("sphere.stl");
+        var decal = new Fabolus.Core.Features.Emboss.TextDecal
+        {
+            Text = "FAB3MF",
+            CapHeight = 5.0f,
+            Depth = 0.8f,
+            Operation = Fabolus.Core.Features.Emboss.EmbossOperation.Emboss,
+            RotationDeg = 45f,
+            Anchor = new Vector3(1, 2, 3),
+            AnchorNormal = Vector3.UnitZ
+        };
+        var command = new Fabolus.Core.Features.Emboss.TextEmbossCommand(decal);
+        var baseMesh = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 50, 32).Value;
+
+        var meshWithMetadata = original.WithMetadata(original.Metadata
+            .WithCommand(command)
+            .WithBaseMesh(baseMesh));
+
+        var tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var exportPath = Path.Combine(tempDir, "text_emboss_round_trip.3mf");
+            _fixture.Engine.IO.Export(meshWithMetadata, exportPath).IsSuccess.Should().BeTrue();
+
+            var importResult = _fixture.Engine.IO.Import(exportPath);
+            importResult.IsSuccess.Should().BeTrue();
+
+            var imported = importResult.Value.Metadata.Commands.OfType<Fabolus.Core.Features.Emboss.TextEmbossCommand>().Single();
+            imported.Decal.Text.Should().Be("FAB3MF");
+            imported.Decal.CapHeight.Should().Be(5.0f);
+            imported.Decal.Depth.Should().Be(0.8f);
+            imported.Decal.RotationDeg.Should().Be(45f);
+            imported.Decal.Anchor.X.Should().Be(1f);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
     public void Import_3MF_WithUnresolvableCommandName_FailsInsteadOfDroppingIt()
     {
         var result = Fabolus.Core.Geometry.Metadata.MeshCommandRegistry.ResolveType("NotARealCommand");

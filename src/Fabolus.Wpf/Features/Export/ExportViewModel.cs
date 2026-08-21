@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
+using Fabolus.Core.Features.Emboss;
 using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Features.Smoothing;
@@ -122,10 +123,16 @@ public partial class ExportViewModel : ObservableObject, IViewState
             };
             BakedOperations.Add(new OperationItem("Mould", mouldType));
         }
+        var textDecal = metadata.TextDecal();
+        if (textDecal.HasValue)
+        {
+            var d = textDecal.Value;
+            BakedOperations.Add(new OperationItem("Text", $"{d.Operation} · \"{d.Text}\""));
+        }
 
         BakedOperationsCount = BakedOperations.Count;
         HasBakedOperations = BakedOperationsCount > 0;
-        BakedOperationsText = BakedOperationsCount == 3 ? "All 3 included" : $"{BakedOperationsCount} included";
+        BakedOperationsText = $"{BakedOperationsCount} included";
 
         if (mould.HasValue)
         {

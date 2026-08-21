@@ -43,6 +43,9 @@ public partial class App : Application
     {
         await AppHost!.StartAsync();
 
+        var outlineSource = AppHost.Services.GetRequiredService<Fabolus.Core.Features.Emboss.IGlyphOutlineSource>();
+        Fabolus.Core.Features.Emboss.GlyphOutlineSourceProvider.Default = outlineSource;
+
         var mainWindow = AppHost.Services.GetRequiredService<MainView>();
         mainWindow.Show();
 

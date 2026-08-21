@@ -17,3 +17,8 @@ public interface IGlyphOutlineSource
     /// </summary>
     TextMetrics MeasureText(string text, DecalFont font, float capHeight, float tracking);
 }
+
+public static class GlyphOutlineSourceProvider
+{
+    public static IGlyphOutlineSource? Default { get; set; }
+}
