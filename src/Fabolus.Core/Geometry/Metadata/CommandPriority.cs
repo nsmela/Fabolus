@@ -11,6 +11,9 @@ public static class CommandPriority {
     /// <summary>Rotate, Translate, Smoothing - siblings, none depends on the others.</summary>
     public const int Transform = 10;
 
+    /// <summary>Text embossing / engraving on base or transformed mesh.</summary>
+    public const int TextEmboss = 15;
+
     /// <summary>Depends on whatever geometry the Transform-stage commands produced.</summary>
     public const int Mould = 20;
 }

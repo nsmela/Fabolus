@@ -1,0 +1,339 @@
+<UserControl x:Class="Fabolus.Wpf.Features.Emboss.EmbossView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.Emboss"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert"
+             mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance local:EmbossViewModel, IsDesignTimeCreatable=False}"
+             d:DesignHeight="750" d:DesignWidth="336"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <conv:EnumToBooleanConverter x:Key="EnumMatch" />
+        <conv:StringToBrushConverter x:Key="StringToBrush" />
+
+        <!-- Field label caption -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+
+        <!-- Segmented control button -->
+        <Style x:Key="Segment" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+            <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="bd" CornerRadius="5" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#15000000" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Accent}" />
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SegmentGroup" TargetType="Border">
+            <Setter Property="Background" Value="#FFEDF1F3" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="SectionDivider" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Divider}" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="Margin" Value="0,10" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+            <StackPanel Orientation="Vertical">
+
+                <!-- 1. Text Input -->
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="LABEL TEXT" Style="{StaticResource FieldLabel}" />
+                    <TextBlock Grid.Column="1" Text="{Binding LabelText.Length, StringFormat='{}{0} chars'}"
+                               FontFamily="{DynamicResource Font.Mono}" FontSize="10.5" Foreground="{DynamicResource Brush.Text.Muted}" />
+                </Grid>
+                <TextBox Text="{Binding LabelText, UpdateSourceTrigger=PropertyChanged}"
+                         FontSize="13" FontFamily="{DynamicResource Font.Sans}" FontWeight="Medium"
+                         Padding="8,6" Margin="0,0,0,10"
+                         Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
+                         mah:TextBoxHelper.ClearTextButton="True" />
+
+                <!-- 2. Operation / Target / Font -->
+                <Grid Margin="0,4,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                        <TextBlock Text="OPERATION" Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource SegmentGroup}">
+                            <UniformGrid Columns="2">
+                                <RadioButton Content="Emboss" GroupName="EmbossOp" Style="{StaticResource Segment}"
+                                             IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
+                                <RadioButton Content="Engrave" GroupName="EmbossOp" Style="{StaticResource Segment}"
+                                             IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
+                            </UniformGrid>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                        <TextBlock Text="TARGET" Style="{StaticResource FieldLabel}" />
+                        <Border Style="{StaticResource SegmentGroup}">
+                            <UniformGrid Columns="2">
+                                <RadioButton Content="Base" GroupName="EmbossTgt" Style="{StaticResource Segment}"
+                                             IsChecked="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Base}" />
+                                <RadioButton Content="Mould" GroupName="EmbossTgt" Style="{StaticResource Segment}"
+                                             IsChecked="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" />
+                            </UniformGrid>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Margin="0,4,0,10">
+                    <TextBlock Text="FONT" Style="{StaticResource FieldLabel}" />
+                    <Border Style="{StaticResource SegmentGroup}">
+                        <UniformGrid Columns="2">
+                            <RadioButton Content="Sans" GroupName="EmbossFont" Style="{StaticResource Segment}"
+                                         IsChecked="{Binding Font, Converter={StaticResource EnumMatch}, ConverterParameter=Sans}" />
+                            <RadioButton Content="Mono" GroupName="EmbossFont" Style="{StaticResource Segment}"
+                                         IsChecked="{Binding Font, Converter={StaticResource EnumMatch}, ConverterParameter=Mono}" />
+                        </UniformGrid>
+                    </Border>
+                </StackPanel>
+
+                <Border Style="{StaticResource SectionDivider}" />
+
+                <!-- 3. Parameters -->
+                <!-- Cap Height -->
+                <Grid Margin="0,2,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="CAP HEIGHT (mm)" Style="{StaticResource FieldLabel}" />
+                    <mah:NumericUpDown Grid.Column="1" Value="{Binding CapHeight}" Minimum="2.0" Maximum="18.0" Interval="0.5"
+                                       StringFormat="F1" Width="70" Height="26" FontSize="11" Margin="0,0,0,2" />
+                </Grid>
+                <Slider Value="{Binding CapHeight}" Minimum="2.0" Maximum="18.0" SmallChange="0.5" LargeChange="1.0"
+                        TickFrequency="0.5" IsSnapToTickEnabled="False" Margin="0,0,0,8" />
+
+                <!-- Depth / Height -->
+                <Grid Margin="0,2,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding DepthLabel, StringFormat='{}{0} (mm)'}" Style="{StaticResource FieldLabel}" />
+                    <mah:NumericUpDown Grid.Column="1" Value="{Binding Depth}" Minimum="0.2" Maximum="3.0" Interval="0.1"
+                                       StringFormat="F1" Width="70" Height="26" FontSize="11" Margin="0,0,0,2" />
+                </Grid>
+                <Slider Value="{Binding Depth}" Minimum="0.2" Maximum="3.0" SmallChange="0.1" LargeChange="0.5"
+                        TickFrequency="0.1" IsSnapToTickEnabled="False" Margin="0,0,0,8" />
+
+                <!-- Letter Spacing (Tracking) -->
+                <Grid Margin="0,2,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="LETTER SPACING (mm)" Style="{StaticResource FieldLabel}" />
+                    <mah:NumericUpDown Grid.Column="1" Value="{Binding Tracking}" Minimum="0.0" Maximum="2.0" Interval="0.1"
+                                       StringFormat="F1" Width="70" Height="26" FontSize="11" Margin="0,0,0,2" />
+                </Grid>
+                <Slider Value="{Binding Tracking}" Minimum="0.0" Maximum="2.0" SmallChange="0.1" LargeChange="0.2"
+                        TickFrequency="0.1" IsSnapToTickEnabled="False" Margin="0,0,0,8" />
+
+                <!-- Rotation -->
+                <Grid Margin="0,2,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="ROTATION (°)" Style="{StaticResource FieldLabel}" />
+                    <mah:NumericUpDown Grid.Column="1" Value="{Binding Rotation}" Minimum="-180" Maximum="180" Interval="1"
+                                       StringFormat="F0" Width="70" Height="26" FontSize="11" Margin="0,0,0,2" />
+                </Grid>
+                <Slider Value="{Binding Rotation}" Minimum="-180" Maximum="180" SmallChange="1" LargeChange="15"
+                        TickFrequency="1" IsSnapToTickEnabled="False" Margin="0,0,0,8" />
+
+                <Border Style="{StaticResource SectionDivider}" />
+
+                <!-- 4. Surface Projection & Mirror -->
+                <Grid Margin="0,2,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Project onto curved surface" VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Font.Sans}" FontSize="12" Foreground="{DynamicResource Brush.Text.Primary}" />
+                    <mah:ToggleSwitch Grid.Column="1" IsOn="{Binding ProjectOntoSurface}" Margin="0,-4,0,-4" />
+                </Grid>
+
+                <Grid Margin="0,2,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Mirror outline" VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Font.Sans}" FontSize="12" Foreground="{DynamicResource Brush.Text.Primary}" />
+                    <mah:ToggleSwitch Grid.Column="1" IsOn="{Binding Mirror}" Margin="0,-4,0,-4" />
+                </Grid>
+
+                <!-- Placement button -->
+                <Button Command="{Binding StartPlacingCommand}" Height="34" Margin="0,4,0,8" Style="{StaticResource Button.Secondary}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🎯 " FontSize="12" VerticalAlignment="Center" />
+                            <TextBlock VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Place on mesh" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsPicking}" Value="True">
+                                                <Setter Property="Text" Value="Click mesh to drop label (Esc)" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Pressed}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Button.Content>
+                </Button>
+
+                <!-- Footprint and UV Readouts -->
+                <Border Background="#10000000" CornerRadius="5" Padding="8,6" Margin="0,4,0,10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,4">
+                            <TextBlock Text="FOOTPRINT" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
+                            <TextBlock Text="{Binding Footprint}" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource Brush.Text.Primary}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,4">
+                            <TextBlock Text="POSITION (U, V)" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
+                            <TextBlock FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource Brush.Text.Primary}">
+                                <Run Text="{Binding PositionU}" />
+                                <Run Text=", " />
+                                <Run Text="{Binding PositionV}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Warning / Error alert banners -->
+                <Border Background="#20E0A024" BorderBrush="{DynamicResource Brush.Warning}" BorderThickness="1" CornerRadius="5" Padding="8,6" Margin="0,0,0,6">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding WarningText.Length, FallbackValue=0}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding WarningText.Length, Converter={StaticResource GreaterThanZeroConverter}, FallbackValue=False}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding WarningText}" TextWrapping="Wrap" FontSize="11" Foreground="#FF9A6800" FontWeight="Medium" />
+                </Border>
+
+                <Border Background="#20D64545" BorderBrush="{DynamicResource Brush.Danger}" BorderThickness="1" CornerRadius="5" Padding="8,6" Margin="0,0,0,6">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ErrorText.Length, FallbackValue=0}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding ErrorText.Length, Converter={StaticResource GreaterThanZeroConverter}, FallbackValue=False}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Brush.Danger}" FontWeight="Medium" />
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer / Action Area -->
+        <Border Grid.Row="1" BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+            <StackPanel Orientation="Vertical">
+
+                <!-- Status Strip -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{Binding StatusColor, Converter={StaticResource StringToBrush}}"
+                            CornerRadius="4" Padding="6,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding StatusWord}" Foreground="White" FontSize="10" FontWeight="Bold" FontFamily="{DynamicResource Font.Mono}" />
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding TextStatusLine}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Font.Mono}" FontSize="10" Foreground="{DynamicResource Brush.Text.Muted}" />
+                </Grid>
+
+                <TextBlock Text="{Binding Hint}" TextWrapping="Wrap" FontSize="10.5" Foreground="{DynamicResource Brush.Text.Muted}" Margin="0,0,0,10" />
+
+                <!-- Action Buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Command="{Binding ResetCommand}" Content="Reset" Width="72" Height="36" Margin="0,0,8,0" Style="{StaticResource Button.Secondary}" />
+                    <Button Grid.Column="1" Command="{Binding ApplyCommand}" Content="{Binding ApplyLabel}" Height="36" Style="{StaticResource Button.Primary}" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+    </Grid>
+</UserControl>

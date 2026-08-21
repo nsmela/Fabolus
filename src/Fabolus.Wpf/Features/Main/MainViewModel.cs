@@ -15,6 +15,7 @@ using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Pages.Preferences;
 using Fabolus.Wpf.Features.CutSplit;
+using Fabolus.Wpf.Features.Emboss;
 
 namespace Fabolus.Wpf.Features.Main;
 
@@ -245,6 +246,27 @@ public partial class MainViewModel : ObservableObject
         IsLoading = false;
     }
 
+    [RelayCommand]
+    public async Task SwitchToEmbossViewAsync()
+    {
+        if (CurrentView is EmbossViewModel) return;
+
+        IsLoading = true;
+
+        if (CurrentView is not null)
+        {
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
+        }
+
+        CurrentViewTitle = "text";
+
+        var newView = new EmbossViewModel(_messenger, _alertDialog, _engine, new WpfGlyphOutlineSource());
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
+    }
 
     [RelayCommand]
     public async Task SwitchToMouldViewAsync()

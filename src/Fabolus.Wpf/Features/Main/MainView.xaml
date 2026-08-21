@@ -15,6 +15,7 @@
         xmlns:controls="clr-namespace:Fabolus.Wpf.Features.Main.Controls"
         xmlns:meshManager="clr-namespace:Fabolus.Wpf.Features.MeshManager"
         xmlns:cutSplit="clr-namespace:Fabolus.Wpf.Features.CutSplit"
+        xmlns:emboss="clr-namespace:Fabolus.Wpf.Features.Emboss"
         mc:Ignorable="d"
         Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -46,6 +47,10 @@
 
         <DataTemplate DataType="{x:Type mould:MouldViewModel }">
             <mould:MouldView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type emboss:EmbossViewModel }">
+            <emboss:EmbossView />
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type export:ExportViewModel }">
@@ -207,6 +212,29 @@
                             </Style>
                         </Button.Style>
                     </Button>
+
+                <Button Command="{Binding SwitchToEmbossViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <Path Data="{StaticResource Icon.Text}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="text" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="text">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
 
                 <Button Command="{Binding SwitchToMouldViewCommand}" IsEnabled="{Binding MeshLoaded}">
                     <Button.Content>

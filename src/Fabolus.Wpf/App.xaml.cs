@@ -30,6 +30,7 @@ public partial class App : Application
                 services.AddSingleton<IDialogueSystem, DialogueSystem>();
                 services.AddSingleton<IFileSystem, FileSystem>();
                 services.AddSingleton<IGeometryEngine, GeometryEngine>();
+                services.AddSingleton<Fabolus.Core.Features.Emboss.IGlyphOutlineSource, Features.Emboss.WpfGlyphOutlineSource>();
 
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainView>();

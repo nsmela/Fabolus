@@ -131,4 +131,14 @@ public interface IGeometryGenerators
     /// Extrudes a 2D polygon into a 3D mesh.
     /// </summary>
     Result<IMesh> ExtrudePolygon(Polygon2D polygon, float zMin, float zMax);
+
+    /// <summary>
+    /// Builds an extruded 3D solid mesh from 2D polygon outlines in the tangent frame.
+    /// </summary>
+    Result<IMesh> BuildTextPrism(IReadOnlyList<Polygon2D> outlines, Features.Emboss.DecalFrame frame, float depth, float sink, float overshoot, float maxEdgeLength = 0f);
+
+    /// <summary>
+    /// Projects each vertex of a text prism onto the curved surface of the target mesh along the frame's normal.
+    /// </summary>
+    Result<IMesh> ProjectTextPrism(IMesh targetMesh, Features.Emboss.DecalFrame frame, IMesh prismMesh, List<string>? warnings = null);
 }

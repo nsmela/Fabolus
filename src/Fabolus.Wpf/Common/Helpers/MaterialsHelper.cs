@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry;
 using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
 
@@ -80,6 +80,8 @@ public static class SkinColours
     public static Color4 Green => new(0.0f, 0.501961f, 0.0f, 1.0f);       // 0,128,0
     public static Color4 Red => new(1.0f, 0.0f, 0.0f, 1.0f);              // 255,0,0
     public static Color4 SkyBlue => new(0.529412f, 0.807843f, 0.921569f, 1.0f); // 135,206,235
+    public static Color4 Cyan => new(0.047f, 0.639f, 0.706f, 0.75f);     // #0CA3B4 (Steel Cyan Accent)
+    public static Color4 Amber => new(0.941f, 0.604f, 0.047f, 1.0f);     // #F09A0C (Amber Rotate Handle)
 }
 
 /// <summary>
@@ -117,5 +119,7 @@ public static class Skins
     {
         public static PhongMaterial Emerald => MaterialsHelper.CreateMaterial(SkinColours.Emerald);
         public static PhongMaterial Pearl => MaterialsHelper.CreateMaterial(SkinColours.Pearl);
+        public static PhongMaterial Cyan => MaterialsHelper.CreateMaterial(SkinColours.Cyan);
+        public static PhongMaterial Amber => MaterialsHelper.CreateMaterial(SkinColours.Amber);
     }
 }
