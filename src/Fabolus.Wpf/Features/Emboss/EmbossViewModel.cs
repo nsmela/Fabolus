@@ -47,7 +47,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     [ObservableProperty] private float _tracking = 0.4f;
     [ObservableProperty] private int _rotation = 0;
     [ObservableProperty] private bool _projectOntoSurface = true;
-    [ObservableProperty] private bool _mirror = false;
     [ObservableProperty] private bool _isPicking = false;
     [ObservableProperty] private bool _isApplied = false;
     [ObservableProperty] private bool _hasMould = false;
@@ -121,8 +120,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     partial void OnTargetChanged(EmbossTarget value)
     {
         UpdateTargetMesh();
-        // Target = Mould -> Mirror = true automatically, Target = Base -> Mirror = false
-        Mirror = value == EmbossTarget.Mould;
         if (_targetMesh != null && !IsApplied)
         {
             Anchor = _meshCenter;
@@ -132,7 +129,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         Invalidate();
     }
 
-    partial void OnMirrorChanged(bool value) => Invalidate();
     partial void OnLabelTextChanged(string value) => Invalidate();
     partial void OnOperationChanged(EmbossOperation value)
     {
@@ -150,9 +146,40 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     partial void OnAnchorChanged(Vector3 value) => Invalidate();
     partial void OnAnchorNormalChanged(Vector3 value) => Invalidate();
 
+    private void EnsureCleanMeshForPreview()
+    {
+        if (IsApplied && _activeMesh != null)
+        {
+            if (Target == EmbossTarget.Base)
+            {
+                var cleanBase = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
+                if (cleanBase.IsSuccess)
+                {
+                    _baseMesh = cleanBase.Value;
+                    _targetMesh = _baseMesh;
+                    _sceneManager.UpdateMesh(_targetMesh);
+                }
+            }
+            else if (Target == EmbossTarget.Mould && _mouldMesh != null)
+            {
+                var cleanMould = CommandReplay.GetMeshAtStage(_engine, _mouldMesh, CommandPriority.Mould);
+                if (cleanMould.IsSuccess)
+                {
+                    _mouldMesh = cleanMould.Value;
+                    _targetMesh = _mouldMesh;
+                    _sceneManager.UpdateMesh(_targetMesh);
+                }
+            }
+            IsApplied = false;
+            OnPropertyChanged(nameof(StatusWord));
+            OnPropertyChanged(nameof(StatusColor));
+        }
+    }
+
     private void Invalidate()
     {
         if (_isActivating) return;
+        EnsureCleanMeshForPreview();
         _metrics = _outlineSource.MeasureText(LabelText, Font, CapHeight, Tracking);
         OnPropertyChanged(nameof(Footprint));
         OnPropertyChanged(nameof(TextStatusLine));
@@ -187,6 +214,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     private void OnDecalMoved(Vector3 point, Vector3 normal)
     {
+        EnsureCleanMeshForPreview();
         Anchor = point;
         AnchorNormal = normal;
         UpdateUVReadout();
@@ -195,6 +223,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     private void OnDecalRotated(float angleDeg)
     {
+        EnsureCleanMeshForPreview();
         Rotation = (int)Math.Round(angleDeg);
         UpdateUVReadout();
         ExecutePreviewUpdate();
@@ -208,17 +237,16 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     [RelayCommand]
     private void StartPlacing()
     {
+        EnsureCleanMeshForPreview();
         IsPicking = !IsPicking;
         _sceneManager.IsPicking = IsPicking;
         OnPropertyChanged(nameof(Hint));
     }
 
-    private bool CanApply() => _targetMesh != null && !string.IsNullOrWhiteSpace(LabelText);
-
-    [RelayCommand(CanExecute = nameof(CanApply))]
+    [RelayCommand]
     private async Task ApplyAsync()
     {
-        if (_targetMesh == null) return;
+        if (_targetMesh == null || string.IsNullOrWhiteSpace(LabelText)) return;
 
         ErrorText = string.Empty;
         WarningText = string.Empty;
@@ -279,44 +307,63 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             if (mouldDef.HasValue)
             {
                 var mouldResult = mouldDef.Value.Apply(_engine, updatedMesh);
-                if (mouldResult.IsSuccess)
+                if (mouldResult.IsFailure)
                 {
-                    meshToSave = mouldResult.Value;
+                    ErrorText = mouldResult.Error.Description;
+                    _alert.ShowError(mouldResult.Error.Description);
+                    return;
                 }
+
+                var mouldMesh = mouldResult.Value;
+                var mouldStats = _engine.Evaluators.GetStatistics(mouldMesh);
+                var mouldTopo = _engine.Evaluators.ValidateTopology(mouldMesh);
+
+                var mouldMetadata = updatedMesh.Metadata.WithProperties(m =>
+                {
+                    if (mouldStats.IsSuccess) m.Set(MeshIOKeys.Stats, mouldStats.Value);
+                    if (mouldTopo.IsSuccess) m.Set(MeshIOKeys.Topology, mouldTopo.Value);
+                });
+
+                mouldMetadata = mouldMetadata.WithCommand(mouldDef.Value with { TargetMeshId = updatedMesh.Metadata.Id });
+                meshToSave = mouldMesh.WithMetadata(mouldMetadata);
             }
         }
 
         var updateResult = Workspace.UpdateMesh(meshToSave);
-        if (updateResult.IsSuccess)
+        if (updateResult.IsFailure)
         {
-            Workspace = updateResult.Value;
-            _activeMesh = meshToSave;
-            if (Target == EmbossTarget.Base && _mouldMesh != null)
-            {
-                _mouldMesh = meshToSave;
-                _baseMesh = updatedMesh;
-            }
-            else if (Target == EmbossTarget.Mould)
-            {
-                _mouldMesh = meshToSave;
-            }
-            else
-            {
-                _baseMesh = meshToSave;
-            }
-            _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
-            HasMould = _mouldMesh != null;
-            _sceneManager.UpdateMesh(_targetMesh);
-            _sceneManager.ClearPreviewVisuals();
-            IsApplied = true;
-            OnPropertyChanged(nameof(StatusWord));
-            OnPropertyChanged(nameof(StatusColor));
-            _messenger.Send(new WorkspaceChangedMessage(Workspace));
+            ErrorText = updateResult.Error.Description;
+            _alert.ShowError(updateResult.Error.Description);
+            return;
         }
+
+        Workspace = updateResult.Value;
+        _activeMesh = meshToSave;
+        if (Target == EmbossTarget.Base && _mouldMesh != null)
+        {
+            _mouldMesh = meshToSave;
+            _baseMesh = updatedMesh;
+        }
+        else if (Target == EmbossTarget.Mould)
+        {
+            _mouldMesh = meshToSave;
+        }
+        else
+        {
+            _baseMesh = meshToSave;
+        }
+        _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
+        HasMould = _mouldMesh != null;
+        _sceneManager.UpdateMesh(_targetMesh);
+        _sceneManager.ClearPreviewVisuals();
+        IsApplied = true;
+        OnPropertyChanged(nameof(StatusWord));
+        OnPropertyChanged(nameof(StatusColor));
+        _messenger.Send(new WorkspaceChangedMessage(Workspace));
     }
 
     [RelayCommand]
-    public void Clear()
+    public void ClearText()
     {
         if (!IsApplied) return;
 
@@ -360,26 +407,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     }
 
     [RelayCommand]
-    private void Reset()
-    {
-        if (IsApplied)
-        {
-            Clear();
-        }
-
-        LabelText = "FABOLUS";
-        Rotation = 0;
-        CapHeight = 6.0f;
-        Depth = 0.8f;
-        Tracking = 0.4f;
-        if (!HasMould) Target = EmbossTarget.Base;
-        if (_targetMesh != null)
-        {
-            Anchor = _meshCenter;
-            AnchorNormal = Vector3.UnitZ;
-        }
-        Invalidate();
-    }
+    public void Clear() => ClearText();
 
     public async Task ActivateAsync(Workspace workspace)
     {
@@ -399,7 +427,9 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             if (mouldDef.HasValue)
             {
                 _mouldMesh = _activeMesh;
-                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
+                var hasTextCommand = _activeMesh.Metadata.TextDecal().HasValue;
+                var targetStage = hasTextCommand ? CommandPriority.TextEmboss : CommandPriority.Transform;
+                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, targetStage);
                 _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : _activeMesh;
             }
             else
@@ -430,10 +460,18 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 Tracking = d.Tracking;
                 Rotation = (int)d.RotationDeg;
                 ProjectOntoSurface = d.ProjectOntoSurface;
-                Mirror = d.Mirror;
                 Anchor = d.Anchor;
                 AnchorNormal = d.AnchorNormal;
                 IsApplied = true;
+
+                if (mouldDef.HasValue && Target == EmbossTarget.Base)
+                {
+                    var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.TextEmboss);
+                    if (baseMeshAtStage.IsSuccess)
+                    {
+                        _baseMesh = baseMeshAtStage.Value;
+                    }
+                }
 
                 UpdateTargetMesh();
             }
@@ -455,7 +493,15 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             OnPropertyChanged(nameof(ApplyLabel));
             OnPropertyChanged(nameof(DepthLabel));
             OnPropertyChanged(nameof(Footprint));
-            ExecutePreviewUpdate();
+
+            if (!IsApplied)
+            {
+                ExecutePreviewUpdate();
+            }
+            else
+            {
+                _sceneManager.ClearPreviewVisuals();
+            }
         }
         finally
         {
@@ -486,7 +532,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         Tracking = Tracking,
         RotationDeg = Rotation,
         ProjectOntoSurface = ProjectOntoSurface,
-        Mirror = Mirror,
         Anchor = Anchor,
         AnchorNormal = AnchorNormal
     };

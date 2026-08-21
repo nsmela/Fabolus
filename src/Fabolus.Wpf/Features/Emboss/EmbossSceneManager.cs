@@ -34,7 +34,6 @@ public sealed class EmbossSceneManager : ISceneManager
     private LineGeometryModel3D? _gizmoLineModel;
     private Guid _rotateHandleId = Guid.Empty;
     private MeshGeometryModel3D? _rotateHandleModel;
-    private CoordinateSystemModel3D? _grid;
 
     private readonly HelixToolkit.Wpf.SharpDX.Material _targetSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _previewDecalSkin;
@@ -57,18 +56,21 @@ public sealed class EmbossSceneManager : ISceneManager
         _targetSkin = Skins.Surface.Gray;
         _previewDecalSkin = Skins.Primitive.Cyan;
         _rotateHandleSkin = Skins.Primitive.Amber;
-
-        _grid = new CoordinateSystemModel3D();
     }
 
     public Result UpdateMesh(IMesh mesh)
     {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() => UpdateMesh(mesh));
+        }
+
         TargetMesh = mesh;
         var helixMeshResult = mesh.ToHelixMesh(_engine);
         if (helixMeshResult.IsFailure)
             return helixMeshResult;
 
-        if (_targetModel == null)
+        if (_targetModel == null || (Application.Current == null && !_targetModel.CheckAccess()))
         {
             _targetModel = new MeshGeometryModel3D
             {
@@ -92,6 +94,12 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void ReleaseMesh()
     {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(ReleaseMesh);
+            return;
+        }
+
         ClearPreviewVisuals();
         if (_targetMeshId != Guid.Empty)
         {
@@ -104,6 +112,11 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void UpdatePreview(TextDecal decal, TextMetrics metrics, IGlyphOutlineSource outlineSource)
     {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(() => UpdatePreview(decal, metrics, outlineSource));
+            return;
+        }
         CurrentDecal = decal;
         var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
         CurrentFrame = frame;
@@ -120,9 +133,6 @@ public sealed class EmbossSceneManager : ISceneManager
             ClearPreviewVisuals();
             return;
         }
-
-        if (decal.Mirror)
-            outlines = outlines.MirrorX();
 
         float sink = -0.05f;
         float overshoot = 0.05f;
@@ -217,6 +227,12 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void UpdateDragPreview(TextDecal decal, TextMetrics metrics)
     {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(() => UpdateDragPreview(decal, metrics));
+            return;
+        }
+
         CurrentDecal = decal;
         var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
         CurrentFrame = frame;
@@ -321,6 +337,12 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void ClearPreviewVisuals()
     {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(ClearPreviewVisuals);
+            return;
+        }
+
         if (_previewDecalId != Guid.Empty)
         {
             VisualRemovedById?.Invoke(_previewDecalId);
@@ -346,8 +368,6 @@ public sealed class EmbossSceneManager : ISceneManager
     public void OnActivated()
     {
         VisualsCleared?.Invoke();
-        if (_grid != null)
-            VisualAddedOrUpdated?.Invoke(_grid);
     }
 
     public void OnDeactivated()

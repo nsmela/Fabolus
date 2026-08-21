@@ -30,9 +30,6 @@ public sealed class TextEmbossTool
         if (outlines.Count == 0)
             return new Error("TextEmboss.NoOutlines", "Could not generate glyph outlines for the specified text.");
 
-        if (decal.Mirror)
-            outlines = outlines.MirrorX();
-
         var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
 
         float sink = decal.Operation == EmbossOperation.Emboss ? -0.25f : -decal.Depth;
