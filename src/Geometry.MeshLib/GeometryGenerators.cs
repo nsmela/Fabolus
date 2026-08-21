@@ -881,8 +881,8 @@ internal sealed class GeometryGenerators : IGeometryGenerators
         return Result.Success(finalMesh.WithMetadata(metadata));
     }
 
-    public Result<IMesh> BuildTextPrism(IReadOnlyList<Polygon2D> outlines, Fabolus.Core.Features.Emboss.DecalFrame frame, float depth, float sink, float overshoot, float maxEdgeLength = 0f) =>
-        Text.TextMeshBuilder.BuildPrism(_engine, outlines, frame, depth, sink, overshoot, maxEdgeLength);
+    public Result<IMesh> BuildTextPrism(IReadOnlyList<Polygon2D> outlines, Fabolus.Core.Features.Emboss.DecalFrame frame, float depth, float sink, float overshoot, float maxEdgeLength = 0f, IMesh? targetMesh = null) =>
+        Text.TextMeshBuilder.BuildPrism(_engine, outlines, frame, depth, sink, overshoot, maxEdgeLength, targetMesh);
 
     public Result<IMesh> ProjectTextPrism(IMesh targetMesh, Fabolus.Core.Features.Emboss.DecalFrame frame, IMesh prismMesh, List<string>? warnings = null) =>
         Text.TextMeshBuilder.ProjectPrism(_engine, targetMesh, frame, prismMesh, warnings);

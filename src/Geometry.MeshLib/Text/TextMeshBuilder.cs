@@ -18,14 +18,18 @@ public static class TextMeshBuilder
         float depth,
         float sink,
         float overshoot,
-        float maxEdgeLength = 0f)
+        float maxEdgeLength = 0f,
+        IMesh? targetMesh = null)
     {
         if (outlines == null || outlines.Count == 0)
             return new Error("TextMeshBuilder.EmptyOutlines", "No outline contours provided to build text mesh.");
 
+        // 1. Resample polygon boundaries if maxEdgeLength > 0
+        var resampledPolys = maxEdgeLength > 0f ? ResamplePolygons(outlines, maxEdgeLength) : outlines;
+
         using var contours = new MR.Std.Vector_StdVectorMRVector2f();
 
-        foreach (var poly in outlines)
+        foreach (var poly in resampledPolys)
         {
             if (poly.OuterBoundary.Count < 3) continue;
 
@@ -56,9 +60,8 @@ public static class TextMeshBuilder
             return new Error("TextMeshBuilder.TriangulationFailed", "Planar triangulation failed for text outlines.");
 
         float zMin = sink;
-        float zMax = sink + depth + overshoot;
+        float zMax = depth + overshoot;
 
-        // Subdivide in 2D if maxEdgeLength specified
         List<Vector2> pts2D = [];
         List<(int A, int B, int C)> faces2D = [];
 
@@ -108,11 +111,6 @@ public static class TextMeshBuilder
 
         polyMesh.Dispose();
 
-        if (maxEdgeLength > 0f)
-        {
-            Subdivide2D(pts2D, faces2D, maxEdgeLength);
-        }
-
         // Extrude to 3D
         int ptCount = pts2D.Count;
         var vertices = new List<double>(ptCount * 2 * 3);
@@ -121,23 +119,148 @@ public static class TextMeshBuilder
         var bottomMap = new int[ptCount];
         var topMap = new int[ptCount];
 
-        for (int i = 0; i < ptCount; i++)
+        MR.ObjectMesh? spatial = null;
+        MR.Mesh? mlTargetMesh = null;
+        MR.Std.SharedPtr_MRMesh? sharedPtr = null;
+        MR.MeshPart? targetPart = null;
+
+        if (targetMesh != null)
         {
-            var p = pts2D[i];
+            try
+            {
+                mlTargetMesh = targetMesh.ToMRMesh();
+                spatial = new MR.ObjectMesh();
+                sharedPtr = new MR.Std.SharedPtr_MRMesh(mlTargetMesh);
+                spatial.setMesh(sharedPtr);
+                targetPart = new MR.MeshPart(mlTargetMesh);
+            }
+            catch
+            {
+                spatial = null;
+            }
+        }
 
-            // Bottom vertex (zMin)
-            var pBot = frame.ToWorld(p.X, p.Y, zMin);
-            bottomMap[i] = vertices.Count / 3;
-            vertices.Add(pBot.X);
-            vertices.Add(pBot.Y);
-            vertices.Add(pBot.Z);
+        float rayOffset = 100.0f;
+        var rayDir = -frame.N;
 
-            // Top vertex (zMax)
-            var pTop = frame.ToWorld(p.X, p.Y, zMax);
-            topMap[i] = vertices.Count / 3;
-            vertices.Add(pTop.X);
-            vertices.Add(pTop.Y);
-            vertices.Add(pTop.Z);
+        var heights = new float[ptCount];
+        var hasHit = new bool[ptCount];
+
+        try
+        {
+            if (spatial is not null && targetPart is not null && mlTargetMesh is not null)
+            {
+                for (int i = 0; i < ptCount; i++)
+                {
+                    var p = pts2D[i];
+                    var rayOrigin = frame.Origin + p.X * frame.U + p.Y * frame.V + rayOffset * frame.N;
+                    var mrOrigin = new MR.Vector3f(rayOrigin.X, rayOrigin.Y, rayOrigin.Z);
+                    var mrDir = new MR.Vector3f(rayDir.X, rayDir.Y, rayDir.Z);
+
+                    using var line = new MR.Line3f(mrOrigin, mrDir);
+                    using var hit = spatial.worldRayIntersection(line, null);
+
+                    if (hit is not null)
+                    {
+                        float dist = hit.distanceAlongLine;
+                        float h = rayOffset - dist;
+
+                        if (MathF.Abs(h) < 60.0f)
+                        {
+                            var hitPoint = rayOrigin + rayDir * dist;
+                            var ptRef = new MR.Vector3f(hitPoint.X, hitPoint.Y, hitPoint.Z);
+                            using var distResultOpt = MR.findSignedDistance(in ptRef, targetPart, null, null);
+                            if (distResultOpt is not null)
+                            {
+                                using var distResult = distResultOpt.value();
+                                var fid = distResult.proj.face;
+                                if (mlTargetMesh.topology.getValidFaces().test(fid))
+                                {
+                                    var tri = mlTargetMesh.topology.getTriVerts(fid);
+                                    var v0 = mlTargetMesh.points.vec[(ulong)tri.elems._0.get()];
+                                    var v1 = mlTargetMesh.points.vec[(ulong)tri.elems._1.get()];
+                                    var v2 = mlTargetMesh.points.vec[(ulong)tri.elems._2.get()];
+
+                                    var e1 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
+                                    var e2 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
+                                    var cross = Vector3.Cross(e1, e2);
+                                    if (cross.LengthSquared() > 1e-8f)
+                                    {
+                                        var norm = Vector3.Normalize(cross);
+                                        if (Vector3.Dot(norm, frame.N) >= 0.05f)
+                                        {
+                                            heights[i] = h;
+                                            hasHit[i] = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Extrapolate missing heights from nearest valid hit vertices
+                bool anyHit = false;
+                for (int i = 0; i < ptCount; i++)
+                {
+                    if (hasHit[i]) { anyHit = true; break; }
+                }
+
+                if (anyHit)
+                {
+                    for (int i = 0; i < ptCount; i++)
+                    {
+                        if (!hasHit[i])
+                        {
+                            float bestDistSq = float.MaxValue;
+                            int bestIdx = -1;
+                            for (int j = 0; j < ptCount; j++)
+                            {
+                                if (hasHit[j])
+                                {
+                                    float dSq = Vector2.DistanceSquared(pts2D[i], pts2D[j]);
+                                    if (dSq < bestDistSq)
+                                    {
+                                        bestDistSq = dSq;
+                                        bestIdx = j;
+                                    }
+                                }
+                            }
+                            if (bestIdx >= 0)
+                            {
+                                heights[i] = heights[bestIdx];
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (int i = 0; i < ptCount; i++)
+            {
+                var p = pts2D[i];
+                float h = heights[i];
+
+                var pSurface = frame.Origin + p.X * frame.U + p.Y * frame.V + h * frame.N;
+                var pBot = pSurface + zMin * frame.N;
+                var pTop = pSurface + zMax * frame.N;
+
+                bottomMap[i] = vertices.Count / 3;
+                vertices.Add(pBot.X);
+                vertices.Add(pBot.Y);
+                vertices.Add(pBot.Z);
+
+                topMap[i] = vertices.Count / 3;
+                vertices.Add(pTop.X);
+                vertices.Add(pTop.Y);
+                vertices.Add(pTop.Z);
+            }
+        }
+        finally
+        {
+            targetPart?.Dispose();
+            sharedPtr?.Dispose();
+            spatial?.Dispose();
+            mlTargetMesh?.Dispose();
         }
 
         var edgeCounts = new Dictionary<(int, int), int>();
@@ -191,113 +314,50 @@ public static class TextMeshBuilder
         edgeCounts[(a, b)] = edgeCounts.TryGetValue((a, b), out int count) ? count + 1 : 1;
     }
 
-    private static void Subdivide2D(List<Vector2> pts, List<(int A, int B, int C)> faces, float maxEdgeLength)
+    private static IReadOnlyList<Polygon2D> ResamplePolygons(IReadOnlyList<Polygon2D> polygons, float maxEdgeLength)
     {
-        float maxEdgeLenSq = maxEdgeLength * maxEdgeLength;
-        int maxIterations = 3;
-
-        for (int iter = 0; iter < maxIterations; iter++)
+        var result = new List<Polygon2D>(polygons.Count);
+        foreach (var poly in polygons)
         {
-            bool splitAny = false;
-            var edgeMidpoints = new Dictionary<(int, int), int>();
-
-            int GetOrAddMidpoint(int i1, int i2)
+            var newOuter = ResampleRing(poly.OuterBoundary, maxEdgeLength);
+            var newHoles = new List<IReadOnlyList<Vector2>>(poly.Holes.Count);
+            foreach (var hole in poly.Holes)
             {
-                int min = Math.Min(i1, i2);
-                int max = Math.Max(i1, i2);
-                if (!edgeMidpoints.TryGetValue((min, max), out int midIdx))
-                {
-                    var mid = (pts[min] + pts[max]) * 0.5f;
-                    midIdx = pts.Count;
-                    pts.Add(mid);
-                    edgeMidpoints[(min, max)] = midIdx;
-                }
-                return midIdx;
+                newHoles.Add(ResampleRing(hole, maxEdgeLength));
             }
-
-            var newFaces = new List<(int A, int B, int C)>(faces.Count * 2);
-
-            foreach (var (a, b, c) in faces)
+            result.Add(new Polygon2D
             {
-                float dAbSq = Vector2.DistanceSquared(pts[a], pts[b]);
-                float dBcSq = Vector2.DistanceSquared(pts[b], pts[c]);
-                float dCaSq = Vector2.DistanceSquared(pts[c], pts[a]);
-
-                bool splitAb = dAbSq > maxEdgeLenSq;
-                bool splitBc = dBcSq > maxEdgeLenSq;
-                bool splitCa = dCaSq > maxEdgeLenSq;
-
-                if (!splitAb && !splitBc && !splitCa)
-                {
-                    newFaces.Add((a, b, c));
-                    continue;
-                }
-
-                splitAny = true;
-
-                if (splitAb && splitBc && splitCa)
-                {
-                    int mAb = GetOrAddMidpoint(a, b);
-                    int mBc = GetOrAddMidpoint(b, c);
-                    int mCa = GetOrAddMidpoint(c, a);
-
-                    newFaces.Add((a, mAb, mCa));
-                    newFaces.Add((mAb, b, mBc));
-                    newFaces.Add((mBc, c, mCa));
-                    newFaces.Add((mAb, mBc, mCa));
-                }
-                else if (splitAb && splitBc)
-                {
-                    int mAb = GetOrAddMidpoint(a, b);
-                    int mBc = GetOrAddMidpoint(b, c);
-
-                    newFaces.Add((a, mAb, c));
-                    newFaces.Add((mAb, b, mBc));
-                    newFaces.Add((mAb, mBc, c));
-                }
-                else if (splitBc && splitCa)
-                {
-                    int mBc = GetOrAddMidpoint(b, c);
-                    int mCa = GetOrAddMidpoint(c, a);
-
-                    newFaces.Add((b, mBc, a));
-                    newFaces.Add((mBc, c, mCa));
-                    newFaces.Add((mBc, mCa, a));
-                }
-                else if (splitAb && splitCa)
-                {
-                    int mAb = GetOrAddMidpoint(a, b);
-                    int mCa = GetOrAddMidpoint(c, a);
-
-                    newFaces.Add((a, mAb, mCa));
-                    newFaces.Add((mAb, b, c));
-                    newFaces.Add((mAb, c, mCa));
-                }
-                else if (splitAb)
-                {
-                    int mAb = GetOrAddMidpoint(a, b);
-                    newFaces.Add((a, mAb, c));
-                    newFaces.Add((mAb, b, c));
-                }
-                else if (splitBc)
-                {
-                    int mBc = GetOrAddMidpoint(b, c);
-                    newFaces.Add((b, mBc, a));
-                    newFaces.Add((mBc, c, a));
-                }
-                else // splitCa
-                {
-                    int mCa = GetOrAddMidpoint(c, a);
-                    newFaces.Add((c, mCa, b));
-                    newFaces.Add((mCa, a, b));
-                }
-            }
-
-            faces.Clear();
-            faces.AddRange(newFaces);
-
-            if (!splitAny) break;
+                OuterBoundary = newOuter,
+                Holes = newHoles
+            });
         }
+        return result;
+    }
+
+    private static IReadOnlyList<Vector2> ResampleRing(IReadOnlyList<Vector2> ring, float maxEdgeLength)
+    {
+        if (ring.Count < 3) return ring;
+        var newPts = new List<Vector2>();
+        int count = ring.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            var pA = ring[i];
+            var pB = ring[(i + 1) % count];
+            newPts.Add(pA);
+
+            float dist = Vector2.Distance(pA, pB);
+            if (dist > maxEdgeLength)
+            {
+                int segments = (int)MathF.Ceiling(dist / maxEdgeLength);
+                for (int s = 1; s < segments; s++)
+                {
+                    float t = (float)s / segments;
+                    newPts.Add(Vector2.Lerp(pA, pB, t));
+                }
+            }
+        }
+        return newPts;
     }
 
     /// <summary>

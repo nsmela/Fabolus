@@ -4,7 +4,7 @@ using Fabolus.Core.Geometry;
 namespace Fabolus.Core.Features.Emboss;
 
 /// <summary>
-/// Executes 3D text solid generation, surface projection, and Boolean union/subtraction.
+/// Executes 3D text solid generation, surface contouring, and Boolean union/subtraction.
 /// </summary>
 public sealed class TextEmbossTool
 {
@@ -36,23 +36,15 @@ public sealed class TextEmbossTool
         var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
 
         float sink = decal.Operation == EmbossOperation.Emboss ? -0.25f : -decal.Depth;
-        float overshoot = 0.5f;
-        float maxEdge = decal.ProjectOntoSurface ? Math.Max(0.5f, decal.CapHeight / 6.0f) : 0f;
+        float overshoot = decal.Operation == EmbossOperation.Emboss ? 0.0f : 0.5f;
+        float maxEdge = decal.ProjectOntoSurface ? Math.Max(0.4f, decal.CapHeight / 8.0f) : 0f;
+        IMesh? surfaceTarget = decal.ProjectOntoSurface ? target : null;
 
-        var prismResult = engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge);
+        var prismResult = engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
         if (prismResult.IsFailure)
             return prismResult.Error;
 
         var prismMesh = prismResult.Value;
-
-        if (decal.ProjectOntoSurface)
-        {
-            var projectResult = engine.Generators.ProjectTextPrism(target, frame, prismMesh, warnings);
-            if (projectResult.IsFailure)
-                return projectResult.Error;
-
-            prismMesh = projectResult.Value;
-        }
 
         var booleanResult = decal.Operation == EmbossOperation.Emboss
             ? engine.Booleans.Union(target, prismMesh)
@@ -61,18 +53,20 @@ public sealed class TextEmbossTool
         if (booleanResult.IsFailure)
             return new Error("TextEmboss.BooleanFailed", $"Boolean operation failed: {booleanResult.Error.Description}");
 
-        var finalMesh = booleanResult.Value;
+        return ValidateAndReturn(engine, booleanResult.Value);
+    }
 
-        var topologyResult = engine.Evaluators.ValidateTopology(finalMesh);
+    private static Result<IMesh> ValidateAndReturn(IGeometryEngine engine, IMesh mesh)
+    {
+        var topologyResult = engine.Evaluators.ValidateTopology(mesh);
         if (topologyResult.IsSuccess)
         {
             var topo = topologyResult.Value;
             if (!topo.IsManifold || topo.HasCorruptTopology)
             {
-                return new Error("TextEmboss.NonManifold", "Boolean produced a non-manifold mesh. Try a larger cap height or less depth.");
+                return new Error("TextEmboss.NonManifold", "Boolean produced a non-manifold mesh. Try adjusting placement or depth.");
             }
         }
-
-        return Result.Success(finalMesh);
+        return Result.Success(mesh);
     }
 }

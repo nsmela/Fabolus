@@ -7,7 +7,6 @@ using Fabolus.Core.Features.Emboss;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Helpers;
 using Fabolus.Wpf.Common.Mesh;
-using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
 
@@ -15,44 +14,8 @@ namespace Fabolus.Wpf.Features.Emboss;
 
 public sealed class EmbossSceneManager : ISceneManager
 {
-    private enum DragMode
-    {
-        None,
-        Move,
-        Rotate
-    }
-
     private readonly IGeometryEngine _engine;
     private readonly IMessenger _messenger;
-
-    private Element3D? _grid;
-    private readonly Material _targetSkin = Skins.Surface.Gray;
-    private readonly Material _previewDecalSkin = Skins.Primitive.Cyan;
-    private readonly Material _rotateHandleSkin = Skins.Primitive.Amber;
-
-    private IMesh? TargetMesh { get; set; }
-    private TextDecal? CurrentDecal { get; set; }
-    private DecalFrame? CurrentFrame { get; set; }
-
-    private Guid _targetMeshId = Guid.Empty;
-    private Guid _previewDecalId = Guid.Empty;
-    private Guid _gizmoLineId = Guid.Empty;
-    private Guid _rotateHandleId = Guid.Empty;
-
-    private MeshGeometryModel3D? _targetModel;
-    private MeshGeometryModel3D? _decalModel;
-    private LineGeometryModel3D? _gizmoLineModel;
-    private MeshGeometryModel3D? _rotateHandleModel;
-
-    private DragMode _currentDrag = DragMode.None;
-    private Vector3 _grabOffset = Vector3.Zero;
-    private bool _isPicking = false;
-
-    public bool IsPicking
-    {
-        get => _isPicking;
-        set => _isPicking = value;
-    }
 
     public event Action<Element3D>? VisualAddedOrUpdated;
     public event Action<Guid>? VisualRemovedById;
@@ -63,60 +26,78 @@ public sealed class EmbossSceneManager : ISceneManager
     public event Action<float>? DecalRotated;
     public event Action<Vector3, Vector3>? DecalHovered;
 
+    private Guid _targetMeshId = Guid.Empty;
+    private MeshGeometryModel3D? _targetModel;
+    private Guid _previewDecalId = Guid.Empty;
+    private MeshGeometryModel3D? _decalModel;
+    private Guid _gizmoLineId = Guid.Empty;
+    private LineGeometryModel3D? _gizmoLineModel;
+    private Guid _rotateHandleId = Guid.Empty;
+    private MeshGeometryModel3D? _rotateHandleModel;
+    private CoordinateSystemModel3D? _grid;
+
+    private readonly HelixToolkit.Wpf.SharpDX.Material _targetSkin;
+    private readonly HelixToolkit.Wpf.SharpDX.Material _previewDecalSkin;
+    private readonly HelixToolkit.Wpf.SharpDX.Material _rotateHandleSkin;
+
+    public IMesh? TargetMesh { get; private set; }
+    public TextDecal? CurrentDecal { get; private set; }
+    public DecalFrame? CurrentFrame { get; private set; }
+
+    public bool IsPicking { get; set; }
+
+    private enum DragMode { None, Move, Rotate }
+    private DragMode _currentDrag = DragMode.None;
+
     public EmbossSceneManager(IGeometryEngine engine, IMessenger messenger)
     {
         _engine = engine;
         _messenger = messenger;
 
-        var width = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
-        var depth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
-        var show = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
-        _grid = SceneHelpers.GenerateGrid(width, depth, 10, show);
+        _targetSkin = Skins.Surface.Gray;
+        _previewDecalSkin = Skins.Primitive.Cyan;
+        _rotateHandleSkin = Skins.Primitive.Amber;
 
-        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) =>
-        {
-            if (m.Key == UISettings.PrintBedWidthLabel || m.Key == UISettings.PrintBedDepthLabel || m.Key == UISettings.ShowBedGridLabel)
-            {
-                var w = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
-                var d = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
-                var s = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
-
-                if (_grid != null)
-                    VisualRemovedById?.Invoke(_grid.GUID);
-
-                _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
-                VisualAddedOrUpdated?.Invoke(_grid);
-            }
-        });
+        _grid = new CoordinateSystemModel3D();
     }
 
     public Result UpdateMesh(IMesh mesh)
     {
-        if (_targetMeshId != Guid.Empty)
-            VisualRemovedById?.Invoke(_targetMeshId);
-
         TargetMesh = mesh;
+        var helixMeshResult = mesh.ToHelixMesh(_engine);
+        if (helixMeshResult.IsFailure)
+            return helixMeshResult;
 
-        var geometryResult = TargetMesh.ToHelixMesh(_engine);
-        if (geometryResult.IsFailure)
-            return geometryResult.Error;
-
-        _targetModel = new MeshGeometryModel3D
+        if (_targetModel == null)
         {
-            Geometry = geometryResult.Value,
-            Material = _targetSkin,
-            CullMode = SharpDX.Direct3D11.CullMode.None,
-        };
-
-        SceneVisual.SetIsModelGeometry(_targetModel, true);
-        _targetMeshId = _targetModel.GUID;
-        VisualAddedOrUpdated?.Invoke(_targetModel);
+            _targetModel = new MeshGeometryModel3D
+            {
+                Geometry = helixMeshResult.Value,
+                Material = _targetSkin,
+                CullMode = SharpDX.Direct3D11.CullMode.Back
+            };
+            SceneVisual.SetIsModelGeometry(_targetModel, true);
+            _targetMeshId = _targetModel.GUID;
+            VisualAddedOrUpdated?.Invoke(_targetModel);
+        }
+        else
+        {
+            _targetModel.Geometry = helixMeshResult.Value;
+            _targetModel.Visibility = Visibility.Visible;
+            VisualAddedOrUpdated?.Invoke(_targetModel);
+        }
 
         return Result.Success();
     }
 
     public void ReleaseMesh()
     {
+        ClearPreviewVisuals();
+        if (_targetMeshId != Guid.Empty)
+        {
+            VisualRemovedById?.Invoke(_targetMeshId);
+            _targetMeshId = Guid.Empty;
+        }
         TargetMesh = null;
         _targetModel = null;
     }
@@ -143,21 +124,15 @@ public sealed class EmbossSceneManager : ISceneManager
         if (decal.Mirror)
             outlines = outlines.MirrorX();
 
-        float sink = decal.Operation == EmbossOperation.Emboss ? -0.25f : -decal.Depth;
-        float overshoot = 0.5f;
-        float maxEdge = decal.ProjectOntoSurface ? Math.Max(0.5f, decal.CapHeight / 6.0f) : 0f;
+        float sink = -0.05f;
+        float overshoot = 0.05f;
+        float maxEdge = decal.ProjectOntoSurface ? Math.Max(0.4f, decal.CapHeight / 8.0f) : 0f;
+        IMesh? surfaceTarget = decal.ProjectOntoSurface ? TargetMesh : null;
 
-        var prismResult = _engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge);
+        var prismResult = _engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
         if (prismResult.IsFailure) return;
 
         var prismMesh = prismResult.Value;
-
-        if (decal.ProjectOntoSurface)
-        {
-            var projectResult = _engine.Generators.ProjectTextPrism(TargetMesh, frame, prismMesh);
-            if (projectResult.IsSuccess)
-                prismMesh = projectResult.Value;
-        }
 
         var helixPrismResult = prismMesh.ToHelixMesh(_engine);
         if (helixPrismResult.IsFailure) return;
@@ -190,24 +165,7 @@ public sealed class EmbossSceneManager : ISceneManager
         float halfH = metrics.HeightMm * 0.5f + 1.0f;
         float zOff = decal.Depth + 0.5f;
 
-        var p0 = frame.ToWorld(-halfW, -halfH, zOff);
-        var p1 = frame.ToWorld(halfW, -halfH, zOff);
-        var p2 = frame.ToWorld(halfW, halfH, zOff);
-        var p3 = frame.ToWorld(-halfW, halfH, zOff);
-
-        var linePositions = new Vector3Collection
-        {
-            new SharpDX.Vector3(p0.X, p0.Y, p0.Z),
-            new SharpDX.Vector3(p1.X, p1.Y, p1.Z),
-            new SharpDX.Vector3(p1.X, p1.Y, p1.Z),
-            new SharpDX.Vector3(p2.X, p2.Y, p2.Z),
-            new SharpDX.Vector3(p2.X, p2.Y, p2.Z),
-            new SharpDX.Vector3(p3.X, p3.Y, p3.Z),
-            new SharpDX.Vector3(p3.X, p3.Y, p3.Z),
-            new SharpDX.Vector3(p0.X, p0.Y, p0.Z),
-        };
-
-        var lineGeometry = new LineGeometry3D { Positions = linePositions };
+        var lineGeometry = GenerateContouredBoundingBox(frame, halfW, halfH, zOff, decal.ProjectOntoSurface);
 
         if (_gizmoLineModel == null)
         {
@@ -257,6 +215,110 @@ public sealed class EmbossSceneManager : ISceneManager
         }
     }
 
+    public void UpdateDragPreview(TextDecal decal, TextMetrics metrics)
+    {
+        CurrentDecal = decal;
+        var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
+        CurrentFrame = frame;
+
+        if (TargetMesh == null) return;
+
+        float halfW = metrics.WidthMm * 0.5f + 1.0f;
+        float halfH = metrics.HeightMm * 0.5f + 1.0f;
+        float zOff = 0.5f;
+
+        // Hide rotation handle during drag
+        if (_rotateHandleModel != null)
+        {
+            _rotateHandleModel.Visibility = Visibility.Collapsed;
+        }
+
+        var rectPolygon = new Polygon2D
+        {
+            OuterBoundary = new[]
+            {
+                new Vector2(-halfW, -halfH),
+                new Vector2(halfW, -halfH),
+                new Vector2(halfW, halfH),
+                new Vector2(-halfW, halfH)
+            }
+        };
+
+        float maxEdge = decal.ProjectOntoSurface ? Math.Max(0.5f, decal.CapHeight / 4.0f) : 0f;
+        IMesh? surfaceTarget = decal.ProjectOntoSurface ? TargetMesh : null;
+
+        var patchResult = _engine.Generators.BuildTextPrism(new[] { rectPolygon }, frame, 0.2f, -0.05f, 0.05f, maxEdge, surfaceTarget);
+        if (patchResult.IsSuccess)
+        {
+            var helixPatch = patchResult.Value.ToHelixMesh(_engine);
+            if (helixPatch.IsSuccess)
+            {
+                if (_decalModel == null)
+                {
+                    _decalModel = new MeshGeometryModel3D
+                    {
+                        Geometry = helixPatch.Value,
+                        Material = _previewDecalSkin,
+                        IsTransparent = true,
+                        DepthBias = -50,
+                        SlopeScaledDepthBias = -1.0f,
+                        CullMode = SharpDX.Direct3D11.CullMode.None,
+                    };
+                    SceneVisual.SetIsModelGeometry(_decalModel, false);
+                    _previewDecalId = _decalModel.GUID;
+                    VisualAddedOrUpdated?.Invoke(_decalModel);
+                }
+                else
+                {
+                    _decalModel.Geometry = helixPatch.Value;
+                    _decalModel.Visibility = Visibility.Visible;
+                    VisualAddedOrUpdated?.Invoke(_decalModel);
+                }
+            }
+        }
+
+        // Bounding Box Line Geometry
+        var lineGeometry = GenerateContouredBoundingBox(frame, halfW, halfH, zOff, decal.ProjectOntoSurface);
+        if (_gizmoLineModel == null)
+        {
+            _gizmoLineModel = new LineGeometryModel3D
+            {
+                Geometry = lineGeometry,
+                Color = System.Windows.Media.Colors.Cyan,
+                Thickness = 2.0,
+                IsHitTestVisible = false
+            };
+            _gizmoLineId = _gizmoLineModel.GUID;
+            VisualAddedOrUpdated?.Invoke(_gizmoLineModel);
+        }
+        else
+        {
+            _gizmoLineModel.Geometry = lineGeometry;
+            _gizmoLineModel.Visibility = Visibility.Visible;
+            VisualAddedOrUpdated?.Invoke(_gizmoLineModel);
+        }
+    }
+
+    private LineGeometry3D GenerateContouredBoundingBox(DecalFrame frame, float halfW, float halfH, float zOff, bool projectOntoSurface)
+    {
+        var linePositions = new Vector3Collection();
+        var p0 = frame.ToWorld(-halfW, -halfH, zOff);
+        var p1 = frame.ToWorld(halfW, -halfH, zOff);
+        var p2 = frame.ToWorld(halfW, halfH, zOff);
+        var p3 = frame.ToWorld(-halfW, halfH, zOff);
+
+        linePositions.Add(new SharpDX.Vector3(p0.X, p0.Y, p0.Z));
+        linePositions.Add(new SharpDX.Vector3(p1.X, p1.Y, p1.Z));
+        linePositions.Add(new SharpDX.Vector3(p1.X, p1.Y, p1.Z));
+        linePositions.Add(new SharpDX.Vector3(p2.X, p2.Y, p2.Z));
+        linePositions.Add(new SharpDX.Vector3(p2.X, p2.Y, p2.Z));
+        linePositions.Add(new SharpDX.Vector3(p3.X, p3.Y, p3.Z));
+        linePositions.Add(new SharpDX.Vector3(p3.X, p3.Y, p3.Z));
+        linePositions.Add(new SharpDX.Vector3(p0.X, p0.Y, p0.Z));
+
+        return new LineGeometry3D { Positions = linePositions };
+    }
+
     public void ClearPreviewVisuals()
     {
         if (_previewDecalId != Guid.Empty)
@@ -295,9 +357,9 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public bool OnKeyDown(Key key)
     {
-        if (key == Key.Escape && _isPicking)
+        if (key == Key.Escape && IsPicking)
         {
-            _isPicking = false;
+            IsPicking = false;
             return true;
         }
         return false;
@@ -321,39 +383,15 @@ public sealed class EmbossSceneManager : ISceneManager
             return true;
         }
 
-        // 2. Check decal preview hit for move
-        if (_decalModel != null && hit.ModelHit == _decalModel && CurrentDecal != null)
-        {
-            _currentDrag = DragMode.Move;
-            var hitPt = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
-            _grabOffset = hitPt - CurrentDecal.Anchor;
-            return true;
-        }
-
-        // 3. Check target mesh hit
-        if (_targetModel != null && hit.ModelHit == _targetModel)
+        // 2. Click anywhere on target mesh or decal
+        if (_targetModel != null && (hit.ModelHit == _targetModel || hit.ModelHit == _decalModel || hit.ModelHit == _gizmoLineModel))
         {
             var hitPt = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
             var hitNorm = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
 
-            if (_isPicking)
-            {
-                _isPicking = false;
-                DecalPlaced?.Invoke(hitPt, hitNorm);
-                return true;
-            }
-
-            // Normal move if clicking on decal footprint
-            if (CurrentFrame != null && CurrentDecal != null)
-            {
-                var local = CurrentFrame.ToLocal(hitPt);
-                if (MathF.Abs(local.X) < CurrentDecal.CapHeight * 4.0f && MathF.Abs(local.Y) < CurrentDecal.CapHeight * 1.5f)
-                {
-                    _currentDrag = DragMode.Move;
-                    _grabOffset = hitPt - CurrentDecal.Anchor;
-                    return true;
-                }
-            }
+            _currentDrag = DragMode.Move;
+            DecalMoved?.Invoke(hitPt, hitNorm);
+            return true;
         }
 
         return false;
@@ -366,6 +404,10 @@ public sealed class EmbossSceneManager : ISceneManager
             if (Mouse.LeftButton == MouseButtonState.Released)
             {
                 _currentDrag = DragMode.None;
+                if (CurrentDecal != null)
+                {
+                    DecalPlaced?.Invoke(CurrentDecal.Anchor, CurrentDecal.AnchorNormal);
+                }
                 return true;
             }
 
@@ -373,7 +415,7 @@ public sealed class EmbossSceneManager : ISceneManager
             {
                 var pt = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
                 var norm = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
-                DecalMoved?.Invoke(pt - _grabOffset, norm);
+                DecalMoved?.Invoke(pt, norm);
                 return true;
             }
             return true;
@@ -384,6 +426,10 @@ public sealed class EmbossSceneManager : ISceneManager
             if (Mouse.LeftButton == MouseButtonState.Released)
             {
                 _currentDrag = DragMode.None;
+                if (CurrentDecal != null)
+                {
+                    DecalPlaced?.Invoke(CurrentDecal.Anchor, CurrentDecal.AnchorNormal);
+                }
                 return true;
             }
 
@@ -396,7 +442,6 @@ public sealed class EmbossSceneManager : ISceneManager
 
                 float angleDeg = MathF.Atan2(uComp, vComp) * 180f / MathF.PI;
 
-                // Snap to 15 degrees if Shift is held, otherwise round to whole degree
                 bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
                 float snapDeg = shift ? MathF.Round(angleDeg / 15f) * 15f : MathF.Round(angleDeg);
 
@@ -406,7 +451,7 @@ public sealed class EmbossSceneManager : ISceneManager
             return true;
         }
 
-        if (_isPicking && hit?.ModelHit is MeshGeometryModel3D && hit.ModelHit == _targetModel)
+        if (IsPicking && hit?.ModelHit is MeshGeometryModel3D && hit.ModelHit == _targetModel)
         {
             var pt = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
             var norm = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
@@ -422,6 +467,10 @@ public sealed class EmbossSceneManager : ISceneManager
         if (_currentDrag != DragMode.None)
         {
             _currentDrag = DragMode.None;
+            if (CurrentDecal != null)
+            {
+                DecalPlaced?.Invoke(CurrentDecal.Anchor, CurrentDecal.AnchorNormal);
+            }
             return true;
         }
         return false;

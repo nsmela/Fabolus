@@ -142,7 +142,7 @@ public class TextEmbossTests
     }
 
     [Fact]
-    public void TextEmbossTool_Apply_ProjectOntoSurface_ProjectsVertices()
+    public void TextEmbossTool_Apply_ProjectOntoSurface_ContoursMesh()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
         var tool = new TextEmbossTool(_outlineSource);
@@ -161,5 +161,6 @@ public class TextEmbossTests
         var result = tool.Apply(_fixture.Engine, sphere, decal);
 
         result.IsSuccess.Should().BeTrue();
+        result.Value.TriangleCount.Should().BeGreaterThan(sphere.TriangleCount);
     }
 }

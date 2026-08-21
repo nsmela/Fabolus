@@ -53,7 +53,14 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
             currentX += adv;
         }
 
-        var flattened = combinedGeometry.GetFlattenedPathGeometry(0.01, ToleranceType.Relative);
+        // Relative tolerance is a fraction of the geometry's own extent, so it coarsens as the
+        // label gets longer: at 0.01 across a 50mm run the chord error lands near 0.5mm, which
+        // leaves a 2mm bowl on an 'O' as roughly four segments - visibly a polygon. These
+        // outlines are in millimetres, so tolerance belongs in millimetres too. Scaling it off
+        // the cap height keeps the segment count per glyph constant instead of letting it drift
+        // with the text length, and 0.0025 puts a 6mm cap at ~25 segments around an 'O'.
+        double flattenTolerance = Math.Max(0.005, capHeight * 0.0025);
+        var flattened = combinedGeometry.GetFlattenedPathGeometry(flattenTolerance, ToleranceType.Absolute);
         if (flattened == null || flattened.Figures.Count == 0)
             return Array.Empty<Polygon2D>();
 

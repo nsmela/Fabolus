@@ -256,11 +256,7 @@
 
                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,4">
                             <TextBlock Text="POSITION (U, V)" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
-                            <TextBlock FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource Brush.Text.Primary}">
-                                <Run Text="{Binding PositionU}" />
-                                <Run Text=", " />
-                                <Run Text="{Binding PositionV}" />
-                            </TextBlock>
+                            <TextBlock Text="{Binding PositionUv}" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource Brush.Text.Primary}" />
                         </StackPanel>
                     </Grid>
                 </Border>
