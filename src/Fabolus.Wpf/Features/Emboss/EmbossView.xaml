@@ -94,7 +94,8 @@
                          mah:TextBoxHelper.ClearTextButton="True" />
 
                 <!-- 2. Operation / Target / Font -->
-                <Grid Margin="0,4,0,6">
+                <!-- When Mould exists: Operation and Target side-by-side -->
+                <Grid Margin="0,4,0,6" Visibility="{Binding HasMould, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -103,9 +104,9 @@
                         <TextBlock Text="OPERATION" Style="{StaticResource FieldLabel}" />
                         <Border Style="{StaticResource SegmentGroup}">
                             <UniformGrid Columns="2">
-                                <RadioButton Content="Emboss" GroupName="EmbossOp" Style="{StaticResource Segment}"
+                                <RadioButton Content="Emboss" GroupName="EmbossOp1" Style="{StaticResource Segment}"
                                              IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
-                                <RadioButton Content="Engrave" GroupName="EmbossOp" Style="{StaticResource Segment}"
+                                <RadioButton Content="Engrave" GroupName="EmbossOp1" Style="{StaticResource Segment}"
                                              IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
                             </UniformGrid>
                         </Border>
@@ -124,6 +125,20 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- When NO Mould exists: Operation takes the whole line -->
+                <StackPanel Margin="0,4,0,6" Visibility="{Binding HasMould, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                    <TextBlock Text="OPERATION" Style="{StaticResource FieldLabel}" />
+                    <Border Style="{StaticResource SegmentGroup}">
+                        <UniformGrid Columns="2">
+                            <RadioButton Content="Emboss" GroupName="EmbossOp2" Style="{StaticResource Segment}"
+                                         IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
+                            <RadioButton Content="Engrave" GroupName="EmbossOp2" Style="{StaticResource Segment}"
+                                         IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
+                        </UniformGrid>
+                    </Border>
+                </StackPanel>
+
+                <!-- Font (on its own line below) -->
                 <StackPanel Margin="0,4,0,10">
                     <TextBlock Text="FONT" Style="{StaticResource FieldLabel}" />
                     <Border Style="{StaticResource SegmentGroup}">

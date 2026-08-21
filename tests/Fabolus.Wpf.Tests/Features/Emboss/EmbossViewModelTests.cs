@@ -186,11 +186,65 @@ public class EmbossViewModelTests
         await vm.ActivateAsync(workspace);
 
         Assert.True(vm.IsApplied);
+        Assert.False(vm.HasMould);
+        Assert.Equal(EmbossTarget.Base, vm.Target);
         Assert.Equal("IMPORTED", vm.LabelText);
         Assert.Equal(7.5f, vm.CapHeight);
         Assert.Equal(1.2f, vm.Depth);
         Assert.Equal(EmbossOperation.Engrave, vm.Operation);
         Assert.Equal(30, vm.Rotation);
         Assert.Equal("Applied", vm.StatusWord);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_WithMouldMesh_SetsHasMouldTrue()
+    {
+        var (vm, _, engineMock) = CreateViewModel();
+        var mockMesh = new Mock<IMesh>();
+        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
+        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
+
+        var mouldDef = new Fabolus.Core.Features.Moulds.ConcaveMouldDefinition(5, 5, 5);
+        var metadata = new MeshMetadata()
+            .WithId(Guid.NewGuid())
+            .WithName("Mould Mesh")
+            .WithCommand(mouldDef);
+        mockMesh.Setup(m => m.Metadata).Returns(metadata);
+        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
+            .Returns<MeshMetadata>(meta =>
+            {
+                var copy = new Mock<IMesh>();
+                copy.Setup(x => x.Metadata).Returns(meta);
+                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
+                copy.Setup(x => x.Triangles).Returns(new int[3]);
+                return copy.Object;
+            });
+
+        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
+            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
+        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
+            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
+
+        var prismMock = new Mock<IMesh>();
+        prismMock.Setup(m => m.Vertices).Returns(new Vector3[3]);
+        prismMock.Setup(m => m.Triangles).Returns(new int[3]);
+        engineMock.Setup(e => e.Generators.BuildTextPrism(
+            It.IsAny<IReadOnlyList<Polygon2D>>(),
+            It.IsAny<DecalFrame>(),
+            It.IsAny<float>(),
+            It.IsAny<float>(),
+            It.IsAny<float>(),
+            It.IsAny<float>(),
+            It.IsAny<IMesh?>()))
+            .Returns(Result<IMesh>.Success(prismMock.Object));
+        engineMock.Setup(e => e.Generators.GenerateSphere(It.IsAny<Vector3>(), It.IsAny<double>(), It.IsAny<int>()))
+            .Returns(Result<IMesh>.Success(prismMock.Object));
+        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
+            .Returns<IMesh>(m => Result<IMesh>.Success(m));
+
+        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
+        await vm.ActivateAsync(workspace);
+
+        Assert.True(vm.HasMould);
     }
 }

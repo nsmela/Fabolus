@@ -50,6 +50,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     [ObservableProperty] private bool _mirror = false;
     [ObservableProperty] private bool _isPicking = false;
     [ObservableProperty] private bool _isApplied = false;
+    [ObservableProperty] private bool _hasMould = false;
     [ObservableProperty] private Vector3 _anchor = Vector3.Zero;
     [ObservableProperty] private Vector3 _anchorNormal = Vector3.UnitZ;
     [ObservableProperty] private string _errorText = string.Empty;
@@ -304,6 +305,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 _baseMesh = meshToSave;
             }
             _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
+            HasMould = _mouldMesh != null;
             _sceneManager.UpdateMesh(_targetMesh);
             _sceneManager.ClearPreviewVisuals();
             IsApplied = true;
@@ -345,6 +347,9 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 _mouldMesh = null;
             }
 
+            HasMould = _mouldMesh != null;
+            if (!HasMould) Target = EmbossTarget.Base;
+
             UpdateTargetMesh();
             Invalidate();
         }
@@ -367,6 +372,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         CapHeight = 6.0f;
         Depth = 0.8f;
         Tracking = 0.4f;
+        if (!HasMould) Target = EmbossTarget.Base;
         if (_targetMesh != null)
         {
             Anchor = _meshCenter;
@@ -401,6 +407,9 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 _baseMesh = _activeMesh;
                 _mouldMesh = null;
             }
+
+            HasMould = _mouldMesh != null;
+            if (!HasMould) Target = EmbossTarget.Base;
 
             UpdateTargetMesh();
 
