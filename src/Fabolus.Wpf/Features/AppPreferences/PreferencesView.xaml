@@ -361,17 +361,6 @@
                         </Border>
                         <Border Style="{StaticResource Row}">
                             <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Height " />
-                                    <TextBlock Text="Z" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Brush.Axis.Z}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0" Interval="1"
-                                                   StringFormat="N1" Value="{Binding PrintbedHeight}" />
-                            </Grid>
-                        </Border>
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Show bed grid in viewport" />
                                 <mah:ToggleSwitch HorizontalAlignment="Right" IsOn="{Binding ShowBedGrid}" />
                             </Grid>
@@ -412,7 +401,7 @@
                     <!-- ========== APPEARANCE ========== -->
                     <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=appearance}">
                         <TextBlock Style="{StaticResource PanelTitle}" Text="Appearance" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Viewport and units." />
+                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Viewport appearance." />
 
                         <Border Style="{StaticResource Row}">
                             <Grid>
@@ -423,21 +412,6 @@
                                                      IsChecked="{Binding ViewportBackground, Converter={StaticResource EnumMatch}, ConverterParameter=Graphite}" />
                                         <RadioButton Style="{StaticResource Segment}" GroupName="vp" Content="Light steel"
                                                      IsChecked="{Binding ViewportBackground, Converter={StaticResource EnumMatch}, ConverterParameter=LightSteel}" />
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-                        </Border>
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Measurement units" />
-                                <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
-                                    <StackPanel Orientation="Horizontal">
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="units" Content="mm"
-                                                     IsChecked="{Binding Units, Converter={StaticResource EnumMatch}, ConverterParameter=Millimeters}" />
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="units" Content="cm"
-                                                     IsChecked="{Binding Units, Converter={StaticResource EnumMatch}, ConverterParameter=Centimeters}" />
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="units" Content="in"
-                                                     IsChecked="{Binding Units, Converter={StaticResource EnumMatch}, ConverterParameter=Inches}" />
                                     </StackPanel>
                                 </Border>
                             </Grid>

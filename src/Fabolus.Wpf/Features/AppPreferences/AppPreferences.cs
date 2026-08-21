@@ -32,12 +32,10 @@ public class AppPreferencesStore {
                 DefaultExportFormat = ExportFormat.Stl.ToString(),
                 PrintBedWidth = 250.0f,
                 PrintBedDepth = 250.0f,
-                PrintBedHeight = 300.0f,
                 ShowBedGrid = true,
                 AutodetectChannels = true,
                 ChannelDiameter = 4.0f,
                 ViewportBackground = ViewportBackground.Graphite.ToString(),
-                Units = MeasurementUnit.Millimeters.ToString(),
                 SplitViewEnabled = false,
                 CutViewEnabled = false,
             });

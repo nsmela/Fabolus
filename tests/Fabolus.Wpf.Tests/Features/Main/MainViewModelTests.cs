@@ -78,12 +78,10 @@ public class MainViewModelTests
             [UISettings.DefaultExportFormatLabel] = ExportFormat.Stl.ToString(),
             [UISettings.PrintBedWidthLabel] = 250.0f,
             [UISettings.PrintBedDepthLabel] = 250.0f,
-            [UISettings.PrintBedHeightLabel] = 300.0f,
             [UISettings.ShowBedGridLabel] = true,
             [UISettings.AutodetectChannelsLabel] = true,
             [UISettings.ChannelDiameterLabel] = 4.0f,
             [UISettings.ViewportBackgroundLabel] = ViewportBackground.Graphite.ToString(),
-            [UISettings.UnitsLabel] = MeasurementUnit.Millimeters.ToString(),
             [UISettings.SplitViewEnabledLabel] = false,
             [UISettings.CutViewEnabledLabel] = false,
         };

@@ -13,15 +13,16 @@
              bolus falls below byte 60, versus 1.5% here, with no loss of form contrast. -->
         <conv:LightOffsetConverter x:Key="KeyLightDirection" OffsetDegrees="22" ElevationDegrees="16" />
         <conv:LightOffsetConverter x:Key="FillLightDirection" OffsetDegrees="-45" ElevationDegrees="-12" />
+
+        <!-- Graphite, matching the app preference default. Used until the preference is applied. -->
+        <LinearGradientBrush x:Key="DefaultViewportBackground" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#FF1A1A1D" Offset="0.0" />
+            <GradientStop Color="#FF2D2D35" Offset="1.0" />
+        </LinearGradientBrush>
     </UserControl.Resources>
     <Grid>
-        <Grid>
-            <Grid.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#FF1A1A1D" Offset="0.0" />
-                    <GradientStop Color="#FF2D2D35" Offset="1.0" />
-                </LinearGradientBrush>
-            </Grid.Background>
+        <Grid Background="{Binding BackgroundBrush, RelativeSource={RelativeSource AncestorType=UserControl},
+                                  TargetNullValue={StaticResource DefaultViewportBackground}}">
             <hx:Viewport3DX x:Name="MainViewport"
             Background="Transparent"
             BackgroundColor="#00000000"

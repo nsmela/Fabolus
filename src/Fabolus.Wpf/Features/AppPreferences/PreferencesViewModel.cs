@@ -30,7 +30,6 @@ public partial class PreferencesViewModel : ObservableObject
     // ---- Print bed -----------------------------------------------------
     [ObservableProperty] private float _printbedWidth;
     [ObservableProperty] private float _printbedDepth;
-    [ObservableProperty] private float _printbedHeight;
     [ObservableProperty] private bool _showBedGrid;
 
     // ---- Air channels --------------------------------------------------
@@ -39,7 +38,6 @@ public partial class PreferencesViewModel : ObservableObject
 
     // ---- Appearance ----------------------------------------------------
     [ObservableProperty] private ViewportBackground _viewportBackground;
-    [ObservableProperty] private MeasurementUnit _units;
 
     // ---- Cut / Split --------------------------------------------------
     [ObservableProperty] private bool _enableSplitView;
@@ -55,12 +53,10 @@ public partial class PreferencesViewModel : ObservableObject
         _exportFormat = Enum.Parse<ExportFormat>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFormatLabel)).Response);
         _printbedWidth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
         _printbedDepth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
-        _printbedHeight = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedHeightLabel)).Response;
         _showBedGrid = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
         _autodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
         _channelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
         _viewportBackground = Enum.Parse<ViewportBackground>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response);
-        _units = Enum.Parse<MeasurementUnit>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.UnitsLabel)).Response);
         _enableSplitView = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SplitViewEnabledLabel)).Response;
         _enableCutView = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewEnabledLabel)).Response;
 
@@ -69,7 +65,7 @@ public partial class PreferencesViewModel : ObservableObject
             new() { Key = "bed",          Name = "Print Bed",    Keywords = "width depth height size volume grid", Icon = Geo("M8 2 14 5v6l-6 3-6-3V5z M2 5l6 3 6-3 M8 8v6") },
             new() { Key = "channels",     Name = "Air Channels", Keywords = "autodetect diameter vent",           Icon = Geo("M4.3 2.5v11 M8 2.5v11 M11.7 2.5v11") },
             new() { Key = "cutsplit",     Name = "Cut / Split",  Keywords = "cut split view toggle",              Icon = Geo("M6.2 2h3.6 M6.6 2v3.4L3.3 12a1.3 1.3 0 0 0 1.1 2h7.2a1.3 1.3 0 0 0 1.1-2L9.4 5.4V2") },
-            new() { Key = "appearance",   Name = "Appearance",   Keywords = "theme viewport units",               Icon = Geo("M8 2 a6 6 0 1 0 0 12 c1 0 1.4-.7 1.4-1.4 0-.9-.8-1.2-.8-2 0-.6.5-1 1.1-1 H12 a2.5 2.5 0 0 0 2.5-2.5 C14.5 4.4 11.6 2 8 2z") },
+            new() { Key = "appearance",   Name = "Appearance",   Keywords = "theme viewport background",          Icon = Geo("M8 2 a6 6 0 1 0 0 12 c1 0 1.4-.7 1.4-1.4 0-.9-.8-1.2-.8-2 0-.6.5-1 1.1-1 H12 a2.5 2.5 0 0 0 2.5-2.5 C14.5 4.4 11.6 2 8 2z") },
         };
 
         FilteredCategories = CollectionViewSource.GetDefaultView(Categories);
@@ -123,12 +119,6 @@ public partial class PreferencesViewModel : ObservableObject
         _messenger.Send(new AppPreferenceUpdateMessage(UISettings.PrintBedDepthLabel, newValue));
     }
 
-    partial void OnPrintbedHeightChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.PrintBedHeightLabel, newValue));
-    }
-
     partial void OnShowBedGridChanged(bool value)
         => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.ShowBedGridLabel, value));
 
@@ -147,9 +137,6 @@ public partial class PreferencesViewModel : ObservableObject
 
     partial void OnViewportBackgroundChanged(ViewportBackground value)
         => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.ViewportBackgroundLabel, value));
-
-    partial void OnUnitsChanged(MeasurementUnit value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.UnitsLabel, value));
 
     partial void OnEnableSplitViewChanged(bool oldValue, bool newValue)
     {
@@ -203,12 +190,10 @@ public partial class PreferencesViewModel : ObservableObject
         ExportFormat = ExportFormat.Stl;
         PrintbedWidth = 250.0f;
         PrintbedDepth = 250.0f;
-        PrintbedHeight = 300.0f;
         ShowBedGrid = true;
         AutodetectChannels = true;
         ChannelDiameter = 4.0f;
         ViewportBackground = ViewportBackground.Graphite;
-        Units = MeasurementUnit.Millimeters;
         EnableSplitView = false;
         EnableCutView = false;
     }

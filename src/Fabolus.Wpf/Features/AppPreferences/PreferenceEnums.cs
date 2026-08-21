@@ -12,25 +12,11 @@ public enum ViewportBackground {
     LightSteel
 }
 
-/// <summary>Display units used across the UI.</summary>
-public enum MeasurementUnit {
-    Millimeters,
-    Centimeters,
-    Inches
-}
-
 public static class PreferenceEnumExtensions {
     // Short labels that match the segmented controls in the UI.
     public static string ToLabel(this ExportFormat value) => value switch {
         ExportFormat.Stl => "STL",
         ExportFormat.ThreeMF => "3MF",
-        _ => value.ToString()
-    };
-
-    public static string ToLabel(this MeasurementUnit value) => value switch {
-        MeasurementUnit.Millimeters => "mm",
-        MeasurementUnit.Centimeters => "cm",
-        MeasurementUnit.Inches => "in",
         _ => value.ToString()
     };
 }

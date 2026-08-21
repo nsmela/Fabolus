@@ -20,12 +20,10 @@ public class UISettings : ConfigurationSection {
     public const string DefaultExportFormatLabel = "default_export_format";
     public const string PrintBedWidthLabel = "print_bed_width";
     public const string PrintBedDepthLabel = "print_bed_depth";
-    public const string PrintBedHeightLabel = "print_bed_height";
     public const string ShowBedGridLabel = "show_bed_grid";
     public const string AutodetectChannelsLabel = "autodetect_channels";
     public const string ChannelDiameterLabel = "channel_diameter";
     public const string ViewportBackgroundLabel = "viewport_background";
-    public const string UnitsLabel = "measurement_units";
     public const string SplitViewEnabledLabel = "split_view_enabled";
     public const string CutViewEnabledLabel = "cut_view_enabled";
 
@@ -63,12 +61,6 @@ public class UISettings : ConfigurationSection {
         set => this[PrintBedDepthLabel] = value;
     }
 
-    [ConfigurationProperty(PrintBedHeightLabel, DefaultValue = 300.0f)]
-    public float PrintBedHeight {
-        get => (float)this[PrintBedHeightLabel];
-        set => this[PrintBedHeightLabel] = value;
-    }
-
     [ConfigurationProperty(ShowBedGridLabel, DefaultValue = true)]
     public bool ShowBedGrid {
         get => (bool)this[ShowBedGridLabel];
@@ -97,12 +89,6 @@ public class UISettings : ConfigurationSection {
     public string ViewportBackground {
         get => (string)this[ViewportBackgroundLabel];
         set => this[ViewportBackgroundLabel] = value;
-    }
-
-    [ConfigurationProperty(UnitsLabel, DefaultValue = "Millimeters")]
-    public string Units {
-        get => (string)this[UnitsLabel];
-        set => this[UnitsLabel] = value;
     }
 
     // ---- Cut / Split --------------------------------------------------

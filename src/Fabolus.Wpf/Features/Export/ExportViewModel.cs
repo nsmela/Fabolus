@@ -74,12 +74,27 @@ public partial class ExportViewModel : ObservableObject, IViewState
         _exportFeature = new ExportMesh(_engine);
     }
 
+    // The stored value is the enum's name; fall back to the shipped default if a
+    // hand-edited config holds something we can't parse.
+    private ExportFormat GetPreferredExportFormat()
+    {
+        var pref = _messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFormatLabel)).Response;
+        return pref switch
+        {
+            ExportFormat format => format,
+            string s when Enum.TryParse<ExportFormat>(s, out var parsed) => parsed,
+            _ => ExportFormat.Stl
+        };
+    }
+
     public async Task ActivateAsync(Workspace workspace)
     {
         await Task.Yield();
 
         Workspace = workspace;
         _sceneManager.UpdateWorkspace(workspace);
+
+        Is3mfSelected = GetPreferredExportFormat() == ExportFormat.ThreeMF;
 
         FileCount = workspace.MeshCount;
         ExportButtonText = Is3mfSelected ? "Export package" : "Export file";

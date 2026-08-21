@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
+using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
@@ -55,7 +56,12 @@ public partial class MainViewModel : ObservableObject
 
     // display views
     [ObservableProperty] private bool _showSplitView;
+
+    // Whether the cut / split tab button is offered at all. Gated on the app preference, and
+    // withheld once the active mesh is a generated mould - there is nothing left to cut there.
     [ObservableProperty] private bool _showCutView;
+    private bool _cutViewPreferenceEnabled;
+    private bool _activeMeshIsMould;
     [ObservableProperty] private Brush _viewportBackgroundBrush;
     [ObservableProperty] private InfoPanelViewModel _infoViewModel;
 
@@ -92,20 +98,34 @@ public partial class MainViewModel : ObservableObject
         _messenger.Register<IsLoadingMessage>(this, (r, m) => IsLoading = m.IsLoading);
         _messenger.Register<SwitchToMeshManagerMessage>(this, async (r, m) => await SwitchToMeshManagerViewAsync());
 
+        // Take the new value off the message rather than reading it back from the store,
+        // so this doesn't depend on which recipient the messenger notifies first.
+        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
+            if (m.Key == UISettings.ViewportBackgroundLabel) { ApplyViewportBackground(m.Value); }
+            else if (m.Key == UISettings.CutViewEnabledLabel) { ApplyCutViewPreference(m.Value); }
+        });
+
         PreferencesViewModel = new PreferencesViewModel(_messenger, _appPreferencesStore);
 
-        var bgPref = _messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response;
-        if (bgPref is string s && Enum.TryParse<ViewportBackground>(s, out var parsedBg))
-        {
-            UpdateViewportBackground(parsedBg);
-        }
-        else if (bgPref is ViewportBackground bgEnum)
-        {
-            UpdateViewportBackground(bgEnum);
-        }
+        ApplyViewportBackground(_messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response);
+        ApplyCutViewPreference(_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewEnabledLabel)).Response);
 
         _ = SwitchToMeshManagerViewAsync();
 
+    }
+
+    // Stored as the enum's name; a hand-edited config can hold anything, so keep the
+    // current background rather than guessing when the value won't parse.
+    private void ApplyViewportBackground(object? pref)
+    {
+        if (pref is ViewportBackground bg)
+        {
+            UpdateViewportBackground(bg);
+        }
+        else if (pref is string s && Enum.TryParse<ViewportBackground>(s, out var parsed))
+        {
+            UpdateViewportBackground(parsed);
+        }
     }
 
     private void UpdateViewportBackground(ViewportBackground bg)
@@ -132,12 +152,25 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private void ApplyCutViewPreference(object? pref)
+    {
+        _cutViewPreferenceEnabled = pref is bool enabled && enabled;
+        UpdateCutViewAvailability();
+    }
+
+    private void UpdateCutViewAvailability() => ShowCutView = _cutViewPreferenceEnabled && !_activeMeshIsMould;
+
     private void WorkspaceUpdated(Workspace workspace)
     {
         Workspace = workspace;
 
-        // Metadata-only read - only the name is needed here.
+        // Metadata-only read - the name and the mould command are all that is needed here.
         var result = Workspace.GetActiveMeshMetadata();
+
+        // Without readable metadata there is no mould to detect, so the cut view falls back
+        // to whatever the preference allows.
+        _activeMeshIsMould = result.IsSuccess && result.Value.MouldDefinition().HasValue;
+        UpdateCutViewAvailability();
 
         if (result.IsFailure && result.Error == WorkspaceErrors.NoActiveMesh)
         {

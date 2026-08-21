@@ -171,7 +171,8 @@
                         </Button.Style>
                     </Button>
 
-                    <Button Command="{Binding ShowCutSplitCommand}" IsEnabled="{Binding MeshLoaded}">
+                    <Button Command="{Binding ShowCutSplitCommand}" IsEnabled="{Binding MeshLoaded}"
+                            Visibility="{Binding ShowCutView, Converter={StaticResource BoolToVis}}">
                         <Button.Content>
                             <StackPanel Orientation="Horizontal">
                                 <Viewbox Width="16" Height="16" Margin="0,0,7,0">
@@ -320,7 +321,8 @@
         <!--  MeshView -->
         <viewport:ViewportControl x:Name="ViewportControl" Grid.Column="1" Grid.Row="1"
                                   SceneManager="{Binding SceneManager}"
-                                  WireframeMode="{Binding WireframeMode}" />
+                                  WireframeMode="{Binding WireframeMode}"
+                                  BackgroundBrush="{Binding ViewportBackgroundBrush}" />
 
         <controls:LoadingOverlay Grid.Column="1" Grid.Row="1" IsLoading="{Binding IsLoading}" />
 

@@ -65,6 +65,20 @@ public partial class ViewportControl : UserControl, IDisposable {
             typeof(ViewportControl),
             new PropertyMetadata(WireframeMode.None, OnWireframeModeChanged));
 
+    // Null until the preference is applied; the XAML falls back to its own gradient so the
+    // viewport is never left unpainted.
+    public System.Windows.Media.Brush? BackgroundBrush {
+        get => (System.Windows.Media.Brush?)GetValue(BackgroundBrushProperty);
+        set => SetValue(BackgroundBrushProperty, value);
+    }
+
+    public static readonly DependencyProperty BackgroundBrushProperty =
+        DependencyProperty.Register(
+            nameof(BackgroundBrush),
+            typeof(System.Windows.Media.Brush),
+            typeof(ViewportControl),
+            new PropertyMetadata(null));
+
     private static void OnWireframeModeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) {
         if (d is not ViewportControl control) return;
 
