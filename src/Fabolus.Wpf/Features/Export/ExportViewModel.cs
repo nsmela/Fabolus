@@ -123,11 +123,12 @@ public partial class ExportViewModel : ObservableObject, IViewState
             };
             BakedOperations.Add(new OperationItem("Mould", mouldType));
         }
-        var textDecal = metadata.TextDecal();
-        if (textDecal.HasValue)
+        var textDecals = metadata.TextDecals();
+        if (textDecals.HasValue && textDecals.Value.Count > 0)
         {
-            var d = textDecal.Value;
-            BakedOperations.Add(new OperationItem("Text", $"{d.Operation} · \"{d.Text}\""));
+            var count = textDecals.Value.Count;
+            var summary = count == 1 ? $"\"{textDecals.Value[0].Text}\"" : $"{count} decals";
+            BakedOperations.Add(new OperationItem("Decals", summary));
         }
 
         BakedOperationsCount = BakedOperations.Count;

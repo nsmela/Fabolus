@@ -16,9 +16,31 @@ public sealed class TextEmbossTool
     }
 
     /// <summary>
-    /// Applies the text decal to the target mesh.
+    /// Applies a collection of text decals to the target mesh in sequence.
     /// </summary>
-    public Result<IMesh> Apply(IGeometryEngine engine, IMesh target, TextDecal decal, List<string>? warnings = null)
+    public Result<IMesh> Apply(IGeometryEngine engine, IMesh target, IReadOnlyList<TextDecal> decals, List<string>? warnings = null)
+    {
+        if (target == null)
+            return new Error("TextEmboss.NullTarget", "Target mesh cannot be null.");
+
+        if (decals == null || decals.Count == 0)
+            return Result.Success(target);
+
+        var currentMesh = target;
+        foreach (var decal in decals)
+        {
+            var result = ApplySingle(engine, currentMesh, decal, warnings);
+            if (result.IsFailure) return result;
+            currentMesh = result.Value;
+        }
+
+        return Result.Success(currentMesh);
+    }
+
+    /// <summary>
+    /// Applies a single text decal to the target mesh.
+    /// </summary>
+    public Result<IMesh> ApplySingle(IGeometryEngine engine, IMesh target, TextDecal decal, List<string>? warnings = null)
     {
         if (target == null)
             return new Error("TextEmboss.NullTarget", "Target mesh cannot be null.");
@@ -34,8 +56,8 @@ public sealed class TextEmbossTool
 
         float sink = decal.Operation == EmbossOperation.Emboss ? -0.25f : -decal.Depth;
         float overshoot = decal.Operation == EmbossOperation.Emboss ? 0.0f : 0.5f;
-        float maxEdge = decal.ProjectOntoSurface ? Math.Max(0.4f, decal.CapHeight / 8.0f) : 0f;
-        IMesh? surfaceTarget = decal.ProjectOntoSurface ? target : null;
+        float maxEdge = Math.Max(0.4f, decal.CapHeight / 8.0f);
+        IMesh? surfaceTarget = target;
 
         var prismResult = engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
         if (prismResult.IsFailure)

@@ -15,7 +15,6 @@ public sealed record TextDecal
     public float Depth { get; init; } = 0.8f;
     public float Tracking { get; init; } = 0.4f;
     public float RotationDeg { get; init; } = 0f;
-    public bool ProjectOntoSurface { get; init; } = true;
     public Vector3 Anchor { get; init; } = Vector3.Zero;
     public Vector3 AnchorNormal { get; init; } = Vector3.UnitZ;
     public Guid Id { get; init; } = Guid.NewGuid();

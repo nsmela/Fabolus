@@ -16,4 +16,7 @@ public static class CommandPriority {
 
     /// <summary>Depends on whatever geometry the Transform-stage commands produced.</summary>
     public const int Mould = 20;
+
+    /// <summary>Text embossing / engraving on generated mould mesh.</summary>
+    public const int MouldTextEmboss = 25;
 }

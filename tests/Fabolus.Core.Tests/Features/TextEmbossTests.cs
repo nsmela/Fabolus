@@ -108,11 +108,10 @@ public class TextEmbossTests
             CapHeight = 5.0f,
             Depth = 0.8f,
             Anchor = new Vector3(0, 0, 15),
-            AnchorNormal = Vector3.UnitZ,
-            ProjectOntoSurface = false
+            AnchorNormal = Vector3.UnitZ
         };
 
-        var result = tool.Apply(_fixture.Engine, sphere, decal);
+        var result = tool.Apply(_fixture.Engine, sphere, new[] { decal });
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TriangleCount.Should().BeGreaterThan(sphere.TriangleCount);
@@ -131,11 +130,10 @@ public class TextEmbossTests
             CapHeight = 5.0f,
             Depth = 0.8f,
             Anchor = new Vector3(0, 0, 15),
-            AnchorNormal = Vector3.UnitZ,
-            ProjectOntoSurface = false
+            AnchorNormal = Vector3.UnitZ
         };
 
-        var result = tool.Apply(_fixture.Engine, sphere, decal);
+        var result = tool.Apply(_fixture.Engine, sphere, new[] { decal });
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TriangleCount.Should().BeGreaterThan(0);
@@ -154,11 +152,42 @@ public class TextEmbossTests
             CapHeight = 4.0f,
             Depth = 0.6f,
             Anchor = new Vector3(0, 0, 15),
-            AnchorNormal = Vector3.UnitZ,
-            ProjectOntoSurface = true
+            AnchorNormal = Vector3.UnitZ
         };
 
-        var result = tool.Apply(_fixture.Engine, sphere, decal);
+        var result = tool.Apply(_fixture.Engine, sphere, new[] { decal });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.TriangleCount.Should().BeGreaterThan(sphere.TriangleCount);
+    }
+
+    [Fact]
+    public void TextEmbossTool_Apply_MultipleDecals_AppliesAllInSequence()
+    {
+        var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 20, 24).Value;
+        var tool = new TextEmbossTool(_outlineSource);
+
+        var decal1 = new TextDecal
+        {
+            Text = "TOP",
+            Operation = EmbossOperation.Emboss,
+            CapHeight = 4.0f,
+            Depth = 0.6f,
+            Anchor = new Vector3(0, 0, 20),
+            AnchorNormal = Vector3.UnitZ
+        };
+
+        var decal2 = new TextDecal
+        {
+            Text = "SIDE",
+            Operation = EmbossOperation.Engrave,
+            CapHeight = 4.0f,
+            Depth = 0.6f,
+            Anchor = new Vector3(20, 0, 0),
+            AnchorNormal = Vector3.UnitX
+        };
+
+        var result = tool.Apply(_fixture.Engine, sphere, new[] { decal1, decal2 });
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TriangleCount.Should().BeGreaterThan(sphere.TriangleCount);

@@ -26,8 +26,8 @@ public sealed class ClearTextEmboss
 
         var activeMesh = getMeshResult.Value;
 
-        var decalResult = activeMesh.Metadata.TextDecal();
-        if (decalResult.HasNoValue) return workspace;
+        var decalsResult = activeMesh.Metadata.TextDecals();
+        if (decalsResult.HasNoValue) return workspace;
 
         var baseMeshResult = activeMesh.Metadata.GetBaseMesh();
         if (baseMeshResult.HasNoValue) return workspace;
@@ -36,7 +36,8 @@ public sealed class ClearTextEmboss
 
         var revertedMetadata = activeMesh.Metadata
             .WithoutCommand<TextEmbossCommand>()
-            .WithoutProperty(TextEmbossKeys.TextDecal);
+            .WithoutCommand<MouldTextEmbossCommand>()
+            .WithoutProperty(TextEmbossKeys.TextDecals);
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;

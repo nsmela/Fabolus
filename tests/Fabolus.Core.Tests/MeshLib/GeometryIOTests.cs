@@ -228,7 +228,7 @@ public class GeometryIOTests
             Anchor = new Vector3(1, 2, 3),
             AnchorNormal = Vector3.UnitZ
         };
-        var command = new Fabolus.Core.Features.Emboss.TextEmbossCommand(decal);
+        var command = new Fabolus.Core.Features.Emboss.TextEmbossCommand(new[] { decal });
         var baseMesh = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 50, 32).Value;
 
         var meshWithMetadata = original.WithMetadata(original.Metadata
@@ -247,11 +247,13 @@ public class GeometryIOTests
             importResult.IsSuccess.Should().BeTrue();
 
             var imported = importResult.Value.Metadata.Commands.OfType<Fabolus.Core.Features.Emboss.TextEmbossCommand>().Single();
-            imported.Decal.Text.Should().Be("FAB3MF");
-            imported.Decal.CapHeight.Should().Be(5.0f);
-            imported.Decal.Depth.Should().Be(0.8f);
-            imported.Decal.RotationDeg.Should().Be(45f);
-            imported.Decal.Anchor.X.Should().Be(1f);
+            imported.Decals.Should().HaveCount(1);
+            var importedDecal = imported.Decals[0];
+            importedDecal.Text.Should().Be("FAB3MF");
+            importedDecal.CapHeight.Should().Be(5.0f);
+            importedDecal.Depth.Should().Be(0.8f);
+            importedDecal.RotationDeg.Should().Be(45f);
+            importedDecal.Anchor.X.Should().Be(1f);
         }
         finally
         {

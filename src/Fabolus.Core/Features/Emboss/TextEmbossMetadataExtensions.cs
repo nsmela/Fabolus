@@ -5,21 +5,27 @@ namespace Fabolus.Core.Features.Emboss;
 
 public static class TextEmbossKeys
 {
-    public static readonly MetadataKey<TextDecal> TextDecal = new("TextDecal");
+    public static readonly MetadataKey<IReadOnlyList<TextDecal>> TextDecals = new("TextDecals");
 }
 
 public static class TextEmbossMetadataExtensions
 {
-    public static Maybe<TextDecal> TextDecal(this MeshMetadata metadata)
+    public static Maybe<IReadOnlyList<TextDecal>> TextDecals(this MeshMetadata metadata)
     {
-        var command = metadata.Commands.OfType<TextEmbossCommand>().FirstOrDefault();
-        if (command is not null)
+        var baseCmd = metadata.Commands.OfType<TextEmbossCommand>().FirstOrDefault();
+        var mouldCmd = metadata.Commands.OfType<MouldTextEmbossCommand>().FirstOrDefault();
+
+        if (baseCmd is not null || mouldCmd is not null)
         {
-            return Maybe<TextDecal>.Some(command.Decal);
+            var list = new List<TextDecal>();
+            if (baseCmd is not null) list.AddRange(baseCmd.Decals);
+            if (mouldCmd is not null) list.AddRange(mouldCmd.Decals);
+            if (list.Count > 0) return Maybe<IReadOnlyList<TextDecal>>.Some(list);
         }
-        return metadata.GetProperty(TextEmbossKeys.TextDecal);
+
+        return metadata.GetProperty(TextEmbossKeys.TextDecals);
     }
 
-    public static MeshMetadata WithTextDecal(this MeshMetadata metadata, TextDecal decal) =>
-        metadata.WithProperty(TextEmbossKeys.TextDecal, decal);
+    public static MeshMetadata WithTextDecals(this MeshMetadata metadata, IReadOnlyList<TextDecal> decals) =>
+        metadata.WithProperty(TextEmbossKeys.TextDecals, decals);
 }

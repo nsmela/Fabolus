@@ -5,21 +5,21 @@ using Fabolus.Core.Geometry.Metadata;
 
 namespace Fabolus.Core.Features.Emboss;
 
-public sealed record TextEmbossCommand(IReadOnlyList<TextDecal> Decals, [property: JsonIgnore] IGlyphOutlineSource? OutlineSource = null) : IMeshCommand
+public sealed record MouldTextEmbossCommand(IReadOnlyList<TextDecal> Decals, [property: JsonIgnore] IGlyphOutlineSource? OutlineSource = null) : IMeshCommand
 {
     [JsonConstructor]
-    public TextEmbossCommand(IReadOnlyList<TextDecal> Decals) : this(Decals, null)
+    public MouldTextEmbossCommand(IReadOnlyList<TextDecal> Decals) : this(Decals, null)
     {
     }
 
-    public int Priority => CommandPriority.TextEmboss;
+    public int Priority => CommandPriority.MouldTextEmboss;
 
     public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh)
     {
         var source = OutlineSource ?? GlyphOutlineSourceProvider.Default;
         if (source is null)
         {
-            return new Error("TextEmboss.MissingOutlineSource", "No glyph outline provider configured.");
+            return new Error("MouldTextEmboss.MissingOutlineSource", "No glyph outline provider configured.");
         }
         var tool = new TextEmbossTool(source);
         return tool.Apply(engine, mesh, Decals);
