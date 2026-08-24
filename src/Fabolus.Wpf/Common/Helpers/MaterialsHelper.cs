@@ -84,6 +84,7 @@ public static class SkinColours
     public static Color4 TranslucentCyan => new(0.047f, 0.639f, 0.706f, 0.40f); // Translucent Cyan for preset markers
     public static Color4 Amber => new(0.941f, 0.604f, 0.047f, 1.0f);     // #F09A0C (Amber Rotate Handle)
     public static Color4 TranslucentAmber => new(0.941f, 0.604f, 0.047f, 0.50f); // Translucent Amber for hovered preset markers
+    public static Color4 TranslucentGray => new(0.60f, 0.60f, 0.60f, 0.40f);     // Translucent Gray for mould overlay
 }
 
 /// <summary>
@@ -107,6 +108,7 @@ public static class Skins
     public static class Surface
     {
         public static PhongMaterial Gray => MaterialsHelper.CreateSurfaceMaterial(SkinColours.Gray);
+        public static PhongMaterial TranslucentGray => MaterialsHelper.CreateSurfaceMaterial(SkinColours.TranslucentGray);
         public static PhongMaterial Ruby => MaterialsHelper.CreateSurfaceMaterial(SkinColours.Ruby);
         public static PhongMaterial Emerald => MaterialsHelper.CreateSurfaceMaterial(SkinColours.Emerald);
         public static PhongMaterial Orange => MaterialsHelper.CreateSurfaceMaterial(SkinColours.Orange);

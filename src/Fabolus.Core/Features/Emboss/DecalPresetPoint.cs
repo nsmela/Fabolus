@@ -9,5 +9,10 @@ public sealed record DecalPresetPoint(
     string Name,
     Vector3 Position,
     Vector3 Normal,
+    float RotationDeg = 0f,
+    float AvailableSpan = 0f,
     EmbossTarget Target = EmbossTarget.Mould
-);
+)
+{
+    public float MouldHeight => AvailableSpan;
+}

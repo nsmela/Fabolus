@@ -124,6 +124,24 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         if (preset == null) return;
 
         Target = preset.Target;
+        Rotation = (int)preset.RotationDeg;
+
+        float span = preset.AvailableSpan;
+        if (span <= 0f && _mouldMesh != null)
+        {
+            var stats = _engine.Evaluators.GetStatistics(_mouldMesh);
+            if (stats.IsSuccess)
+            {
+                span = preset.RotationDeg == 0f
+                    ? (float)(stats.Value.MaxX - stats.Value.MinX)
+                    : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+            }
+        }
+        if (span > 0f)
+        {
+            CapHeight = MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, LabelText.Length);
+        }
+
         UpdateTargetMesh();
 
         if (SelectedDecalId == Guid.Empty || IsPicking)
@@ -176,6 +194,10 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     private void UpdateTargetMesh()
     {
+        if (!IsApplied)
+        {
+            _sceneManager.UpdateAppliedMouldOverlay(null);
+        }
         _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
         if (_targetMesh != null)
         {
@@ -684,8 +706,18 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
         Workspace = updateResult.Value;
         _activeMesh = meshToSave;
-        _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
-        _sceneManager.UpdateMesh(_targetMesh);
+        if (HasMould && _mouldMesh != null && _baseMesh != null)
+        {
+            _targetMesh = _baseMesh;
+            _sceneManager.UpdateMesh(_baseMesh);
+            _sceneManager.UpdateAppliedMouldOverlay(_mouldMesh);
+        }
+        else
+        {
+            _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
+            _sceneManager.UpdateMesh(_targetMesh);
+            _sceneManager.UpdateAppliedMouldOverlay(null);
+        }
         _sceneManager.ClearPreviewVisuals();
         _sceneManager.ClearPresetVisuals();
         IsApplied = true;
@@ -743,6 +775,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 _sceneManager.IsPicking = true;
             }
 
+            _sceneManager.UpdateAppliedMouldOverlay(null);
             UpdateTargetMesh();
             UpdatePresets();
             SyncDecalList();
@@ -823,7 +856,18 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 _sceneManager.IsPicking = false;
             }
 
-            UpdateTargetMesh();
+            if (IsApplied && HasMould && _mouldMesh != null && _baseMesh != null)
+            {
+                _targetMesh = _baseMesh;
+                _sceneManager.UpdateMesh(_baseMesh);
+                _sceneManager.UpdateAppliedMouldOverlay(_mouldMesh);
+            }
+            else
+            {
+                UpdateTargetMesh();
+                _sceneManager.UpdateAppliedMouldOverlay(null);
+            }
+
             UpdatePresets();
             IsDecalsExpanded = !IsApplied;
             SyncDecalList();

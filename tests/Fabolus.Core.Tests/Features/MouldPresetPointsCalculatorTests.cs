@@ -71,5 +71,32 @@ public class MouldPresetPointsCalculatorTests
         var curve2 = presets.Should().ContainSingle(p => p.Name == "Curve 2").Subject;
         curve1.Position.Z.Should().BeApproximately(zMid, 0.5f);
         curve2.Position.Z.Should().BeApproximately(zMid, 0.5f);
+
+        // Rotation & AvailableSpan
+        front.RotationDeg.Should().Be(0f);
+        front.AvailableSpan.Should().BeApproximately((float)(stats.MaxX - stats.MinX), 1e-2f);
+
+        back.RotationDeg.Should().Be(0f);
+        back.AvailableSpan.Should().BeApproximately((float)(stats.MaxX - stats.MinX), 1e-2f);
+
+        left.RotationDeg.Should().Be(90f);
+        left.AvailableSpan.Should().BeApproximately((float)(stats.MaxZ - stats.MinZ), 1e-2f);
+
+        right.RotationDeg.Should().Be(90f);
+        right.AvailableSpan.Should().BeApproximately((float)(stats.MaxZ - stats.MinZ), 1e-2f);
+
+        curve1.RotationDeg.Should().Be(90f);
+        curve2.RotationDeg.Should().Be(90f);
+    }
+
+    [Theory]
+    [InlineData(50f, 7, 5.0f)]
+    [InlineData(50f, 1, 10.0f)]
+    [InlineData(50f, 25, 3.0f)]
+    [InlineData(30f, 5, 4.2f)]
+    public void CalculateSuggestedCapHeight_ReturnsBoundedValues(float mouldHeight, int charCount, float expectedCapHeight)
+    {
+        float capHeight = MouldPresetPointsCalculator.CalculateSuggestedCapHeight(mouldHeight, charCount);
+        capHeight.Should().BeApproximately(expectedCapHeight, 0.1f);
     }
 }

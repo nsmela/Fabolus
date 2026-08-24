@@ -29,6 +29,9 @@ public static class MouldPresetPointsCalculator
         float maxX = (float)s.MaxX;
         float minY = (float)s.MinY;
         float maxY = (float)s.MaxY;
+        float mouldHeight = (float)(s.MaxZ - s.MinZ);
+
+        float mouldWidth = (float)(s.MaxX - s.MinX);
 
         var center = new Vector3(xCenter, yCenter, zMid);
         var vertices = mouldMesh.Vertices ?? Array.Empty<Vector3>();
@@ -36,28 +39,28 @@ public static class MouldPresetPointsCalculator
 
         var presets = new List<DecalPresetPoint>(6);
 
-        // 1. Front (-Y direction)
+        // 1. Front (-Y direction) - horizontal orientation
         var frontRayOrigin = new Vector3(xCenter, minY - 100f, zMid);
         var frontRayDir = new Vector3(0f, 1f, 0f);
         if (Raycast(frontRayOrigin, frontRayDir, vertices, triangles, out var frontHit, out var frontNorm))
         {
-            presets.Add(new DecalPresetPoint("Front", frontHit, frontNorm, EmbossTarget.Mould));
+            presets.Add(new DecalPresetPoint("Front", frontHit, frontNorm, 0f, mouldWidth, EmbossTarget.Mould));
         }
         else
         {
-            presets.Add(new DecalPresetPoint("Front", new Vector3(xCenter, minY, zMid), new Vector3(0f, -1f, 0f), EmbossTarget.Mould));
+            presets.Add(new DecalPresetPoint("Front", new Vector3(xCenter, minY, zMid), new Vector3(0f, -1f, 0f), 0f, mouldWidth, EmbossTarget.Mould));
         }
 
-        // 2. Back (+Y direction)
+        // 2. Back (+Y direction) - horizontal orientation
         var backRayOrigin = new Vector3(xCenter, maxY + 100f, zMid);
         var backRayDir = new Vector3(0f, -1f, 0f);
         if (Raycast(backRayOrigin, backRayDir, vertices, triangles, out var backHit, out var backNorm))
         {
-            presets.Add(new DecalPresetPoint("Back", backHit, backNorm, EmbossTarget.Mould));
+            presets.Add(new DecalPresetPoint("Back", backHit, backNorm, 0f, mouldWidth, EmbossTarget.Mould));
         }
         else
         {
-            presets.Add(new DecalPresetPoint("Back", new Vector3(xCenter, maxY, zMid), new Vector3(0f, 1f, 0f), EmbossTarget.Mould));
+            presets.Add(new DecalPresetPoint("Back", new Vector3(xCenter, maxY, zMid), new Vector3(0f, 1f, 0f), 0f, mouldWidth, EmbossTarget.Mould));
         }
 
         // 3. Left (-X direction)
@@ -65,11 +68,11 @@ public static class MouldPresetPointsCalculator
         var leftRayDir = new Vector3(1f, 0f, 0f);
         if (Raycast(leftRayOrigin, leftRayDir, vertices, triangles, out var leftHit, out var leftNorm))
         {
-            presets.Add(new DecalPresetPoint("Left", leftHit, leftNorm, EmbossTarget.Mould));
+            presets.Add(new DecalPresetPoint("Left", leftHit, leftNorm, 90f, mouldHeight, EmbossTarget.Mould));
         }
         else
         {
-            presets.Add(new DecalPresetPoint("Left", new Vector3(minX, yCenter, zMid), new Vector3(-1f, 0f, 0f), EmbossTarget.Mould));
+            presets.Add(new DecalPresetPoint("Left", new Vector3(minX, yCenter, zMid), new Vector3(-1f, 0f, 0f), 90f, mouldHeight, EmbossTarget.Mould));
         }
 
         // 4. Right (+X direction)
@@ -77,19 +80,33 @@ public static class MouldPresetPointsCalculator
         var rightRayDir = new Vector3(-1f, 0f, 0f);
         if (Raycast(rightRayOrigin, rightRayDir, vertices, triangles, out var rightHit, out var rightNorm))
         {
-            presets.Add(new DecalPresetPoint("Right", rightHit, rightNorm, EmbossTarget.Mould));
+            presets.Add(new DecalPresetPoint("Right", rightHit, rightNorm, 90f, mouldHeight, EmbossTarget.Mould));
         }
         else
         {
-            presets.Add(new DecalPresetPoint("Right", new Vector3(maxX, yCenter, zMid), new Vector3(1f, 0f, 0f), EmbossTarget.Mould));
+            presets.Add(new DecalPresetPoint("Right", new Vector3(maxX, yCenter, zMid), new Vector3(1f, 0f, 0f), 90f, mouldHeight, EmbossTarget.Mould));
         }
 
         // 5 & 6. Analyze 2D contour to find two strongest curves
-        CalculateCurvePresets(vertices, triangles, xCenter, yCenter, zMid, minX, maxX, minY, maxY, out var curve1, out var curve2);
+        CalculateCurvePresets(vertices, triangles, xCenter, yCenter, zMid, minX, maxX, minY, maxY, mouldHeight, out var curve1, out var curve2);
         presets.Add(curve1);
         presets.Add(curve2);
 
         return presets;
+    }
+
+    /// <summary>
+    /// Calculates the suggested text cap height (mm) based on total mould height and character count.
+    /// The text length scales with the character count to fit within the mould height, bounded by max and min limits.
+    /// </summary>
+    public static float CalculateSuggestedCapHeight(float mouldHeight, int charCount, float maxCapHeight = 10.0f, float minCapHeight = 3.0f)
+    {
+        if (mouldHeight <= 0f) return 6.0f;
+        int n = Math.Max(1, charCount);
+        const float constantFactor = 1.15f;
+        float usableHeight = mouldHeight * 0.8f;
+        float calculated = usableHeight / (n * constantFactor);
+        return Math.Clamp(MathF.Round(calculated, 1), minCapHeight, maxCapHeight);
     }
 
     private static void CalculateCurvePresets(
@@ -102,6 +119,7 @@ public static class MouldPresetPointsCalculator
         float maxX,
         float minY,
         float maxY,
+        float mouldHeight,
         out DecalPresetPoint curve1,
         out DecalPresetPoint curve2)
     {
@@ -181,8 +199,8 @@ public static class MouldPresetPointsCalculator
                 }
             }
 
-            curve1 = new DecalPresetPoint("Curve 1", points[bestIdx1], normals[bestIdx1], EmbossTarget.Mould);
-            curve2 = new DecalPresetPoint("Curve 2", points[bestIdx2], normals[bestIdx2], EmbossTarget.Mould);
+            curve1 = new DecalPresetPoint("Curve 1", points[bestIdx1], normals[bestIdx1], 90f, mouldHeight, EmbossTarget.Mould);
+            curve2 = new DecalPresetPoint("Curve 2", points[bestIdx2], normals[bestIdx2], 90f, mouldHeight, EmbossTarget.Mould);
             return;
         }
 
@@ -192,8 +210,8 @@ public static class MouldPresetPointsCalculator
         var diag2Pos = new Vector3(minX, minY, zMid);
         var diag2Norm = Vector3.Normalize(new Vector3(-1f, -1f, 0f));
 
-        curve1 = new DecalPresetPoint("Curve 1", diag1Pos, diag1Norm, EmbossTarget.Mould);
-        curve2 = new DecalPresetPoint("Curve 2", diag2Pos, diag2Norm, EmbossTarget.Mould);
+        curve1 = new DecalPresetPoint("Curve 1", diag1Pos, diag1Norm, 90f, mouldHeight, EmbossTarget.Mould);
+        curve2 = new DecalPresetPoint("Curve 2", diag2Pos, diag2Norm, 90f, mouldHeight, EmbossTarget.Mould);
     }
 
     /// <summary>

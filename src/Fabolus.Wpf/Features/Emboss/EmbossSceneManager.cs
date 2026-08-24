@@ -42,10 +42,14 @@ public sealed class EmbossSceneManager : ISceneManager
     private LineGeometryModel3D? _gizmoLineModel;
 
     private readonly HelixToolkit.Wpf.SharpDX.Material _targetSkin;
+    private readonly HelixToolkit.Wpf.SharpDX.Material _translucentMouldSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _selectedDecalSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _unselectedDecalSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _presetSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _presetHoverSkin;
+
+    private Guid _translucentMouldId = Guid.Empty;
+    private MeshGeometryModel3D? _translucentMouldModel;
 
     public IMesh? TargetMesh { get; private set; }
     public Guid SelectedDecalId { get; private set; } = Guid.Empty;
@@ -62,6 +66,7 @@ public sealed class EmbossSceneManager : ISceneManager
         _messenger = messenger;
 
         _targetSkin = Skins.Surface.Gray;
+        _translucentMouldSkin = Skins.Surface.TranslucentGray;
         _selectedDecalSkin = Skins.Primitive.Cyan;
         _unselectedDecalSkin = Skins.Primitive.Pearl;
         _presetSkin = Skins.Primitive.TranslucentCyan;
@@ -102,6 +107,52 @@ public sealed class EmbossSceneManager : ISceneManager
         return Result.Success();
     }
 
+    public Result UpdateAppliedMouldOverlay(IMesh? mouldMesh)
+    {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            return Application.Current.Dispatcher.Invoke(() => UpdateAppliedMouldOverlay(mouldMesh));
+        }
+
+        if (mouldMesh == null)
+        {
+            if (_translucentMouldModel != null)
+            {
+                VisualRemovedById?.Invoke(_translucentMouldModel.GUID);
+                _translucentMouldModel = null;
+                _translucentMouldId = Guid.Empty;
+            }
+            return Result.Success();
+        }
+
+        var helixResult = mouldMesh.ToHelixMesh(_engine);
+        if (helixResult.IsFailure)
+            return helixResult;
+
+        if (_translucentMouldModel == null || (Application.Current == null && !_translucentMouldModel.CheckAccess()))
+        {
+            _translucentMouldModel = new MeshGeometryModel3D
+            {
+                Geometry = helixResult.Value,
+                Material = _translucentMouldSkin,
+                IsTransparent = true,
+                CullMode = SharpDX.Direct3D11.CullMode.None,
+                IsHitTestVisible = false
+            };
+            SceneVisual.SetIsModelGeometry(_translucentMouldModel, true);
+            _translucentMouldId = _translucentMouldModel.GUID;
+            VisualAddedOrUpdated?.Invoke(_translucentMouldModel);
+        }
+        else
+        {
+            _translucentMouldModel.Geometry = helixResult.Value;
+            _translucentMouldModel.Visibility = Visibility.Visible;
+            VisualAddedOrUpdated?.Invoke(_translucentMouldModel);
+        }
+
+        return Result.Success();
+    }
+
     public void ReleaseMesh()
     {
         if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
@@ -115,6 +166,12 @@ public sealed class EmbossSceneManager : ISceneManager
         {
             VisualRemovedById?.Invoke(_targetMeshId);
             _targetMeshId = Guid.Empty;
+        }
+        if (_translucentMouldModel != null)
+        {
+            VisualRemovedById?.Invoke(_translucentMouldModel.GUID);
+            _translucentMouldModel = null;
+            _translucentMouldId = Guid.Empty;
         }
         TargetMesh = null;
         _targetModel = null;

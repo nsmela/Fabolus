@@ -721,6 +721,16 @@ public class EmbossViewModelTests
             }));
         engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
             .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
+        engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
+            .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsManifold = true }));
+        engineMock.Setup(e => e.Generators.GetMeshShadow(It.IsAny<IMesh>()))
+            .Returns(Result<Polygon2D>.Success(new Polygon2D { OuterBoundary = new Vector2[] { new(-20, -30), new(20, -30), new(20, 30), new(-20, 30) } }));
+        engineMock.Setup(e => e.Generators.OffsetPolygon(It.IsAny<Polygon2D>(), It.IsAny<float>()))
+            .Returns<Polygon2D, float>((p, _) => Result<Polygon2D>.Success(p));
+        engineMock.Setup(e => e.Generators.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
+            .Returns(Result<IMesh>.Success(mockMesh.Object));
+        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+            .Returns(Result<IMesh>.Success(mockMesh.Object));
 
         var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
         await vm.ActivateAsync(workspace);
@@ -731,15 +741,45 @@ public class EmbossViewModelTests
         var frontPreset = Assert.Single(vm.MouldPresetPoints, p => p.Name == "Front");
         var curve1Preset = Assert.Single(vm.MouldPresetPoints, p => p.Name == "Curve 1");
 
-        // Apply "Front" preset to current decal
+        // Apply "Front" preset to current decal (horizontal)
         vm.ApplyPresetByNameCommand.Execute("Front");
 
         Assert.Equal(EmbossTarget.Mould, vm.Target);
         Assert.Equal(frontPreset.Position, vm.Anchor);
         Assert.Equal(frontPreset.Normal, vm.AnchorNormal);
+        Assert.Equal(0, vm.Rotation);
+        Assert.True(vm.CapHeight > 0f && vm.CapHeight <= 10.0f);
 
-        // Apply "Curve 1" preset
+        // Apply "Curve 1" preset (vertical)
         vm.ApplyPresetByNameCommand.Execute("Curve 1");
         Assert.Equal(curve1Preset.Position, vm.Anchor);
+        Assert.Equal(90, vm.Rotation);
+
+        // Apply decals with mould
+        var embossedMock = new Mock<IMesh>();
+        embossedMock.Setup(m => m.Vertices).Returns(mockMesh.Object.Vertices);
+        embossedMock.Setup(m => m.Triangles).Returns(mockMesh.Object.Triangles);
+        embossedMock.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
+            .Returns<MeshMetadata>(meta =>
+            {
+                var copy = new Mock<IMesh>();
+                copy.Setup(x => x.Metadata).Returns(meta);
+                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
+                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
+                return copy.Object;
+            });
+
+        engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+            .Returns(Result<IMesh>.Success(embossedMock.Object));
+
+        await vm.ApplyCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsApplied);
+        Assert.False(vm.IsDecalsExpanded);
+
+        // Clear reverts to edit mode and removes translucent overlay
+        vm.ClearTextCommand.Execute(null);
+        Assert.False(vm.IsApplied);
+        Assert.True(vm.IsDecalsExpanded);
     }
 }
