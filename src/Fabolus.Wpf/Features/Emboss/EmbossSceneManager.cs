@@ -26,6 +26,7 @@ public sealed class EmbossSceneManager : ISceneManager
     public event Action<Guid, Vector3, Vector3>? DecalMoved;
     public event Action<Vector3, Vector3>? DecalHovered;
     public event Action? PickingCancelled;
+    public event Action<DecalPresetPoint>? PresetPointSelected;
 
     private Guid _targetMeshId = Guid.Empty;
     private MeshGeometryModel3D? _targetModel;
@@ -33,12 +34,18 @@ public sealed class EmbossSceneManager : ISceneManager
     private readonly Dictionary<Guid, MeshGeometryModel3D> _decalVisuals = [];
     private readonly Dictionary<Guid, Guid> _visualToDecalId = [];
 
+    private readonly Dictionary<Guid, MeshGeometryModel3D> _presetSphereVisuals = [];
+    private readonly Dictionary<Guid, DecalPresetPoint> _visualToPreset = [];
+    private Guid _hoveredPresetVisualId = Guid.Empty;
+
     private Guid _gizmoLineId = Guid.Empty;
     private LineGeometryModel3D? _gizmoLineModel;
 
     private readonly HelixToolkit.Wpf.SharpDX.Material _targetSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _selectedDecalSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _unselectedDecalSkin;
+    private readonly HelixToolkit.Wpf.SharpDX.Material _presetSkin;
+    private readonly HelixToolkit.Wpf.SharpDX.Material _presetHoverSkin;
 
     public IMesh? TargetMesh { get; private set; }
     public Guid SelectedDecalId { get; private set; } = Guid.Empty;
@@ -57,6 +64,8 @@ public sealed class EmbossSceneManager : ISceneManager
         _targetSkin = Skins.Surface.Gray;
         _selectedDecalSkin = Skins.Primitive.Cyan;
         _unselectedDecalSkin = Skins.Primitive.Pearl;
+        _presetSkin = Skins.Primitive.TranslucentCyan;
+        _presetHoverSkin = Skins.Primitive.TranslucentAmber;
     }
 
     public Result UpdateMesh(IMesh mesh)
@@ -340,6 +349,53 @@ public sealed class EmbossSceneManager : ISceneManager
         return new LineGeometry3D { Positions = linePositions };
     }
 
+    public void UpdatePresetPoints(IReadOnlyList<DecalPresetPoint> presetPoints, bool isVisible)
+    {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(() => UpdatePresetPoints(presetPoints, isVisible));
+            return;
+        }
+
+        ClearPresetVisuals();
+
+        if (!isVisible || presetPoints == null || presetPoints.Count == 0)
+            return;
+
+        foreach (var preset in presetPoints)
+        {
+            var mb = new HelixToolkit.Wpf.SharpDX.MeshBuilder();
+            mb.AddSphere(new SharpDX.Vector3(preset.Position.X, preset.Position.Y, preset.Position.Z), 3.0f, 16, 16);
+            var sphereGeom = mb.ToMeshGeometry3D();
+            var sphereModel = new MeshGeometryModel3D
+            {
+                Geometry = sphereGeom,
+                Material = _presetSkin,
+                CullMode = SharpDX.Direct3D11.CullMode.Back
+            };
+            _presetSphereVisuals[sphereModel.GUID] = sphereModel;
+            _visualToPreset[sphereModel.GUID] = preset;
+            VisualAddedOrUpdated?.Invoke(sphereModel);
+        }
+    }
+
+    public void ClearPresetVisuals()
+    {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(ClearPresetVisuals);
+            return;
+        }
+
+        foreach (var (guid, model) in _presetSphereVisuals.ToList())
+        {
+            VisualRemovedById?.Invoke(guid);
+        }
+        _presetSphereVisuals.Clear();
+        _visualToPreset.Clear();
+        _hoveredPresetVisualId = Guid.Empty;
+    }
+
     public void ClearPreviewVisuals()
     {
         if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
@@ -354,6 +410,8 @@ public sealed class EmbossSceneManager : ISceneManager
         }
         _decalVisuals.Clear();
         _visualToDecalId.Clear();
+
+        ClearPresetVisuals();
 
         if (_gizmoLineId != Guid.Empty)
         {
@@ -400,7 +458,14 @@ public sealed class EmbossSceneManager : ISceneManager
         _pendingClickedDecalId = Guid.Empty;
         _dragDecalId = Guid.Empty;
 
-        // 1. Check if an existing decal was clicked
+        // 1. Check if a preset sphere was clicked
+        if (hit.ModelHit is MeshGeometryModel3D sphereHit && _visualToPreset.TryGetValue(sphereHit.GUID, out var preset))
+        {
+            PresetPointSelected?.Invoke(preset);
+            return true;
+        }
+
+        // 2. Check if an existing decal was clicked
         if (hit.ModelHit is MeshGeometryModel3D meshModel && _visualToDecalId.TryGetValue(meshModel.GUID, out var decalId))
         {
             _pendingClickedDecalId = decalId;
@@ -408,7 +473,7 @@ public sealed class EmbossSceneManager : ISceneManager
             return true;
         }
 
-        // 2. Click on target mesh
+        // 3. Click on target mesh
         if (_targetModel != null && hit.ModelHit == _targetModel)
         {
             var hitPt = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
@@ -432,6 +497,26 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public bool OnMouseMove(HitTestResult? hit)
     {
+        // Handle preset sphere hover highlight
+        Guid hitPresetGuid = Guid.Empty;
+        if (hit?.ModelHit is MeshGeometryModel3D sphereModel && _presetSphereVisuals.ContainsKey(sphereModel.GUID))
+        {
+            hitPresetGuid = sphereModel.GUID;
+        }
+
+        if (hitPresetGuid != _hoveredPresetVisualId)
+        {
+            if (_hoveredPresetVisualId != Guid.Empty && _presetSphereVisuals.TryGetValue(_hoveredPresetVisualId, out var prevSphere))
+            {
+                prevSphere.Material = _presetSkin;
+            }
+            if (hitPresetGuid != Guid.Empty && _presetSphereVisuals.TryGetValue(hitPresetGuid, out var currSphere))
+            {
+                currSphere.Material = _presetHoverSkin;
+            }
+            _hoveredPresetVisualId = hitPresetGuid;
+        }
+
         if (Mouse.LeftButton == MouseButtonState.Pressed && _dragDecalId != Guid.Empty)
         {
             if (hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId)

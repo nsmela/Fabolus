@@ -664,4 +664,82 @@ public class EmbossViewModelTests
         Assert.Equal("FABOLUS", vm.DecalList[0].Text);
         Assert.Equal(vm.DecalList[0].Id, vm.SelectedDecalId);
     }
+
+    [Fact]
+    public async Task ActivateAsync_WithMould_CalculatesPresetPointsAndAllowsPresetSnapping()
+    {
+        var (vm, _, engineMock) = CreateViewModel();
+        var mockMesh = new Mock<IMesh>();
+        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[]
+        {
+            new(-20, -30, 0),
+            new( 20, -30, 0),
+            new( 20,  30, 0),
+            new(-20,  30, 0),
+            new(-20, -30, 50),
+            new( 20, -30, 50),
+            new( 20,  30, 50),
+            new(-20,  30, 50),
+        });
+        mockMesh.Setup(m => m.Triangles).Returns(new int[]
+        {
+            0, 1, 5, 0, 5, 4,
+            2, 3, 7, 2, 7, 6,
+            3, 0, 4, 3, 4, 7,
+            1, 2, 6, 1, 6, 5,
+            0, 3, 2, 0, 2, 1,
+            4, 5, 6, 4, 6, 7
+        });
+
+        var mouldDef = new ConcaveMouldDefinition();
+        var metadata = new MeshMetadata()
+            .WithId(Guid.NewGuid())
+            .WithName("MouldMesh")
+            .WithBaseMesh(mockMesh.Object)
+            .WithMouldDefinition(mouldDef)
+            .WithCommand(mouldDef);
+
+        mockMesh.Setup(m => m.Metadata).Returns(metadata);
+        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
+            .Returns<MeshMetadata>(meta =>
+            {
+                var copy = new Mock<IMesh>();
+                copy.Setup(x => x.Metadata).Returns(meta);
+                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
+                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
+                return copy.Object;
+            });
+
+        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
+            .Returns<IMesh>(m => Result<IMesh>.Success(m));
+        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
+            .Returns(Result<MeshStatistics>.Success(new MeshStatistics
+            {
+                MinX = -20, MaxX = 20,
+                MinY = -30, MaxY = 30,
+                MinZ = 0, MaxZ = 50
+            }));
+        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
+            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
+
+        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
+        await vm.ActivateAsync(workspace);
+
+        Assert.True(vm.HasMould);
+        Assert.Equal(6, vm.MouldPresetPoints.Count);
+
+        var frontPreset = Assert.Single(vm.MouldPresetPoints, p => p.Name == "Front");
+        var curve1Preset = Assert.Single(vm.MouldPresetPoints, p => p.Name == "Curve 1");
+
+        // Apply "Front" preset to current decal
+        vm.ApplyPresetByNameCommand.Execute("Front");
+
+        Assert.Equal(EmbossTarget.Mould, vm.Target);
+        Assert.Equal(frontPreset.Position, vm.Anchor);
+        Assert.Equal(frontPreset.Normal, vm.AnchorNormal);
+
+        // Apply "Curve 1" preset
+        vm.ApplyPresetByNameCommand.Execute("Curve 1");
+        Assert.Equal(curve1Preset.Position, vm.Anchor);
+    }
 }

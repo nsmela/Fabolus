@@ -81,6 +81,9 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     public ISceneManager SceneManager => _sceneManager;
 
+    private IReadOnlyList<DecalPresetPoint> _mouldPresetPoints = [];
+    public IReadOnlyList<DecalPresetPoint> MouldPresetPoints => _mouldPresetPoints;
+
     public EmbossViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine, IGlyphOutlineSource outlineSource)
     {
         _messenger = messenger;
@@ -96,6 +99,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _sceneManager.DecalMoved += OnDecalMoved;
         _sceneManager.DecalHovered += OnDecalHovered;
         _sceneManager.PickingCancelled += OnPickingCancelled;
+        _sceneManager.PresetPointSelected += OnPresetPointSelected;
 
         _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         _previewTimer.Tick += (s, e) =>
@@ -107,6 +111,57 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             }
         };
         _previewTimer.Start();
+    }
+
+    private void OnPresetPointSelected(DecalPresetPoint preset)
+    {
+        ApplyPreset(preset);
+    }
+
+    [RelayCommand]
+    public void ApplyPreset(DecalPresetPoint? preset)
+    {
+        if (preset == null) return;
+
+        Target = preset.Target;
+        UpdateTargetMesh();
+
+        if (SelectedDecalId == Guid.Empty || IsPicking)
+        {
+            OnDecalPlaced(preset.Position, preset.Normal);
+        }
+        else
+        {
+            Anchor = preset.Position;
+            AnchorNormal = preset.Normal;
+            SyncActiveDecal();
+            UpdateUVReadout();
+            Invalidate();
+        }
+    }
+
+    [RelayCommand]
+    public void ApplyPresetByName(string name)
+    {
+        var preset = _mouldPresetPoints.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (preset != null)
+        {
+            ApplyPreset(preset);
+        }
+    }
+
+    private void UpdatePresets()
+    {
+        if (HasMould && _mouldMesh != null)
+        {
+            _mouldPresetPoints = MouldPresetPointsCalculator.Calculate(_engine, _mouldMesh);
+        }
+        else
+        {
+            _mouldPresetPoints = [];
+        }
+        OnPropertyChanged(nameof(MouldPresetPoints));
+        _sceneManager.UpdatePresetPoints(_mouldPresetPoints, isVisible: !IsApplied && Target == EmbossTarget.Mould);
     }
 
     private void OnPickingCancelled()
@@ -285,6 +340,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         {
             SyncActiveDecal();
         }
+        UpdatePresets();
         UpdateUVReadout();
         Invalidate();
     }
@@ -631,6 +687,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
         _sceneManager.UpdateMesh(_targetMesh);
         _sceneManager.ClearPreviewVisuals();
+        _sceneManager.ClearPresetVisuals();
         IsApplied = true;
         OnPropertyChanged(nameof(StatusWord));
         OnPropertyChanged(nameof(StatusColor));
@@ -687,6 +744,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             }
 
             UpdateTargetMesh();
+            UpdatePresets();
             SyncDecalList();
             Invalidate();
         }
@@ -766,6 +824,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             }
 
             UpdateTargetMesh();
+            UpdatePresets();
             IsDecalsExpanded = !IsApplied;
             SyncDecalList();
 
