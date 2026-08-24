@@ -73,16 +73,20 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     public string PositionUv => $"{_uv.X:0.0} mm, {_uv.Y:0.0} mm";
     public string StatusWord => IsApplied ? "Applied" : "Preview";
     public string StatusColor => IsApplied ? "#2FA36B" : "#E0A024";
-    public string Hint => IsPicking
-        ? "Move over the surface and click to drop a new decal (Esc to cancel)"
-        : "Click a decal to select/drag · adjust rotation and parameters in the panel";
+    public string Hint =>
+        "Click a decal to select/drag · snap to preset locations or adjust parameters in the panel";
     public string TextStatusLine =>
         $"{Operation} · {LabelText.Length} glyphs · {CapHeight:0.0} mm cap · {Depth:0.0} mm {DepthLabel.ToLower()} · {Rotation}°";
 
     public ISceneManager SceneManager => _sceneManager;
 
+    private IReadOnlyList<DecalPresetPoint> _basePresetPoints = [];
+    public IReadOnlyList<DecalPresetPoint> BasePresetPoints => _basePresetPoints;
+
     private IReadOnlyList<DecalPresetPoint> _mouldPresetPoints = [];
     public IReadOnlyList<DecalPresetPoint> MouldPresetPoints => _mouldPresetPoints;
+
+    public IReadOnlyList<DecalPresetPoint> ActivePresetPoints => Target == EmbossTarget.Mould ? _mouldPresetPoints : _basePresetPoints;
 
     public EmbossViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine, IGlyphOutlineSource outlineSource)
     {
@@ -100,6 +104,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _sceneManager.DecalHovered += OnDecalHovered;
         _sceneManager.PickingCancelled += OnPickingCancelled;
         _sceneManager.PresetPointSelected += OnPresetPointSelected;
+        _sceneManager.PresetPointHovered += OnPresetPointHovered;
 
         _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         _previewTimer.Tick += (s, e) =>
@@ -113,6 +118,32 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _previewTimer.Start();
     }
 
+    private void OnPresetPointHovered(DecalPresetPoint? preset)
+    {
+        if (preset == null)
+        {
+            _sceneManager.ClearPresetHoverPreview();
+            return;
+        }
+
+        var activeDecal = _decals.FirstOrDefault(d => d.Id == SelectedDecalId) ?? new TextDecal
+        {
+            Id = Guid.NewGuid(),
+            Text = LabelText,
+            Operation = Operation,
+            Target = preset.Target,
+            Font = Font,
+            CapHeight = CapHeight,
+            Depth = Depth,
+            Tracking = Tracking,
+            RotationDeg = (int)preset.RotationDeg,
+            Anchor = preset.Position,
+            AnchorNormal = preset.Normal
+        };
+
+        _sceneManager.UpdatePresetHoverPreview(preset, activeDecal, _outlineSource);
+    }
+
     private void OnPresetPointSelected(DecalPresetPoint preset)
     {
         ApplyPreset(preset);
@@ -123,18 +154,24 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     {
         if (preset == null) return;
 
+        _sceneManager.ClearPresetHoverPreview();
+
         Target = preset.Target;
         Rotation = (int)preset.RotationDeg;
 
         float span = preset.AvailableSpan;
-        if (span <= 0f && _mouldMesh != null)
+        if (span <= 0f)
         {
-            var stats = _engine.Evaluators.GetStatistics(_mouldMesh);
-            if (stats.IsSuccess)
+            var meshForStats = preset.Target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
+            if (meshForStats != null)
             {
-                span = preset.RotationDeg == 0f
-                    ? (float)(stats.Value.MaxX - stats.Value.MinX)
-                    : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                var stats = _engine.Evaluators.GetStatistics(meshForStats);
+                if (stats.IsSuccess)
+                {
+                    span = preset.RotationDeg == 0f
+                        ? (float)(stats.Value.MaxX - stats.Value.MinX)
+                        : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                }
             }
         }
         if (span > 0f)
@@ -161,7 +198,10 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     [RelayCommand]
     public void ApplyPresetByName(string name)
     {
-        var preset = _mouldPresetPoints.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+        var preset = ActivePresetPoints.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
+            ?? _mouldPresetPoints.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
+            ?? _basePresetPoints.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+
         if (preset != null)
         {
             ApplyPreset(preset);
@@ -170,6 +210,15 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     private void UpdatePresets()
     {
+        if (_baseMesh != null)
+        {
+            _basePresetPoints = BasePresetPointsCalculator.Calculate(_engine, _baseMesh);
+        }
+        else
+        {
+            _basePresetPoints = [];
+        }
+
         if (HasMould && _mouldMesh != null)
         {
             _mouldPresetPoints = MouldPresetPointsCalculator.Calculate(_engine, _mouldMesh);
@@ -178,8 +227,13 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         {
             _mouldPresetPoints = [];
         }
+
+        OnPropertyChanged(nameof(BasePresetPoints));
         OnPropertyChanged(nameof(MouldPresetPoints));
-        _sceneManager.UpdatePresetPoints(_mouldPresetPoints, isVisible: !IsApplied && Target == EmbossTarget.Mould);
+        OnPropertyChanged(nameof(ActivePresetPoints));
+
+        var activePoints = ActivePresetPoints;
+        _sceneManager.UpdatePresetPoints(activePoints, isVisible: !IsApplied);
     }
 
     private void OnPickingCancelled()
@@ -502,25 +556,75 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     }
 
     [RelayCommand]
-    private void StartPlacing()
+    public void AddDecal()
     {
         EnsureCleanMeshForPreview();
-        IsPicking = !IsPicking;
-        _sceneManager.IsPicking = IsPicking;
-        if (IsPicking)
+        var target = Target;
+        var presets = ActivePresetPoints;
+
+        // Find the first free anchor in the currently viewed target
+        DecalPresetPoint? freeAnchor = null;
+        if (presets.Count > 0)
         {
-            SelectedDecalId = Guid.Empty;
-            foreach (var item in DecalList)
+            foreach (var preset in presets)
             {
-                item.IsSelected = false;
+                bool isOccupied = _decals.Any(d => d.Target == target && Vector3.Distance(d.Anchor, preset.Position) < 2.0f);
+                if (!isOccupied)
+                {
+                    freeAnchor = preset;
+                    break;
+                }
+            }
+            freeAnchor ??= presets[0];
+        }
+
+        string text = "FABOLUS";
+        float span = freeAnchor?.AvailableSpan ?? 0f;
+        if (span <= 0f)
+        {
+            var meshForStats = target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
+            if (meshForStats != null)
+            {
+                var stats = _engine.Evaluators.GetStatistics(meshForStats);
+                if (stats.IsSuccess)
+                {
+                    span = (freeAnchor?.RotationDeg ?? 0f) == 0f
+                        ? (float)(stats.Value.MaxX - stats.Value.MinX)
+                        : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                }
             }
         }
-        else if (_decals.Count > 0)
+
+        float capHeight = span > 0f
+            ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, text.Length)
+            : CapHeight;
+
+        var newDecal = new TextDecal
         {
-            SelectedDecalId = _decals[^1].Id;
-        }
-        OnPropertyChanged(nameof(Hint));
+            Id = Guid.NewGuid(),
+            Text = text,
+            Operation = Operation,
+            Target = target,
+            Font = Font,
+            CapHeight = capHeight,
+            Depth = Depth,
+            Tracking = Tracking,
+            RotationDeg = freeAnchor != null ? (int)freeAnchor.RotationDeg : Rotation,
+            Anchor = freeAnchor?.Position ?? _meshCenter,
+            AnchorNormal = freeAnchor?.Normal ?? Vector3.UnitZ
+        };
+
+        _decals.Add(newDecal);
+        SelectedDecalId = newDecal.Id;
+        IsPicking = false;
+        _sceneManager.IsPicking = false;
+        SyncDecalList();
+        OnPropertyChanged(nameof(DecalCount));
+        Invalidate();
     }
+
+    [RelayCommand]
+    private void StartPlacing() => AddDecal();
 
     [RelayCommand]
     public void SelectDecal(Guid id)
@@ -537,11 +641,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         if (SelectedDecalId == id)
         {
             SelectedDecalId = _decals.LastOrDefault()?.Id ?? Guid.Empty;
-        }
-        if (SelectedDecalId == Guid.Empty)
-        {
-            IsPicking = true;
-            _sceneManager.IsPicking = true;
         }
         SyncDecalList();
         OnPropertyChanged(nameof(DecalCount));
@@ -771,8 +870,8 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             else
             {
                 SelectedDecalId = Guid.Empty;
-                IsPicking = true;
-                _sceneManager.IsPicking = true;
+                IsPicking = false;
+                _sceneManager.IsPicking = false;
             }
 
             _sceneManager.UpdateAppliedMouldOverlay(null);
@@ -812,6 +911,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 _mouldMesh = _activeMesh;
                 var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.TextEmboss);
                 _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : _activeMesh;
+                Target = EmbossTarget.Mould;
             }
             else
             {
@@ -836,19 +936,46 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             else
             {
                 IsApplied = false;
+                Target = HasMould ? EmbossTarget.Mould : EmbossTarget.Base;
+                UpdatePresets();
+
+                var presets = ActivePresetPoints;
+                var firstAnchor = presets.Count > 0 ? presets[0] : null;
+
+                string text = "FABOLUS";
+                float span = firstAnchor?.AvailableSpan ?? 0f;
+                if (span <= 0f)
+                {
+                    var meshForStats = Target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
+                    if (meshForStats != null)
+                    {
+                        var stats = _engine.Evaluators.GetStatistics(meshForStats);
+                        if (stats.IsSuccess)
+                        {
+                            span = (firstAnchor?.RotationDeg ?? 0f) == 0f
+                                ? (float)(stats.Value.MaxX - stats.Value.MinX)
+                                : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                        }
+                    }
+                }
+
+                float capHeight = span > 0f
+                    ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, text.Length)
+                    : 6.0f;
+
                 var defaultDecal = new TextDecal
                 {
                     Id = Guid.NewGuid(),
-                    Text = "FABOLUS",
+                    Text = text,
                     Operation = EmbossOperation.Emboss,
-                    Target = EmbossTarget.Base,
+                    Target = Target,
                     Font = DecalFont.Sans,
-                    CapHeight = 6.0f,
+                    CapHeight = capHeight,
                     Depth = 0.8f,
                     Tracking = 0.4f,
-                    RotationDeg = 0f,
-                    Anchor = _meshCenter,
-                    AnchorNormal = Vector3.UnitZ
+                    RotationDeg = firstAnchor != null ? (int)firstAnchor.RotationDeg : 0,
+                    Anchor = firstAnchor?.Position ?? _meshCenter,
+                    AnchorNormal = firstAnchor?.Normal ?? Vector3.UnitZ
                 };
                 _decals = [defaultDecal];
                 SelectedDecalId = defaultDecal.Id;

@@ -152,7 +152,7 @@
 
                     <!-- Decals body -->
                     <StackPanel Margin="0,6,0,12">
-                        <TextBlock Text="Click a point on the mesh to place a new decal, or click an existing decal to select and edit it."
+                        <TextBlock Text="Click a decal to select and edit it, or snap to preset locations."
                                    Style="{StaticResource FieldHint}" Margin="0,0,0,12" />
 
                         <!-- APPLIED DECALS LIST HEADER -->
@@ -162,24 +162,11 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="APPLIED DECALS" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Command="{Binding StartPlacingCommand}"
+                            <Button Grid.Column="1" Command="{Binding AddDecalCommand}"
                                     Style="{StaticResource Button.Secondary}" Height="26" Padding="8,2"
-                                    HorizontalAlignment="Right">
+                                    HorizontalAlignment="Right" ToolTip="Add a new decal at the first free preset anchor on the viewed target">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock VerticalAlignment="Center" FontSize="11">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Text" Value="+ Add decal" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsPicking}" Value="True">
-                                                        <Setter Property="Text" Value="Click mesh (Esc)" />
-                                                        <Setter Property="FontWeight" Value="SemiBold" />
-                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Pressed}" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                    <TextBlock Text="+ Add decal" VerticalAlignment="Center" FontSize="11" />
                                 </StackPanel>
                             </Button>
                         </Grid>
@@ -352,24 +339,46 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- Preset Locations (when Mould is selected) -->
+                            <!-- Preset Locations -->
                             <StackPanel Margin="0,2,0,10">
-                                <StackPanel.Style>
-                                    <Style TargetType="StackPanel">
-                                        <Setter Property="Visibility" Value="Collapsed" />
-                                        <Style.Triggers>
-                                            <MultiDataTrigger>
-                                                <MultiDataTrigger.Conditions>
-                                                    <Condition Binding="{Binding HasMould}" Value="True" />
-                                                    <Condition Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" Value="True" />
-                                                </MultiDataTrigger.Conditions>
-                                                <Setter Property="Visibility" Value="Visible" />
-                                            </MultiDataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </StackPanel.Style>
                                 <TextBlock Text="PRESET LOCATIONS" Style="{StaticResource FieldLabel}" />
+
+                                <!-- Base Mesh Presets (when Base is selected) -->
                                 <UniformGrid Columns="3" Margin="0,2,0,2">
+                                    <UniformGrid.Style>
+                                        <Style TargetType="UniformGrid">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Base}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </UniformGrid.Style>
+                                    <Button Content="Top" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Top" ToolTip="Snap decal to Top apex of base model" />
+                                    <Button Content="Front" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Front" ToolTip="Snap decal to Front center of base model" />
+                                    <Button Content="Back" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Back" ToolTip="Snap decal to Back center of base model" />
+                                </UniformGrid>
+
+                                <!-- Mould Presets (when Mould is selected) -->
+                                <UniformGrid Columns="3" Margin="0,2,0,2">
+                                    <UniformGrid.Style>
+                                        <Style TargetType="UniformGrid">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding HasMould}" Value="True" />
+                                                        <Condition Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" Value="True" />
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </MultiDataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </UniformGrid.Style>
                                     <Button Content="Front" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
                                             Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Front" ToolTip="Snap decal to Front mould contour" />
                                     <Button Content="Back" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"

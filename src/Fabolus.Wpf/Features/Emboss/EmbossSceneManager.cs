@@ -27,6 +27,7 @@ public sealed class EmbossSceneManager : ISceneManager
     public event Action<Vector3, Vector3>? DecalHovered;
     public event Action? PickingCancelled;
     public event Action<DecalPresetPoint>? PresetPointSelected;
+    public event Action<DecalPresetPoint?>? PresetPointHovered;
 
     private Guid _targetMeshId = Guid.Empty;
     private MeshGeometryModel3D? _targetModel;
@@ -38,6 +39,11 @@ public sealed class EmbossSceneManager : ISceneManager
     private readonly Dictionary<Guid, DecalPresetPoint> _visualToPreset = [];
     private Guid _hoveredPresetVisualId = Guid.Empty;
 
+    private Guid _presetHoverDecalId = Guid.Empty;
+    private MeshGeometryModel3D? _presetHoverDecalModel;
+    private Guid _presetHoverBoxId = Guid.Empty;
+    private LineGeometryModel3D? _presetHoverBoxModel;
+
     private Guid _gizmoLineId = Guid.Empty;
     private LineGeometryModel3D? _gizmoLineModel;
 
@@ -47,6 +53,7 @@ public sealed class EmbossSceneManager : ISceneManager
     private readonly HelixToolkit.Wpf.SharpDX.Material _unselectedDecalSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _presetSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _presetHoverSkin;
+    private readonly HelixToolkit.Wpf.SharpDX.Material _presetHoverDecalSkin;
 
     private Guid _translucentMouldId = Guid.Empty;
     private MeshGeometryModel3D? _translucentMouldModel;
@@ -71,6 +78,7 @@ public sealed class EmbossSceneManager : ISceneManager
         _unselectedDecalSkin = Skins.Primitive.Pearl;
         _presetSkin = Skins.Primitive.TranslucentCyan;
         _presetHoverSkin = Skins.Primitive.TranslucentAmber;
+        _presetHoverDecalSkin = Skins.Primitive.TranslucentAmber;
     }
 
     public Result UpdateMesh(IMesh mesh)
@@ -436,6 +444,129 @@ public sealed class EmbossSceneManager : ISceneManager
         }
     }
 
+    public void UpdatePresetHoverPreview(DecalPresetPoint preset, TextDecal decal, IGlyphOutlineSource outlineSource)
+    {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(() => UpdatePresetHoverPreview(preset, decal, outlineSource));
+            return;
+        }
+
+        if (TargetMesh == null) return;
+
+        // If the active decal is already at this exact preset position, don't double render
+        if (Vector3.Distance(decal.Anchor, preset.Position) < 1.0f && Math.Abs(decal.RotationDeg - (int)preset.RotationDeg) < 1)
+        {
+            ClearPresetHoverPreview();
+            return;
+        }
+
+        float span = preset.AvailableSpan;
+        float capHeight = span > 0f
+            ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, decal.Text.Length)
+            : decal.CapHeight;
+
+        var text = string.IsNullOrWhiteSpace(decal.Text) ? "FABOLUS" : decal.Text;
+        var outlines = outlineSource.GetOutlines(text, decal.Font, capHeight, decal.Tracking);
+        if (outlines.Count == 0)
+        {
+            ClearPresetHoverPreview();
+            return;
+        }
+
+        var frame = DecalFrame.FromHit(preset.Position, preset.Normal, preset.RotationDeg);
+        float sink = -0.05f;
+        float overshoot = 0.05f;
+        float maxEdge = Math.Max(0.4f, capHeight / 8.0f);
+        IMesh? surfaceTarget = TargetMesh;
+
+        var prismResult = _engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
+        if (prismResult.IsFailure)
+        {
+            ClearPresetHoverPreview();
+            return;
+        }
+
+        var helixPrismResult = prismResult.Value.ToHelixMesh(_engine);
+        if (helixPrismResult.IsFailure)
+        {
+            ClearPresetHoverPreview();
+            return;
+        }
+
+        if (_presetHoverDecalModel == null)
+        {
+            _presetHoverDecalModel = new MeshGeometryModel3D
+            {
+                Geometry = helixPrismResult.Value,
+                Material = _presetHoverDecalSkin,
+                IsTransparent = true,
+                DepthBias = -70,
+                SlopeScaledDepthBias = -1.0f,
+                CullMode = SharpDX.Direct3D11.CullMode.None,
+                IsHitTestVisible = false
+            };
+            _presetHoverDecalId = _presetHoverDecalModel.GUID;
+            VisualAddedOrUpdated?.Invoke(_presetHoverDecalModel);
+        }
+        else
+        {
+            _presetHoverDecalModel.Geometry = helixPrismResult.Value;
+            _presetHoverDecalModel.Material = _presetHoverDecalSkin;
+            _presetHoverDecalModel.Visibility = Visibility.Visible;
+            VisualAddedOrUpdated?.Invoke(_presetHoverDecalModel);
+        }
+
+        // Also add amber bounding box around the preset preview
+        var metrics = outlineSource.MeasureText(text, decal.Font, capHeight, decal.Tracking);
+        float halfW = metrics.WidthMm * 0.5f + 1.0f;
+        float halfH = metrics.HeightMm * 0.5f + 1.0f;
+        float zOff = decal.Depth + 0.5f;
+        var boxGeometry = GenerateContouredBoundingBox(frame, halfW, halfH, zOff);
+
+        if (_presetHoverBoxModel == null)
+        {
+            _presetHoverBoxModel = new LineGeometryModel3D
+            {
+                Geometry = boxGeometry,
+                Color = System.Windows.Media.Color.FromArgb(220, 255, 191, 0), // Amber
+                Thickness = 1.5,
+                IsHitTestVisible = false
+            };
+            _presetHoverBoxId = _presetHoverBoxModel.GUID;
+            VisualAddedOrUpdated?.Invoke(_presetHoverBoxModel);
+        }
+        else
+        {
+            _presetHoverBoxModel.Geometry = boxGeometry;
+            _presetHoverBoxModel.Visibility = Visibility.Visible;
+            VisualAddedOrUpdated?.Invoke(_presetHoverBoxModel);
+        }
+    }
+
+    public void ClearPresetHoverPreview()
+    {
+        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
+        {
+            Application.Current.Dispatcher.Invoke(ClearPresetHoverPreview);
+            return;
+        }
+
+        if (_presetHoverDecalId != Guid.Empty && _presetHoverDecalModel != null)
+        {
+            VisualRemovedById?.Invoke(_presetHoverDecalId);
+            _presetHoverDecalId = Guid.Empty;
+            _presetHoverDecalModel = null;
+        }
+
+        if (_presetHoverBoxId != Guid.Empty && _presetHoverBoxModel != null)
+        {
+            VisualRemovedById?.Invoke(_presetHoverBoxId);
+            _presetHoverBoxId = Guid.Empty;
+            _presetHoverBoxModel = null;
+        }
+    }
+
     public void ClearPresetVisuals()
     {
         if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
@@ -443,6 +574,8 @@ public sealed class EmbossSceneManager : ISceneManager
             Application.Current.Dispatcher.Invoke(ClearPresetVisuals);
             return;
         }
+
+        ClearPresetHoverPreview();
 
         foreach (var (guid, model) in _presetSphereVisuals.ToList())
         {
@@ -460,6 +593,8 @@ public sealed class EmbossSceneManager : ISceneManager
             Application.Current.Dispatcher.Invoke(ClearPreviewVisuals);
             return;
         }
+
+        ClearPresetHoverPreview();
 
         foreach (var (decalId, model) in _decalVisuals.ToList())
         {
@@ -518,6 +653,7 @@ public sealed class EmbossSceneManager : ISceneManager
         // 1. Check if a preset sphere was clicked
         if (hit.ModelHit is MeshGeometryModel3D sphereHit && _visualToPreset.TryGetValue(sphereHit.GUID, out var preset))
         {
+            ClearPresetHoverPreview();
             PresetPointSelected?.Invoke(preset);
             return true;
         }
@@ -533,15 +669,6 @@ public sealed class EmbossSceneManager : ISceneManager
         // 3. Click on target mesh
         if (_targetModel != null && hit.ModelHit == _targetModel)
         {
-            var hitPt = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
-            var hitNorm = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
-
-            if (IsPicking)
-            {
-                DecalPlaced?.Invoke(hitPt, hitNorm);
-                return true;
-            }
-
             if (SelectedDecalId != Guid.Empty)
             {
                 _dragDecalId = SelectedDecalId;
@@ -572,6 +699,15 @@ public sealed class EmbossSceneManager : ISceneManager
                 currSphere.Material = _presetHoverSkin;
             }
             _hoveredPresetVisualId = hitPresetGuid;
+
+            if (hitPresetGuid != Guid.Empty && _visualToPreset.TryGetValue(hitPresetGuid, out var hoveredPreset))
+            {
+                PresetPointHovered?.Invoke(hoveredPreset);
+            }
+            else
+            {
+                PresetPointHovered?.Invoke(null);
+            }
         }
 
         if (Mouse.LeftButton == MouseButtonState.Pressed && _dragDecalId != Guid.Empty)

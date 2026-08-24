@@ -93,16 +93,18 @@ public class EmbossViewModelTests
     }
 
     [Fact]
-    public void StartPlacingCommand_TogglesIsPicking()
+    public void AddDecalCommand_AddsNewDecal()
     {
         var (vm, _, _) = CreateViewModel();
 
+        Assert.Equal(0, vm.DecalCount);
+
+        vm.AddDecalCommand.Execute(null);
+        Assert.Equal(1, vm.DecalCount);
         Assert.False(vm.IsPicking);
 
-        vm.StartPlacingCommand.Execute(null);
-        Assert.True(vm.IsPicking);
-
-        vm.StartPlacingCommand.Execute(null);
+        vm.AddDecalCommand.Execute(null);
+        Assert.Equal(2, vm.DecalCount);
         Assert.False(vm.IsPicking);
     }
 
@@ -568,35 +570,26 @@ public class EmbossViewModelTests
 
         Assert.True(vm.HasMould);
         Assert.Single(vm.DecalList);
-        Assert.Equal(EmbossTarget.Base, vm.DecalList[0].Target);
+        Assert.Equal(EmbossTarget.Mould, vm.DecalList[0].Target);
 
         // Click "+ Add decal"
-        vm.StartPlacingCommand.Execute(null);
-        Assert.True(vm.IsPicking);
-        Assert.Equal(Guid.Empty, vm.SelectedDecalId);
-
-        // Switch target to Mould
-        vm.Target = EmbossTarget.Mould;
-
-        // Previous decal must STILL have Target == Base
-        Assert.Equal(EmbossTarget.Base, vm.DecalList[0].Target);
-        Assert.Equal("Base", vm.DecalList[0].TargetText);
-
-        // Invoke OnDecalPlaced callback for the new decal
-        var onDecalPlacedMethod = typeof(EmbossViewModel).GetMethod("OnDecalPlaced", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        onDecalPlacedMethod!.Invoke(vm, new object[] { new Vector3(0, 0, 20), Vector3.UnitZ });
+        vm.AddDecalCommand.Execute(null);
 
         Assert.Equal(2, vm.DecalCount);
         Assert.Equal(2, vm.DecalList.Count);
+        Assert.Equal(vm.DecalList[1].Id, vm.SelectedDecalId);
 
-        // Verify first decal remained Base and second decal is Mould
-        Assert.Equal(EmbossTarget.Base, vm.DecalList[0].Target);
-        Assert.Equal("Base", vm.DecalList[0].TargetText);
-        Assert.Contains("Base", vm.DecalList[0].Summary);
+        // Switch target of newly added decal to Base
+        vm.Target = EmbossTarget.Base;
 
-        Assert.Equal(EmbossTarget.Mould, vm.DecalList[1].Target);
-        Assert.Equal("Mould", vm.DecalList[1].TargetText);
-        Assert.Contains("Mould", vm.DecalList[1].Summary);
+        // Verify first decal remained Mould and second decal is Base
+        Assert.Equal(EmbossTarget.Mould, vm.DecalList[0].Target);
+        Assert.Equal("Mould", vm.DecalList[0].TargetText);
+        Assert.Contains("Mould", vm.DecalList[0].Summary);
+
+        Assert.Equal(EmbossTarget.Base, vm.DecalList[1].Target);
+        Assert.Equal("Base", vm.DecalList[1].TargetText);
+        Assert.Contains("Base", vm.DecalList[1].Summary);
     }
 
     [Fact]
@@ -741,6 +734,8 @@ public class EmbossViewModelTests
         var frontPreset = Assert.Single(vm.MouldPresetPoints, p => p.Name == "Front");
         var curve1Preset = Assert.Single(vm.MouldPresetPoints, p => p.Name == "Curve 1");
 
+        vm.Target = EmbossTarget.Mould;
+
         // Apply "Front" preset to current decal (horizontal)
         vm.ApplyPresetByNameCommand.Execute("Front");
 
@@ -781,5 +776,179 @@ public class EmbossViewModelTests
         vm.ClearTextCommand.Execute(null);
         Assert.False(vm.IsApplied);
         Assert.True(vm.IsDecalsExpanded);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_WithBaseMesh_CalculatesBasePresetPointsAndAllowsTopFrontBackSnapping()
+    {
+        var (vm, messenger, engineMock) = CreateViewModel();
+
+        var mockMesh = new Mock<IMesh>();
+        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[]
+        {
+            new(-20, -30,  0),
+            new( 20, -30,  0),
+            new( 20,  30,  0),
+            new(-20,  30,  0),
+            new(-20, -30, 50),
+            new( 20, -30, 50),
+            new( 20,  30, 50),
+            new(-20,  30, 50),
+        });
+        mockMesh.Setup(m => m.Triangles).Returns(new int[]
+        {
+            0, 1, 5, 0, 5, 4,
+            2, 3, 7, 2, 7, 6,
+            3, 0, 4, 3, 4, 7,
+            1, 2, 6, 1, 6, 5,
+            0, 3, 2, 0, 2, 1,
+            4, 5, 6, 4, 6, 7
+        });
+
+        var metadata = new MeshMetadata().WithId(Guid.NewGuid()).WithName("BaseMesh");
+        mockMesh.Setup(m => m.Metadata).Returns(metadata);
+        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
+            .Returns<MeshMetadata>(meta =>
+            {
+                var copy = new Mock<IMesh>();
+                copy.Setup(x => x.Metadata).Returns(meta);
+                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
+                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
+                return copy.Object;
+            });
+
+        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
+            .Returns<IMesh>(m => Result<IMesh>.Success(m));
+        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
+            .Returns(Result<MeshStatistics>.Success(new MeshStatistics
+            {
+                MinX = -20, MaxX = 20,
+                MinY = -30, MaxY = 30,
+                MinZ = 0, MaxZ = 50
+            }));
+        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
+            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
+
+        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
+        await vm.ActivateAsync(workspace);
+
+        Assert.False(vm.HasMould);
+        Assert.Equal(EmbossTarget.Base, vm.Target);
+        Assert.Equal(3, vm.BasePresetPoints.Count);
+        Assert.Equal(3, vm.ActivePresetPoints.Count);
+
+        var topPreset = Assert.Single(vm.BasePresetPoints, p => p.Name == "Top");
+        var frontPreset = Assert.Single(vm.BasePresetPoints, p => p.Name == "Front");
+        var backPreset = Assert.Single(vm.BasePresetPoints, p => p.Name == "Back");
+
+        Assert.Equal(0, topPreset.RotationDeg);
+        Assert.Equal(0, frontPreset.RotationDeg);
+        Assert.Equal(0, backPreset.RotationDeg);
+
+        // Apply "Top" preset
+        vm.ApplyPresetByNameCommand.Execute("Top");
+        Assert.Equal(EmbossTarget.Base, vm.Target);
+        Assert.Equal(topPreset.Position, vm.Anchor);
+        Assert.Equal(topPreset.Normal, vm.AnchorNormal);
+        Assert.Equal(0, vm.Rotation);
+        Assert.True(vm.CapHeight > 0f && vm.CapHeight <= 10.0f);
+
+        // Apply "Front" preset
+        vm.ApplyPresetByNameCommand.Execute("Front");
+        Assert.Equal(EmbossTarget.Base, vm.Target);
+        Assert.Equal(frontPreset.Position, vm.Anchor);
+        Assert.Equal(0, vm.Rotation);
+    }
+
+    [Fact]
+    public async Task AddDecal_GeneratesOnFirstFreeAnchorInViewedTarget()
+    {
+        var (vm, messenger, engineMock) = CreateViewModel();
+
+        var mockMesh = new Mock<IMesh>();
+        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[]
+        {
+            new(-20, -30,  0),
+            new( 20, -30,  0),
+            new( 20,  30,  0),
+            new(-20,  30,  0),
+            new(-20, -30, 50),
+            new( 20, -30, 50),
+            new( 20,  30, 50),
+            new(-20,  30, 50),
+        });
+        mockMesh.Setup(m => m.Triangles).Returns(new int[]
+        {
+            0, 1, 5, 0, 5, 4,
+            2, 3, 7, 2, 7, 6,
+            3, 0, 4, 3, 4, 7,
+            1, 2, 6, 1, 6, 5,
+            0, 3, 2, 0, 2, 1,
+            4, 5, 6, 4, 6, 7
+        });
+
+        var mouldDef = new ConcaveMouldDefinition();
+        var metadata = new MeshMetadata()
+            .WithId(Guid.NewGuid())
+            .WithName("MouldMesh")
+            .WithBaseMesh(mockMesh.Object)
+            .WithMouldDefinition(mouldDef)
+            .WithCommand(mouldDef);
+
+        mockMesh.Setup(m => m.Metadata).Returns(metadata);
+        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
+            .Returns<MeshMetadata>(meta =>
+            {
+                var copy = new Mock<IMesh>();
+                copy.Setup(x => x.Metadata).Returns(meta);
+                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
+                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
+                return copy.Object;
+            });
+
+        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
+            .Returns<IMesh>(m => Result<IMesh>.Success(m));
+        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
+            .Returns(Result<MeshStatistics>.Success(new MeshStatistics
+            {
+                MinX = -20, MaxX = 20,
+                MinY = -30, MaxY = 30,
+                MinZ = 0, MaxZ = 50
+            }));
+        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
+            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
+
+        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
+        await vm.ActivateAsync(workspace);
+
+        // First decal starts on Mould target at Front (first preset)
+        Assert.True(vm.HasMould);
+        Assert.Equal(EmbossTarget.Mould, vm.Target);
+        Assert.Equal(1, vm.DecalCount);
+        var frontPreset = vm.MouldPresetPoints.First(p => p.Name == "Front");
+        Assert.Equal(frontPreset.Position, vm.Decals[0].Anchor);
+        Assert.Equal(EmbossTarget.Mould, vm.Decals[0].Target);
+
+        // Add 2nd decal -> should place at Back (next free anchor on Mould target)
+        vm.AddDecalCommand.Execute(null);
+        Assert.Equal(2, vm.DecalCount);
+        var backPreset = vm.MouldPresetPoints.First(p => p.Name == "Back");
+        Assert.Equal(backPreset.Position, vm.Decals[1].Anchor);
+        Assert.Equal(EmbossTarget.Mould, vm.Decals[1].Target);
+
+        // Add 3rd decal -> should place at Left (next free anchor on Mould target)
+        vm.AddDecalCommand.Execute(null);
+        Assert.Equal(3, vm.DecalCount);
+        var leftPreset = vm.MouldPresetPoints.First(p => p.Name == "Left");
+        Assert.Equal(leftPreset.Position, vm.Decals[2].Anchor);
+        Assert.Equal(EmbossTarget.Mould, vm.Decals[2].Target);
+
+        // Switch to Base target and add decal -> should place at Top (first free anchor on Base target)
+        vm.Target = EmbossTarget.Base;
+        vm.AddDecalCommand.Execute(null);
+        Assert.Equal(4, vm.DecalCount);
+        var topPreset = vm.BasePresetPoints.First(p => p.Name == "Top");
+        Assert.Equal(topPreset.Position, vm.Decals[3].Anchor);
+        Assert.Equal(EmbossTarget.Base, vm.Decals[3].Target);
     }
 }
