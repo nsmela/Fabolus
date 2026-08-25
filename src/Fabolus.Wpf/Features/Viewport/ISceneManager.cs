@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry;
 using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Input;
 
@@ -23,5 +23,5 @@ public interface ISceneManager {
     // MouseMove3D routed event only fires while a mouse button is held, which breaks
     // hover-based interactions (e.g. previewing/placing items without dragging).
     bool OnMouseMove(HitTestResult? hit);
-
+    bool OnMouseMove(HitTestResult? hit, IList<HitTestResult>? allHits) => OnMouseMove(hit);
 }

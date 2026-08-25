@@ -258,6 +258,16 @@ public partial class ViewportControl : UserControl, IDisposable {
 
     // --- INPUT ROUTING (From XAML events) ---
 
+    private void MainViewport_MouseDown(object sender, MouseButtonEventArgs e) {
+        if (e.ChangedButton == MouseButton.Left && SceneManager is not null) {
+            var position = e.GetPosition(MainViewport);
+            var hits = MainViewport.FindHits(position);
+            if (hits.Count == 0) {
+                SceneManager.OnMouseDown(new MouseDown3DEventArgs(MainViewport, null, position, MainViewport, e));
+            }
+        }
+    }
+
     private void MainViewport_MouseDown3D(object sender, RoutedEventArgs e) {
         var handled = false;
         if (e is MouseDown3DEventArgs args) {
@@ -273,7 +283,7 @@ public partial class ViewportControl : UserControl, IDisposable {
         var position = e.GetPosition(MainViewport);
         var hits = MainViewport.FindHits(position);
 
-        SceneManager.OnMouseMove(hits.Count > 0 ? hits[0] : null);
+        SceneManager.OnMouseMove(hits.Count > 0 ? hits[0] : null, hits);
     }
 
     private void MainViewport_MouseUp3D(object sender, RoutedEventArgs e) {

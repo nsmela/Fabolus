@@ -24,6 +24,7 @@ public sealed class EmbossSceneManager : ISceneManager
     public event Action<Guid>? DecalSelected;
     public event Action<Vector3, Vector3>? DecalPlaced;
     public event Action<Guid, Vector3, Vector3>? DecalMoved;
+    public event Action<Guid>? DecalDragCompleted;
     public event Action<Vector3, Vector3>? DecalHovered;
     public event Action? PickingCancelled;
     public event Action<DecalPresetPoint>? PresetPointSelected;
@@ -49,8 +50,8 @@ public sealed class EmbossSceneManager : ISceneManager
 
     private readonly HelixToolkit.Wpf.SharpDX.Material _targetSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _translucentMouldSkin;
-    private readonly HelixToolkit.Wpf.SharpDX.Material _selectedDecalSkin;
-    private readonly HelixToolkit.Wpf.SharpDX.Material _unselectedDecalSkin;
+    private readonly HelixToolkit.Wpf.SharpDX.Material _embossSkin;
+    private readonly HelixToolkit.Wpf.SharpDX.Material _engraveSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _presetSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _presetHoverSkin;
     private readonly HelixToolkit.Wpf.SharpDX.Material _presetHoverDecalSkin;
@@ -59,7 +60,7 @@ public sealed class EmbossSceneManager : ISceneManager
     private MeshGeometryModel3D? _translucentMouldModel;
 
     public IMesh? TargetMesh { get; private set; }
-    public Guid SelectedDecalId { get; private set; } = Guid.Empty;
+    public Guid SelectedDecalId { get; set; } = Guid.Empty;
     public bool IsPicking { get; set; }
 
     private bool _isDragging;
@@ -74,8 +75,8 @@ public sealed class EmbossSceneManager : ISceneManager
 
         _targetSkin = Skins.Surface.Gray;
         _translucentMouldSkin = Skins.Surface.TranslucentGray;
-        _selectedDecalSkin = Skins.Primitive.Cyan;
-        _unselectedDecalSkin = Skins.Primitive.Pearl;
+        _embossSkin = Skins.Primitive.Emerald;
+        _engraveSkin = Skins.Primitive.Ruby;
         _presetSkin = Skins.Primitive.TranslucentCyan;
         _presetHoverSkin = Skins.Primitive.TranslucentAmber;
         _presetHoverDecalSkin = Skins.Primitive.TranslucentAmber;
@@ -244,7 +245,7 @@ public sealed class EmbossSceneManager : ISceneManager
             var helixPrismResult = prismResult.Value.ToHelixMesh(_engine);
             if (helixPrismResult.IsFailure) continue;
 
-            var skin = decal.Id == selectedId ? _selectedDecalSkin : _unselectedDecalSkin;
+            var skin = decal.Operation == EmbossOperation.Emboss ? _embossSkin : _engraveSkin;
 
             if (!_decalVisuals.TryGetValue(decal.Id, out var model))
             {
@@ -643,7 +644,14 @@ public sealed class EmbossSceneManager : ISceneManager
 
         var hit = eventArgs.HitTestResult;
         if (hit == null || hit.ModelHit == null)
+        {
+            if (SelectedDecalId != Guid.Empty)
+            {
+                SelectedDecalId = Guid.Empty;
+                DecalSelected?.Invoke(Guid.Empty);
+            }
             return false;
+        }
 
         _mouseDownPoint = eventArgs.Position;
         _isDragging = false;
@@ -663,23 +671,27 @@ public sealed class EmbossSceneManager : ISceneManager
         {
             _pendingClickedDecalId = decalId;
             _dragDecalId = decalId;
+            if (SelectedDecalId != decalId)
+            {
+                SelectedDecalId = decalId;
+                DecalSelected?.Invoke(decalId);
+            }
             return true;
         }
 
-        // 3. Click on target mesh
-        if (_targetModel != null && hit.ModelHit == _targetModel)
+        // 3. Click on target mesh (or background outside decals/presets) -> deselect
+        if (SelectedDecalId != Guid.Empty)
         {
-            if (SelectedDecalId != Guid.Empty)
-            {
-                _dragDecalId = SelectedDecalId;
-                return true;
-            }
+            SelectedDecalId = Guid.Empty;
+            DecalSelected?.Invoke(Guid.Empty);
         }
 
         return false;
     }
 
-    public bool OnMouseMove(HitTestResult? hit)
+    public bool OnMouseMove(HitTestResult? hit) => OnMouseMove(hit, null);
+
+    public bool OnMouseMove(HitTestResult? hit, IList<HitTestResult>? allHits)
     {
         // Handle preset sphere hover highlight
         Guid hitPresetGuid = Guid.Empty;
@@ -712,7 +724,10 @@ public sealed class EmbossSceneManager : ISceneManager
 
         if (Mouse.LeftButton == MouseButtonState.Pressed && _dragDecalId != Guid.Empty)
         {
-            if (hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId)
+            var targetHit = allHits?.FirstOrDefault(h => h.ModelHit is MeshGeometryModel3D m && m.GUID == _targetMeshId)
+                ?? (hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId ? hit : null);
+
+            if (targetHit != null)
             {
                 if (!_isDragging)
                 {
@@ -724,8 +739,8 @@ public sealed class EmbossSceneManager : ISceneManager
                     }
                 }
 
-                var pt = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
-                var norm = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
+                var pt = new Vector3(targetHit.PointHit.X, targetHit.PointHit.Y, targetHit.PointHit.Z);
+                var norm = new Vector3(targetHit.NormalAtHit.X, targetHit.NormalAtHit.Y, targetHit.NormalAtHit.Z);
                 DecalMoved?.Invoke(_dragDecalId, pt, norm);
                 return true;
             }
@@ -734,18 +749,29 @@ public sealed class EmbossSceneManager : ISceneManager
 
         if (_isDragging && Mouse.LeftButton == MouseButtonState.Released)
         {
+            var finishedDecalId = _dragDecalId;
             _isDragging = false;
             _dragDecalId = Guid.Empty;
             _pendingClickedDecalId = Guid.Empty;
+            if (finishedDecalId != Guid.Empty)
+            {
+                DecalDragCompleted?.Invoke(finishedDecalId);
+            }
             return true;
         }
 
-        if (IsPicking && hit?.ModelHit is MeshGeometryModel3D && hit.ModelHit == _targetModel)
+        if (IsPicking)
         {
-            var pt = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
-            var norm = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
-            DecalHovered?.Invoke(pt, norm);
-            return true;
+            var targetHit = allHits?.FirstOrDefault(h => h.ModelHit is MeshGeometryModel3D m && m.GUID == _targetMeshId)
+                ?? (hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId ? hit : null);
+
+            if (targetHit != null)
+            {
+                var pt = new Vector3(targetHit.PointHit.X, targetHit.PointHit.Y, targetHit.PointHit.Z);
+                var norm = new Vector3(targetHit.NormalAtHit.X, targetHit.NormalAtHit.Y, targetHit.NormalAtHit.Z);
+                DecalHovered?.Invoke(pt, norm);
+                return true;
+            }
         }
 
         return false;
@@ -755,6 +781,16 @@ public sealed class EmbossSceneManager : ISceneManager
     {
         if (eventArgs.OriginalInputEventArgs is not MouseButtonEventArgs { ChangedButton: MouseButton.Left })
             return false;
+
+        if (_isDragging && _dragDecalId != Guid.Empty)
+        {
+            var finishedDecalId = _dragDecalId;
+            _isDragging = false;
+            _dragDecalId = Guid.Empty;
+            _pendingClickedDecalId = Guid.Empty;
+            DecalDragCompleted?.Invoke(finishedDecalId);
+            return true;
+        }
 
         if (!_isDragging && _pendingClickedDecalId != Guid.Empty)
         {

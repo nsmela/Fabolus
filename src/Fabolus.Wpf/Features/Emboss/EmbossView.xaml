@@ -155,21 +155,85 @@
                         <TextBlock Text="Click a decal to select and edit it, or snap to preset locations."
                                    Style="{StaticResource FieldHint}" Margin="0,0,0,12" />
 
+                        <!-- 1. TARGET SELECTOR (Base / Mould) - Always accessible when Mould exists -->
+                        <StackPanel Margin="0,0,0,10" Visibility="{Binding HasMould, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="TARGET MESH" Style="{StaticResource FieldLabel}" />
+                            <Border Style="{StaticResource SegmentGroup}">
+                                <UniformGrid Columns="2">
+                                    <RadioButton Content="Base Mesh" GroupName="EmbossGlobalTgt" Style="{StaticResource Segment}"
+                                                 IsChecked="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Base}" />
+                                    <RadioButton Content="Mould" GroupName="EmbossGlobalTgt" Style="{StaticResource Segment}"
+                                                 IsChecked="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" />
+                                </UniformGrid>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- 2. PRESET LOCATIONS (Always accessible) -->
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="PRESET LOCATIONS" Style="{StaticResource FieldLabel}" />
+
+                            <!-- Base Mesh Presets (when Base is selected) -->
+                            <UniformGrid Columns="3" Margin="0,2,0,2">
+                                <UniformGrid.Style>
+                                    <Style TargetType="UniformGrid">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Base}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </UniformGrid.Style>
+                                <Button Content="Top" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Top" ToolTip="Snap decal to Top apex of base model" />
+                                <Button Content="Front" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Front" ToolTip="Snap decal to Front center of base model" />
+                                <Button Content="Back" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Back" ToolTip="Snap decal to Back center of base model" />
+                            </UniformGrid>
+
+                            <!-- Mould Presets (when Mould is selected) -->
+                            <UniformGrid Columns="3" Margin="0,2,0,2">
+                                <UniformGrid.Style>
+                                    <Style TargetType="UniformGrid">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding HasMould}" Value="True" />
+                                                    <Condition Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" Value="True" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </UniformGrid.Style>
+                                <Button Content="Front" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Front" ToolTip="Snap decal to Front mould contour" />
+                                <Button Content="Back" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Back" ToolTip="Snap decal to Back mould contour" />
+                                <Button Content="Left" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Left" ToolTip="Snap decal to Left mould contour" />
+                                <Button Content="Right" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Right" ToolTip="Snap decal to Right mould contour" />
+                                <Button Content="Curve 1" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Curve 1" ToolTip="Snap decal to 1st strongest curve" />
+                                <Button Content="Curve 2" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Curve 2" ToolTip="Snap decal to 2nd strongest curve" />
+                            </UniformGrid>
+                        </StackPanel>
+
+                        <Border Style="{StaticResource SectionDivider}" Margin="0,2,0,10" />
+
                         <!-- APPLIED DECALS LIST HEADER -->
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="APPLIED DECALS" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Command="{Binding AddDecalCommand}"
-                                    Style="{StaticResource Button.Secondary}" Height="26" Padding="8,2"
-                                    HorizontalAlignment="Right" ToolTip="Add a new decal at the first free preset anchor on the viewed target">
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="+ Add decal" VerticalAlignment="Center" FontSize="11" />
-                                </StackPanel>
-                            </Button>
-                        </Grid>
+                        <TextBlock Text="APPLIED DECALS" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <Button Command="{Binding AddDecalCommand}"
+                                Style="{StaticResource Button.Secondary}" Height="28" Margin="0,0,0,8"
+                                HorizontalAlignment="Stretch" ToolTip="Add a new decal at the first free preset anchor on the viewed target">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock Text="+ Add decal" VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
 
                         <!-- Decals Collection -->
                         <ItemsControl ItemsSource="{Binding DecalList}" Margin="0,0,0,8">
@@ -230,8 +294,18 @@
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
                                                 <Border CornerRadius="3" Padding="5,2" Margin="2,0"
                                                         Background="{DynamicResource Brush.Surface.Panel}">
-                                                    <TextBlock Text="{Binding OperationText}" FontSize="9.5" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource Brush.Text.Secondary}" />
+                                                    <TextBlock Text="{Binding OperationText}" FontSize="9.5" FontWeight="SemiBold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" Value="True">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Success}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
                                                 </Border>
                                                 <Border CornerRadius="3" Padding="5,2" Margin="2,0"
                                                         Background="{DynamicResource Brush.Surface.Panel}"
@@ -261,8 +335,15 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
+                        <!-- Selection Hint (when no decal is selected) -->
+                        <Border Background="{DynamicResource Brush.Surface.Panel}" CornerRadius="4" Padding="10,8" Margin="0,6,0,6"
+                                Visibility="{Binding HasSelectedDecal, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                            <TextBlock Text="No decal selected. Click a decal or preset anchor in the 3D viewport or list above to edit its parameters."
+                                       FontSize="11.5" Foreground="{DynamicResource Brush.Text.Muted}" TextWrapping="Wrap" LineHeight="16" />
+                        </Border>
+
                         <!-- Selected Decal Parameters -->
-                        <StackPanel Margin="0,4,0,0">
+                        <StackPanel Margin="0,4,0,0" IsEnabled="{Binding HasSelectedDecal}">
                             <Border Style="{StaticResource SectionDivider}" Margin="0,4,0,10" />
 
                             <!-- 1. Text Input -->
@@ -281,53 +362,21 @@
                                      Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
                                      mah:TextBoxHelper.ClearTextButton="True" />
 
-                            <!-- 2. Operation / Target / Font -->
-                            <!-- When Mould exists: Operation and Target side-by-side -->
-                            <Grid Margin="0,4,0,6" Visibility="{Binding HasMould, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
-                                    <TextBlock Text="OPERATION" Style="{StaticResource FieldLabel}" />
-                                    <Border Style="{StaticResource SegmentGroup}">
-                                        <UniformGrid Columns="2">
-                                            <RadioButton Content="Emboss" GroupName="EmbossOp1" Style="{StaticResource Segment}"
-                                                         IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
-                                            <RadioButton Content="Engrave" GroupName="EmbossOp1" Style="{StaticResource Segment}"
-                                                         IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
-                                        </UniformGrid>
-                                    </Border>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="1" Margin="4,0,0,0">
-                                    <TextBlock Text="TARGET" Style="{StaticResource FieldLabel}" />
-                                    <Border Style="{StaticResource SegmentGroup}">
-                                        <UniformGrid Columns="2">
-                                            <RadioButton Content="Base" GroupName="EmbossTgt" Style="{StaticResource Segment}"
-                                                         IsChecked="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Base}" />
-                                            <RadioButton Content="Mould" GroupName="EmbossTgt" Style="{StaticResource Segment}"
-                                                         IsChecked="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" />
-                                        </UniformGrid>
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-
-                            <!-- When NO Mould exists: Operation takes the whole line -->
-                            <StackPanel Margin="0,4,0,6" Visibility="{Binding HasMould, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                            <!-- 2. Operation (Full width row) -->
+                            <StackPanel Margin="0,4,0,8">
                                 <TextBlock Text="OPERATION" Style="{StaticResource FieldLabel}" />
                                 <Border Style="{StaticResource SegmentGroup}">
-                                <UniformGrid Columns="2">
-                                    <RadioButton Content="Emboss" GroupName="EmbossOp2" Style="{StaticResource Segment}"
-                                                 IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
-                                    <RadioButton Content="Engrave" GroupName="EmbossOp2" Style="{StaticResource Segment}"
-                                                 IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
-                                </UniformGrid>
+                                    <UniformGrid Columns="2">
+                                        <RadioButton Content="Emboss" GroupName="EmbossOp" Style="{StaticResource Segment}"
+                                                     IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
+                                        <RadioButton Content="Engrave" GroupName="EmbossOp" Style="{StaticResource Segment}"
+                                                     IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
+                                    </UniformGrid>
                                 </Border>
                             </StackPanel>
 
-                            <!-- Font (on its own line below) -->
-                            <StackPanel Margin="0,4,0,10">
+                            <!-- 3. Font (Full width row) -->
+                            <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="FONT" Style="{StaticResource FieldLabel}" />
                                 <Border Style="{StaticResource SegmentGroup}">
                                     <UniformGrid Columns="2">
@@ -339,64 +388,9 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- Preset Locations -->
-                            <StackPanel Margin="0,2,0,10">
-                                <TextBlock Text="PRESET LOCATIONS" Style="{StaticResource FieldLabel}" />
-
-                                <!-- Base Mesh Presets (when Base is selected) -->
-                                <UniformGrid Columns="3" Margin="0,2,0,2">
-                                    <UniformGrid.Style>
-                                        <Style TargetType="UniformGrid">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Base}" Value="True">
-                                                    <Setter Property="Visibility" Value="Visible" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </UniformGrid.Style>
-                                    <Button Content="Top" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Top" ToolTip="Snap decal to Top apex of base model" />
-                                    <Button Content="Front" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Front" ToolTip="Snap decal to Front center of base model" />
-                                    <Button Content="Back" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Back" ToolTip="Snap decal to Back center of base model" />
-                                </UniformGrid>
-
-                                <!-- Mould Presets (when Mould is selected) -->
-                                <UniformGrid Columns="3" Margin="0,2,0,2">
-                                    <UniformGrid.Style>
-                                        <Style TargetType="UniformGrid">
-                                            <Setter Property="Visibility" Value="Collapsed" />
-                                            <Style.Triggers>
-                                                <MultiDataTrigger>
-                                                    <MultiDataTrigger.Conditions>
-                                                        <Condition Binding="{Binding HasMould}" Value="True" />
-                                                        <Condition Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" Value="True" />
-                                                    </MultiDataTrigger.Conditions>
-                                                    <Setter Property="Visibility" Value="Visible" />
-                                                </MultiDataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </UniformGrid.Style>
-                                    <Button Content="Front" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Front" ToolTip="Snap decal to Front mould contour" />
-                                    <Button Content="Back" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Back" ToolTip="Snap decal to Back mould contour" />
-                                    <Button Content="Left" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Left" ToolTip="Snap decal to Left mould contour" />
-                                    <Button Content="Right" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Right" ToolTip="Snap decal to Right mould contour" />
-                                    <Button Content="Curve 1" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Curve 1" ToolTip="Snap decal to 1st strongest curve" />
-                                    <Button Content="Curve 2" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
-                                            Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Curve 2" ToolTip="Snap decal to 2nd strongest curve" />
-                                </UniformGrid>
-                            </StackPanel>
-
                             <Border Style="{StaticResource SectionDivider}" />
 
-                            <!-- 3. Parameters -->
+                            <!-- 4. Parameters -->
                             <!-- Cap Height -->
                             <Grid Margin="0,2,0,4">
                                 <Grid.ColumnDefinitions>
@@ -473,30 +467,6 @@
                                         Content="Clear all" Style="{StaticResource Button.Secondary}"
                                         Margin="4,0,0,0" HorizontalAlignment="Stretch" />
                             </Grid>
-
-                            <!-- Footprint and UV Readouts -->
-                            <Border Background="#10000000" CornerRadius="5" Padding="8,6" Margin="0,4,0,10">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,4">
-                                        <TextBlock Text="FOOTPRINT" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
-                                        <TextBlock Text="{Binding Footprint}" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource Brush.Text.Primary}" />
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,4">
-                                        <TextBlock Text="POSITION (U, V)" FontSize="9.5" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Muted}" />
-                                        <TextBlock Text="{Binding PositionUv}" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="Medium" Foreground="{DynamicResource Brush.Text.Primary}" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
 
                             <!-- Warning / Error alert banners -->
                             <Border Background="#20E0A024" BorderBrush="{DynamicResource Brush.Warning}" BorderThickness="1" CornerRadius="5" Padding="8,6" Margin="0,0,0,6">

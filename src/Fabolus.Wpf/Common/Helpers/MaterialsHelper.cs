@@ -122,6 +122,8 @@ public static class Skins
     public static class Primitive
     {
         public static PhongMaterial Emerald => MaterialsHelper.CreateMaterial(SkinColours.Emerald);
+        public static PhongMaterial Ruby => MaterialsHelper.CreateMaterial(SkinColours.Ruby);
+        public static PhongMaterial Orange => MaterialsHelper.CreateMaterial(SkinColours.Orange);
         public static PhongMaterial Pearl => MaterialsHelper.CreateMaterial(SkinColours.Pearl);
         public static PhongMaterial Cyan => MaterialsHelper.CreateMaterial(SkinColours.Cyan);
         public static PhongMaterial TranslucentCyan => MaterialsHelper.CreateMaterial(SkinColours.TranslucentCyan);

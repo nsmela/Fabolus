@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Numerics;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -49,7 +50,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     [ObservableProperty] private Guid _selectedDecalId = Guid.Empty;
     [ObservableProperty] private bool _isDecalsExpanded = true;
     [ObservableProperty] private string _labelText = "FABOLUS";
-    [ObservableProperty] private EmbossOperation _operation = EmbossOperation.Emboss;
+    [ObservableProperty] private EmbossOperation _operation = EmbossOperation.Engrave;
     [ObservableProperty] private EmbossTarget _target = EmbossTarget.Base;
     [ObservableProperty] private DecalFont _font = DecalFont.Sans;
     [ObservableProperty] private float _capHeight = 6.0f;
@@ -101,6 +102,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _sceneManager.DecalSelected += OnDecalSelected;
         _sceneManager.DecalPlaced += OnDecalPlaced;
         _sceneManager.DecalMoved += OnDecalMoved;
+        _sceneManager.DecalDragCompleted += OnDecalDragCompleted;
         _sceneManager.DecalHovered += OnDecalHovered;
         _sceneManager.PickingCancelled += OnPickingCancelled;
         _sceneManager.PresetPointSelected += OnPresetPointSelected;
@@ -157,40 +159,89 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _sceneManager.ClearPresetHoverPreview();
 
         Target = preset.Target;
-        Rotation = (int)preset.RotationDeg;
 
-        float span = preset.AvailableSpan;
-        if (span <= 0f)
+        // If a decal already sits on this preset, select it!
+        var existingDecal = _decals.FirstOrDefault(d => d.Target == preset.Target && Vector3.Distance(d.Anchor, preset.Position) < 3.0f);
+        if (existingDecal != null)
         {
-            var meshForStats = preset.Target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
-            if (meshForStats != null)
+            SelectedDecalId = existingDecal.Id;
+            return;
+        }
+
+        if (SelectedDecalId != Guid.Empty && !IsPicking)
+        {
+            Rotation = (int)preset.RotationDeg;
+
+            float span = preset.AvailableSpan;
+            if (span <= 0f)
             {
-                var stats = _engine.Evaluators.GetStatistics(meshForStats);
-                if (stats.IsSuccess)
+                var meshForStats = preset.Target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
+                if (meshForStats != null)
                 {
-                    span = preset.RotationDeg == 0f
-                        ? (float)(stats.Value.MaxX - stats.Value.MinX)
-                        : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                    var stats = _engine.Evaluators.GetStatistics(meshForStats);
+                    if (stats.IsSuccess)
+                    {
+                        span = preset.RotationDeg == 0f
+                            ? (float)(stats.Value.MaxX - stats.Value.MinX)
+                            : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                    }
                 }
             }
-        }
-        if (span > 0f)
-        {
-            CapHeight = MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, LabelText.Length);
-        }
+            if (span > 0f)
+            {
+                CapHeight = MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, LabelText.Length);
+            }
 
-        UpdateTargetMesh();
-
-        if (SelectedDecalId == Guid.Empty || IsPicking)
-        {
-            OnDecalPlaced(preset.Position, preset.Normal);
-        }
-        else
-        {
+            UpdateTargetMesh();
             Anchor = preset.Position;
             AnchorNormal = preset.Normal;
             SyncActiveDecal();
             UpdateUVReadout();
+            Invalidate();
+        }
+        else
+        {
+            // If no decal is selected (or is picking) and no decal at this preset, add a new decal here
+            float span = preset.AvailableSpan;
+            if (span <= 0f)
+            {
+                var meshForStats = preset.Target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
+                if (meshForStats != null)
+                {
+                    var stats = _engine.Evaluators.GetStatistics(meshForStats);
+                    if (stats.IsSuccess)
+                    {
+                        span = preset.RotationDeg == 0f
+                            ? (float)(stats.Value.MaxX - stats.Value.MinX)
+                            : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                    }
+                }
+            }
+
+            string text = "FABOLUS";
+            float capHeight = span > 0f
+                ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, text.Length)
+                : CapHeight;
+
+            var newDecal = new TextDecal
+            {
+                Id = Guid.NewGuid(),
+                Text = text,
+                Operation = Operation,
+                Target = preset.Target,
+                Font = Font,
+                CapHeight = capHeight,
+                Depth = Depth,
+                Tracking = Tracking,
+                RotationDeg = (int)preset.RotationDeg,
+                Anchor = preset.Position,
+                AnchorNormal = preset.Normal
+            };
+
+            _decals.Add(newDecal);
+            SelectedDecalId = newDecal.Id;
+            SyncDecalList();
+            OnPropertyChanged(nameof(DecalCount));
             Invalidate();
         }
     }
@@ -284,6 +335,8 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         }
     }
 
+    public bool HasSelectedDecal => SelectedDecalId != Guid.Empty;
+
     partial void OnSelectedDecalIdChanged(Guid value)
     {
         foreach (var item in DecalList)
@@ -291,7 +344,14 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             item.IsSelected = item.Id == value;
         }
 
-        if (value == Guid.Empty) return;
+        OnPropertyChanged(nameof(HasSelectedDecal));
+
+        if (value == Guid.Empty)
+        {
+            _sceneManager.SelectedDecalId = Guid.Empty;
+            Invalidate();
+            return;
+        }
 
         if (IsPicking)
         {
@@ -471,7 +531,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     private void Invalidate()
     {
-        if (_isActivating) return;
+        if (_isSyncingFromModel || _isActivating) return;
         EnsureCleanMeshForPreview();
         _metrics = _outlineSource.MeasureText(LabelText, Font, CapHeight, Tracking);
         OnPropertyChanged(nameof(Footprint));
@@ -548,6 +608,11 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 _sceneManager.UpdateDragPreview(_decals[idx], _metrics);
             }
         }
+    }
+
+    private void OnDecalDragCompleted(Guid decalId)
+    {
+        Invalidate();
     }
 
     private void OnDecalHovered(Vector3 point, Vector3 normal)
@@ -640,7 +705,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _decals = _decals.Where(d => d.Id != id).ToList();
         if (SelectedDecalId == id)
         {
-            SelectedDecalId = _decals.LastOrDefault()?.Id ?? Guid.Empty;
+            SelectedDecalId = Guid.Empty;
         }
         SyncDecalList();
         OnPropertyChanged(nameof(DecalCount));
@@ -860,19 +925,13 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 Target = EmbossTarget.Base;
             }
 
+            SelectedDecalId = Guid.Empty;
             if (_decals.Count > 0)
             {
-                SelectedDecalId = _decals[0].Id;
                 Target = _decals[0].Target;
-                IsPicking = false;
-                _sceneManager.IsPicking = false;
             }
-            else
-            {
-                SelectedDecalId = Guid.Empty;
-                IsPicking = false;
-                _sceneManager.IsPicking = false;
-            }
+            IsPicking = false;
+            _sceneManager.IsPicking = false;
 
             _sceneManager.UpdateAppliedMouldOverlay(null);
             UpdateTargetMesh();
@@ -928,7 +987,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             {
                 _decals = savedDecals.Value.ToList();
                 IsApplied = true;
-                SelectedDecalId = _decals[0].Id;
+                SelectedDecalId = Guid.Empty;
                 Target = _decals[0].Target;
                 IsPicking = false;
                 _sceneManager.IsPicking = false;
@@ -939,48 +998,143 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 Target = HasMould ? EmbossTarget.Mould : EmbossTarget.Base;
                 UpdatePresets();
 
-                var presets = ActivePresetPoints;
-                var firstAnchor = presets.Count > 0 ? presets[0] : null;
-
-                string text = "FABOLUS";
-                float span = firstAnchor?.AvailableSpan ?? 0f;
-                if (span <= 0f)
+                if (HasMould && _mouldPresetPoints.Count > 0)
                 {
-                    var meshForStats = Target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
-                    if (meshForStats != null)
+                    // 1. File name decal on Front anchor
+                    var frontPreset = _mouldPresetPoints.FirstOrDefault(p => p.Name == "Front") ?? _mouldPresetPoints[0];
+                    string rawName = !string.IsNullOrWhiteSpace(_baseMesh?.Metadata.Name)
+                        ? _baseMesh.Metadata.Name
+                        : !string.IsNullOrWhiteSpace(_activeMesh?.Metadata.Name)
+                            ? _activeMesh.Metadata.Name
+                            : "FABOLUS";
+                    string fileName = Path.GetFileNameWithoutExtension(rawName);
+                    if (string.IsNullOrWhiteSpace(fileName)) fileName = "FABOLUS";
+
+                    float span1 = frontPreset.AvailableSpan;
+                    if (span1 <= 0f && _mouldMesh != null)
                     {
-                        var stats = _engine.Evaluators.GetStatistics(meshForStats);
+                        var stats = _engine.Evaluators.GetStatistics(_mouldMesh);
                         if (stats.IsSuccess)
                         {
-                            span = (firstAnchor?.RotationDeg ?? 0f) == 0f
+                            span1 = frontPreset.RotationDeg == 0f
                                 ? (float)(stats.Value.MaxX - stats.Value.MinX)
                                 : (float)(stats.Value.MaxZ - stats.Value.MinZ);
                         }
                     }
+                    float capHeight1 = span1 > 0f
+                        ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span1, fileName.Length)
+                        : 6.0f;
+
+                    var fileDecal = new TextDecal
+                    {
+                        Id = Guid.NewGuid(),
+                        Text = fileName,
+                        Operation = EmbossOperation.Engrave,
+                        Target = EmbossTarget.Mould,
+                        Font = DecalFont.Sans,
+                        CapHeight = capHeight1,
+                        Depth = 0.8f,
+                        Tracking = 0.4f,
+                        RotationDeg = (int)frontPreset.RotationDeg,
+                        Anchor = frontPreset.Position,
+                        AnchorNormal = frontPreset.Normal
+                    };
+
+                    // 2. Base mesh volume decal on Back anchor
+                    var backPreset = _mouldPresetPoints.FirstOrDefault(p => p.Name == "Back")
+                        ?? (_mouldPresetPoints.Count > 1 ? _mouldPresetPoints[1] : frontPreset);
+
+                    double volume = 0.0;
+                    if (_baseMesh != null)
+                    {
+                        var baseStats = _engine.Evaluators.GetStatistics(_baseMesh);
+                        if (baseStats.IsSuccess)
+                        {
+                            volume = baseStats.Value.Volume;
+                        }
+                    }
+                    string volumeText = volume > 0 ? $"{volume:0.0} cc" : "0.0 cc";
+
+                    float span2 = backPreset.AvailableSpan;
+                    if (span2 <= 0f && _mouldMesh != null)
+                    {
+                        var stats = _engine.Evaluators.GetStatistics(_mouldMesh);
+                        if (stats.IsSuccess)
+                        {
+                            span2 = backPreset.RotationDeg == 0f
+                                ? (float)(stats.Value.MaxX - stats.Value.MinX)
+                                : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                        }
+                    }
+                    float capHeight2 = span2 > 0f
+                        ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span2, volumeText.Length)
+                        : 6.0f;
+
+                    var volumeDecal = new TextDecal
+                    {
+                        Id = Guid.NewGuid(),
+                        Text = volumeText,
+                        Operation = EmbossOperation.Engrave,
+                        Target = EmbossTarget.Mould,
+                        Font = DecalFont.Sans,
+                        CapHeight = capHeight2,
+                        Depth = 0.8f,
+                        Tracking = 0.4f,
+                        RotationDeg = (int)backPreset.RotationDeg,
+                        Anchor = backPreset.Position,
+                        AnchorNormal = backPreset.Normal
+                    };
+
+                    _decals = [fileDecal, volumeDecal];
+                    SelectedDecalId = Guid.Empty;
+                    IsPicking = false;
+                    _sceneManager.IsPicking = false;
                 }
-
-                float capHeight = span > 0f
-                    ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, text.Length)
-                    : 6.0f;
-
-                var defaultDecal = new TextDecal
+                else
                 {
-                    Id = Guid.NewGuid(),
-                    Text = text,
-                    Operation = EmbossOperation.Emboss,
-                    Target = Target,
-                    Font = DecalFont.Sans,
-                    CapHeight = capHeight,
-                    Depth = 0.8f,
-                    Tracking = 0.4f,
-                    RotationDeg = firstAnchor != null ? (int)firstAnchor.RotationDeg : 0,
-                    Anchor = firstAnchor?.Position ?? _meshCenter,
-                    AnchorNormal = firstAnchor?.Normal ?? Vector3.UnitZ
-                };
-                _decals = [defaultDecal];
-                SelectedDecalId = defaultDecal.Id;
-                IsPicking = false;
-                _sceneManager.IsPicking = false;
+                    var presets = ActivePresetPoints;
+                    var firstAnchor = presets.Count > 0 ? presets[0] : null;
+
+                    string text = "FABOLUS";
+                    float span = firstAnchor?.AvailableSpan ?? 0f;
+                    if (span <= 0f)
+                    {
+                        var meshForStats = _baseMesh;
+                        if (meshForStats != null)
+                        {
+                            var stats = _engine.Evaluators.GetStatistics(meshForStats);
+                            if (stats.IsSuccess)
+                            {
+                                span = (firstAnchor?.RotationDeg ?? 0f) == 0f
+                                    ? (float)(stats.Value.MaxX - stats.Value.MinX)
+                                    : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+                            }
+                        }
+                    }
+
+                    float capHeight = span > 0f
+                        ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, text.Length)
+                        : 6.0f;
+
+                    var defaultDecal = new TextDecal
+                    {
+                        Id = Guid.NewGuid(),
+                        Text = text,
+                        Operation = EmbossOperation.Engrave,
+                        Target = Target,
+                        Font = DecalFont.Sans,
+                        CapHeight = capHeight,
+                        Depth = 0.8f,
+                        Tracking = 0.4f,
+                        RotationDeg = firstAnchor != null ? (int)firstAnchor.RotationDeg : 0,
+                        Anchor = firstAnchor?.Position ?? _meshCenter,
+                        AnchorNormal = firstAnchor?.Normal ?? Vector3.UnitZ
+                    };
+                    _decals = [defaultDecal];
+                    SelectedDecalId = Guid.Empty;
+                    IsPicking = false;
+                    _sceneManager.IsPicking = false;
+                }
             }
 
             if (IsApplied && HasMould && _mouldMesh != null && _baseMesh != null)

@@ -8,7 +8,7 @@ namespace Fabolus.Core.Features.Emboss;
 public sealed record TextDecal
 {
     public string Text { get; init; } = "FABOLUS";
-    public EmbossOperation Operation { get; init; } = EmbossOperation.Emboss;
+    public EmbossOperation Operation { get; init; } = EmbossOperation.Engrave;
     public EmbossTarget Target { get; init; } = EmbossTarget.Base;
     public DecalFont Font { get; init; } = DecalFont.Sans;
     public float CapHeight { get; init; } = 6.0f;
