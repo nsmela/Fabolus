@@ -1,3 +1,4 @@
+using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 
 namespace Fabolus.Core.Features.Emboss;
@@ -10,7 +11,7 @@ public interface IGlyphOutlineSource
     /// <summary>
     /// Extracts centered 2D polygon contours (outer boundaries and holes) for the specified text.
     /// </summary>
-    IReadOnlyList<Polygon2D> GetOutlines(string text, DecalFont font, float capHeight, float tracking);
+    Result<IReadOnlyList<Polygon2D>> GetOutlines(string text, DecalFont font, float capHeight, float tracking);
 
     /// <summary>
     /// Measures exact bounding width, height, and per-glyph advances in millimetres.

@@ -275,4 +275,84 @@ public class GeometryEvaluators : IGeometryEvaluators {
             return new Error("Geometry.EvaluatorFailed", ex.Message);
         }
     }
+
+    public Result<RaycastHit> Raycast(IMesh mesh, Vector3 rayOrigin, Vector3 rayDirection)
+    {
+        if (mesh is null)
+            return MeshErrors.NullSource;
+
+        float dirLen = rayDirection.Length();
+        if (dirLen < 1e-6f)
+            return new Error("Raycast.InvalidDirection", "Ray direction must be a non-zero vector.");
+
+        var dir = rayDirection / dirLen;
+        var vertices = mesh.Vertices;
+        var triangles = mesh.Triangles;
+
+        if (vertices is null || triangles is null || vertices.Length == 0 || triangles.Length == 0)
+            return MeshErrors.RaycastMiss;
+
+        float minT = float.MaxValue;
+        bool found = false;
+        Vector3 bestNormal = -dir;
+
+        const float eps = 1e-7f;
+        const float tol = 1e-4f;
+
+        for (int i = 0; i < triangles.Length; i += 3)
+        {
+            var v0 = vertices[triangles[i]];
+            var v1 = vertices[triangles[i + 1]];
+            var v2 = vertices[triangles[i + 2]];
+
+            var edge1 = v1 - v0;
+            var edge2 = v2 - v0;
+            var h = Vector3.Cross(dir, edge2);
+            float a = Vector3.Dot(edge1, h);
+
+            if (a > -eps && a < eps)
+                continue;
+
+            float f = 1.0f / a;
+            var s = rayOrigin - v0;
+            float u = f * Vector3.Dot(s, h);
+
+            if (u < -tol || u > 1.0f + tol)
+                continue;
+
+            var q = Vector3.Cross(s, edge1);
+            float v = f * Vector3.Dot(dir, q);
+
+            if (v < -tol || u + v > 1.0f + tol)
+                continue;
+
+            float t = f * Vector3.Dot(edge2, q);
+
+            if (t > eps && t < minT)
+            {
+                minT = t;
+                found = true;
+
+                var triCross = Vector3.Cross(edge1, edge2);
+                if (triCross.LengthSquared() > 1e-8f)
+                {
+                    bestNormal = Vector3.Normalize(triCross);
+                    if (Vector3.Dot(bestNormal, dir) > 0f)
+                    {
+                        bestNormal = -bestNormal;
+                    }
+                }
+                else
+                {
+                    bestNormal = -dir;
+                }
+            }
+        }
+
+        if (!found)
+            return MeshErrors.RaycastMiss;
+
+        var hitPoint = rayOrigin + minT * dir;
+        return Result.Success(new RaycastHit(hitPoint, bestNormal, minT));
+    }
 }

@@ -8,6 +8,8 @@ namespace GeometryMeshLib.Text;
 
 public static class TextMeshBuilder
 {
+    private const float BaselineVerticalTolerance = 1e-4f;
+
     /// <summary>
     /// Builds an extruded 3D solid mesh from 2D polygon outlines in the tangent frame.
     /// </summary>
@@ -21,8 +23,8 @@ public static class TextMeshBuilder
         float maxEdgeLength = 0f,
         IMesh? targetMesh = null)
     {
-        if (outlines == null || outlines.Count == 0)
-            return new Error("TextMeshBuilder.EmptyOutlines", "No outline contours provided to build text mesh.");
+        if (outlines is null || outlines.Count == 0)
+            return DecalErrors.EmptyOutlines;
 
         // 1. Resample polygon boundaries if maxEdgeLength > 0
         var resampledPolys = maxEdgeLength > 0f ? ResamplePolygons(outlines, maxEdgeLength) : outlines;
@@ -53,11 +55,14 @@ public static class TextMeshBuilder
         }
 
         if (contours.size() == 0)
-            return new Error("TextMeshBuilder.EmptyOutlines", "Valid 2D contours required.");
+            return DecalErrors.EmptyOutlines;
 
-        var polyMesh = MR.PlanarTriangulation.triangulateContours(contours, null);
+        // using: the extraction below indexes vertIndexMap by face vertex and will throw on a
+        // face referencing a vertex outside getValidVerts(), which would otherwise leak the
+        // native mesh past the bare Dispose() at the end of the block.
+        using var polyMesh = MR.PlanarTriangulation.triangulateContours(contours, null);
         if (polyMesh is null || polyMesh.topology.getValidFaces().count() == 0)
-            return new Error("TextMeshBuilder.TriangulationFailed", "Planar triangulation failed for text outlines.");
+            return DecalErrors.TriangulationFailed;
 
         float zMin = sink;
         float zMax = depth + overshoot;
@@ -109,8 +114,6 @@ public static class TextMeshBuilder
             }
         }
 
-        polyMesh.Dispose();
-
         // Extrude to 3D
         int ptCount = pts2D.Count;
         var vertices = new List<double>(ptCount * 2 * 3);
@@ -130,8 +133,12 @@ public static class TextMeshBuilder
                 mlTargetMesh = targetMesh.ToMRMesh();
                 targetPart = new MR.MeshPart(mlTargetMesh);
 
-                float minX = 0f, maxX = 0f;
-                for (int i = 0; i < ptCount; i++)
+                // Seeded from the first point, not from 0: seeding at 0 forces the range to
+                // straddle the origin, which silently widens the sampled baseline for any
+                // outline set that does not already centre on it.
+                float minX = ptCount > 0 ? pts2D[0].X : 0f;
+                float maxX = minX;
+                for (int i = 1; i < ptCount; i++)
                 {
                     if (pts2D[i].X < minX) minX = pts2D[i].X;
                     if (pts2D[i].X > maxX) maxX = pts2D[i].X;
@@ -163,7 +170,7 @@ public static class TextMeshBuilder
                 {
                     var baseFrame = SampleBaseline(baseline!, p.X);
 
-                    if (MathF.Abs(p.Y) < 1e-4f)
+                    if (MathF.Abs(p.Y) < BaselineVerticalTolerance)
                     {
                         pSurface = baseFrame.Position;
                         localNorm = baseFrame.N;

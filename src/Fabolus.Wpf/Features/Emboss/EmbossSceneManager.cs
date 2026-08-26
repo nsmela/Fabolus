@@ -5,8 +5,10 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common;
 using Fabolus.Core.Features.Emboss;
 using Fabolus.Core.Geometry;
+using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Helpers;
 using Fabolus.Wpf.Common.Mesh;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
 
@@ -14,8 +16,65 @@ namespace Fabolus.Wpf.Features.Emboss;
 
 public sealed class EmbossSceneManager : ISceneManager
 {
+    private const float PreviewSinkOffset = -0.05f;
+    private const float PreviewOvershootOffset = 0.05f;
+    private const float MinPreviewEdgeLength = 0.4f;
+    private const float PreviewCapHeightDivisor = 8.0f;
+    private const float MinPatchEdgeLength = 0.5f;
+    private const float PatchCapHeightDivisor = 4.0f;
+    private const float PatchDepth = 0.2f;
+    private const float PatchSink = -0.05f;
+    private const float PatchOvershoot = 0.05f;
+    private const float DefaultBoxPaddingMm = 1.0f;
+    private const float DefaultBoxZOffset = 0.5f;
+    private const float DragPreviewZOffset = 0.5f;
+    private const float SpherePresetRadius = 3.0f;
+    private const int SphereTessellation = 16;
+    private const float DuplicateAnchorDistanceThreshold = 1.0f;
+
     private readonly IGeometryEngine _engine;
-    private readonly IMessenger _messenger;
+    private Element3D? _grid;
+
+    public IMesh? TargetMesh { get; private set; }
+    private MeshGeometryModel3D? _targetModel;
+    private Guid _targetMeshId = Guid.Empty;
+
+    // Visual elements
+    private readonly Dictionary<Guid, MeshGeometryModel3D> _decalVisuals = [];
+    private readonly Dictionary<Guid, Guid> _visualToDecalId = [];
+
+    // Preset sphere markers
+    private readonly Dictionary<Guid, MeshGeometryModel3D> _presetSphereVisuals = [];
+    private readonly Dictionary<Guid, DecalPresetPoint> _visualToPreset = [];
+
+    // Hover preset preview visuals
+    private MeshGeometryModel3D? _presetHoverDecalModel;
+    private Guid _presetHoverDecalId = Guid.Empty;
+    private LineGeometryModel3D? _presetHoverBoxModel;
+    private Guid _presetHoverBoxId = Guid.Empty;
+    private Guid _hoveredPresetVisualId = Guid.Empty;
+
+    // Selection gizmo (cyan wireframe bounding box)
+    private LineGeometryModel3D? _gizmoLineModel;
+    private Guid _gizmoLineId = Guid.Empty;
+
+    // Materials
+    private readonly Material _targetSkin;
+    private readonly Material _mouldSkin;
+    private readonly Material _embossSkin;
+    private readonly Material _engraveSkin;
+    private readonly Material _presetSkin;
+    private readonly Material _presetHoverSkin;
+    private readonly Material _presetHoverDecalSkin;
+
+    // Interaction state
+    public bool IsPicking { get; set; }
+    public Guid SelectedDecalId { get; set; } = Guid.Empty;
+
+    private Point _mouseDownPoint;
+    private bool _isDragging;
+    private Guid _pendingClickedDecalId = Guid.Empty;
+    private Guid _dragDecalId = Guid.Empty;
 
     public event Action<Element3D>? VisualAddedOrUpdated;
     public event Action<Guid>? VisualRemovedById;
@@ -30,51 +89,34 @@ public sealed class EmbossSceneManager : ISceneManager
     public event Action<DecalPresetPoint>? PresetPointSelected;
     public event Action<DecalPresetPoint?>? PresetPointHovered;
 
-    private Guid _targetMeshId = Guid.Empty;
-    private MeshGeometryModel3D? _targetModel;
-
-    private readonly Dictionary<Guid, MeshGeometryModel3D> _decalVisuals = [];
-    private readonly Dictionary<Guid, Guid> _visualToDecalId = [];
-
-    private readonly Dictionary<Guid, MeshGeometryModel3D> _presetSphereVisuals = [];
-    private readonly Dictionary<Guid, DecalPresetPoint> _visualToPreset = [];
-    private Guid _hoveredPresetVisualId = Guid.Empty;
-
-    private Guid _presetHoverDecalId = Guid.Empty;
-    private MeshGeometryModel3D? _presetHoverDecalModel;
-    private Guid _presetHoverBoxId = Guid.Empty;
-    private LineGeometryModel3D? _presetHoverBoxModel;
-
-    private Guid _gizmoLineId = Guid.Empty;
-    private LineGeometryModel3D? _gizmoLineModel;
-
-    private readonly HelixToolkit.Wpf.SharpDX.Material _targetSkin;
-    private readonly HelixToolkit.Wpf.SharpDX.Material _translucentMouldSkin;
-    private readonly HelixToolkit.Wpf.SharpDX.Material _embossSkin;
-    private readonly HelixToolkit.Wpf.SharpDX.Material _engraveSkin;
-    private readonly HelixToolkit.Wpf.SharpDX.Material _presetSkin;
-    private readonly HelixToolkit.Wpf.SharpDX.Material _presetHoverSkin;
-    private readonly HelixToolkit.Wpf.SharpDX.Material _presetHoverDecalSkin;
-
-    private Guid _translucentMouldId = Guid.Empty;
-    private MeshGeometryModel3D? _translucentMouldModel;
-
-    public IMesh? TargetMesh { get; private set; }
-    public Guid SelectedDecalId { get; set; } = Guid.Empty;
-    public bool IsPicking { get; set; }
-
-    private bool _isDragging;
-    private Guid _dragDecalId = Guid.Empty;
-    private Guid _pendingClickedDecalId = Guid.Empty;
-    private System.Windows.Point _mouseDownPoint;
-
     public EmbossSceneManager(IGeometryEngine engine, IMessenger messenger)
     {
         _engine = engine;
-        _messenger = messenger;
+
+        var width = (float)messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
+        var depth = (float)messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
+        var show = (bool)messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+        _grid = SceneHelpers.GenerateGrid(width, depth, 10, show);
+
+        messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) =>
+        {
+            if (m.Key == UISettings.PrintBedWidthLabel || m.Key == UISettings.PrintBedDepthLabel || m.Key == UISettings.ShowBedGridLabel)
+            {
+                var w = (float)messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
+                var d = (float)messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
+                var s = (bool)messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+
+                if (_grid is not null)
+                {
+                    VisualRemovedById?.Invoke(_grid.GUID);
+                }
+                _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
+                VisualAddedOrUpdated?.Invoke(_grid);
+            }
+        });
 
         _targetSkin = Skins.Surface.Gray;
-        _translucentMouldSkin = Skins.Surface.TranslucentGray;
+        _mouldSkin = Skins.Surface.TranslucentGray;
         _embossSkin = Skins.Primitive.Emerald;
         _engraveSkin = Skins.Primitive.Ruby;
         _presetSkin = Skins.Primitive.TranslucentCyan;
@@ -82,105 +124,41 @@ public sealed class EmbossSceneManager : ISceneManager
         _presetHoverDecalSkin = Skins.Primitive.TranslucentAmber;
     }
 
-    public Result UpdateMesh(IMesh mesh)
+    public Result UpdateMesh(IMesh mesh, bool isMould = false)
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            return Application.Current.Dispatcher.Invoke(() => UpdateMesh(mesh));
-        }
+        if (mesh is null)
+            return MeshErrors.NullSource;
+
+        if (_targetMeshId != Guid.Empty)
+            VisualRemovedById?.Invoke(_targetMeshId);
 
         TargetMesh = mesh;
         var helixMeshResult = mesh.ToHelixMesh(_engine);
         if (helixMeshResult.IsFailure)
             return helixMeshResult;
 
-        if (_targetModel == null || (Application.Current == null && !_targetModel.CheckAccess()))
+        var model = new MeshGeometryModel3D
         {
-            _targetModel = new MeshGeometryModel3D
-            {
-                Geometry = helixMeshResult.Value,
-                Material = _targetSkin,
-                CullMode = SharpDX.Direct3D11.CullMode.Back
-            };
-            SceneVisual.SetIsModelGeometry(_targetModel, true);
-            _targetMeshId = _targetModel.GUID;
-            VisualAddedOrUpdated?.Invoke(_targetModel);
-        }
-        else
-        {
-            _targetModel.Geometry = helixMeshResult.Value;
-            _targetModel.Visibility = Visibility.Visible;
-            VisualAddedOrUpdated?.Invoke(_targetModel);
-        }
-
-        return Result.Success();
-    }
-
-    public Result UpdateAppliedMouldOverlay(IMesh? mouldMesh)
-    {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            return Application.Current.Dispatcher.Invoke(() => UpdateAppliedMouldOverlay(mouldMesh));
-        }
-
-        if (mouldMesh == null)
-        {
-            if (_translucentMouldModel != null)
-            {
-                VisualRemovedById?.Invoke(_translucentMouldModel.GUID);
-                _translucentMouldModel = null;
-                _translucentMouldId = Guid.Empty;
-            }
-            return Result.Success();
-        }
-
-        var helixResult = mouldMesh.ToHelixMesh(_engine);
-        if (helixResult.IsFailure)
-            return helixResult;
-
-        if (_translucentMouldModel == null || (Application.Current == null && !_translucentMouldModel.CheckAccess()))
-        {
-            _translucentMouldModel = new MeshGeometryModel3D
-            {
-                Geometry = helixResult.Value,
-                Material = _translucentMouldSkin,
-                IsTransparent = true,
-                CullMode = SharpDX.Direct3D11.CullMode.None,
-                IsHitTestVisible = false
-            };
-            SceneVisual.SetIsModelGeometry(_translucentMouldModel, true);
-            _translucentMouldId = _translucentMouldModel.GUID;
-            VisualAddedOrUpdated?.Invoke(_translucentMouldModel);
-        }
-        else
-        {
-            _translucentMouldModel.Geometry = helixResult.Value;
-            _translucentMouldModel.Visibility = Visibility.Visible;
-            VisualAddedOrUpdated?.Invoke(_translucentMouldModel);
-        }
+            Geometry = helixMeshResult.Value,
+            Material = isMould ? _mouldSkin : _targetSkin,
+            IsTransparent = isMould,
+            CullMode = isMould ? SharpDX.Direct3D11.CullMode.None : SharpDX.Direct3D11.CullMode.Back
+        };
+        SceneVisual.SetIsModelGeometry(model, true);
+        _targetMeshId = model.GUID;
+        _targetModel = model;
+        VisualAddedOrUpdated?.Invoke(model);
 
         return Result.Success();
     }
 
     public void ReleaseMesh()
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.Invoke(ReleaseMesh);
-            return;
-        }
-
         ClearPreviewVisuals();
         if (_targetMeshId != Guid.Empty)
         {
             VisualRemovedById?.Invoke(_targetMeshId);
             _targetMeshId = Guid.Empty;
-        }
-        if (_translucentMouldModel != null)
-        {
-            VisualRemovedById?.Invoke(_translucentMouldModel.GUID);
-            _translucentMouldModel = null;
-            _translucentMouldId = Guid.Empty;
         }
         TargetMesh = null;
         _targetModel = null;
@@ -188,22 +166,15 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void UpdateDecals(IReadOnlyList<TextDecal> decals, Guid selectedId, IGlyphOutlineSource outlineSource, EmbossTarget? currentTarget = null)
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.Invoke(() => UpdateDecals(decals, selectedId, outlineSource, currentTarget));
-            return;
-        }
-
         SelectedDecalId = selectedId;
 
-        if (TargetMesh == null)
+        if (TargetMesh is null)
         {
             ClearPreviewVisuals();
             return;
         }
 
         var activeIds = new HashSet<Guid>();
-
         TextDecal? selectedDecal = null;
 
         foreach (var decal in decals)
@@ -227,19 +198,19 @@ public sealed class EmbossSceneManager : ISceneManager
             }
 
             var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
-            var outlines = outlineSource.GetOutlines(decal.Text, decal.Font, decal.CapHeight, decal.Tracking);
-            if (outlines.Count == 0)
+            var outlineResult = outlineSource.GetOutlines(decal.Text, decal.Font, decal.CapHeight, decal.Tracking);
+            if (outlineResult.IsFailure || outlineResult.Value.Count == 0)
             {
                 RemoveDecalVisual(decal.Id);
                 continue;
             }
 
-            float sink = -0.05f;
-            float overshoot = 0.05f;
-            float maxEdge = Math.Max(0.4f, decal.CapHeight / 8.0f);
+            float sink = PreviewSinkOffset;
+            float overshoot = PreviewOvershootOffset;
+            float maxEdge = Math.Max(MinPreviewEdgeLength, decal.CapHeight / PreviewCapHeightDivisor);
             IMesh? surfaceTarget = TargetMesh;
 
-            var prismResult = _engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
+            var prismResult = _engine.Generators.BuildTextPrism(outlineResult.Value, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
             if (prismResult.IsFailure) continue;
 
             var helixPrismResult = prismResult.Value.ToHelixMesh(_engine);
@@ -280,17 +251,17 @@ public sealed class EmbossSceneManager : ISceneManager
         }
 
         // Update cyan bounding box around the selected decal
-        if (selectedDecal != null)
+        if (selectedDecal is not null)
         {
             var selFrame = DecalFrame.FromHit(selectedDecal.Anchor, selectedDecal.AnchorNormal, selectedDecal.RotationDeg);
             var metrics = outlineSource.MeasureText(selectedDecal.Text, selectedDecal.Font, selectedDecal.CapHeight, selectedDecal.Tracking);
-            float halfW = metrics.WidthMm * 0.5f + 1.0f;
-            float halfH = metrics.HeightMm * 0.5f + 1.0f;
-            float zOff = selectedDecal.Depth + 0.5f;
+            float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
+            float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
+            float zOff = selectedDecal.Depth + DefaultBoxZOffset;
 
             var lineGeometry = GenerateContouredBoundingBox(selFrame, halfW, halfH, zOff);
 
-            if (_gizmoLineModel == null)
+            if (_gizmoLineModel is null)
             {
                 _gizmoLineModel = new LineGeometryModel3D
                 {
@@ -322,50 +293,44 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void UpdateDragPreview(TextDecal decal, TextMetrics metrics)
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.Invoke(() => UpdateDragPreview(decal, metrics));
-            return;
-        }
-
-        if (TargetMesh == null) return;
+        if (TargetMesh is null) return;
 
         var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
-        float halfW = metrics.WidthMm * 0.5f + 1.0f;
-        float halfH = metrics.HeightMm * 0.5f + 1.0f;
-        float zOff = 0.5f;
+        float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
+        float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
+        float zOff = DragPreviewZOffset;
 
         var rectPolygon = new Polygon2D
         {
-            OuterBoundary = new[]
-            {
+            OuterBoundary =
+            [
                 new Vector2(-halfW, -halfH),
                 new Vector2(halfW, -halfH),
                 new Vector2(halfW, halfH),
                 new Vector2(-halfW, halfH)
-            }
+            ]
         };
 
-        float maxEdge = Math.Max(0.5f, decal.CapHeight / 4.0f);
+        float maxEdge = Math.Max(MinPatchEdgeLength, decal.CapHeight / PatchCapHeightDivisor);
         IMesh? surfaceTarget = TargetMesh;
 
-        var patchResult = _engine.Generators.BuildTextPrism(new[] { rectPolygon }, frame, 0.2f, -0.05f, 0.05f, maxEdge, surfaceTarget);
+        var patchResult = _engine.Generators.BuildTextPrism(new[] { rectPolygon }, frame, PatchDepth, PatchSink, PatchOvershoot, maxEdge, surfaceTarget);
         if (patchResult.IsSuccess)
         {
             var helixPatch = patchResult.Value.ToHelixMesh(_engine);
             if (helixPatch.IsSuccess)
             {
-                if (_decalVisuals.TryGetValue(decal.Id, out var model))
+                if (_decalVisuals.TryGetValue(decal.Id, out var existingModel))
                 {
-                    model.Geometry = helixPatch.Value;
-                    model.Visibility = Visibility.Visible;
-                    VisualAddedOrUpdated?.Invoke(model);
+                    existingModel.Geometry = helixPatch.Value;
+                    existingModel.Visibility = Visibility.Visible;
+                    VisualAddedOrUpdated?.Invoke(existingModel);
                 }
             }
         }
 
         var lineGeometry = GenerateContouredBoundingBox(frame, halfW, halfH, zOff);
-        if (_gizmoLineModel == null)
+        if (_gizmoLineModel is null)
         {
             _gizmoLineModel = new LineGeometryModel3D
             {
@@ -417,21 +382,15 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void UpdatePresetPoints(IReadOnlyList<DecalPresetPoint> presetPoints, bool isVisible)
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.Invoke(() => UpdatePresetPoints(presetPoints, isVisible));
-            return;
-        }
-
         ClearPresetVisuals();
 
-        if (!isVisible || presetPoints == null || presetPoints.Count == 0)
+        if (!isVisible || presetPoints is null || presetPoints.Count == 0)
             return;
 
         foreach (var preset in presetPoints)
         {
             var mb = new HelixToolkit.Wpf.SharpDX.MeshBuilder();
-            mb.AddSphere(new SharpDX.Vector3(preset.Position.X, preset.Position.Y, preset.Position.Z), 3.0f, 16, 16);
+            mb.AddSphere(new SharpDX.Vector3(preset.Position.X, preset.Position.Y, preset.Position.Z), SpherePresetRadius, SphereTessellation, SphereTessellation);
             var sphereGeom = mb.ToMeshGeometry3D();
             var sphereModel = new MeshGeometryModel3D
             {
@@ -447,16 +406,10 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void UpdatePresetHoverPreview(DecalPresetPoint preset, TextDecal decal, IGlyphOutlineSource outlineSource)
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.Invoke(() => UpdatePresetHoverPreview(preset, decal, outlineSource));
-            return;
-        }
-
-        if (TargetMesh == null) return;
+        if (TargetMesh is null) return;
 
         // If the active decal is already at this exact preset position, don't double render
-        if (Vector3.Distance(decal.Anchor, preset.Position) < 1.0f && Math.Abs(decal.RotationDeg - (int)preset.RotationDeg) < 1)
+        if (Vector3.Distance(decal.Anchor, preset.Position) < DuplicateAnchorDistanceThreshold && Math.Abs(decal.RotationDeg - (int)preset.RotationDeg) < 1)
         {
             ClearPresetHoverPreview();
             return;
@@ -467,21 +420,21 @@ public sealed class EmbossSceneManager : ISceneManager
             ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, decal.Text.Length)
             : decal.CapHeight;
 
-        var text = string.IsNullOrWhiteSpace(decal.Text) ? "FABOLUS" : decal.Text;
-        var outlines = outlineSource.GetOutlines(text, decal.Font, capHeight, decal.Tracking);
-        if (outlines.Count == 0)
+        var text = string.IsNullOrWhiteSpace(decal.Text) ? TextDecal.DefaultText : decal.Text;
+        var outlineResult = outlineSource.GetOutlines(text, decal.Font, capHeight, decal.Tracking);
+        if (outlineResult.IsFailure || outlineResult.Value.Count == 0)
         {
             ClearPresetHoverPreview();
             return;
         }
 
         var frame = DecalFrame.FromHit(preset.Position, preset.Normal, preset.RotationDeg);
-        float sink = -0.05f;
-        float overshoot = 0.05f;
-        float maxEdge = Math.Max(0.4f, capHeight / 8.0f);
+        float sink = PreviewSinkOffset;
+        float overshoot = PreviewOvershootOffset;
+        float maxEdge = Math.Max(MinPreviewEdgeLength, capHeight / PreviewCapHeightDivisor);
         IMesh? surfaceTarget = TargetMesh;
 
-        var prismResult = _engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
+        var prismResult = _engine.Generators.BuildTextPrism(outlineResult.Value, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
         if (prismResult.IsFailure)
         {
             ClearPresetHoverPreview();
@@ -495,7 +448,7 @@ public sealed class EmbossSceneManager : ISceneManager
             return;
         }
 
-        if (_presetHoverDecalModel == null)
+        if (_presetHoverDecalModel is null)
         {
             _presetHoverDecalModel = new MeshGeometryModel3D
             {
@@ -520,12 +473,12 @@ public sealed class EmbossSceneManager : ISceneManager
 
         // Also add amber bounding box around the preset preview
         var metrics = outlineSource.MeasureText(text, decal.Font, capHeight, decal.Tracking);
-        float halfW = metrics.WidthMm * 0.5f + 1.0f;
-        float halfH = metrics.HeightMm * 0.5f + 1.0f;
-        float zOff = decal.Depth + 0.5f;
+        float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
+        float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
+        float zOff = decal.Depth + DefaultBoxZOffset;
         var boxGeometry = GenerateContouredBoundingBox(frame, halfW, halfH, zOff);
 
-        if (_presetHoverBoxModel == null)
+        if (_presetHoverBoxModel is null)
         {
             _presetHoverBoxModel = new LineGeometryModel3D
             {
@@ -547,20 +500,13 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void ClearPresetHoverPreview()
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.Invoke(ClearPresetHoverPreview);
-            return;
-        }
-
-        if (_presetHoverDecalId != Guid.Empty && _presetHoverDecalModel != null)
+        if (_presetHoverDecalId != Guid.Empty)
         {
             VisualRemovedById?.Invoke(_presetHoverDecalId);
             _presetHoverDecalId = Guid.Empty;
             _presetHoverDecalModel = null;
         }
-
-        if (_presetHoverBoxId != Guid.Empty && _presetHoverBoxModel != null)
+        if (_presetHoverBoxId != Guid.Empty)
         {
             VisualRemovedById?.Invoke(_presetHoverBoxId);
             _presetHoverBoxId = Guid.Empty;
@@ -570,41 +516,25 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void ClearPresetVisuals()
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.Invoke(ClearPresetVisuals);
-            return;
-        }
-
         ClearPresetHoverPreview();
-
-        foreach (var (guid, model) in _presetSphereVisuals.ToList())
+        foreach (var guid in _presetSphereVisuals.Keys)
         {
             VisualRemovedById?.Invoke(guid);
         }
         _presetSphereVisuals.Clear();
         _visualToPreset.Clear();
-        _hoveredPresetVisualId = Guid.Empty;
     }
 
     public void ClearPreviewVisuals()
     {
-        if (Application.Current != null && !Application.Current.Dispatcher.CheckAccess())
-        {
-            Application.Current.Dispatcher.Invoke(ClearPreviewVisuals);
-            return;
-        }
+        ClearPresetVisuals();
 
-        ClearPresetHoverPreview();
-
-        foreach (var (decalId, model) in _decalVisuals.ToList())
+        foreach (var guid in _decalVisuals.Values.Select(v => v.GUID))
         {
-            VisualRemovedById?.Invoke(model.GUID);
+            VisualRemovedById?.Invoke(guid);
         }
         _decalVisuals.Clear();
         _visualToDecalId.Clear();
-
-        ClearPresetVisuals();
 
         if (_gizmoLineId != Guid.Empty)
         {
@@ -614,15 +544,9 @@ public sealed class EmbossSceneManager : ISceneManager
         }
     }
 
-    public void OnActivated()
-    {
-        VisualsCleared?.Invoke();
-    }
+    public void OnActivated() => VisualsCleared?.Invoke();
 
-    public void OnDeactivated()
-    {
-        ClearPreviewVisuals();
-    }
+    public void OnDeactivated() => ClearPreviewVisuals();
 
     public bool OnKeyDown(Key key)
     {
@@ -643,7 +567,7 @@ public sealed class EmbossSceneManager : ISceneManager
             return false;
 
         var hit = eventArgs.HitTestResult;
-        if (hit == null || hit.ModelHit == null)
+        if (hit is null || hit.ModelHit is null)
         {
             if (SelectedDecalId != Guid.Empty)
             {
@@ -694,11 +618,9 @@ public sealed class EmbossSceneManager : ISceneManager
     public bool OnMouseMove(HitTestResult? hit, IList<HitTestResult>? allHits)
     {
         // Handle preset sphere hover highlight
-        Guid hitPresetGuid = Guid.Empty;
-        if (hit?.ModelHit is MeshGeometryModel3D sphereModel && _presetSphereVisuals.ContainsKey(sphereModel.GUID))
-        {
-            hitPresetGuid = sphereModel.GUID;
-        }
+        Guid hitPresetGuid = hit?.ModelHit is MeshGeometryModel3D sphereModel && _presetSphereVisuals.ContainsKey(sphereModel.GUID)
+            ? sphereModel.GUID
+            : Guid.Empty;
 
         if (hitPresetGuid != _hoveredPresetVisualId)
         {
@@ -722,59 +644,22 @@ public sealed class EmbossSceneManager : ISceneManager
             }
         }
 
-        if (Mouse.LeftButton == MouseButtonState.Pressed && _dragDecalId != Guid.Empty)
-        {
-            var targetHit = allHits?.FirstOrDefault(h => h.ModelHit is MeshGeometryModel3D m && m.GUID == _targetMeshId)
-                ?? (hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId ? hit : null);
+        if (Mouse.LeftButton != MouseButtonState.Pressed || _dragDecalId == Guid.Empty)
+            return false;
 
-            if (targetHit != null)
-            {
-                if (!_isDragging)
-                {
-                    _isDragging = true;
-                    if (_pendingClickedDecalId != Guid.Empty && SelectedDecalId != _pendingClickedDecalId)
-                    {
-                        SelectedDecalId = _pendingClickedDecalId;
-                        DecalSelected?.Invoke(_pendingClickedDecalId);
-                    }
-                }
+        var targetHit = allHits?.FirstOrDefault(h => h.ModelHit is MeshGeometryModel3D m && m.GUID == _targetMeshId)
+            ?? (hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId ? hit : null);
 
-                var pt = new Vector3(targetHit.PointHit.X, targetHit.PointHit.Y, targetHit.PointHit.Z);
-                var norm = new Vector3(targetHit.NormalAtHit.X, targetHit.NormalAtHit.Y, targetHit.NormalAtHit.Z);
-                DecalMoved?.Invoke(_dragDecalId, pt, norm);
-                return true;
-            }
-            return true;
-        }
+        if (targetHit is null)
+            return false;
 
-        if (_isDragging && Mouse.LeftButton == MouseButtonState.Released)
-        {
-            var finishedDecalId = _dragDecalId;
-            _isDragging = false;
-            _dragDecalId = Guid.Empty;
-            _pendingClickedDecalId = Guid.Empty;
-            if (finishedDecalId != Guid.Empty)
-            {
-                DecalDragCompleted?.Invoke(finishedDecalId);
-            }
-            return true;
-        }
+        _isDragging = true;
+        var p = new Vector3((float)targetHit.PointHit.X, (float)targetHit.PointHit.Y, (float)targetHit.PointHit.Z);
+        var n = Vector3.Normalize(new Vector3((float)targetHit.NormalAtHit.X, (float)targetHit.NormalAtHit.Y, (float)targetHit.NormalAtHit.Z));
+        if (n.LengthSquared() < 1e-4f) n = Vector3.UnitZ;
 
-        if (IsPicking)
-        {
-            var targetHit = allHits?.FirstOrDefault(h => h.ModelHit is MeshGeometryModel3D m && m.GUID == _targetMeshId)
-                ?? (hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId ? hit : null);
-
-            if (targetHit != null)
-            {
-                var pt = new Vector3(targetHit.PointHit.X, targetHit.PointHit.Y, targetHit.PointHit.Z);
-                var norm = new Vector3(targetHit.NormalAtHit.X, targetHit.NormalAtHit.Y, targetHit.NormalAtHit.Z);
-                DecalHovered?.Invoke(pt, norm);
-                return true;
-            }
-        }
-
-        return false;
+        DecalMoved?.Invoke(_dragDecalId, p, n);
+        return true;
     }
 
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs)
@@ -784,20 +669,11 @@ public sealed class EmbossSceneManager : ISceneManager
 
         if (_isDragging && _dragDecalId != Guid.Empty)
         {
-            var finishedDecalId = _dragDecalId;
+            var finishedId = _dragDecalId;
             _isDragging = false;
             _dragDecalId = Guid.Empty;
             _pendingClickedDecalId = Guid.Empty;
-            DecalDragCompleted?.Invoke(finishedDecalId);
-            return true;
-        }
-
-        if (!_isDragging && _pendingClickedDecalId != Guid.Empty)
-        {
-            SelectedDecalId = _pendingClickedDecalId;
-            DecalSelected?.Invoke(_pendingClickedDecalId);
-            _pendingClickedDecalId = Guid.Empty;
-            _dragDecalId = Guid.Empty;
+            DecalDragCompleted?.Invoke(finishedId);
             return true;
         }
 

@@ -15,8 +15,6 @@
         <conv:EnumToBooleanConverter x:Key="EnumMatch" />
         <conv:StringToBrushConverter x:Key="StringToBrush" />
 
-        <Geometry x:Key="Icon.Trash">M3 4.5 L13 4.5 M6.5 4.5 L6.5 3.2 L9.5 3.2 L9.5 4.5 M4.5 4.5 L5 12.8 a1 1 0 0 0 1 0.9 L10 13.7 a1 1 0 0 0 1 -0.9 L11.5 4.5</Geometry>
-
         <!-- Field label caption -->
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
@@ -120,10 +118,8 @@
 
         <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
             <StackPanel Orientation="Vertical">
-
-                <!-- ============================================================ -->
+                
                 <!--  SURFACE DECALS EXPANDER                                     -->
-                <!-- ============================================================ -->
                 <Expander Style="{StaticResource SectionExpander}"
                           IsExpanded="{Binding IsDecalsExpanded, Mode=TwoWay}">
                     <Expander.Header>
@@ -286,8 +282,6 @@
                                                            FontFamily="{DynamicResource Font.Sans}" FontSize="12"
                                                            Foreground="{DynamicResource Brush.Text.Primary}"
                                                            TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{Binding Summary}" FontSize="10"
-                                                           Foreground="{DynamicResource Brush.Text.Muted}" />
                                             </StackPanel>
 
                                             <!-- Operation and Target Badges -->

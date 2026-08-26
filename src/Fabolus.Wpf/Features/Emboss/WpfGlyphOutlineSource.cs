@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Windows;
 using System.Windows.Media;
+using Fabolus.Core.Common;
 using Fabolus.Core.Features.Emboss;
 using Fabolus.Core.Geometry;
 
@@ -9,23 +10,100 @@ namespace Fabolus.Wpf.Features.Emboss;
 
 public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
 {
+    /// <summary>
+    /// Flattening tolerance floor, in millimetres.
+    /// </summary>
+    private const double MinFlattenTolerance = 0.005;
+
+    /// <summary>
+    /// Flattening tolerance as a fraction of cap height. A *relative* tolerance would be a
+    /// fraction of the geometry's own extent and so would coarsen as the label gets longer: at
+    /// 0.01 across a 50mm run the chord error lands near 0.5mm, which leaves a 2mm bowl on an 'O'
+    /// as roughly four segments - visibly a polygon. These outlines are in millimetres, so the
+    /// tolerance belongs in millimetres too. Scaling it off the cap height keeps the segment count
+    /// per glyph constant instead of letting it drift with text length, and 0.0025 puts a 6mm cap
+    /// at ~25 segments around an 'O'.
+    /// </summary>
+    private const double CapHeightToleranceFactor = 0.0025;
+    private const float PointClosureDistanceSquared = 1e-6f;
+    private const double DefaultCapsHeightRatio = 0.7;
+    private const double MinValidCapsHeight = 0.1;
+
+    /// <summary>
+    /// Cache of built outlines. Every preview tick, every decal and every preset hover asks for
+    /// outlines, and each miss costs a FormattedText plus BuildGeometry plus a flatten pass per
+    /// character. The inputs are a small closed set in practice (a handful of labels at a handful
+    /// of sizes), so caching them turns the hot path into a dictionary lookup.
+    /// </summary>
+    private static readonly Dictionary<GlyphRunKey, IReadOnlyList<Polygon2D>> OutlineCache = [];
+    private static readonly Dictionary<GlyphRunKey, TextMetrics> MetricsCache = [];
+    private static readonly object CacheLock = new();
+
+    private readonly record struct GlyphRunKey(string Text, DecalFont Font, float CapHeight, float Tracking);
+
     private static readonly FontFamily SansFontFamily = new("IBM Plex Sans, Segoe UI, Arial, sans-serif");
     private static readonly FontFamily MonoFontFamily = new("IBM Plex Mono, Consolas, Courier New, monospace");
+    private static readonly FontFamily BoldFontFamily = new("Segoe UI Black, Impact, Arial Black, sans-serif");
 
-    public IReadOnlyList<Polygon2D> GetOutlines(string text, DecalFont font, float capHeight, float tracking)
+    public Result<IReadOnlyList<Polygon2D>> GetOutlines(string text, DecalFont font, float capHeight, float tracking)
+    {
+        var key = new GlyphRunKey(text ?? string.Empty, font, capHeight, tracking);
+        lock (CacheLock)
+        {
+            if (OutlineCache.TryGetValue(key, out var cached))
+                return Result.Success(cached);
+        }
+
+        var result = BuildOutlines(text!, font, capHeight, tracking);
+        if (result.IsSuccess)
+        {
+            lock (CacheLock)
+            {
+                OutlineCache[key] = result.Value;
+            }
+        }
+
+        return result;
+    }
+
+    public TextMetrics MeasureText(string text, DecalFont font, float capHeight, float tracking)
+    {
+        var key = new GlyphRunKey(text ?? string.Empty, font, capHeight, tracking);
+        lock (CacheLock)
+        {
+            if (MetricsCache.TryGetValue(key, out var cached))
+                return cached;
+        }
+
+        var metrics = ComputeMetrics(text!, font, capHeight, tracking);
+        lock (CacheLock)
+        {
+            MetricsCache[key] = metrics;
+        }
+
+        return metrics;
+    }
+
+    private static (FontFamily Family, FontWeight Weight) ResolveTypeface(DecalFont font) => font switch
+    {
+        DecalFont.Mono => (MonoFontFamily, FontWeights.SemiBold),
+        DecalFont.Bold => (BoldFontFamily, FontWeights.Black),
+        _ => (SansFontFamily, FontWeights.SemiBold)
+    };
+
+    private static Result<IReadOnlyList<Polygon2D>> BuildOutlines(string text, DecalFont font, float capHeight, float tracking)
     {
         if (string.IsNullOrWhiteSpace(text))
-            return Array.Empty<Polygon2D>();
+            return Result.Success<IReadOnlyList<Polygon2D>>(Array.Empty<Polygon2D>());
 
-        var fontFamily = font == DecalFont.Mono ? MonoFontFamily : SansFontFamily;
-        var typeface = new Typeface(fontFamily, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var (fontFamily, fontWeight) = ResolveTypeface(font);
+        var typeface = new Typeface(fontFamily, FontStyles.Normal, fontWeight, FontStretches.Normal);
 
-        double capsHeightRatio = typeface.CapsHeight > 0.1 ? typeface.CapsHeight : 0.7;
+        double capsHeightRatio = typeface.CapsHeight > MinValidCapsHeight ? typeface.CapsHeight : DefaultCapsHeightRatio;
         double emSize = capHeight / capsHeightRatio;
 
         var combinedGeometry = new GeometryGroup { FillRule = FillRule.EvenOdd };
         double currentX = 0.0;
-        var advances = new List<float>(text.Length);
 
         for (int i = 0; i < text.Length; i++)
         {
@@ -40,7 +118,7 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
                 1.0);
 
             var charGeo = ft.BuildGeometry(new Point(0, 0));
-            if (charGeo != null && !charGeo.IsEmpty())
+            if (charGeo is not null && !charGeo.IsEmpty())
             {
                 var transform = new TranslateTransform(currentX, 0);
                 var transformedGeo = charGeo.Clone();
@@ -48,21 +126,18 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
                 combinedGeometry.Children.Add(transformedGeo);
             }
 
-            double adv = ft.WidthIncludingTrailingWhitespace + tracking;
-            advances.Add((float)adv);
+            // Tracking sits between glyphs, not after the last one, matching MeasureText.
+            double adv = ft.WidthIncludingTrailingWhitespace;
+            if (i < text.Length - 1)
+                adv += tracking;
+
             currentX += adv;
         }
 
-        // Relative tolerance is a fraction of the geometry's own extent, so it coarsens as the
-        // label gets longer: at 0.01 across a 50mm run the chord error lands near 0.5mm, which
-        // leaves a 2mm bowl on an 'O' as roughly four segments - visibly a polygon. These
-        // outlines are in millimetres, so tolerance belongs in millimetres too. Scaling it off
-        // the cap height keeps the segment count per glyph constant instead of letting it drift
-        // with the text length, and 0.0025 puts a 6mm cap at ~25 segments around an 'O'.
-        double flattenTolerance = Math.Max(0.005, capHeight * 0.0025);
+        double flattenTolerance = Math.Max(MinFlattenTolerance, capHeight * CapHeightToleranceFactor);
         var flattened = combinedGeometry.GetFlattenedPathGeometry(flattenTolerance, ToleranceType.Absolute);
-        if (flattened == null || flattened.Figures.Count == 0)
-            return Array.Empty<Polygon2D>();
+        if (flattened is null || flattened.Figures.Count == 0)
+            return Result.Success<IReadOnlyList<Polygon2D>>(Array.Empty<Polygon2D>());
 
         var bounds = flattened.Bounds;
         double centerX = (bounds.Left + bounds.Right) / 2.0;
@@ -72,8 +147,10 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
         var rawLoops = new List<List<Vector2>>();
         foreach (PathFigure figure in flattened.Figures)
         {
-            var points = new List<Vector2>();
-            points.Add(new Vector2((float)(figure.StartPoint.X - centerX), -(float)(figure.StartPoint.Y - centerY)));
+            var points = new List<Vector2>
+            {
+                new Vector2((float)(figure.StartPoint.X - centerX), -(float)(figure.StartPoint.Y - centerY))
+            };
 
             foreach (PathSegment segment in figure.Segments)
             {
@@ -88,7 +165,7 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
                 }
             }
 
-            if (points.Count > 1 && Vector2.DistanceSquared(points[0], points[^1]) < 1e-6f)
+            if (points.Count > 1 && Vector2.DistanceSquared(points[0], points[^1]) < PointClosureDistanceSquared)
                 points.RemoveAt(points.Count - 1);
 
             if (points.Count >= 3)
@@ -96,20 +173,20 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
         }
 
         if (rawLoops.Count == 0)
-            return Array.Empty<Polygon2D>();
+            return Result.Success<IReadOnlyList<Polygon2D>>(Array.Empty<Polygon2D>());
 
-        return OrganizeIntoPolygons(rawLoops);
+        return Result.Success(OrganizeIntoPolygons(rawLoops));
     }
 
-    public TextMetrics MeasureText(string text, DecalFont font, float capHeight, float tracking)
+    private static TextMetrics ComputeMetrics(string text, DecalFont font, float capHeight, float tracking)
     {
         if (string.IsNullOrEmpty(text))
             return TextMetrics.Empty;
 
-        var fontFamily = font == DecalFont.Mono ? MonoFontFamily : SansFontFamily;
-        var typeface = new Typeface(fontFamily, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        var (fontFamily, fontWeight) = ResolveTypeface(font);
+        var typeface = new Typeface(fontFamily, FontStyles.Normal, fontWeight, FontStretches.Normal);
 
-        double capsHeightRatio = typeface.CapsHeight > 0.1 ? typeface.CapsHeight : 0.7;
+        double capsHeightRatio = typeface.CapsHeight > MinValidCapsHeight ? typeface.CapsHeight : DefaultCapsHeightRatio;
         double emSize = capHeight / capsHeightRatio;
 
         double totalWidth = 0.0;
@@ -140,7 +217,6 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
 
     private static IReadOnlyList<Polygon2D> OrganizeIntoPolygons(List<List<Vector2>> loops)
     {
-        // Compute nesting levels by testing point containment
         int n = loops.Count;
         var parent = new int[n];
         for (int i = 0; i < n; i++) parent[i] = -1;
@@ -172,7 +248,6 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
 
         for (int i = 0; i < n; i++)
         {
-            // Even nesting depth = Outer boundary
             int depth = 0;
             int curr = parent[i];
             while (curr != -1)
@@ -185,9 +260,8 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
             {
                 var outer = loops[i];
                 if (ComputeSignedArea(outer) < 0)
-                    outer.Reverse(); // Ensure CCW outer
+                    outer.Reverse();
 
-                // Find holes (immediate children with odd depth)
                 var holes = new List<IReadOnlyList<Vector2>>();
                 for (int j = 0; j < n; j++)
                 {
@@ -195,7 +269,7 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
                     {
                         var hole = loops[j];
                         if (ComputeSignedArea(hole) > 0)
-                            hole.Reverse(); // Ensure CW hole
+                            hole.Reverse();
                         holes.Add(hole);
                     }
                 }

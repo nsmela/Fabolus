@@ -50,11 +50,12 @@ public class GlyphMeshTests
             foreach (char c in characters)
             {
                 string text = c.ToString();
-                foreach (var font in new[] { DecalFont.Sans, DecalFont.Mono })
+                foreach (var font in new[] { DecalFont.Sans, DecalFont.Mono, DecalFont.Bold })
                 {
-                    var outlines = outlineSource.GetOutlines(text, font, capHeight: 6.0f, tracking: 0.4f);
-                    if (outlines.Count == 0) continue;
+                    var outlineResult = outlineSource.GetOutlines(text, font, capHeight: 6.0f, tracking: 0.4f);
+                    if (outlineResult.IsFailure || outlineResult.Value.Count == 0) continue;
 
+                    var outlines = outlineResult.Value;
                     var frame = DecalFrame.FromHit(Vector3.Zero, Vector3.UnitZ, 0f);
                     var prismResult = engine.Generators.BuildTextPrism(
                         outlines,
@@ -92,12 +93,13 @@ public class GlyphMeshTests
             var engine = new GeometryEngine(new Mock<IFileSystem>().Object);
             var outlineSource = new WpfGlyphOutlineSource();
 
-            var outlines = outlineSource.GetOutlines("FABOLUS", DecalFont.Sans, capHeight: 6.0f, tracking: 0.4f);
-            Assert.NotEmpty(outlines);
+            var outlineResult = outlineSource.GetOutlines("FABOLUS", DecalFont.Sans, capHeight: 6.0f, tracking: 0.4f);
+            Assert.True(outlineResult.IsSuccess);
+            Assert.NotEmpty(outlineResult.Value);
 
             var frame = DecalFrame.FromHit(Vector3.Zero, Vector3.UnitZ, 0f);
             var prismResult = engine.Generators.BuildTextPrism(
-                outlines,
+                outlineResult.Value,
                 frame,
                 depth: 0.8f,
                 sink: -0.05f,

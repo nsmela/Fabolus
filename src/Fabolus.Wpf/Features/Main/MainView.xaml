@@ -213,6 +213,28 @@
                         </Button.Style>
                     </Button>
 
+                <Button Command="{Binding SwitchToMouldViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <Path Data="{StaticResource Icon.Mould}"
+                                      Stroke="{DynamicResource Brush.Border.Strong}" StrokeThickness="1.2" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="mould" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="mould">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
                 <Button Command="{Binding SwitchToEmbossViewCommand}" IsEnabled="{Binding MeshLoaded}">
                     <Button.Content>
                         <StackPanel Orientation="Horizontal">
@@ -229,28 +251,6 @@
                         <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding CurrentViewTitle}" Value="decals">
-                                    <Setter Property="Tag" Value="active"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-
-                <Button Command="{Binding SwitchToMouldViewCommand}" IsEnabled="{Binding MeshLoaded}">
-                    <Button.Content>
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
-                                <Path Data="{StaticResource Icon.Mould}"
-                                      Stroke="{DynamicResource Brush.Border.Strong}" StrokeThickness="1.2" Fill="{x:Null}"
-                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
-                            </Viewbox>
-                            <TextBlock Text="mould" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button.Content>
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="mould">
                                     <Setter Property="Tag" Value="active"/>
                                 </DataTrigger>
                             </Style.Triggers>

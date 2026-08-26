@@ -16,9 +16,9 @@ namespace Fabolus.Wpf.Tests.Features.Emboss;
 
 public sealed class TestOutlineSource : IGlyphOutlineSource
 {
-    public IReadOnlyList<Polygon2D> GetOutlines(string text, DecalFont font, float capHeight, float tracking)
+    public Result<IReadOnlyList<Polygon2D>> GetOutlines(string text, DecalFont font, float capHeight, float tracking)
     {
-        return new List<Polygon2D>
+        return Result.Success<IReadOnlyList<Polygon2D>>(new List<Polygon2D>
         {
             new()
             {
@@ -27,7 +27,7 @@ public sealed class TestOutlineSource : IGlyphOutlineSource
                     new(-5, -3), new(5, -3), new(5, 3), new(-5, 3)
                 }
             }
-        };
+        });
     }
 
     public TextMetrics MeasureText(string text, DecalFont font, float capHeight, float tracking)
@@ -72,6 +72,16 @@ public class EmbossViewModelTests
             .Returns(Result<IMesh>.Success(prismMock.Object));
         engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
             .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
+        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
+            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MinX = -10, MaxX = 10, MinY = -10, MaxY = 10, MinZ = -10, MaxZ = 10 }));
+        engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
+            .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsManifold = true, IsWatertight = true }));
+        engineMock.Setup(e => e.Evaluators.Raycast(It.IsAny<IMesh>(), It.IsAny<Vector3>(), It.IsAny<Vector3>()))
+            .Returns<IMesh, Vector3, Vector3>((m, o, d) => Result<RaycastHit>.Success(new RaycastHit(o + d * 10f, -d, 10f)));
+        engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+            .Returns<IMesh, IMesh>((a, b) => Result<IMesh>.Success(a));
+        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+            .Returns<IMesh, IMesh>((a, b) => Result<IMesh>.Success(a));
 
         var vm = new EmbossViewModel(messenger, alertMock.Object, engineMock.Object, outlineSource);
         return (vm, messenger, engineMock);
@@ -511,9 +521,9 @@ public class EmbossViewModelTests
             .WithId(Guid.NewGuid())
             .WithName("MouldMesh")
             .WithBaseMesh(mockMesh.Object)
+            .WithCommand(new DecalCommand(new[] { decal1 }))
             .WithMouldDefinition(mouldDef)
-            .WithCommand(mouldDef)
-            .WithTextDecals(new[] { decal1, decal2 });
+            .WithCommand(new MouldDecalCommand(new[] { decal2 }));
 
         mockMesh.Setup(m => m.Metadata).Returns(metadata);
         mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))

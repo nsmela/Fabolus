@@ -1,4 +1,5 @@
 using System.Numerics;
+using Fabolus.Core.Common;
 using Fabolus.Core.Features.Emboss;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
@@ -19,10 +20,11 @@ public class ClearTextEmbossTests
     {
         _fixture = fixture;
         _outlineSource = new TestGlyphOutlineSource();
+        GlyphOutlineSourceProvider.Default = _outlineSource;
     }
 
     [Fact]
-    public void ClearTextEmboss_OnBaseMesh_RevertsMeshAndRemovesCommand()
+    public void ClearDecals_OnBaseMesh_RevertsMeshAndRemovesCommand()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
         var initialTriCount = sphere.TriangleCount;
@@ -30,7 +32,7 @@ public class ClearTextEmbossTests
         var mesh = sphere.WithMetadata(sphere.Metadata.WithBaseMesh(sphere));
         var workspace = Workspace.CreateEmpty().AddMesh(mesh).Value;
 
-        var tool = new TextEmbossTool(_outlineSource);
+        var tool = new GenerateDecals(_outlineSource);
         var decal = new TextDecal
         {
             Text = "TEST",
@@ -41,10 +43,9 @@ public class ClearTextEmbossTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var applied = tool.Apply(_fixture.Engine, mesh, new[] { decal }).Value;
+        var applied = tool.Execute(_fixture.Engine, mesh, new[] { decal }).Value;
         var appliedMetadata = mesh.Metadata
-            .WithCommand(new TextEmbossCommand(new[] { decal }, _outlineSource))
-            .WithTextDecals(new[] { decal });
+            .WithCommand(new DecalCommand(new[] { decal }));
 
         var embossedMesh = applied.WithMetadata(appliedMetadata);
         workspace = workspace.UpdateMesh(embossedMesh).Value;
@@ -52,7 +53,7 @@ public class ClearTextEmbossTests
         embossedMesh.TriangleCount.Should().BeGreaterThan(initialTriCount);
         workspace.GetActiveMesh().Value.Metadata.TextDecals().HasValue.Should().BeTrue();
 
-        var clearFeature = new ClearTextEmboss(_fixture.Engine);
+        var clearFeature = new ClearDecals(_fixture.Engine);
         var clearedResult = clearFeature.Execute(workspace);
 
         clearedResult.IsSuccess.Should().BeTrue();
@@ -60,18 +61,18 @@ public class ClearTextEmbossTests
 
         clearedMesh.TriangleCount.Should().Be(initialTriCount);
         clearedMesh.Metadata.TextDecals().HasNoValue.Should().BeTrue();
-        clearedMesh.Metadata.Commands.Should().NotContain(c => c is TextEmbossCommand);
+        clearedMesh.Metadata.Commands.Should().NotContain(c => c is DecalCommand);
     }
 
     [Fact]
-    public void ClearTextEmboss_OnBaseMeshWithDownstreamMould_ClearsMouldAndRevertsToCleanBase()
+    public void ClearDecals_OnBaseMeshWithDownstreamMould_ClearsMouldAndRevertsToCleanBase()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
         var initialTriCount = sphere.TriangleCount;
         var mesh = sphere.WithMetadata(sphere.Metadata.WithBaseMesh(sphere));
         var workspace = Workspace.CreateEmpty().AddMesh(mesh).Value;
 
-        var tool = new TextEmbossTool(_outlineSource);
+        var tool = new GenerateDecals(_outlineSource);
         var decal = new TextDecal
         {
             Text = "MOLD",
@@ -82,10 +83,9 @@ public class ClearTextEmbossTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var applied = tool.Apply(_fixture.Engine, mesh, new[] { decal }).Value;
+        var applied = tool.Execute(_fixture.Engine, mesh, new[] { decal }).Value;
         var appliedMetadata = mesh.Metadata
-            .WithCommand(new TextEmbossCommand(new[] { decal }, _outlineSource))
-            .WithTextDecals(new[] { decal });
+            .WithCommand(new DecalCommand(new[] { decal }));
 
         var embossedBase = applied.WithMetadata(appliedMetadata);
 
@@ -99,7 +99,7 @@ public class ClearTextEmbossTests
         var mouldMesh = mouldResult.WithMetadata(mouldMetadata);
         workspace = workspace.UpdateMesh(mouldMesh).Value;
 
-        var clearFeature = new ClearTextEmboss(_fixture.Engine);
+        var clearFeature = new ClearDecals(_fixture.Engine);
         var clearedResult = clearFeature.Execute(workspace);
 
         clearedResult.IsSuccess.Should().BeTrue();
@@ -108,12 +108,12 @@ public class ClearTextEmbossTests
         clearedBase.TriangleCount.Should().Be(initialTriCount);
         clearedBase.Metadata.TextDecals().HasNoValue.Should().BeTrue();
         clearedBase.Metadata.MouldDefinition().HasNoValue.Should().BeTrue();
-        clearedBase.Metadata.Commands.Should().NotContain(c => c is TextEmbossCommand);
+        clearedBase.Metadata.Commands.Should().NotContain(c => c is DecalCommand);
         clearedBase.Metadata.Commands.Should().NotContain(c => c is MouldDefinition);
     }
 
     [Fact]
-    public void ClearTextEmboss_OnMouldMesh_ClearsMouldDecalsAndPreservesMould()
+    public void ClearDecals_OnMouldMesh_ClearsMouldDecalsAndPreservesMould()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
         var mesh = sphere.WithMetadata(sphere.Metadata.WithBaseMesh(sphere));
@@ -126,7 +126,7 @@ public class ClearTextEmbossTests
             .WithMouldDefinition(mouldDef);
         var mouldMesh = mouldResult.WithMetadata(mouldMetadata);
 
-        var tool = new TextEmbossTool(_outlineSource);
+        var tool = new GenerateDecals(_outlineSource);
         var mouldDecal = new TextDecal
         {
             Text = "MLD",
@@ -138,15 +138,14 @@ public class ClearTextEmbossTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var applied = tool.Apply(_fixture.Engine, mouldMesh, new[] { mouldDecal }).Value;
+        var applied = tool.Execute(_fixture.Engine, mouldMesh, new[] { mouldDecal }).Value;
         var appliedMetadata = mouldMesh.Metadata
-            .WithCommand(new MouldTextEmbossCommand(new[] { mouldDecal }, _outlineSource))
-            .WithTextDecals(new[] { mouldDecal });
+            .WithCommand(new MouldDecalCommand(new[] { mouldDecal }));
 
         var embossedMould = applied.WithMetadata(appliedMetadata);
         workspace = workspace.UpdateMesh(embossedMould).Value;
 
-        var clearFeature = new ClearTextEmboss(_fixture.Engine);
+        var clearFeature = new ClearDecals(_fixture.Engine);
         var clearedResult = clearFeature.Execute(workspace);
 
         clearedResult.IsSuccess.Should().BeTrue();
@@ -154,7 +153,7 @@ public class ClearTextEmbossTests
 
         clearedMould.Metadata.TextDecals().HasNoValue.Should().BeTrue();
         clearedMould.Metadata.MouldDefinition().HasValue.Should().BeTrue();
-        clearedMould.Metadata.Commands.Should().NotContain(c => c is MouldTextEmbossCommand);
+        clearedMould.Metadata.Commands.Should().NotContain(c => c is MouldDecalCommand);
         clearedMould.Metadata.Commands.Should().Contain(c => c is MouldDefinition);
     }
 }

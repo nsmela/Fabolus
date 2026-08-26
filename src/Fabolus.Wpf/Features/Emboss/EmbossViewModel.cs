@@ -22,8 +22,8 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     private readonly IAlertDialog _alert;
     private readonly IGeometryEngine _engine;
     private readonly IGlyphOutlineSource _outlineSource;
-    private readonly TextEmbossTool _tool;
-    private readonly ClearTextEmboss _clearTextEmboss;
+    private readonly GenerateDecals _generator;
+    private readonly ClearDecals _clearDecals;
     private readonly EmbossSceneManager _sceneManager;
 
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
@@ -46,6 +46,13 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     private bool _isSyncingFromModel;
     private readonly DispatcherTimer _previewTimer;
     private bool _previewPending;
+
+    /// <summary>
+    /// How close a decal anchor has to sit to a preset for that preset to count as taken.
+    /// Shared by "find a free anchor" (AddDecal) and "did they click an occupied one" (ApplyPreset)
+    /// so the two can never disagree about the same anchor.
+    /// </summary>
+    private const float AnchorOccupiedRadiusMm = 3.0f;
 
     [ObservableProperty] private Guid _selectedDecalId = Guid.Empty;
     [ObservableProperty] private bool _isDecalsExpanded = true;
@@ -87,6 +94,11 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     private IReadOnlyList<DecalPresetPoint> _mouldPresetPoints = [];
     public IReadOnlyList<DecalPresetPoint> MouldPresetPoints => _mouldPresetPoints;
 
+    // Meshes the cached preset lists were calculated from. Meshes are immutable - every edit
+    // produces a new instance - so reference identity is a sound cache key.
+    private IMesh? _basePresetSource;
+    private IMesh? _mouldPresetSource;
+
     public IReadOnlyList<DecalPresetPoint> ActivePresetPoints => Target == EmbossTarget.Mould ? _mouldPresetPoints : _basePresetPoints;
 
     public EmbossViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine, IGlyphOutlineSource outlineSource)
@@ -95,8 +107,12 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _alert = alert;
         _engine = engine;
         _outlineSource = outlineSource;
-        _tool = new TextEmbossTool(_outlineSource);
-        _clearTextEmboss = new ClearTextEmboss(_engine);
+        // Fallback only. App startup registers the DI singleton as the provider; overwriting it
+        // here would swap in a second instance every time this view is opened, splitting any
+        // glyph caching across the two.
+        GlyphOutlineSourceProvider.Default ??= outlineSource;
+        _generator = new GenerateDecals(_outlineSource);
+        _clearDecals = new ClearDecals(_engine);
 
         _sceneManager = new EmbossSceneManager(_engine, _messenger);
         _sceneManager.DecalSelected += OnDecalSelected;
@@ -108,6 +124,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _sceneManager.PresetPointSelected += OnPresetPointSelected;
         _sceneManager.PresetPointHovered += OnPresetPointHovered;
 
+        // Throttling timer (30ms) to coalesce rapid property updates before re-generating 3D preview geometry.
         _previewTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
         _previewTimer.Tick += (s, e) =>
         {
@@ -122,7 +139,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     private void OnPresetPointHovered(DecalPresetPoint? preset)
     {
-        if (preset == null)
+        if (preset is null)
         {
             _sceneManager.ClearPresetHoverPreview();
             return;
@@ -161,7 +178,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         Target = preset.Target;
 
         // If a decal already sits on this preset, select it!
-        var existingDecal = _decals.FirstOrDefault(d => d.Target == preset.Target && Vector3.Distance(d.Anchor, preset.Position) < 3.0f);
+        var existingDecal = _decals.FirstOrDefault(d => d.Target == preset.Target && Vector3.Distance(d.Anchor, preset.Position) < AnchorOccupiedRadiusMm);
         if (existingDecal != null)
         {
             SelectedDecalId = existingDecal.Id;
@@ -172,21 +189,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         {
             Rotation = (int)preset.RotationDeg;
 
-            float span = preset.AvailableSpan;
-            if (span <= 0f)
-            {
-                var meshForStats = preset.Target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
-                if (meshForStats != null)
-                {
-                    var stats = _engine.Evaluators.GetStatistics(meshForStats);
-                    if (stats.IsSuccess)
-                    {
-                        span = preset.RotationDeg == 0f
-                            ? (float)(stats.Value.MaxX - stats.Value.MinX)
-                            : (float)(stats.Value.MaxZ - stats.Value.MinZ);
-                    }
-                }
-            }
+            float span = ResolveSpan(preset, preset.Target);
             if (span > 0f)
             {
                 CapHeight = MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, LabelText.Length);
@@ -202,26 +205,8 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         else
         {
             // If no decal is selected (or is picking) and no decal at this preset, add a new decal here
-            float span = preset.AvailableSpan;
-            if (span <= 0f)
-            {
-                var meshForStats = preset.Target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
-                if (meshForStats != null)
-                {
-                    var stats = _engine.Evaluators.GetStatistics(meshForStats);
-                    if (stats.IsSuccess)
-                    {
-                        span = preset.RotationDeg == 0f
-                            ? (float)(stats.Value.MaxX - stats.Value.MinX)
-                            : (float)(stats.Value.MaxZ - stats.Value.MinZ);
-                    }
-                }
-            }
-
-            string text = "FABOLUS";
-            float capHeight = span > 0f
-                ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, text.Length)
-                : CapHeight;
+            string text = TextDecal.DefaultText;
+            float capHeight = SuggestedCapHeight(preset, preset.Target, text.Length, CapHeight);
 
             var newDecal = new TextDecal
             {
@@ -253,30 +238,65 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             ?? _mouldPresetPoints.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
             ?? _basePresetPoints.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
 
-        if (preset != null)
+        if (preset is not null)
         {
             ApplyPreset(preset);
         }
     }
 
+    /// <summary>
+    /// The run of surface a decal has to fit into at this anchor: the preset's own span when it
+    /// has one, otherwise the target mesh's extent along the text direction - X for horizontal
+    /// anchors, Z for the 90-degree ones. Returns 0 when no mesh statistics are available.
+    /// </summary>
+    private float ResolveSpan(DecalPresetPoint? preset, EmbossTarget target)
+    {
+        float span = preset?.AvailableSpan ?? 0f;
+        if (span > 0f) return span;
+
+        var meshForStats = target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
+        if (meshForStats is null) return 0f;
+
+        var stats = _engine.Evaluators.GetStatistics(meshForStats);
+        if (stats.IsFailure) return 0f;
+
+        return (preset?.RotationDeg ?? 0f) == 0f
+            ? (float)(stats.Value.MaxX - stats.Value.MinX)
+            : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+    }
+
+    /// <summary>
+    /// Cap height that fits <paramref name="charCount"/> characters into the anchor's span,
+    /// falling back to <paramref name="fallback"/> when the span cannot be determined.
+    /// </summary>
+    private float SuggestedCapHeight(DecalPresetPoint? preset, EmbossTarget target, int charCount, float fallback)
+    {
+        float span = ResolveSpan(preset, target);
+        return span > 0f
+            ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, charCount)
+            : fallback;
+    }
+
     private void UpdatePresets()
     {
-        if (_baseMesh != null)
+        // Each Calculate() raycasts the whole mesh dozens of times (3 for the base, 76 for the
+        // mould), so recompute only when the source mesh actually changes. This runs on every
+        // Base/Mould toggle, which previously paid for both sets every time.
+        if (!ReferenceEquals(_basePresetSource, _baseMesh))
         {
-            _basePresetPoints = BasePresetPointsCalculator.Calculate(_engine, _baseMesh);
-        }
-        else
-        {
-            _basePresetPoints = [];
+            _basePresetPoints = _baseMesh is not null
+                ? BasePresetPointsCalculator.Calculate(_engine, _baseMesh)
+                : [];
+            _basePresetSource = _baseMesh;
         }
 
-        if (HasMould && _mouldMesh != null)
+        var mouldPresetSource = HasMould ? _mouldMesh : null;
+        if (!ReferenceEquals(_mouldPresetSource, mouldPresetSource))
         {
-            _mouldPresetPoints = MouldPresetPointsCalculator.Calculate(_engine, _mouldMesh);
-        }
-        else
-        {
-            _mouldPresetPoints = [];
+            _mouldPresetPoints = mouldPresetSource is not null
+                ? MouldPresetPointsCalculator.Calculate(_engine, mouldPresetSource)
+                : [];
+            _mouldPresetSource = mouldPresetSource;
         }
 
         OnPropertyChanged(nameof(BasePresetPoints));
@@ -299,14 +319,15 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     private void UpdateTargetMesh()
     {
-        if (!IsApplied)
+        bool isMould = IsApplied
+            ? (HasMould && _mouldMesh is not null)
+            : (Target == EmbossTarget.Mould && _mouldMesh is not null);
+
+        _targetMesh = isMould ? _mouldMesh : _baseMesh;
+
+        if (_targetMesh is not null)
         {
-            _sceneManager.UpdateAppliedMouldOverlay(null);
-        }
-        _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
-        if (_targetMesh != null)
-        {
-            _sceneManager.UpdateMesh(_targetMesh);
+            _sceneManager.UpdateMesh(_targetMesh, isMould);
             var stats = _engine.Evaluators.GetStatistics(_targetMesh);
             if (stats.IsSuccess)
             {
@@ -601,9 +622,15 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             if (decalId == SelectedDecalId)
             {
                 _isSyncingFromModel = true;
-                Anchor = point;
-                AnchorNormal = normal;
-                _isSyncingFromModel = false;
+                try
+                {
+                    Anchor = point;
+                    AnchorNormal = normal;
+                }
+                finally
+                {
+                    _isSyncingFromModel = false;
+                }
                 UpdateUVReadout();
                 _sceneManager.UpdateDragPreview(_decals[idx], _metrics);
             }
@@ -633,7 +660,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         {
             foreach (var preset in presets)
             {
-                bool isOccupied = _decals.Any(d => d.Target == target && Vector3.Distance(d.Anchor, preset.Position) < 2.0f);
+                bool isOccupied = _decals.Any(d => d.Target == target && Vector3.Distance(d.Anchor, preset.Position) < AnchorOccupiedRadiusMm);
                 if (!isOccupied)
                 {
                     freeAnchor = preset;
@@ -643,26 +670,8 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             freeAnchor ??= presets[0];
         }
 
-        string text = "FABOLUS";
-        float span = freeAnchor?.AvailableSpan ?? 0f;
-        if (span <= 0f)
-        {
-            var meshForStats = target == EmbossTarget.Mould ? _mouldMesh : _baseMesh;
-            if (meshForStats != null)
-            {
-                var stats = _engine.Evaluators.GetStatistics(meshForStats);
-                if (stats.IsSuccess)
-                {
-                    span = (freeAnchor?.RotationDeg ?? 0f) == 0f
-                        ? (float)(stats.Value.MaxX - stats.Value.MinX)
-                        : (float)(stats.Value.MaxZ - stats.Value.MinZ);
-                }
-            }
-        }
-
-        float capHeight = span > 0f
-            ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, text.Length)
-            : CapHeight;
+        string text = TextDecal.DefaultText;
+        float capHeight = SuggestedCapHeight(freeAnchor, target, text.Length, CapHeight);
 
         var newDecal = new TextDecal
         {
@@ -723,13 +732,22 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     [RelayCommand]
     public void ClearDecals()
     {
+        // If the decals are already booleaned into the mesh, revert that first. Otherwise the
+        // list empties while the geometry keeps them, and nothing short of Clear reconciles the two.
+        if (IsApplied)
+        {
+            ClearText();
+            if (IsApplied) return; // revert failed; ClearText has already surfaced the error
+        }
+
         _decals.Clear();
         SelectedDecalId = Guid.Empty;
-        IsPicking = true;
-        _sceneManager.IsPicking = true;
+        IsPicking = false;
+        _sceneManager.IsPicking = false;
         SyncDecalList();
         OnPropertyChanged(nameof(DecalCount));
         _sceneManager.ClearPreviewVisuals();
+        Invalidate();
     }
 
     [RelayCommand]
@@ -755,7 +773,23 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         }
 
         // 1. Obtain clean stage base mesh (at Transform stage)
-        var activeMesh = _activeMesh ?? Workspace.GetActiveMesh().Value;
+        IMesh activeMesh;
+        if (_activeMesh is not null)
+        {
+            activeMesh = _activeMesh;
+        }
+        else
+        {
+            var activeMeshResult = Workspace.GetActiveMesh();
+            if (activeMeshResult.IsFailure)
+            {
+                ErrorText = activeMeshResult.Error.Description;
+                _alert.ShowError(activeMeshResult.Error.Description);
+                return;
+            }
+            activeMesh = activeMeshResult.Value;
+        }
+
         var cleanBaseResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
         if (cleanBaseResult.IsFailure)
         {
@@ -771,7 +805,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
         if (baseDecals.Count > 0)
         {
-            var baseApplyResult = await Task.Run(() => _tool.Apply(_engine, cleanBaseMesh, baseDecals, warnings));
+            var baseApplyResult = await _generator.ExecuteAsync(_engine, cleanBaseMesh, baseDecals, warnings);
             if (baseApplyResult.IsFailure)
             {
                 ErrorText = baseApplyResult.Error.Description;
@@ -780,74 +814,61 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             }
             appliedBaseMesh = baseApplyResult.Value;
 
-            var stats = _engine.Evaluators.GetStatistics(appliedBaseMesh);
-            var topo = _engine.Evaluators.ValidateTopology(appliedBaseMesh);
-
             baseMetadata = cleanBaseMesh.Metadata
-                .WithProperties(m =>
-                {
-                    if (stats.IsSuccess) m.Set(MeshIOKeys.Stats, stats.Value);
-                    if (topo.IsSuccess) m.Set(MeshIOKeys.Topology, topo.Value);
-                })
-                .WithCommand(new TextEmbossCommand(baseDecals, _outlineSource))
-                .WithTextDecals(decalsSnapshot);
+                .WithCommand(new DecalCommand(baseDecals));
 
-            appliedBaseMesh = appliedBaseMesh.WithMetadata(baseMetadata);
+            appliedBaseMesh = appliedBaseMesh.WithRefreshedStatsAndTopology(_engine, baseMetadata);
         }
 
         IMesh meshToSave = appliedBaseMesh;
 
         // 3. If Mould exists, re-generate mould from appliedBaseMesh, then apply Mould Decals
-        if (HasMould && _mouldMesh != null)
+        if (HasMould && _mouldMesh is not null)
         {
             var mouldDef = _mouldMesh.Metadata.MouldDefinition();
-            if (mouldDef.HasValue)
+            if (mouldDef.HasNoValue)
             {
-                var mouldApplyResult = await Task.Run(() => mouldDef.Value.Apply(_engine, appliedBaseMesh));
-                if (mouldApplyResult.IsFailure)
+                // Without a definition the mould cannot be regenerated over the embossed base,
+                // so saving here would leave the workspace holding a mould that no longer matches.
+                const string message = "This mould has no saved definition, so it cannot be rebuilt around the decals. Regenerate the mould and try again.";
+                ErrorText = message;
+                _alert.ShowError(message);
+                return;
+            }
+
+            var mouldApplyResult = await Task.Run(() => mouldDef.Value.Apply(_engine, appliedBaseMesh));
+            if (mouldApplyResult.IsFailure)
+            {
+                ErrorText = mouldApplyResult.Error.Description;
+                _alert.ShowError(mouldApplyResult.Error.Description);
+                return;
+            }
+
+            var rawMouldMesh = mouldApplyResult.Value;
+
+            var mouldMetadata = appliedBaseMesh.Metadata
+                .WithCommand(mouldDef.Value with { TargetMeshId = appliedBaseMesh.Metadata.Id });
+
+            IMesh appliedMouldMesh = rawMouldMesh;
+
+            if (mouldDecals.Count > 0)
+            {
+                var mouldDecalApplyResult = await _generator.ExecuteAsync(_engine, rawMouldMesh, mouldDecals, warnings);
+                if (mouldDecalApplyResult.IsFailure)
                 {
-                    ErrorText = mouldApplyResult.Error.Description;
-                    _alert.ShowError(mouldApplyResult.Error.Description);
+                    ErrorText = mouldDecalApplyResult.Error.Description;
+                    _alert.ShowError(mouldDecalApplyResult.Error.Description);
                     return;
                 }
 
-                var rawMouldMesh = mouldApplyResult.Value;
-
-                var mouldMetadata = appliedBaseMesh.Metadata
-                    .WithCommand(mouldDef.Value with { TargetMeshId = appliedBaseMesh.Metadata.Id });
-
-                IMesh appliedMouldMesh = rawMouldMesh;
-
-                if (mouldDecals.Count > 0)
-                {
-                    var mouldDecalApplyResult = await Task.Run(() => _tool.Apply(_engine, rawMouldMesh, mouldDecals, warnings));
-                    if (mouldDecalApplyResult.IsFailure)
-                    {
-                        ErrorText = mouldDecalApplyResult.Error.Description;
-                        _alert.ShowError(mouldDecalApplyResult.Error.Description);
-                        return;
-                    }
-
-                    appliedMouldMesh = mouldDecalApplyResult.Value;
-                    mouldMetadata = mouldMetadata.WithCommand(new MouldTextEmbossCommand(mouldDecals, _outlineSource));
-                }
-
-                var mouldStats = _engine.Evaluators.GetStatistics(appliedMouldMesh);
-                var mouldTopo = _engine.Evaluators.ValidateTopology(appliedMouldMesh);
-
-                mouldMetadata = mouldMetadata
-                    .WithProperties(m =>
-                    {
-                        if (mouldStats.IsSuccess) m.Set(MeshIOKeys.Stats, mouldStats.Value);
-                        if (mouldTopo.IsSuccess) m.Set(MeshIOKeys.Topology, mouldTopo.Value);
-                    })
-                    .WithTextDecals(decalsSnapshot);
-
-                appliedMouldMesh = appliedMouldMesh.WithMetadata(mouldMetadata);
-                meshToSave = appliedMouldMesh;
-                _mouldMesh = appliedMouldMesh;
-                _baseMesh = appliedBaseMesh;
+                appliedMouldMesh = mouldDecalApplyResult.Value;
+                mouldMetadata = mouldMetadata.WithCommand(new MouldDecalCommand(mouldDecals));
             }
+
+            appliedMouldMesh = appliedMouldMesh.WithRefreshedStatsAndTopology(_engine, mouldMetadata);
+            meshToSave = appliedMouldMesh;
+            _mouldMesh = appliedMouldMesh;
+            _baseMesh = appliedBaseMesh;
         }
         else
         {
@@ -870,21 +891,12 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
         Workspace = updateResult.Value;
         _activeMesh = meshToSave;
-        if (HasMould && _mouldMesh != null && _baseMesh != null)
-        {
-            _targetMesh = _baseMesh;
-            _sceneManager.UpdateMesh(_baseMesh);
-            _sceneManager.UpdateAppliedMouldOverlay(_mouldMesh);
-        }
-        else
-        {
-            _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
-            _sceneManager.UpdateMesh(_targetMesh);
-            _sceneManager.UpdateAppliedMouldOverlay(null);
-        }
+        IsApplied = true;
+
+        UpdateTargetMesh();
+
         _sceneManager.ClearPreviewVisuals();
         _sceneManager.ClearPresetVisuals();
-        IsApplied = true;
         OnPropertyChanged(nameof(StatusWord));
         OnPropertyChanged(nameof(StatusColor));
         _messenger.Send(new WorkspaceChangedMessage(Workspace));
@@ -895,7 +907,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     {
         if (!IsApplied) return;
 
-        var result = _clearTextEmboss.Execute(Workspace);
+        var result = _clearDecals.Execute(Workspace);
         if (result.IsFailure)
         {
             _alert.ShowError(result.Error.Description);
@@ -933,7 +945,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             IsPicking = false;
             _sceneManager.IsPicking = false;
 
-            _sceneManager.UpdateAppliedMouldOverlay(null);
             UpdateTargetMesh();
             UpdatePresets();
             SyncDecalList();
@@ -951,6 +962,9 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     public async Task ActivateAsync(Workspace workspace)
     {
         _isActivating = true;
+        // Restarted here rather than only in the constructor, so a view model that is
+        // deactivated and activated again keeps updating its preview.
+        _previewTimer.Start();
         try
         {
             await Task.Yield();
@@ -968,7 +982,9 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             if (HasMould)
             {
                 _mouldMesh = _activeMesh;
-                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.TextEmboss);
+                // Transform stage, matching ClearText and EnsureCleanMeshForPreview: the base mesh
+                // under the mould must be free of decals, or previews stack on top of applied ones.
+                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
                 _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : _activeMesh;
                 Target = EmbossTarget.Mould;
             }
@@ -1010,20 +1026,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                     string fileName = Path.GetFileNameWithoutExtension(rawName);
                     if (string.IsNullOrWhiteSpace(fileName)) fileName = "FABOLUS";
 
-                    float span1 = frontPreset.AvailableSpan;
-                    if (span1 <= 0f && _mouldMesh != null)
-                    {
-                        var stats = _engine.Evaluators.GetStatistics(_mouldMesh);
-                        if (stats.IsSuccess)
-                        {
-                            span1 = frontPreset.RotationDeg == 0f
-                                ? (float)(stats.Value.MaxX - stats.Value.MinX)
-                                : (float)(stats.Value.MaxZ - stats.Value.MinZ);
-                        }
-                    }
-                    float capHeight1 = span1 > 0f
-                        ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span1, fileName.Length)
-                        : 6.0f;
+                    float capHeight1 = SuggestedCapHeight(frontPreset, EmbossTarget.Mould, fileName.Length, TextDecal.DefaultCapHeight);
 
                     var fileDecal = new TextDecal
                     {
@@ -1055,20 +1058,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                     }
                     string volumeText = volume > 0 ? $"{volume:0.0} cc" : "0.0 cc";
 
-                    float span2 = backPreset.AvailableSpan;
-                    if (span2 <= 0f && _mouldMesh != null)
-                    {
-                        var stats = _engine.Evaluators.GetStatistics(_mouldMesh);
-                        if (stats.IsSuccess)
-                        {
-                            span2 = backPreset.RotationDeg == 0f
-                                ? (float)(stats.Value.MaxX - stats.Value.MinX)
-                                : (float)(stats.Value.MaxZ - stats.Value.MinZ);
-                        }
-                    }
-                    float capHeight2 = span2 > 0f
-                        ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span2, volumeText.Length)
-                        : 6.0f;
+                    float capHeight2 = SuggestedCapHeight(backPreset, EmbossTarget.Mould, volumeText.Length, TextDecal.DefaultCapHeight);
 
                     var volumeDecal = new TextDecal
                     {
@@ -1095,26 +1085,8 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                     var presets = ActivePresetPoints;
                     var firstAnchor = presets.Count > 0 ? presets[0] : null;
 
-                    string text = "FABOLUS";
-                    float span = firstAnchor?.AvailableSpan ?? 0f;
-                    if (span <= 0f)
-                    {
-                        var meshForStats = _baseMesh;
-                        if (meshForStats != null)
-                        {
-                            var stats = _engine.Evaluators.GetStatistics(meshForStats);
-                            if (stats.IsSuccess)
-                            {
-                                span = (firstAnchor?.RotationDeg ?? 0f) == 0f
-                                    ? (float)(stats.Value.MaxX - stats.Value.MinX)
-                                    : (float)(stats.Value.MaxZ - stats.Value.MinZ);
-                            }
-                        }
-                    }
-
-                    float capHeight = span > 0f
-                        ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, text.Length)
-                        : 6.0f;
+                    string text = TextDecal.DefaultText;
+                    float capHeight = SuggestedCapHeight(firstAnchor, Target, text.Length, TextDecal.DefaultCapHeight);
 
                     var defaultDecal = new TextDecal
                     {
@@ -1137,17 +1109,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 }
             }
 
-            if (IsApplied && HasMould && _mouldMesh != null && _baseMesh != null)
-            {
-                _targetMesh = _baseMesh;
-                _sceneManager.UpdateMesh(_baseMesh);
-                _sceneManager.UpdateAppliedMouldOverlay(_mouldMesh);
-            }
-            else
-            {
-                UpdateTargetMesh();
-                _sceneManager.UpdateAppliedMouldOverlay(null);
-            }
+            UpdateTargetMesh();
 
             UpdatePresets();
             IsDecalsExpanded = !IsApplied;
@@ -1181,6 +1143,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     public Task<Workspace> DeactivateAsync()
     {
+        _previewPending = false;
         _previewTimer.Stop();
         _sceneManager.ReleaseMesh();
         return Task.FromResult(Workspace);
@@ -1205,9 +1168,6 @@ public partial class TextDecalItemViewModel : ObservableObject
     public string DisplayText => string.IsNullOrWhiteSpace(Text) ? "(empty)" : Text;
     public string OperationText => Operation.ToString();
     public string TargetText => Target.ToString();
-    public string Summary => HasMould
-        ? $"{CapHeight:0.0} mm · {Operation} · {Target}"
-        : $"{CapHeight:0.0} mm · {Operation}";
 
     partial void OnTextChanged(string value)
     {
@@ -1217,22 +1177,11 @@ public partial class TextDecalItemViewModel : ObservableObject
     partial void OnOperationChanged(EmbossOperation value)
     {
         OnPropertyChanged(nameof(OperationText));
-        OnPropertyChanged(nameof(Summary));
     }
 
     partial void OnTargetChanged(EmbossTarget value)
     {
         OnPropertyChanged(nameof(TargetText));
-        OnPropertyChanged(nameof(Summary));
     }
 
-    partial void OnCapHeightChanged(float value)
-    {
-        OnPropertyChanged(nameof(Summary));
-    }
-
-    partial void OnHasMouldChanged(bool value)
-    {
-        OnPropertyChanged(nameof(Summary));
-    }
 }

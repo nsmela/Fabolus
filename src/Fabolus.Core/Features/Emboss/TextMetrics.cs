@@ -8,11 +8,13 @@ public sealed record TextMetrics(
     float HeightMm,
     IReadOnlyList<float> Advances)
 {
+    private const float DefaultGlyphAspectWidthRatio = 0.60f;
+
     public static TextMetrics Empty => new(0f, 0f, Array.Empty<float>());
 
     /// <summary>
     /// Fast estimate of text bounding width used when exact metrics are not yet available.
-    /// glyphCount * capHeight * 0.60 + (glyphCount - 1) * tracking
+    /// glyphCount * capHeight * DefaultGlyphAspectWidthRatio + (glyphCount - 1) * tracking
     /// </summary>
     public static TextMetrics Approximate(string text, float capHeight, float tracking)
     {
@@ -20,10 +22,10 @@ public sealed record TextMetrics(
             return Empty;
 
         int count = text.Length;
-        float width = count * capHeight * 0.60f + Math.Max(0, count - 1) * tracking;
+        float width = count * capHeight * DefaultGlyphAspectWidthRatio + Math.Max(0, count - 1) * tracking;
         var advances = new List<float>(count);
         for (int i = 0; i < count; i++)
-            advances.Add(capHeight * 0.60f + tracking);
+            advances.Add(capHeight * DefaultGlyphAspectWidthRatio + tracking);
 
         return new TextMetrics(width, capHeight, advances);
     }

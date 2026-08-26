@@ -1,4 +1,5 @@
 using System.Numerics;
+using Fabolus.Core.Common;
 using Fabolus.Core.Features.Emboss;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
@@ -9,7 +10,7 @@ namespace Fabolus.Tests.Features;
 
 public sealed class TestGlyphOutlineSource : IGlyphOutlineSource
 {
-    public IReadOnlyList<Polygon2D> GetOutlines(string text, DecalFont font, float capHeight, float tracking)
+    public Result<IReadOnlyList<Polygon2D>> GetOutlines(string text, DecalFont font, float capHeight, float tracking)
     {
         // Generates simple rectangular contour for testing
         float halfW = capHeight * 0.6f * 0.5f;
@@ -23,10 +24,10 @@ public sealed class TestGlyphOutlineSource : IGlyphOutlineSource
             new(-halfW, halfH)
         };
 
-        return new List<Polygon2D>
+        return Result.Success<IReadOnlyList<Polygon2D>>(new List<Polygon2D>
         {
             new() { OuterBoundary = outer }
-        };
+        });
     }
 
     public TextMetrics MeasureText(string text, DecalFont font, float capHeight, float tracking)
@@ -96,10 +97,10 @@ public class TextEmbossTests
     }
 
     [Fact]
-    public void TextEmbossTool_Apply_Emboss_ProducesValidMesh()
+    public void GenerateDecals_Execute_Emboss_ProducesValidMesh()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
-        var tool = new TextEmbossTool(_outlineSource);
+        var tool = new GenerateDecals(_outlineSource);
 
         var decal = new TextDecal
         {
@@ -111,17 +112,17 @@ public class TextEmbossTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var result = tool.Apply(_fixture.Engine, sphere, new[] { decal });
+        var result = tool.Execute(_fixture.Engine, sphere, new[] { decal });
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TriangleCount.Should().BeGreaterThan(sphere.TriangleCount);
     }
 
     [Fact]
-    public void TextEmbossTool_Apply_Engrave_SubtractsFromTarget()
+    public void GenerateDecals_Execute_Engrave_SubtractsFromTarget()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
-        var tool = new TextEmbossTool(_outlineSource);
+        var tool = new GenerateDecals(_outlineSource);
 
         var decal = new TextDecal
         {
@@ -133,17 +134,17 @@ public class TextEmbossTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var result = tool.Apply(_fixture.Engine, sphere, new[] { decal });
+        var result = tool.Execute(_fixture.Engine, sphere, new[] { decal });
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TriangleCount.Should().BeGreaterThan(0);
     }
 
     [Fact]
-    public void TextEmbossTool_Apply_ProjectOntoSurface_ContoursMesh()
+    public void GenerateDecals_Execute_ProjectOntoSurface_ContoursMesh()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
-        var tool = new TextEmbossTool(_outlineSource);
+        var tool = new GenerateDecals(_outlineSource);
 
         var decal = new TextDecal
         {
@@ -155,17 +156,17 @@ public class TextEmbossTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var result = tool.Apply(_fixture.Engine, sphere, new[] { decal });
+        var result = tool.Execute(_fixture.Engine, sphere, new[] { decal });
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TriangleCount.Should().BeGreaterThan(sphere.TriangleCount);
     }
 
     [Fact]
-    public void TextEmbossTool_Apply_MultipleDecals_AppliesAllInSequence()
+    public void GenerateDecals_Execute_MultipleDecals_AppliesAllInSequence()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 20, 24).Value;
-        var tool = new TextEmbossTool(_outlineSource);
+        var tool = new GenerateDecals(_outlineSource);
 
         var decal1 = new TextDecal
         {
@@ -187,7 +188,7 @@ public class TextEmbossTests
             AnchorNormal = Vector3.UnitX
         };
 
-        var result = tool.Apply(_fixture.Engine, sphere, new[] { decal1, decal2 });
+        var result = tool.Execute(_fixture.Engine, sphere, new[] { decal1, decal2 });
 
         result.IsSuccess.Should().BeTrue();
         result.Value.TriangleCount.Should().BeGreaterThan(sphere.TriangleCount);

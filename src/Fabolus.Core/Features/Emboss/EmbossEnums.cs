@@ -15,5 +15,6 @@ public enum EmbossTarget
 public enum DecalFont
 {
     Sans,
-    Mono
+    Mono,
+    Bold
 }
