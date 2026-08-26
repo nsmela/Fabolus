@@ -53,7 +53,7 @@ public class SmoothingSceneManager : ISceneManager
                 var d = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
                 var s = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
                 
-                if (_grid != null) {
+                if (_grid is not null) {
                     VisualRemovedById?.Invoke(_grid.GUID);
                 }
                 _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
@@ -75,11 +75,11 @@ public class SmoothingSceneManager : ISceneManager
         _crossSectionPlane = new Plane { D = (float)height, Normal = Vector3.UnitZ };
         _originalCrossSectionPlane = new Plane { D = (float)-height, Normal = -Vector3.UnitZ };
 
-        if (_crossSectionModel != null)
+        if (_crossSectionModel is not null)
         {
             _crossSectionModel.Plane1 = _crossSectionPlane;
         }
-        if (_originalCrossSectionModel != null)
+        if (_originalCrossSectionModel is not null)
         {
             _originalCrossSectionModel.Plane1 = _originalCrossSectionPlane;
         }
@@ -92,11 +92,11 @@ public class SmoothingSceneManager : ISceneManager
     public void UpdateMesh(IMesh mesh, IMesh? unsmoothedMesh = null, double[]? heatmapColors = null)
     {
         VisualRemovedById?.Invoke(_activeId);
-        if (_crossSectionModel != null)
+        if (_crossSectionModel is not null)
         {
             VisualRemovedById?.Invoke(_crossSectionModel.GUID);
         }
-        if (_originalCrossSectionModel != null)
+        if (_originalCrossSectionModel is not null)
         {
             VisualRemovedById?.Invoke(_originalCrossSectionModel.GUID);
         }
@@ -104,7 +104,7 @@ public class SmoothingSceneManager : ISceneManager
         MeshGeometry3D geometry = mesh.ToHelixMesh(_engine, heatmapColors).Value;
 
         Material material;
-        if (_displayMode == SmoothDisplayMode.Heatmap && heatmapColors != null)
+        if (_displayMode == SmoothDisplayMode.Heatmap && heatmapColors is not null)
         {
             material = new VertColorMaterial();
         }
@@ -160,11 +160,11 @@ public class SmoothingSceneManager : ISceneManager
         VisualsCleared?.Invoke();
         VisualAddedOrUpdated?.Invoke(_grid);
         VisualAddedOrUpdated?.Invoke(_gizmo);
-        if (_crossSectionModel != null)
+        if (_crossSectionModel is not null)
         {
             VisualAddedOrUpdated?.Invoke(_crossSectionModel);
         }
-        if (_originalCrossSectionModel != null)
+        if (_originalCrossSectionModel is not null)
         {
             VisualAddedOrUpdated?.Invoke(_originalCrossSectionModel);
         }
@@ -180,7 +180,7 @@ public class SmoothingSceneManager : ISceneManager
 
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
 
-    public bool OnMouseMove(HelixToolkit.Wpf.SharpDX.HitTestResult? hit) => false;
+    public bool OnMouseMove(IList<HelixToolkit.Wpf.SharpDX.HitTestResult> hits) => false;
 
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 

@@ -53,11 +53,11 @@ public class CutSplitSceneManager : ISceneManager
     public void ReleaseMesh()
     {
         _activeMesh = null;
-        if (_topModel != null) VisualRemovedById?.Invoke(_topModel.GUID);
-        if (_bottomModel != null) VisualRemovedById?.Invoke(_bottomModel.GUID);
-        if (_planeVisual != null) VisualRemovedById?.Invoke(_planeVisual.GUID);
-        if (_planeGridVisual != null) VisualRemovedById?.Invoke(_planeGridVisual.GUID);
-        if (_manipulator != null) VisualRemovedById?.Invoke(_manipulator.GUID);
+        if (_topModel is not null) VisualRemovedById?.Invoke(_topModel.GUID);
+        if (_bottomModel is not null) VisualRemovedById?.Invoke(_bottomModel.GUID);
+        if (_planeVisual is not null) VisualRemovedById?.Invoke(_planeVisual.GUID);
+        if (_planeGridVisual is not null) VisualRemovedById?.Invoke(_planeGridVisual.GUID);
+        if (_manipulator is not null) VisualRemovedById?.Invoke(_manipulator.GUID);
         
         _planeVisual = null;
         _planeGridVisual = null;
@@ -73,19 +73,19 @@ public class CutSplitSceneManager : ISceneManager
         float d = Vector3.Dot(dxNormal, dxOrigin);
         _plane = new Plane(dxNormal, d);
 
-        if (_topModel != null)
+        if (_topModel is not null)
         {
             _topModel.Plane1 = _plane;
             _topModel.Transform = System.Windows.Media.Media3D.Transform3D.Identity;
         }
-        if (_bottomModel != null)
+        if (_bottomModel is not null)
         {
             _bottomModel.Plane1 = new Plane(-dxNormal, -d);
             _bottomModel.Transform = System.Windows.Media.Media3D.Transform3D.Identity;
         }
 
         // Add a plane visual to represent the cut
-        if (_planeVisual == null)
+        if (_planeVisual is null)
         {
             var meshBuilder = new MeshBuilder();
             meshBuilder.AddBox(new Vector3(0, 0, 0), 200, 200, 0.5f);
@@ -99,7 +99,7 @@ public class CutSplitSceneManager : ISceneManager
             VisualAddedOrUpdated?.Invoke(_planeVisual);
         }
 
-        if (_planeGridVisual == null)
+        if (_planeGridVisual is null)
         {
             var lineBuilder = new LineBuilder();
             lineBuilder.AddLine(new Vector3(-100, -100, 0), new Vector3(100, -100, 0));
@@ -137,7 +137,7 @@ public class CutSplitSceneManager : ISceneManager
         _planeVisual.Transform = transform;
         _planeGridVisual.Transform = transform;
 
-        if (_manipulator == null)
+        if (_manipulator is null)
         {
             _manipulator = new UICompositeManipulator3D
             {
@@ -197,10 +197,10 @@ public class CutSplitSceneManager : ISceneManager
 
     private void RebuildVisuals()
     {
-        if (_topModel != null) VisualRemovedById?.Invoke(_topModel.GUID);
-        if (_bottomModel != null) VisualRemovedById?.Invoke(_bottomModel.GUID);
+        if (_topModel is not null) VisualRemovedById?.Invoke(_topModel.GUID);
+        if (_bottomModel is not null) VisualRemovedById?.Invoke(_bottomModel.GUID);
 
-        if (_activeMesh == null) return;
+        if (_activeMesh is null) return;
 
         var helixMeshResult = _activeMesh.ToHelixMesh(_engine);
         if (helixMeshResult.IsFailure) return;
@@ -244,11 +244,11 @@ public class CutSplitSceneManager : ISceneManager
     {
         VisualsCleared?.Invoke();
         VisualAddedOrUpdated?.Invoke(_grid);
-        if (_topModel != null) VisualAddedOrUpdated?.Invoke(_topModel);
-        if (_bottomModel != null) VisualAddedOrUpdated?.Invoke(_bottomModel);
-        if (_planeVisual != null) VisualAddedOrUpdated?.Invoke(_planeVisual);
-        if (_planeGridVisual != null) VisualAddedOrUpdated?.Invoke(_planeGridVisual);
-        if (_manipulator != null) VisualAddedOrUpdated?.Invoke(_manipulator);
+        if (_topModel is not null) VisualAddedOrUpdated?.Invoke(_topModel);
+        if (_bottomModel is not null) VisualAddedOrUpdated?.Invoke(_bottomModel);
+        if (_planeVisual is not null) VisualAddedOrUpdated?.Invoke(_planeVisual);
+        if (_planeGridVisual is not null) VisualAddedOrUpdated?.Invoke(_planeGridVisual);
+        if (_manipulator is not null) VisualAddedOrUpdated?.Invoke(_manipulator);
     }
 
     public void OnDeactivated() { }
@@ -256,6 +256,6 @@ public class CutSplitSceneManager : ISceneManager
     public bool OnKeyDown(Key key) => false;
     public bool OnKeyUp(Key key) => false;
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
-    public bool OnMouseMove(HelixToolkit.Wpf.SharpDX.HitTestResult? hit) => false;
+    public bool OnMouseMove(IList<HelixToolkit.Wpf.SharpDX.HitTestResult> hits) => false;
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 }

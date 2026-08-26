@@ -340,7 +340,7 @@ internal sealed class GeometryGenerators : IGeometryGenerators
         using var mlTargetMesh = parameters.TargetMesh?.ToMRMesh();
         using var spatial = mlTargetMesh is not null ? new MR.ObjectMesh() : null;
         using var sharedPtr = mlTargetMesh is not null ? new MR.Std.SharedPtr_MRMesh(mlTargetMesh) : null;
-        if (spatial != null)
+        if (spatial is not null)
         {
             spatial.setMesh(sharedPtr);
         }

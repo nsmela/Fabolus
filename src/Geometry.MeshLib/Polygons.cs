@@ -336,7 +336,7 @@ internal sealed class Polygons : IPolygonOperations
         g3.CurveResampler resampler = new();
         for (int i = 0; i < 4; i++) {
             List<g3.Vector3d> newPoints = resampler.SplitCollapseResample(hullCurve, 4.0f, 1.0f);
-            g3.DCurve3 resampledCurve = (newPoints != null) ? new g3.DCurve3(newPoints, true) : hullCurve;
+            g3.DCurve3 resampledCurve = (newPoints is not null) ? new g3.DCurve3(newPoints, true) : hullCurve;
             g3.InPlaceIterativeCurveSmooth smoother = new g3.InPlaceIterativeCurveSmooth(resampledCurve, 0.1f);
             smoother.UpdateDeformation(4);
             hullCurve = smoother.Curve;

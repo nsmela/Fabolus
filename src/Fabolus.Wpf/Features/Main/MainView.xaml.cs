@@ -34,7 +34,7 @@ public partial class MainView : MetroWindow {
             var source = PresentationSource.FromVisual(this);
             double dpiX = 96.0;
             double dpiY = 96.0;
-            if (source?.CompositionTarget != null)
+            if (source?.CompositionTarget is not null)
             {
                 dpiX = 96.0 * source.CompositionTarget.TransformToDevice.M11;
                 dpiY = 96.0 * source.CompositionTarget.TransformToDevice.M22;
@@ -48,7 +48,7 @@ public partial class MainView : MetroWindow {
             // render the UI exactly where WPF places it, and then crop it out.
             var root = source?.RootVisual;
             Point offset = new Point(0, 0);
-            if (root != null)
+            if (root is not null)
             {
                 offset = OverlayGrid.TransformToAncestor(root).Transform(new Point(0, 0));
             }
@@ -81,7 +81,7 @@ public partial class MainView : MetroWindow {
             DrawingVisual visual = new();
             using (DrawingContext context = visual.RenderOpen())
             {
-                if (viewportBitmap != null)
+                if (viewportBitmap is not null)
                 {
                     context.DrawImage(viewportBitmap, new Rect(0, 0, uiWidth, uiHeight));
                 }

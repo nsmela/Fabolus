@@ -30,7 +30,7 @@ public class GlyphMeshTests
         thread.Start();
         thread.Join();
 
-        if (exception != null)
+        if (exception is not null)
             throw exception;
     }
 

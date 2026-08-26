@@ -297,7 +297,7 @@ public partial class ViewportControl : UserControl, IDisposable {
         _lastMovePosition = position;
         _lastMoveHits = hits;
 
-        SceneManager.OnMouseMove(hits.Count > 0 ? hits[0] : null, hits);
+        SceneManager.OnMouseMove(hits);
     }
 
     private void MainViewport_MouseUp3D(object sender, RoutedEventArgs e) {

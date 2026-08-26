@@ -165,7 +165,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     [RelayCommand]
     public void ApplyPreset(DecalPresetPoint? preset)
     {
-        if (preset == null) return;
+        if (preset is null) return;
 
         _sceneManager.ClearPresetHoverPreview();
 
@@ -173,7 +173,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
         // If a decal already sits on this preset, select it!
         var existingDecal = _decals.FirstOrDefault(d => d.Target == preset.Target && Vector3.Distance(d.Anchor, preset.Position) < AnchorOccupiedRadiusMm);
-        if (existingDecal != null)
+        if (existingDecal is not null)
         {
             SelectedDecalId = existingDecal.Id;
             return;
@@ -359,7 +359,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         }
 
         var decal = _decals.FirstOrDefault(d => d.Id == value);
-        if (decal != null)
+        if (decal is not null)
         {
             _isSyncingFromModel = true;
             try
@@ -411,7 +411,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         }
 
         var listItem = DecalList.FirstOrDefault(item => item.Id == SelectedDecalId);
-        if (listItem != null)
+        if (listItem is not null)
         {
             listItem.Text = LabelText;
             listItem.Operation = Operation;
@@ -435,7 +435,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         {
             var d = _decals[i];
             var existing = DecalList.FirstOrDefault(item => item.Id == d.Id);
-            if (existing != null)
+            if (existing is not null)
             {
                 existing.Text = d.Text;
                 existing.Operation = d.Operation;
@@ -498,7 +498,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
     private void EnsureCleanMeshForPreview()
     {
-        if (IsApplied && _activeMesh != null)
+        if (IsApplied && _activeMesh is not null)
         {
             var cleanBase = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
             if (cleanBase.IsSuccess)
@@ -506,7 +506,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                 _baseMesh = cleanBase.Value;
             }
 
-            if (HasMould && _mouldMesh != null)
+            if (HasMould && _mouldMesh is not null)
             {
                 var cleanMould = CommandReplay.GetMeshAtStage(_engine, _mouldMesh, CommandPriority.Mould);
                 if (cleanMould.IsSuccess)
@@ -515,8 +515,8 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                 }
             }
 
-            _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh != null) ? _mouldMesh : _baseMesh;
-            if (_targetMesh != null)
+            _targetMesh = (Target == EmbossTarget.Mould && _mouldMesh is not null) ? _mouldMesh : _baseMesh;
+            if (_targetMesh is not null)
             {
                 _sceneManager.UpdateMesh(_targetMesh);
             }
@@ -541,13 +541,13 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
     private void ExecutePreviewUpdate()
     {
-        if (_targetMesh == null) return;
+        if (_targetMesh is null) return;
         _sceneManager.UpdateDecals(_decals, SelectedDecalId, _outlineSource, Target);
     }
 
     private void UpdateUVReadout()
     {
-        if (_targetMesh == null) return;
+        if (_targetMesh is null) return;
         var diff = Anchor - _meshCenter;
         var frame = DecalFrame.FromHit(Anchor, AnchorNormal, Rotation);
         _uv = new Vector2(Vector3.Dot(diff, frame.U), Vector3.Dot(diff, frame.V));
@@ -627,7 +627,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             CapHeight = capHeight,
             Depth = Depth,
             Tracking = Tracking,
-            RotationDeg = freeAnchor != null ? (int)freeAnchor.RotationDeg : Rotation,
+            RotationDeg = freeAnchor is not null ? (int)freeAnchor.RotationDeg : Rotation,
             Anchor = freeAnchor?.Position ?? _meshCenter,
             AnchorNormal = freeAnchor?.Normal ?? Vector3.UnitZ
         };
@@ -699,7 +699,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         var decalsSnapshot = _decals.ToList();
 
         var baseDecals = decalsSnapshot.Where(d => d.Target == EmbossTarget.Base).ToList();
-        var mouldDecals = (HasMould && _mouldMesh != null)
+        var mouldDecals = (HasMould && _mouldMesh is not null)
             ? decalsSnapshot.Where(d => d.Target == EmbossTarget.Mould).ToList()
             : new List<TextDecal>();
 
@@ -931,7 +931,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             }
 
             var savedDecals = _activeMesh.Metadata.TextDecals();
-            if (savedDecals.HasNoValue && _baseMesh != null)
+            if (savedDecals.HasNoValue && _baseMesh is not null)
                 savedDecals = _baseMesh.Metadata.TextDecals();
 
             if (savedDecals.HasValue && savedDecals.Value.Count > 0)
@@ -981,7 +981,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                         ?? (_mouldPresetPoints.Count > 1 ? _mouldPresetPoints[1] : frontPreset);
 
                     double volume = 0.0;
-                    if (_baseMesh != null)
+                    if (_baseMesh is not null)
                     {
                         var baseStats = _engine.Evaluators.GetStatistics(_baseMesh);
                         if (baseStats.IsSuccess)
@@ -1029,7 +1029,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                         CapHeight = capHeight,
                         Depth = 0.8f,
                         Tracking = 0.4f,
-                        RotationDeg = firstAnchor != null ? (int)firstAnchor.RotationDeg : 0,
+                        RotationDeg = firstAnchor is not null ? (int)firstAnchor.RotationDeg : 0,
                         Anchor = firstAnchor?.Position ?? _meshCenter,
                         AnchorNormal = firstAnchor?.Normal ?? Vector3.UnitZ
                     };

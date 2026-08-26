@@ -22,7 +22,7 @@ public sealed class CutMeshFeature
     /// </summary>
     public Result<(IMesh top, IMesh bottom)> Execute(IMesh mesh, Vector3 planeOrigin, Vector3 planeNormal)
     {
-        if (mesh == null) return new Error("CutMesh.NullMesh", "Mesh cannot be null.");
+        if (mesh is null) return new Error("CutMesh.NullMesh", "Mesh cannot be null.");
         if (planeNormal == Vector3.Zero) return new Error("CutMesh.InvalidNormal", "Plane normal cannot be zero.");
 
         var statsResult = _engine.Evaluators.GetStatistics(mesh);

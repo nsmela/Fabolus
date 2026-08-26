@@ -36,8 +36,8 @@ public static class BasePresetPointsCalculator
         // 1. Top (raycast down from +Z at XY center) - horizontal orientation
         var topRayOrigin = new Vector3(xCenter, yCenter, maxZ + RaycastOffsetDistance);
         var topRayDir = new Vector3(0f, 0f, -1f);
-        var topHitResult = engine.Evaluators?.Raycast(baseMesh, topRayOrigin, topRayDir);
-        if (topHitResult is not null && topHitResult.IsSuccess)
+        var topHitResult = engine.Evaluators.Raycast(baseMesh, topRayOrigin, topRayDir);
+        if (topHitResult.IsSuccess)
         {
             presets.Add(new DecalPresetPoint("Top", topHitResult.Value.Point, topHitResult.Value.Normal, 0f, baseWidth, EmbossTarget.Base));
         }
@@ -49,8 +49,8 @@ public static class BasePresetPointsCalculator
         // 2. Front (-Y direction at mid-height) - horizontal orientation
         var frontRayOrigin = new Vector3(xCenter, minY - RaycastOffsetDistance, zMid);
         var frontRayDir = new Vector3(0f, 1f, 0f);
-        var frontHitResult = engine.Evaluators?.Raycast(baseMesh, frontRayOrigin, frontRayDir);
-        if (frontHitResult is not null && frontHitResult.IsSuccess)
+        var frontHitResult = engine.Evaluators.Raycast(baseMesh, frontRayOrigin, frontRayDir);
+        if (frontHitResult.IsSuccess)
         {
             presets.Add(new DecalPresetPoint("Front", frontHitResult.Value.Point, frontHitResult.Value.Normal, 0f, baseWidth, EmbossTarget.Base));
         }
@@ -62,8 +62,8 @@ public static class BasePresetPointsCalculator
         // 3. Back (+Y direction at mid-height) - horizontal orientation
         var backRayOrigin = new Vector3(xCenter, maxY + RaycastOffsetDistance, zMid);
         var backRayDir = new Vector3(0f, -1f, 0f);
-        var backHitResult = engine.Evaluators?.Raycast(baseMesh, backRayOrigin, backRayDir);
-        if (backHitResult is not null && backHitResult.IsSuccess)
+        var backHitResult = engine.Evaluators.Raycast(baseMesh, backRayOrigin, backRayDir);
+        if (backHitResult.IsSuccess)
         {
             presets.Add(new DecalPresetPoint("Back", backHitResult.Value.Point, backHitResult.Value.Normal, 0f, baseWidth, EmbossTarget.Base));
         }

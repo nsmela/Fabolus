@@ -35,7 +35,7 @@ internal class MeshManagerSceneManager : ISceneManager {
                 var d = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
                 var s = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
                 
-                if (_grid != null) {
+                if (_grid is not null) {
                     VisualRemovedById?.Invoke(_grid.GUID);
                 }
                 _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
@@ -76,7 +76,7 @@ internal class MeshManagerSceneManager : ISceneManager {
 
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
 
-    public bool OnMouseMove(HitTestResult? hit) => false;
+    public bool OnMouseMove(IList<HitTestResult> hits) => false;
 
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 

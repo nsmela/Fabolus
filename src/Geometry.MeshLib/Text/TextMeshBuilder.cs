@@ -8,7 +8,26 @@ namespace GeometryMeshLib.Text;
 
 public static class TextMeshBuilder
 {
+    /// <summary>How close to the baseline a point must sit to be placed on it directly rather than projected.</summary>
     private const float BaselineVerticalTolerance = 1e-4f;
+
+    /// <summary>Below this squared length a cross product is treated as degenerate, not a normal.</summary>
+    private const float DegenerateCrossLengthSquared = 1e-8f;
+
+    /// <summary>Below this the two baseline samples are effectively coincident, so don't interpolate between them.</summary>
+    private const float MinInterpolationSpan = 1e-6f;
+
+    /// <summary>Millimetres to step along the surface when marching out the baseline. Smaller follows curvature more closely at the cost of more distance queries.</summary>
+    private const float BaselineStepSizeMm = 0.5f;
+
+    /// <summary>Millimetres of baseline marched past each end of the text, so glyphs at the extremes still sample a frame either side of themselves.</summary>
+    private const float BaselineMarginMm = 2.0f;
+
+    /// <summary>Millimetres to back the projection ray off along the frame normal before firing it at the surface. Must clear the tallest mesh this is used on.</summary>
+    private const float ProjectionRayOffsetMm = 150.0f;
+
+    /// <summary>Dot product below which the hit surface has turned more than 60 degrees away from the decal frame - too curved for the text to sit flat.</summary>
+    private const float MaxSurfaceDeviationDot = 0.5f;
 
     /// <summary>
     /// Builds an extruded 3D solid mesh from 2D polygon outlines in the tangent frame.
@@ -126,7 +145,7 @@ public static class TextMeshBuilder
         MR.MeshPart? targetPart = null;
         List<BaselineFrame>? baseline = null;
 
-        if (targetMesh != null)
+        if (targetMesh is not null)
         {
             try
             {
@@ -144,7 +163,7 @@ public static class TextMeshBuilder
                     if (pts2D[i].X > maxX) maxX = pts2D[i].X;
                 }
 
-                baseline = BuildSurfaceBaseline(mlTargetMesh, targetPart, frame, minX, maxX, stepSize: 0.5f);
+                baseline = BuildSurfaceBaseline(mlTargetMesh, targetPart, frame, minX, maxX, stepSize: BaselineStepSizeMm);
             }
             catch
             {
@@ -156,7 +175,7 @@ public static class TextMeshBuilder
             }
         }
 
-        bool hasSurface = baseline != null && !ReferenceEquals(mlTargetMesh, null) && !ReferenceEquals(targetPart, null);
+        bool hasSurface = baseline is not null && !ReferenceEquals(mlTargetMesh, null) && !ReferenceEquals(targetPart, null);
 
         try
         {
@@ -195,7 +214,7 @@ public static class TextMeshBuilder
                                 var e1 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
                                 var e2 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
                                 var cross = Vector3.Cross(e1, e2);
-                                Vector3 norm = cross.LengthSquared() > 1e-8f ? Vector3.Normalize(cross) : baseFrame.N;
+                                Vector3 norm = cross.LengthSquared() > DegenerateCrossLengthSquared ? Vector3.Normalize(cross) : baseFrame.N;
                                 if (Vector3.Dot(norm, baseFrame.N) < 0f) norm = -norm;
 
                                 pSurface = proposed - Vector3.Dot(proposed - v0Vec, norm) * norm;
@@ -347,7 +366,7 @@ public static class TextMeshBuilder
         IMesh prismMesh,
         List<string>? warnings = null)
     {
-        if (targetMesh == null || prismMesh == null)
+        if (targetMesh is null || prismMesh is null)
             return Result.Success(prismMesh!);
 
         using var mlTargetMesh = targetMesh.ToMRMesh();
@@ -364,7 +383,7 @@ public static class TextMeshBuilder
         bool hadMiss = false;
         bool hadLargeDeviation = false;
 
-        float rayOffset = 150.0f;
+        float rayOffset = ProjectionRayOffsetMm;
         var rayDir = -frame.N;
 
         for (int i = 0; i < vertices.Length; i++)
@@ -404,7 +423,7 @@ public static class TextMeshBuilder
                         var e1 = new Vector3(p1.x - p0.x, p1.y - p0.y, p1.z - p0.z);
                         var e2 = new Vector3(p2.x - p0.x, p2.y - p0.y, p2.z - p0.z);
                         var cross = Vector3.Cross(e1, e2);
-                        if (cross.LengthSquared() > 1e-8f)
+                        if (cross.LengthSquared() > DegenerateCrossLengthSquared)
                         {
                             hitNormal = Vector3.Normalize(cross);
                         }
@@ -412,7 +431,7 @@ public static class TextMeshBuilder
                 }
 
                 float dot = Vector3.Dot(hitNormal, frame.N);
-                if (dot < 0.5f) // > 60 degrees
+                if (dot < MaxSurfaceDeviationDot)
                 {
                     hadLargeDeviation = true;
                 }
@@ -444,10 +463,10 @@ public static class TextMeshBuilder
             projectedVerts[i * 3 + 2] = finalPos.Z;
         }
 
-        if (hadMiss && warnings != null)
+        if (hadMiss && warnings is not null)
             warnings.Add("Label extends past the surface");
 
-        if (hadLargeDeviation && warnings != null)
+        if (hadLargeDeviation && warnings is not null)
             warnings.Add("Surface too curved for this size");
 
         var createResult = engine.CreateMesh(projectedVerts.AsSpan(), triangles.AsSpan());
@@ -480,7 +499,7 @@ public static class TextMeshBuilder
         DecalFrame frame,
         float minX,
         float maxX,
-        float stepSize = 0.5f)
+        float stepSize = BaselineStepSizeMm)
     {
         var frames = new List<BaselineFrame>();
 
@@ -488,7 +507,7 @@ public static class TextMeshBuilder
 
         // March positive direction (+U)
         var posFrames = new List<BaselineFrame>();
-        float maxDist = MathF.Max(0f, maxX + 2.0f);
+        float maxDist = MathF.Max(0f, maxX + BaselineMarginMm);
         int posSteps = (int)MathF.Ceiling(maxDist / stepSize);
 
         Vector3 currPos = frame.Origin;
@@ -517,13 +536,13 @@ public static class TextMeshBuilder
                     var e1 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
                     var e2 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
                     var cross = Vector3.Cross(e1, e2);
-                    Vector3 norm = cross.LengthSquared() > 1e-8f ? Vector3.Normalize(cross) : currN;
+                    Vector3 norm = cross.LengthSquared() > DegenerateCrossLengthSquared ? Vector3.Normalize(cross) : currN;
                     if (Vector3.Dot(norm, currN) < 0f) norm = -norm;
 
                     Vector3 nextPos = proposed - Vector3.Dot(proposed - v0Vec, norm) * norm;
                     
                     var uProj = currU - Vector3.Dot(currU, norm) * norm;
-                    Vector3 nextU = uProj.LengthSquared() > 1e-8f ? Vector3.Normalize(uProj) : currU;
+                    Vector3 nextU = uProj.LengthSquared() > DegenerateCrossLengthSquared ? Vector3.Normalize(uProj) : currU;
                     Vector3 nextV = Vector3.Normalize(Vector3.Cross(norm, nextU));
                     if (Vector3.Dot(nextV, currV) < 0f) nextV = -nextV;
 
@@ -543,7 +562,7 @@ public static class TextMeshBuilder
 
         // March negative direction (-U)
         var negFrames = new List<BaselineFrame>();
-        float minDist = MathF.Min(0f, minX - 2.0f);
+        float minDist = MathF.Min(0f, minX - BaselineMarginMm);
         int negSteps = (int)MathF.Ceiling(MathF.Abs(minDist) / stepSize);
 
         currPos = frame.Origin;
@@ -572,13 +591,13 @@ public static class TextMeshBuilder
                     var e1 = new Vector3(v1.x - v0.x, v1.y - v0.y, v1.z - v0.z);
                     var e2 = new Vector3(v2.x - v0.x, v2.y - v0.y, v2.z - v0.z);
                     var cross = Vector3.Cross(e1, e2);
-                    Vector3 norm = cross.LengthSquared() > 1e-8f ? Vector3.Normalize(cross) : currN;
+                    Vector3 norm = cross.LengthSquared() > DegenerateCrossLengthSquared ? Vector3.Normalize(cross) : currN;
                     if (Vector3.Dot(norm, currN) < 0f) norm = -norm;
 
                     Vector3 nextPos = proposed - Vector3.Dot(proposed - v0Vec, norm) * norm;
                     
                     var uProj = currU - Vector3.Dot(currU, norm) * norm;
-                    Vector3 nextU = uProj.LengthSquared() > 1e-8f ? Vector3.Normalize(uProj) : currU;
+                    Vector3 nextU = uProj.LengthSquared() > DegenerateCrossLengthSquared ? Vector3.Normalize(uProj) : currU;
                     Vector3 nextV = Vector3.Normalize(Vector3.Cross(norm, -nextU));
                     if (Vector3.Dot(nextV, currV) < 0f) nextV = -nextV;
 
@@ -631,7 +650,7 @@ public static class TextMeshBuilder
         var f0 = frames[idx0];
         var f1 = frames[idx1];
         float span = f1.ArcLength - f0.ArcLength;
-        float t = span > 1e-6f ? Math.Clamp((u - f0.ArcLength) / span, 0f, 1f) : 0f;
+        float t = span > MinInterpolationSpan ? Math.Clamp((u - f0.ArcLength) / span, 0f, 1f) : 0f;
 
         Vector3 pos = Vector3.Lerp(f0.Position, f1.Position, t);
         Vector3 uDir = Vector3.Normalize(Vector3.Lerp(f0.U, f1.U, t));

@@ -93,7 +93,7 @@ public class MouldSceneManager : ISceneManager
                 var d = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
                 var s = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
                 
-                if (_grid != null) {
+                if (_grid is not null) {
                     VisualRemovedById?.Invoke(_grid.GUID);
                 }
                 _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
@@ -428,10 +428,12 @@ public class MouldSceneManager : ISceneManager
         return false;
     }
 
-    public bool OnMouseMove(HitTestResult? hit)
+    public bool OnMouseMove(IList<HitTestResult> hits)
     {
         if (IsMouldGenerated)
             return false;
+
+        var hit = hits.Count > 0 ? hits[0] : null;
 
         bool overTarget = hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId;
 

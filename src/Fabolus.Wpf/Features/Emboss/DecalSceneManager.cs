@@ -593,12 +593,12 @@ public sealed class DecalSceneManager : ISceneManager
         return false;
     }
 
-    public bool OnMouseMove(HitTestResult? hit) => OnMouseMove(hit, null);
-
-    public bool OnMouseMove(HitTestResult? hit, IList<HitTestResult>? allHits)
+    public bool OnMouseMove(IList<HitTestResult> hits)
     {
-        // Handle preset sphere hover highlight
-        Guid hitPresetGuid = hit?.ModelHit is MeshGeometryModel3D sphereModel && _presetSphereVisuals.ContainsKey(sphereModel.GUID)
+        // Hover highlight tracks the nearest hit only: a preset sphere buried behind another
+        // visual is not what the cursor is pointing at.
+        var nearest = hits.Count > 0 ? hits[0] : null;
+        Guid hitPresetGuid = nearest?.ModelHit is MeshGeometryModel3D sphereModel && _presetSphereVisuals.ContainsKey(sphereModel.GUID)
             ? sphereModel.GUID
             : Guid.Empty;
 
@@ -627,8 +627,9 @@ public sealed class DecalSceneManager : ISceneManager
         if (Mouse.LeftButton != MouseButtonState.Pressed || _dragDecalId == Guid.Empty)
             return false;
 
-        var targetHit = allHits?.FirstOrDefault(h => h.ModelHit is MeshGeometryModel3D m && m.GUID == _targetMeshId)
-            ?? (hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId ? hit : null);
+        // Dragging looks past the nearest hit for the target mesh specifically, so a decal
+        // sliding under the cursor doesn't stall the drag against its own preview geometry.
+        var targetHit = hits.FirstOrDefault(h => h.ModelHit is MeshGeometryModel3D m && m.GUID == _targetMeshId);
 
         if (targetHit is null)
             return false;

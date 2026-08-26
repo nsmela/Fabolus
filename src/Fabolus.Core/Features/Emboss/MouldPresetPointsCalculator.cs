@@ -41,8 +41,8 @@ public static class MouldPresetPointsCalculator
         // 1. Front (-Y direction) - horizontal orientation
         var frontRayOrigin = new Vector3(xCenter, minY - RaycastOffsetDistance, zMid);
         var frontRayDir = new Vector3(0f, 1f, 0f);
-        var frontHit = engine.Evaluators?.Raycast(mouldMesh, frontRayOrigin, frontRayDir);
-        if (frontHit is not null && frontHit.IsSuccess)
+        var frontHit = engine.Evaluators.Raycast(mouldMesh, frontRayOrigin, frontRayDir);
+        if (frontHit.IsSuccess)
         {
             presets.Add(new DecalPresetPoint("Front", frontHit.Value.Point, frontHit.Value.Normal, 0f, mouldWidth, EmbossTarget.Mould));
         }
@@ -54,8 +54,8 @@ public static class MouldPresetPointsCalculator
         // 2. Back (+Y direction) - horizontal orientation
         var backRayOrigin = new Vector3(xCenter, maxY + RaycastOffsetDistance, zMid);
         var backRayDir = new Vector3(0f, -1f, 0f);
-        var backHit = engine.Evaluators?.Raycast(mouldMesh, backRayOrigin, backRayDir);
-        if (backHit is not null && backHit.IsSuccess)
+        var backHit = engine.Evaluators.Raycast(mouldMesh, backRayOrigin, backRayDir);
+        if (backHit.IsSuccess)
         {
             presets.Add(new DecalPresetPoint("Back", backHit.Value.Point, backHit.Value.Normal, 0f, mouldWidth, EmbossTarget.Mould));
         }
@@ -67,8 +67,8 @@ public static class MouldPresetPointsCalculator
         // 3. Left (-X direction)
         var leftRayOrigin = new Vector3(minX - RaycastOffsetDistance, yCenter, zMid);
         var leftRayDir = new Vector3(1f, 0f, 0f);
-        var leftHit = engine.Evaluators?.Raycast(mouldMesh, leftRayOrigin, leftRayDir);
-        if (leftHit is not null && leftHit.IsSuccess)
+        var leftHit = engine.Evaluators.Raycast(mouldMesh, leftRayOrigin, leftRayDir);
+        if (leftHit.IsSuccess)
         {
             presets.Add(new DecalPresetPoint("Left", leftHit.Value.Point, leftHit.Value.Normal, 90f, mouldHeight, EmbossTarget.Mould));
         }
@@ -80,8 +80,8 @@ public static class MouldPresetPointsCalculator
         // 4. Right (+X direction)
         var rightRayOrigin = new Vector3(maxX + RaycastOffsetDistance, yCenter, zMid);
         var rightRayDir = new Vector3(-1f, 0f, 0f);
-        var rightHit = engine.Evaluators?.Raycast(mouldMesh, rightRayOrigin, rightRayDir);
-        if (rightHit is not null && rightHit.IsSuccess)
+        var rightHit = engine.Evaluators.Raycast(mouldMesh, rightRayOrigin, rightRayDir);
+        if (rightHit.IsSuccess)
         {
             presets.Add(new DecalPresetPoint("Right", rightHit.Value.Point, rightHit.Value.Normal, 90f, mouldHeight, EmbossTarget.Mould));
         }

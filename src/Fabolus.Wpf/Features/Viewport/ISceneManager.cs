@@ -19,9 +19,16 @@ public interface ISceneManager {
     bool OnMouseDown(MouseDown3DEventArgs eventArgs);
     bool OnMouseUp(MouseUp3DEventArgs eventArgs);
 
-    // Plain (non-3D) mouse move, hit-tested manually by the caller. HelixToolkit's
-    // MouseMove3D routed event only fires while a mouse button is held, which breaks
-    // hover-based interactions (e.g. previewing/placing items without dragging).
-    bool OnMouseMove(HitTestResult? hit);
-    bool OnMouseMove(HitTestResult? hit, IList<HitTestResult>? allHits) => OnMouseMove(hit);
+    /// <summary>
+    /// Plain (non-3D) mouse move, hit-tested by the caller. HelixToolkit's MouseMove3D routed
+    /// event only fires while a mouse button is held, which breaks hover-based interactions such
+    /// as previewing or placing items without dragging - so the viewport hit-tests itself and
+    /// hands the results over.
+    /// </summary>
+    /// <param name="hits">
+    /// Everything under the cursor, nearest first, and empty when the cursor is over nothing.
+    /// The whole list rather than just the nearest, because a manager often wants a specific
+    /// model (dragging across the target mesh, say) that another visual may be sitting in front of.
+    /// </param>
+    bool OnMouseMove(IList<HitTestResult> hits);
 }
