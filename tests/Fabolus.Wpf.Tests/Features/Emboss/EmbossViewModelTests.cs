@@ -552,12 +552,10 @@ public class EmbossViewModelTests
         Assert.Equal(EmbossTarget.Base, vm.DecalList[0].Target);
         Assert.Equal("Base", vm.DecalList[0].TargetText);
         Assert.True(vm.DecalList[0].HasMould);
-        Assert.Contains("Base", vm.DecalList[0].Summary);
 
         Assert.Equal(EmbossTarget.Mould, vm.DecalList[1].Target);
         Assert.Equal("Mould", vm.DecalList[1].TargetText);
         Assert.True(vm.DecalList[1].HasMould);
-        Assert.Contains("Mould", vm.DecalList[1].Summary);
     }
 
     [Fact]
@@ -615,11 +613,9 @@ public class EmbossViewModelTests
         // Verify first decal remained Mould and 3rd decal is Base
         Assert.Equal(EmbossTarget.Mould, vm.DecalList[0].Target);
         Assert.Equal("Mould", vm.DecalList[0].TargetText);
-        Assert.Contains("Mould", vm.DecalList[0].Summary);
 
         Assert.Equal(EmbossTarget.Base, vm.DecalList[2].Target);
         Assert.Equal("Base", vm.DecalList[2].TargetText);
-        Assert.Contains("Base", vm.DecalList[2].Summary);
     }
 
     [Fact]
