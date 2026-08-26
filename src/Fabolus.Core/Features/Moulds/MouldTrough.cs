@@ -33,11 +33,11 @@ internal static class MouldTrough
         MouldDefinition definition)
     {
         // Every trough stops short of the mould wall - that rim is what holds the silicone.
-        var rimResult = engine.Generators.OffsetPolygon(footprint, -(float)definition.TroughOffset);
+        var rimResult = engine.Polygons.OffsetPolygon(footprint, -(float)definition.TroughOffset);
         if (rimResult.IsFailure)
             return TroughErrors.RimTooWide;
 
-        var cutterResult = engine.Generators.ExtrudePolygon(rimResult.Value, floorZ, bodyTopZ + Overshoot);
+        var cutterResult = engine.Polygons.ExtrudePolygon(rimResult.Value, floorZ, bodyTopZ + Overshoot);
         if (cutterResult.IsFailure) return cutterResult.Error;
 
         var cutter = cutterResult.Value;
@@ -47,7 +47,7 @@ internal static class MouldTrough
             var localResult = ChannelFootprint(engine, definition);
             if (localResult.IsFailure) return localResult.Error;
 
-            var localCutterResult = engine.Generators.ExtrudePolygon(localResult.Value, floorZ, bodyTopZ + Overshoot);
+            var localCutterResult = engine.Polygons.ExtrudePolygon(localResult.Value, floorZ, bodyTopZ + Overshoot);
             if (localCutterResult.IsFailure) return localCutterResult.Error;
 
             // Clipped against the full-footprint basin so a channel painted out near the
@@ -75,7 +75,7 @@ internal static class MouldTrough
         var hull = ConvexHull(exits);
         var polygon = new Polygon2D { OuterBoundary = Pad(hull) };
 
-        return engine.Generators.OffsetPolygon(polygon, (float)definition.TroughOffset);
+        return engine.Polygons.OffsetPolygon(polygon, (float)definition.TroughOffset);
     }
 
     /// <summary>

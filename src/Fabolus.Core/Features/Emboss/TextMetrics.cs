@@ -1,4 +1,4 @@
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Metric measurements of rendered glyphs in millimetres.

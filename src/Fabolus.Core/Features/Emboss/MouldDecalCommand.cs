@@ -2,11 +2,13 @@ using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 public sealed record MouldDecalCommand(IReadOnlyList<TextDecal> Decals) : IMeshCommand
 {
     public int Priority => CommandPriority.MouldTextEmboss;
+
+    public string Describe() => $"Mould decals ({DecalSummary.Of(Decals)})";
 
     public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh)
     {

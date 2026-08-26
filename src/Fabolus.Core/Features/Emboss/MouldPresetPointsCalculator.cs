@@ -1,7 +1,7 @@
 using System.Numerics;
 using Fabolus.Core.Geometry;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Calculates preset anchor points along the outer contour of a mould mesh at mid-height:

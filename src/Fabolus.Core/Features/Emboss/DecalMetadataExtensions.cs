@@ -1,7 +1,7 @@
 using Fabolus.Core.Common;
 using Fabolus.Core.Geometry.Metadata;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 public static class TextEmbossMetadataExtensions
 {
@@ -21,14 +21,6 @@ public static class TextEmbossMetadataExtensions
             else if (cmd is MouldDecalCommand mouldDecalCmd)
             {
                 list.AddRange(mouldDecalCmd.Decals);
-            }
-            else if (cmd is TextEmbossCommand legacyCmd)
-            {
-                list.AddRange(legacyCmd.Decals);
-            }
-            else if (cmd is MouldTextEmbossCommand legacyMouldCmd)
-            {
-                list.AddRange(legacyMouldCmd.Decals);
             }
         }
 

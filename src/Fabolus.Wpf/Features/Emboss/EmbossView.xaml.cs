@@ -1,6 +1,6 @@
 using System.Windows.Controls;
 
-namespace Fabolus.Wpf.Features.Emboss;
+namespace Fabolus.Wpf.Features.Decal;
 
 /// <summary>
 /// Interaction logic for EmbossView.xaml

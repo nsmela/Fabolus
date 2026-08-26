@@ -1,4 +1,4 @@
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 public enum EmbossOperation
 {

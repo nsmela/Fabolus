@@ -1,6 +1,6 @@
 using System.Numerics;
 using Fabolus.Core.Common;
-using Fabolus.Core.Features.Emboss;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
@@ -78,7 +78,7 @@ public class TextEmbossTests
     }
 
     [Fact]
-    public void Polygon2DExtensions_MirrorX_FlipsXAndPreservesWinding()
+    public void Polygons_MirrorX_FlipsXAndPreservesWinding()
     {
         var poly = new Polygon2D
         {
@@ -91,7 +91,7 @@ public class TextEmbossTests
             }
         };
 
-        var mirrored = poly.MirrorX();
+        var mirrored = _fixture.Engine.Polygons.MirrorX(poly);
         mirrored.OuterBoundary[0].X.Should().Be(2);
         mirrored.OuterBoundary.Should().HaveCount(4);
     }

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
-using Fabolus.Core.Features.Emboss;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;

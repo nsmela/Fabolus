@@ -412,7 +412,7 @@ public class MouldsTests
             }
         };
 
-        var slabMesh = _fixture.Engine.Generators.ExtrudePolygon(slab, zMin, zMax).Value;
+        var slabMesh = _fixture.Engine.Polygons.ExtrudePolygon(slab, zMin, zMax).Value;
         var sliced = _fixture.Engine.Booleans.Intersect(mesh, slabMesh).Value;
 
         return _fixture.Engine.Evaluators.GetStatistics(sliced).Value.Volume;

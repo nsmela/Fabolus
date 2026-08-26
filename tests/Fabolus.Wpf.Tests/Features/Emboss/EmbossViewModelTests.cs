@@ -2,13 +2,13 @@ using System.Numerics;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common;
 using Fabolus.Core.Common.Interfaces;
-using Fabolus.Core.Features.Emboss;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
-using Fabolus.Wpf.Features.Emboss;
+using Fabolus.Wpf.Features.Decal;
 using Moq;
 using Xunit;
 
@@ -38,7 +38,7 @@ public sealed class TestOutlineSource : IGlyphOutlineSource
 
 public class EmbossViewModelTests
 {
-    private static (EmbossViewModel vm, IMessenger messenger, Mock<IGeometryEngine> engineMock) CreateViewModel()
+    private static (DecalViewModel vm, IMessenger messenger, Mock<IGeometryEngine> engineMock) CreateViewModel()
     {
         var messenger = new StrongReferenceMessenger();
         var preferences = new Dictionary<string, object>
@@ -83,7 +83,7 @@ public class EmbossViewModelTests
         engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
             .Returns<IMesh, IMesh>((a, b) => Result<IMesh>.Success(a));
 
-        var vm = new EmbossViewModel(messenger, alertMock.Object, engineMock.Object, outlineSource);
+        var vm = new DecalViewModel(messenger, alertMock.Object, engineMock.Object, outlineSource);
         return (vm, messenger, engineMock);
     }
 
@@ -111,11 +111,9 @@ public class EmbossViewModelTests
 
         vm.AddDecalCommand.Execute(null);
         Assert.Equal(1, vm.DecalCount);
-        Assert.False(vm.IsPicking);
 
         vm.AddDecalCommand.Execute(null);
         Assert.Equal(2, vm.DecalCount);
-        Assert.False(vm.IsPicking);
     }
 
     [Fact]
@@ -129,7 +127,7 @@ public class EmbossViewModelTests
     }
 
     [Fact]
-    public async Task ActivateAsync_WithImportedTextEmbossCommand_InheritsDecalsAndSetsIsAppliedTrue()
+    public async Task ActivateAsync_WithImportedDecalCommand_InheritsDecalsAndSetsIsAppliedTrue()
     {
         var (vm, _, engineMock) = CreateViewModel();
         var mockMesh = new Mock<IMesh>();
@@ -146,7 +144,7 @@ public class EmbossViewModelTests
             Anchor = new Vector3(5, 10, 15),
             AnchorNormal = Vector3.UnitZ
         };
-        var command = new TextEmbossCommand(new[] { decal });
+        var command = new DecalCommand(new[] { decal });
         var metadata = new MeshMetadata()
             .WithId(Guid.NewGuid())
             .WithName("Test")
@@ -563,7 +561,7 @@ public class EmbossViewModelTests
     }
 
     [Fact]
-    public async Task StartPlacing_SwitchingTargetToMouldAndPlacingDecal_PreservesPreviousBaseDecalTarget()
+    public async Task AddDecal_SwitchingTargetToMould_PreservesPreviousBaseDecalTarget()
     {
         var (vm, _, engineMock) = CreateViewModel();
         var mockMesh = new Mock<IMesh>();
@@ -750,11 +748,11 @@ public class EmbossViewModelTests
             .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
         engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
             .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsManifold = true }));
-        engineMock.Setup(e => e.Generators.GetMeshShadow(It.IsAny<IMesh>()))
+        engineMock.Setup(e => e.Polygons.GetMeshShadow(It.IsAny<IMesh>()))
             .Returns(Result<Polygon2D>.Success(new Polygon2D { OuterBoundary = new Vector2[] { new(-20, -30), new(20, -30), new(20, 30), new(-20, 30) } }));
-        engineMock.Setup(e => e.Generators.OffsetPolygon(It.IsAny<Polygon2D>(), It.IsAny<float>()))
+        engineMock.Setup(e => e.Polygons.OffsetPolygon(It.IsAny<Polygon2D>(), It.IsAny<float>()))
             .Returns<Polygon2D, float>((p, _) => Result<Polygon2D>.Success(p));
-        engineMock.Setup(e => e.Generators.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
+        engineMock.Setup(e => e.Polygons.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
             .Returns(Result<IMesh>.Success(mockMesh.Object));
         engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
             .Returns(Result<IMesh>.Success(mockMesh.Object));
@@ -1113,11 +1111,11 @@ public class EmbossViewModelTests
             .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
         engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
             .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsManifold = true }));
-        engineMock.Setup(e => e.Generators.GetMeshShadow(It.IsAny<IMesh>()))
+        engineMock.Setup(e => e.Polygons.GetMeshShadow(It.IsAny<IMesh>()))
             .Returns(Result<Polygon2D>.Success(new Polygon2D { OuterBoundary = new Vector2[] { new(-20, -30), new(20, -30), new(20, 30), new(-20, 30) } }));
-        engineMock.Setup(e => e.Generators.OffsetPolygon(It.IsAny<Polygon2D>(), It.IsAny<float>()))
+        engineMock.Setup(e => e.Polygons.OffsetPolygon(It.IsAny<Polygon2D>(), It.IsAny<float>()))
             .Returns<Polygon2D, float>((p, _) => Result<Polygon2D>.Success(p));
-        engineMock.Setup(e => e.Generators.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
+        engineMock.Setup(e => e.Polygons.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
             .Returns(Result<IMesh>.Success(mockMesh.Object));
         engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
             .Returns(Result<IMesh>.Success(mockMesh.Object));
@@ -1174,21 +1172,21 @@ public class EmbossViewModelTests
         var decal = vm.DecalList[0];
         vm.SelectedDecalId = decal.Id;
 
-        var sceneManager = (EmbossSceneManager)vm.SceneManager;
+        var sceneManager = (DecalSceneManager)vm.SceneManager;
 
         // Simulate decal move
         var newPos = new Vector3(15, 25, 35);
         var newNorm = new Vector3(0, 0, 1);
         
         // Raising DecalMoved
-        var movedMethod = typeof(EmbossViewModel).GetMethod("OnDecalMoved", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var movedMethod = typeof(DecalViewModel).GetMethod("OnDecalMoved", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         movedMethod!.Invoke(vm, new object[] { decal.Id, newPos, newNorm });
 
         Assert.Equal(newPos, vm.Anchor);
         Assert.Equal(newNorm, vm.AnchorNormal);
 
         // Raising DecalDragCompleted
-        var dragCompletedMethod = typeof(EmbossViewModel).GetMethod("OnDecalDragCompleted", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var dragCompletedMethod = typeof(DecalViewModel).GetMethod("OnDecalDragCompleted", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         dragCompletedMethod!.Invoke(vm, new object[] { decal.Id });
 
         Assert.Equal(newPos, vm.Anchor);

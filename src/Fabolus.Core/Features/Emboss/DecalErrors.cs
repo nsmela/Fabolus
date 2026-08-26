@@ -1,6 +1,6 @@
 using Fabolus.Core.Common;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Centralized registry of decal domain errors.

@@ -258,13 +258,25 @@ public partial class ViewportControl : UserControl, IDisposable {
 
     // --- INPUT ROUTING (From XAML events) ---
 
+    // The hit-test from the most recent MainViewport_MouseMove. A mouse-down is always preceded
+    // by a move to the same point, so the empty-space check below can reuse it rather than
+    // hit-testing the whole scene again on every single click, in every view.
+    private IList<HitTestResult>? _lastMoveHits;
+    private System.Windows.Point _lastMovePosition;
+
+    // MouseDown3D only fires when the click lands on geometry, so a click on empty space - which
+    // is how a selection gets cleared - would never reach the scene manager without this. The two
+    // handlers are disjoint by construction: this one forwards only when nothing was hit.
     private void MainViewport_MouseDown(object sender, MouseButtonEventArgs e) {
-        if (e.ChangedButton == MouseButton.Left && SceneManager is not null) {
-            var position = e.GetPosition(MainViewport);
-            var hits = MainViewport.FindHits(position);
-            if (hits.Count == 0) {
-                SceneManager.OnMouseDown(new MouseDown3DEventArgs(MainViewport, null, position, MainViewport, e));
-            }
+        if (e.ChangedButton != MouseButton.Left || SceneManager is null) { return; }
+
+        var position = e.GetPosition(MainViewport);
+        var hits = position == _lastMovePosition && _lastMoveHits is not null
+            ? _lastMoveHits
+            : MainViewport.FindHits(position);
+
+        if (hits.Count == 0) {
+            SceneManager.OnMouseDown(new MouseDown3DEventArgs(MainViewport, null, position, MainViewport, e));
         }
     }
 
@@ -282,6 +294,8 @@ public partial class ViewportControl : UserControl, IDisposable {
 
         var position = e.GetPosition(MainViewport);
         var hits = MainViewport.FindHits(position);
+        _lastMovePosition = position;
+        _lastMoveHits = hits;
 
         SceneManager.OnMouseMove(hits.Count > 0 ? hits[0] : null, hits);
     }

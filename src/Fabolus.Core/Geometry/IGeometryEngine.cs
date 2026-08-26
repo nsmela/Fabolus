@@ -36,6 +36,11 @@ public interface IGeometryEngine
     IGeometryEvaluators Evaluators { get; }
 
     /// <summary>
+    /// Provides 2D polygon operations (mesh outlines, offsetting, unioning, extrusion).
+    /// </summary>
+    IPolygonOperations Polygons { get; }
+
+    /// <summary>
     /// Creates a mesh from raw vertex and triangle data.
     /// Performs sanitization (compaction, normal allocation).
     /// </summary>

@@ -15,7 +15,7 @@
         xmlns:controls="clr-namespace:Fabolus.Wpf.Features.Main.Controls"
         xmlns:meshManager="clr-namespace:Fabolus.Wpf.Features.MeshManager"
         xmlns:cutSplit="clr-namespace:Fabolus.Wpf.Features.CutSplit"
-        xmlns:emboss="clr-namespace:Fabolus.Wpf.Features.Emboss"
+        xmlns:emboss="clr-namespace:Fabolus.Wpf.Features.Decal"
         mc:Ignorable="d"
         Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -49,7 +49,7 @@
             <mould:MouldView />
         </DataTemplate>
 
-        <DataTemplate DataType="{x:Type emboss:EmbossViewModel }">
+        <DataTemplate DataType="{x:Type emboss:DecalViewModel }">
             <emboss:EmbossView />
         </DataTemplate>
 

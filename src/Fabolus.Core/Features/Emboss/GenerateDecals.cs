@@ -1,7 +1,7 @@
 using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Executes 3D text solid generation, surface contouring, and Boolean union/subtraction for decals.

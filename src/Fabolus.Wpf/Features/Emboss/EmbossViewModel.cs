@@ -5,18 +5,16 @@ using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Common;
-using Fabolus.Core.Features.Emboss;
-using Fabolus.Core.Features.MeshIO;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Viewport;
 
-namespace Fabolus.Wpf.Features.Emboss;
+namespace Fabolus.Wpf.Features.Decal;
 
-public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
+public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 {
     private readonly IMessenger _messenger;
     private readonly IAlertDialog _alert;
@@ -24,7 +22,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     private readonly IGlyphOutlineSource _outlineSource;
     private readonly GenerateDecals _generator;
     private readonly ClearDecals _clearDecals;
-    private readonly EmbossSceneManager _sceneManager;
+    private readonly DecalSceneManager _sceneManager;
 
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
     private IMesh? _activeMesh;
@@ -64,7 +62,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     [ObservableProperty] private float _depth = 0.8f;
     [ObservableProperty] private float _tracking = 0.4f;
     [ObservableProperty] private int _rotation = 0;
-    [ObservableProperty] private bool _isPicking = false;
     [ObservableProperty] private bool _isApplied = false;
     [ObservableProperty] private bool _hasMould = false;
     [ObservableProperty] private Vector3 _anchor = Vector3.Zero;
@@ -101,7 +98,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     public IReadOnlyList<DecalPresetPoint> ActivePresetPoints => Target == EmbossTarget.Mould ? _mouldPresetPoints : _basePresetPoints;
 
-    public EmbossViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine, IGlyphOutlineSource outlineSource)
+    public DecalViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine, IGlyphOutlineSource outlineSource)
     {
         _messenger = messenger;
         _alert = alert;
@@ -114,13 +111,10 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _generator = new GenerateDecals(_outlineSource);
         _clearDecals = new ClearDecals(_engine);
 
-        _sceneManager = new EmbossSceneManager(_engine, _messenger);
+        _sceneManager = new DecalSceneManager(_engine, _messenger);
         _sceneManager.DecalSelected += OnDecalSelected;
-        _sceneManager.DecalPlaced += OnDecalPlaced;
         _sceneManager.DecalMoved += OnDecalMoved;
         _sceneManager.DecalDragCompleted += OnDecalDragCompleted;
-        _sceneManager.DecalHovered += OnDecalHovered;
-        _sceneManager.PickingCancelled += OnPickingCancelled;
         _sceneManager.PresetPointSelected += OnPresetPointSelected;
         _sceneManager.PresetPointHovered += OnPresetPointHovered;
 
@@ -185,7 +179,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             return;
         }
 
-        if (SelectedDecalId != Guid.Empty && !IsPicking)
+        if (SelectedDecalId != Guid.Empty)
         {
             Rotation = (int)preset.RotationDeg;
 
@@ -307,16 +301,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         _sceneManager.UpdatePresetPoints(activePoints, isVisible: !IsApplied);
     }
 
-    private void OnPickingCancelled()
-    {
-        IsPicking = false;
-        if (SelectedDecalId == Guid.Empty && _decals.Count > 0)
-        {
-            SelectedDecalId = _decals[^1].Id;
-        }
-        OnPropertyChanged(nameof(Hint));
-    }
-
     private void UpdateTargetMesh()
     {
         bool isMould = IsApplied
@@ -374,13 +358,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             return;
         }
 
-        if (IsPicking)
-        {
-            IsPicking = false;
-            _sceneManager.IsPicking = false;
-            OnPropertyChanged(nameof(Hint));
-        }
-
         var decal = _decals.FirstOrDefault(d => d.Id == value);
         if (decal != null)
         {
@@ -411,7 +388,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
     private void SyncActiveDecal()
     {
-        if (_isSyncingFromModel || _isActivating || IsPicking) return;
+        if (_isSyncingFromModel || _isActivating) return;
         if (SelectedDecalId == Guid.Empty) return;
 
         var idx = _decals.FindIndex(d => d.Id == SelectedDecalId);
@@ -493,7 +470,7 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     partial void OnTargetChanged(EmbossTarget value)
     {
         UpdateTargetMesh();
-        if (!IsPicking && SelectedDecalId != Guid.Empty)
+        if (SelectedDecalId != Guid.Empty)
         {
             SyncActiveDecal();
         }
@@ -584,34 +561,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
         SelectedDecalId = decalId;
     }
 
-    private void OnDecalPlaced(Vector3 point, Vector3 normal)
-    {
-        IsPicking = false;
-        _sceneManager.IsPicking = false;
-        OnPropertyChanged(nameof(Hint));
-
-        var newDecal = new TextDecal
-        {
-            Id = Guid.NewGuid(),
-            Text = LabelText,
-            Operation = Operation,
-            Target = Target,
-            Font = Font,
-            CapHeight = CapHeight,
-            Depth = Depth,
-            Tracking = Tracking,
-            RotationDeg = Rotation,
-            Anchor = point,
-            AnchorNormal = normal
-        };
-
-        _decals.Add(newDecal);
-        SelectedDecalId = newDecal.Id;
-        SyncDecalList();
-        OnPropertyChanged(nameof(DecalCount));
-        Invalidate();
-    }
-
     private void OnDecalMoved(Guid decalId, Vector3 point, Vector3 normal)
     {
         EnsureCleanMeshForPreview();
@@ -640,11 +589,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
     private void OnDecalDragCompleted(Guid decalId)
     {
         Invalidate();
-    }
-
-    private void OnDecalHovered(Vector3 point, Vector3 normal)
-    {
-        // Visual hover feedback if needed
     }
 
     [RelayCommand]
@@ -690,15 +634,10 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
         _decals.Add(newDecal);
         SelectedDecalId = newDecal.Id;
-        IsPicking = false;
-        _sceneManager.IsPicking = false;
         SyncDecalList();
         OnPropertyChanged(nameof(DecalCount));
         Invalidate();
     }
-
-    [RelayCommand]
-    private void StartPlacing() => AddDecal();
 
     [RelayCommand]
     public void SelectDecal(Guid id)
@@ -742,8 +681,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
         _decals.Clear();
         SelectedDecalId = Guid.Empty;
-        IsPicking = false;
-        _sceneManager.IsPicking = false;
         SyncDecalList();
         OnPropertyChanged(nameof(DecalCount));
         _sceneManager.ClearPreviewVisuals();
@@ -942,8 +879,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             {
                 Target = _decals[0].Target;
             }
-            IsPicking = false;
-            _sceneManager.IsPicking = false;
 
             UpdateTargetMesh();
             UpdatePresets();
@@ -1005,8 +940,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                 IsApplied = true;
                 SelectedDecalId = Guid.Empty;
                 Target = _decals[0].Target;
-                IsPicking = false;
-                _sceneManager.IsPicking = false;
             }
             else
             {
@@ -1077,8 +1010,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
 
                     _decals = [fileDecal, volumeDecal];
                     SelectedDecalId = Guid.Empty;
-                    IsPicking = false;
-                    _sceneManager.IsPicking = false;
                 }
                 else
                 {
@@ -1104,8 +1035,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
                     };
                     _decals = [defaultDecal];
                     SelectedDecalId = Guid.Empty;
-                    IsPicking = false;
-                    _sceneManager.IsPicking = false;
                 }
             }
 
@@ -1124,7 +1053,6 @@ public partial class EmbossViewModel : ObservableObject, IViewState, IDisposable
             OnPropertyChanged(nameof(DepthLabel));
             OnPropertyChanged(nameof(Footprint));
             OnPropertyChanged(nameof(DecalCount));
-            OnPropertyChanged(nameof(Hint));
 
             if (!IsApplied)
             {

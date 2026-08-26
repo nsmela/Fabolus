@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Represents a pre-calculated placement target on a mesh surface (e.g. mould contour).

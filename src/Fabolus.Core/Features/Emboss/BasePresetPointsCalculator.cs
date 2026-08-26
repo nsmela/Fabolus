@@ -1,7 +1,7 @@
 using System.Numerics;
 using Fabolus.Core.Geometry;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Calculates preset anchor points on a base mesh (bolus / anatomy model):

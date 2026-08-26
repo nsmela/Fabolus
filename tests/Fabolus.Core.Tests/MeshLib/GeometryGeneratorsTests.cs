@@ -135,7 +135,7 @@ public class GeometryGeneratorsTests
     {
         var sphere = _fixture.LoadStl("sphere.stl");
 
-        var result = _fixture.Engine.Generators.GetConvexHull(sphere);
+        var result = _fixture.Engine.Polygons.GetConvexHull(sphere);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.OuterBoundary.Count.Should().BeGreaterThan(0);
@@ -146,7 +146,7 @@ public class GeometryGeneratorsTests
     {
         var sphere = _fixture.LoadStl("sphere.stl");
 
-        var result = _fixture.Engine.Generators.GetMeshShadow(sphere);
+        var result = _fixture.Engine.Polygons.GetMeshShadow(sphere);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.OuterBoundary.Count.Should().BeGreaterThan(0);
@@ -160,7 +160,7 @@ public class GeometryGeneratorsTests
             OuterBoundary = new[] { new Vector2(0, 0), new Vector2(10, 0), new Vector2(10, 10), new Vector2(0, 10) }
         };
 
-        var result = _fixture.Engine.Generators.OffsetPolygon(square, 2.0f);
+        var result = _fixture.Engine.Polygons.OffsetPolygon(square, 2.0f);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.OuterBoundary.Count.Should().BeGreaterThanOrEqualTo(4);
@@ -175,7 +175,7 @@ public class GeometryGeneratorsTests
             OuterBoundary = new[] { new Vector2(0, 0), new Vector2(10, 0), new Vector2(10, 10), new Vector2(0, 10) }
         };
 
-        var result = _fixture.Engine.Generators.OffsetPolygon(square, -2.0f);
+        var result = _fixture.Engine.Polygons.OffsetPolygon(square, -2.0f);
 
         result.IsSuccess.Should().BeTrue();
         var boundary = result.Value.OuterBoundary;
@@ -195,7 +195,7 @@ public class GeometryGeneratorsTests
             OuterBoundary = new[] { new Vector2(0, 0), new Vector2(0, 10), new Vector2(10, 10), new Vector2(10, 0) }
         };
 
-        var result = _fixture.Engine.Generators.OffsetPolygon(clockwise, 2.0f);
+        var result = _fixture.Engine.Polygons.OffsetPolygon(clockwise, 2.0f);
 
         result.IsSuccess.Should().BeTrue();
         var boundary = result.Value.OuterBoundary;
@@ -206,7 +206,7 @@ public class GeometryGeneratorsTests
     [Fact]
     public void BufferPath_SinglePoint_ReturnsDisc()
     {
-        var result = _fixture.Engine.Generators.BufferPath(new[] { new Vector2(0, 0) }, 2.0f);
+        var result = _fixture.Engine.Polygons.BufferPath(new[] { new Vector2(0, 0) }, 2.0f);
 
         result.IsSuccess.Should().BeTrue();
         var boundary = result.Value.OuterBoundary;
@@ -220,7 +220,7 @@ public class GeometryGeneratorsTests
     [Fact]
     public void BufferPath_Polyline_CoversTheWholeRun()
     {
-        var result = _fixture.Engine.Generators.BufferPath(
+        var result = _fixture.Engine.Polygons.BufferPath(
             new[] { new Vector2(0, 0), new Vector2(10, 0) }, 2.0f);
 
         result.IsSuccess.Should().BeTrue();
@@ -244,7 +244,7 @@ public class GeometryGeneratorsTests
             OuterBoundary = new[] { new Vector2(5, 0), new Vector2(5, 10), new Vector2(15, 10), new Vector2(15, 0) }
         };
 
-        var result = _fixture.Engine.Generators.UnionPolygons(new[] { left, right });
+        var result = _fixture.Engine.Polygons.UnionPolygons(new[] { left, right });
 
         result.IsSuccess.Should().BeTrue();
         var boundary = result.Value.OuterBoundary;
@@ -261,7 +261,7 @@ public class GeometryGeneratorsTests
             OuterBoundary = new[] { new Vector2(0, 0), new Vector2(10, 0), new Vector2(10, 10), new Vector2(0, 10) }
         };
 
-        var result = _fixture.Engine.Generators.ExtrudePolygon(square, 5.0f, 15.0f);
+        var result = _fixture.Engine.Polygons.ExtrudePolygon(square, 5.0f, 15.0f);
 
         result.IsSuccess.Should().BeTrue();
         var mesh = result.Value;

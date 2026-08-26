@@ -15,8 +15,8 @@ using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Pages.Preferences;
 using Fabolus.Wpf.Features.CutSplit;
-using Fabolus.Core.Features.Emboss;
-using Fabolus.Wpf.Features.Emboss;
+using Fabolus.Core.Features.Decal;
+using Fabolus.Wpf.Features.Decal;
 
 namespace Fabolus.Wpf.Features.Main;
 
@@ -262,7 +262,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task SwitchToEmbossViewAsync()
     {
-        if (CurrentView is EmbossViewModel) return;
+        if (CurrentView is DecalViewModel) return;
 
         IsLoading = true;
 
@@ -273,7 +273,7 @@ public partial class MainViewModel : ObservableObject
 
         CurrentViewTitle = "decals";
 
-        var newView = new EmbossViewModel(_messenger, _alertDialog, _engine, _glyphOutlineSource);
+        var newView = new DecalViewModel(_messenger, _alertDialog, _engine, _glyphOutlineSource);
         SceneManager = newView.SceneManager;
         CurrentView = newView;
         await CurrentView.ActivateAsync(Workspace);

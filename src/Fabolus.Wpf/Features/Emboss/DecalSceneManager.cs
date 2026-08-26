@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common;
-using Fabolus.Core.Features.Emboss;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Common.Helpers;
@@ -12,9 +12,9 @@ using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
 
-namespace Fabolus.Wpf.Features.Emboss;
+namespace Fabolus.Wpf.Features.Decal;
 
-public sealed class EmbossSceneManager : ISceneManager
+public sealed class DecalSceneManager : ISceneManager
 {
     private const float PreviewSinkOffset = -0.05f;
     private const float PreviewOvershootOffset = 0.05f;
@@ -31,12 +31,12 @@ public sealed class EmbossSceneManager : ISceneManager
     private const float SpherePresetRadius = 3.0f;
     private const int SphereTessellation = 16;
     private const float DuplicateAnchorDistanceThreshold = 1.0f;
+    private const float MinNormalLengthSquared = 1e-4f;
 
     private readonly IGeometryEngine _engine;
     private Element3D? _grid;
 
     public IMesh? TargetMesh { get; private set; }
-    private MeshGeometryModel3D? _targetModel;
     private Guid _targetMeshId = Guid.Empty;
 
     // Visual elements
@@ -68,12 +68,9 @@ public sealed class EmbossSceneManager : ISceneManager
     private readonly Material _presetHoverDecalSkin;
 
     // Interaction state
-    public bool IsPicking { get; set; }
     public Guid SelectedDecalId { get; set; } = Guid.Empty;
 
-    private Point _mouseDownPoint;
     private bool _isDragging;
-    private Guid _pendingClickedDecalId = Guid.Empty;
     private Guid _dragDecalId = Guid.Empty;
 
     public event Action<Element3D>? VisualAddedOrUpdated;
@@ -81,15 +78,12 @@ public sealed class EmbossSceneManager : ISceneManager
     public event Action? VisualsCleared;
 
     public event Action<Guid>? DecalSelected;
-    public event Action<Vector3, Vector3>? DecalPlaced;
     public event Action<Guid, Vector3, Vector3>? DecalMoved;
     public event Action<Guid>? DecalDragCompleted;
-    public event Action<Vector3, Vector3>? DecalHovered;
-    public event Action? PickingCancelled;
     public event Action<DecalPresetPoint>? PresetPointSelected;
     public event Action<DecalPresetPoint?>? PresetPointHovered;
 
-    public EmbossSceneManager(IGeometryEngine engine, IMessenger messenger)
+    public DecalSceneManager(IGeometryEngine engine, IMessenger messenger)
     {
         _engine = engine;
 
@@ -146,7 +140,6 @@ public sealed class EmbossSceneManager : ISceneManager
         };
         SceneVisual.SetIsModelGeometry(model, true);
         _targetMeshId = model.GUID;
-        _targetModel = model;
         VisualAddedOrUpdated?.Invoke(model);
 
         return Result.Success();
@@ -161,7 +154,6 @@ public sealed class EmbossSceneManager : ISceneManager
             _targetMeshId = Guid.Empty;
         }
         TargetMesh = null;
-        _targetModel = null;
     }
 
     public void UpdateDecals(IReadOnlyList<TextDecal> decals, Guid selectedId, IGlyphOutlineSource outlineSource, EmbossTarget? currentTarget = null)
@@ -548,16 +540,7 @@ public sealed class EmbossSceneManager : ISceneManager
 
     public void OnDeactivated() => ClearPreviewVisuals();
 
-    public bool OnKeyDown(Key key)
-    {
-        if (key == Key.Escape && IsPicking)
-        {
-            IsPicking = false;
-            PickingCancelled?.Invoke();
-            return true;
-        }
-        return false;
-    }
+    public bool OnKeyDown(Key key) => false;
 
     public bool OnKeyUp(Key key) => false;
 
@@ -577,9 +560,7 @@ public sealed class EmbossSceneManager : ISceneManager
             return false;
         }
 
-        _mouseDownPoint = eventArgs.Position;
         _isDragging = false;
-        _pendingClickedDecalId = Guid.Empty;
         _dragDecalId = Guid.Empty;
 
         // 1. Check if a preset sphere was clicked
@@ -593,7 +574,6 @@ public sealed class EmbossSceneManager : ISceneManager
         // 2. Check if an existing decal was clicked
         if (hit.ModelHit is MeshGeometryModel3D meshModel && _visualToDecalId.TryGetValue(meshModel.GUID, out var decalId))
         {
-            _pendingClickedDecalId = decalId;
             _dragDecalId = decalId;
             if (SelectedDecalId != decalId)
             {
@@ -655,8 +635,13 @@ public sealed class EmbossSceneManager : ISceneManager
 
         _isDragging = true;
         var p = new Vector3((float)targetHit.PointHit.X, (float)targetHit.PointHit.Y, (float)targetHit.PointHit.Z);
-        var n = Vector3.Normalize(new Vector3((float)targetHit.NormalAtHit.X, (float)targetHit.NormalAtHit.Y, (float)targetHit.NormalAtHit.Z));
-        if (n.LengthSquared() < 1e-4f) n = Vector3.UnitZ;
+
+        // Length is checked before normalising, not after: normalising a zero vector yields NaN,
+        // and every comparison against NaN is false, so a post-normalise guard never fires.
+        var rawNormal = new Vector3((float)targetHit.NormalAtHit.X, (float)targetHit.NormalAtHit.Y, (float)targetHit.NormalAtHit.Z);
+        var n = rawNormal.LengthSquared() < MinNormalLengthSquared
+            ? Vector3.UnitZ
+            : Vector3.Normalize(rawNormal);
 
         DecalMoved?.Invoke(_dragDecalId, p, n);
         return true;
@@ -672,14 +657,12 @@ public sealed class EmbossSceneManager : ISceneManager
             var finishedId = _dragDecalId;
             _isDragging = false;
             _dragDecalId = Guid.Empty;
-            _pendingClickedDecalId = Guid.Empty;
             DecalDragCompleted?.Invoke(finishedId);
             return true;
         }
 
         _isDragging = false;
         _dragDecalId = Guid.Empty;
-        _pendingClickedDecalId = Guid.Empty;
         return false;
     }
 }

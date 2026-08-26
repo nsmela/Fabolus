@@ -15,8 +15,6 @@ public static class MeshCommandRegistry {
     /// </summary>
     private static readonly Dictionary<string, string> LegacyNames = new(StringComparer.OrdinalIgnoreCase) {
         ["SmoothCommand"] = "SmoothSettings",
-        ["TextEmbossCommand"] = "DecalCommand",
-        ["MouldTextEmbossCommand"] = "MouldDecalCommand",
     };
 
     private static readonly Lazy<IReadOnlyDictionary<string, Type>> CommandTypes = new(() =>

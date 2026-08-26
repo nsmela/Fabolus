@@ -1,6 +1,6 @@
 using System.Numerics;
 using Fabolus.Core.Common;
-using Fabolus.Core.Features.Emboss;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
@@ -11,12 +11,12 @@ using Xunit;
 namespace Fabolus.Tests.Features;
 
 [Collection("GeometryEngine collection")]
-public class ClearTextEmbossTests
+public class ClearDecalsTests
 {
     private readonly GeometryEngineFixture _fixture;
     private readonly IGlyphOutlineSource _outlineSource;
 
-    public ClearTextEmbossTests(GeometryEngineFixture fixture)
+    public ClearDecalsTests(GeometryEngineFixture fixture)
     {
         _fixture = fixture;
         _outlineSource = new TestGlyphOutlineSource();

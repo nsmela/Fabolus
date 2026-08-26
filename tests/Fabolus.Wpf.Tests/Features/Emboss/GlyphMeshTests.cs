@@ -1,9 +1,9 @@
 using System.Numerics;
 using System.Threading;
 using Fabolus.Core.Common.Interfaces;
-using Fabolus.Core.Features.Emboss;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
-using Fabolus.Wpf.Features.Emboss;
+using Fabolus.Wpf.Features.Decal;
 using GeometryMeshLib;
 using Moq;
 using Xunit;

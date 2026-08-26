@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Represents a local tangent coordinate frame on a 3D surface:

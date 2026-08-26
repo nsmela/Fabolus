@@ -3,10 +3,10 @@ using System.Numerics;
 using System.Windows;
 using System.Windows.Media;
 using Fabolus.Core.Common;
-using Fabolus.Core.Features.Emboss;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 
-namespace Fabolus.Wpf.Features.Emboss;
+namespace Fabolus.Wpf.Features.Decal;
 
 public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
 {

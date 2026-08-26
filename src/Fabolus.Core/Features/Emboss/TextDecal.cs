@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Immutable record describing a text decal placement, geometry and projection properties.

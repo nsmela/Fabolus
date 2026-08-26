@@ -1,7 +1,7 @@
 using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
 /// Service interface for extracting 2D outline polygons and measuring typography.

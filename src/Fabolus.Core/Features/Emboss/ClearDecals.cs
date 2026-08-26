@@ -2,7 +2,7 @@ using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 
-namespace Fabolus.Core.Features.Emboss;
+namespace Fabolus.Core.Features.Decal;
 
 public sealed class ClearDecals
 {
@@ -34,9 +34,7 @@ public sealed class ClearDecals
 
         var revertedMetadata = mesh.Metadata
             .WithoutCommand<DecalCommand>()
-            .WithoutCommand<MouldDecalCommand>()
-            .WithoutCommand<TextEmbossCommand>()
-            .WithoutCommand<MouldTextEmbossCommand>();
+            .WithoutCommand<MouldDecalCommand>();
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;

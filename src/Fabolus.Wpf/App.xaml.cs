@@ -30,7 +30,7 @@ public partial class App : Application
                 services.AddSingleton<IDialogueSystem, DialogueSystem>();
                 services.AddSingleton<IFileSystem, FileSystem>();
                 services.AddSingleton<IGeometryEngine, GeometryEngine>();
-                services.AddSingleton<Fabolus.Core.Features.Emboss.IGlyphOutlineSource, Features.Emboss.WpfGlyphOutlineSource>();
+                services.AddSingleton<Fabolus.Core.Features.Decal.IGlyphOutlineSource, Features.Decal.WpfGlyphOutlineSource>();
 
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainView>();
@@ -43,8 +43,8 @@ public partial class App : Application
     {
         await AppHost!.StartAsync();
 
-        var outlineSource = AppHost.Services.GetRequiredService<Fabolus.Core.Features.Emboss.IGlyphOutlineSource>();
-        Fabolus.Core.Features.Emboss.GlyphOutlineSourceProvider.Default = outlineSource;
+        var outlineSource = AppHost.Services.GetRequiredService<Fabolus.Core.Features.Decal.IGlyphOutlineSource>();
+        Fabolus.Core.Features.Decal.GlyphOutlineSourceProvider.Default = outlineSource;
 
         var mainWindow = AppHost.Services.GetRequiredService<MainView>();
         mainWindow.Show();

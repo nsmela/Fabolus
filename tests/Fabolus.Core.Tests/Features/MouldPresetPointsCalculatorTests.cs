@@ -1,6 +1,6 @@
 using System;
 using System.Numerics;
-using Fabolus.Core.Features.Emboss;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
