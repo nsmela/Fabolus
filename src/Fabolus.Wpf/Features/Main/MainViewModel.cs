@@ -15,6 +15,8 @@ using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Pages.Preferences;
 using Fabolus.Wpf.Features.CutSplit;
+using Fabolus.Core.Features.Decal;
+using Fabolus.Wpf.Features.Decal;
 
 namespace Fabolus.Wpf.Features.Main;
 
@@ -26,6 +28,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IDialogueSystem _dialogueSystem;
     private readonly IAlertDialog _alertDialog;
     private readonly AppPreferencesStore _appPreferencesStore;
+    private readonly IGlyphOutlineSource _glyphOutlineSource;
     private const string NoFileText = "No file loaded";
 
     [ObservableProperty] private IViewState _currentView;
@@ -65,8 +68,19 @@ public partial class MainViewModel : ObservableObject
     // Stores: passively monitor messages to store or retreive data for multiple views
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
 
-    public MainViewModel(IMessenger messenger, IGeometryEngine engine, IDialogueSystem dialogueSystem, IAlertDialog alertDialog, AppPreferencesStore appPreferencesStore)
+    public MainViewModel(
+        IMessenger messenger,
+        IGeometryEngine engine,
+        IDialogueSystem dialogueSystem,
+        IAlertDialog alertDialog,
+        AppPreferencesStore appPreferencesStore,
+        IGlyphOutlineSource? glyphOutlineSource = null)
     {
+        // Optional so tests can construct without one; in the app it comes from DI as a
+        // singleton, which matters once the source starts caching glyph outlines.
+        _glyphOutlineSource = glyphOutlineSource
+            ?? GlyphOutlineSourceProvider.Default
+            ?? new WpfGlyphOutlineSource();
         _messenger = messenger;
         _engine = engine;
         _dialogueSystem = dialogueSystem;
@@ -245,6 +259,27 @@ public partial class MainViewModel : ObservableObject
         IsLoading = false;
     }
 
+    [RelayCommand]
+    public async Task SwitchToEmbossViewAsync()
+    {
+        if (CurrentView is DecalViewModel) return;
+
+        IsLoading = true;
+
+        if (CurrentView is not null)
+        {
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
+        }
+
+        CurrentViewTitle = "decals";
+
+        var newView = new DecalViewModel(_messenger, _alertDialog, _engine, _glyphOutlineSource);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
+    }
 
     [RelayCommand]
     public async Task SwitchToMouldViewAsync()

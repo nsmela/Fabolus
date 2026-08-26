@@ -80,7 +80,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock FontSize="11" Foreground="{DynamicResource Brush.Text.Primary}" LineHeight="18">
-                                        <Run Text="• " /><Run Text="{Binding Name}" /> <Run Foreground="{DynamicResource Brush.Text.Muted}" FontFamily="{StaticResource Font.Mono}" Text="{Binding Value, StringFormat='({0})'}" />
+                                        <Run Text="• " /><Run Text="{Binding Text}" />
                                     </TextBlock>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>

@@ -22,7 +22,7 @@ internal static class MouldFootprint
         double wallThickness,
         IReadOnlyList<AirChannelModel> channels)
     {
-        var wallResult = engine.Generators.OffsetPolygon(outline, (float)wallThickness);
+        var wallResult = engine.Polygons.OffsetPolygon(outline, (float)wallThickness);
         if (wallResult.IsFailure || channels.Count == 0)
             return wallResult;
 
@@ -34,7 +34,7 @@ internal static class MouldFootprint
             if (footprint.Path.Count == 0)
                 continue;
 
-            var buffered = engine.Generators.BufferPath(footprint.Path, footprint.Radius + (float)wallThickness);
+            var buffered = engine.Polygons.BufferPath(footprint.Path, footprint.Radius + (float)wallThickness);
             if (buffered.IsFailure)
                 continue;
 
@@ -47,7 +47,7 @@ internal static class MouldFootprint
         // Channels start on the bolus surface, so their footprints always overlap its wall.
         // If one somehow doesn't, the union drops the island and the mould is no worse off
         // than it was before the channels were folded in - as it is if Clipper fails outright.
-        var union = engine.Generators.UnionPolygons(parts);
+        var union = engine.Polygons.UnionPolygons(parts);
         return union.IsSuccess ? union : wallResult;
     }
 }

@@ -118,7 +118,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     private void PublishMeshInfo() {
         var items = new List<MeshInfoItem>();
 
-        if (ActiveStats != null) {
+        if (ActiveStats is not null) {
             items.Add(new TitleInfoItem { Label = "MESH STATISTICS" });
             items.Add(new TextInfoItem { Label = "Triangles", Value = ActiveStats.TriangleCount.ToString("N0") });
             items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{ActiveStats.SurfaceArea:F2} mm\u00B2" });
@@ -130,7 +130,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
             items.Add(new TextInfoItem { Label = "Dimensions", Value = $"{width:F1} x {height:F1} x {depth:F1} mm" });
         }
 
-        if (ActiveTopology != null) {
+        if (ActiveTopology is not null) {
             items.Add(new TitleInfoItem { Label = "MESH TOPOLOGY" });
 
             bool isManifold = ActiveTopology.NonManifoldEdgeCount == 0;

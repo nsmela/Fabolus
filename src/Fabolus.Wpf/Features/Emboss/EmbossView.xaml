@@ -1,0 +1,533 @@
+<UserControl x:Class="Fabolus.Wpf.Features.Decal.EmbossView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.Decal"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert"
+             mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance local:DecalViewModel, IsDesignTimeCreatable=False}"
+             d:DesignHeight="780" d:DesignWidth="336"
+             Background="Transparent">
+
+    <UserControl.Resources>
+        <conv:EnumToBooleanConverter x:Key="EnumMatch" />
+        <conv:StringToBrushConverter x:Key="StringToBrush" />
+
+        <!-- Field label caption -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+
+        <!-- Segmented control button -->
+        <Style x:Key="Segment" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+            <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="12,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="bd" CornerRadius="5" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#15000000" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Accent}" />
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SegmentGroup" TargetType="Border">
+            <Setter Property="Background" Value="#FFEDF1F3" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="SectionDivider" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Divider}" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="Margin" Value="0,10" />
+        </Style>
+
+        <!-- Accordion section expander -->
+        <Style x:Key="SectionExpander" TargetType="Expander">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Divider}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+
+        <!-- Helper caption (sub-label under a control) -->
+        <Style x:Key="FieldHint" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <!-- Primary action: "Apply decals" until applied, then swaps to "Clear decals" -->
+        <Style x:Key="PrimaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource Button.Primary}">
+            <Setter Property="Command" Value="{Binding ApplyCommand}" />
+            <Setter Property="Content" Value="{Binding ApplyLabel}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsApplied}" Value="True">
+                    <Setter Property="Command" Value="{Binding ClearTextCommand}" />
+                    <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Danger}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Content">
+                        <Setter.Value>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Viewbox Width="14" Height="14" Margin="0,0,8,0">
+                                    <Path Data="{StaticResource Icon.Trash}"
+                                          Stroke="{DynamicResource Brush.Danger}" StrokeThickness="1.5" Fill="{x:Null}"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                                </Viewbox>
+                                <TextBlock Text="Clear decals" VerticalAlignment="Center" Foreground="{DynamicResource Brush.Danger}" />
+                            </StackPanel>
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,6,0">
+            <StackPanel Orientation="Vertical">
+                
+                <!--  SURFACE DECALS EXPANDER                                     -->
+                <Expander Style="{StaticResource SectionExpander}"
+                          IsExpanded="{Binding IsDecalsExpanded, Mode=TwoWay}">
+                    <Expander.Header>
+                        <Grid Height="46" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Viewbox Grid.Column="0" Width="16" Height="16" Margin="0,0,10,0">
+                                <Path Data="{StaticResource Icon.Decals}"
+                                      Stroke="{DynamicResource Brush.Accent.Pressed}" StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            </Viewbox>
+                            <TextBlock Grid.Column="1" Text="Surface Decals" VerticalAlignment="Center"
+                                       FontFamily="{StaticResource Font.Sans}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Brush.Text.Primary}" />
+                            <Border Grid.Column="2" Style="{StaticResource Tag.Accent}" CornerRadius="10" Padding="7,3"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DecalCount}"
+                                           FontFamily="{StaticResource Font.Mono}" FontSize="10" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Brush.Accent.Pressed}" />
+                            </Border>
+                        </Grid>
+                    </Expander.Header>
+
+                    <!-- Decals body -->
+                    <StackPanel Margin="0,6,0,12">
+                        <TextBlock Text="Click a decal to select and edit it, or snap to preset locations."
+                                   Style="{StaticResource FieldHint}" Margin="0,0,0,12" />
+
+                        <!-- 1. TARGET SELECTOR (Base / Mould) - Always accessible when Mould exists -->
+                        <StackPanel Margin="0,0,0,10" Visibility="{Binding HasMould, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="TARGET MESH" Style="{StaticResource FieldLabel}" />
+                            <Border Style="{StaticResource SegmentGroup}">
+                                <UniformGrid Columns="2">
+                                    <RadioButton Content="Base Mesh" GroupName="EmbossGlobalTgt" Style="{StaticResource Segment}"
+                                                 IsChecked="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Base}" />
+                                    <RadioButton Content="Mould" GroupName="EmbossGlobalTgt" Style="{StaticResource Segment}"
+                                                 IsChecked="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" />
+                                </UniformGrid>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- 2. PRESET LOCATIONS (Always accessible) -->
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="PRESET LOCATIONS" Style="{StaticResource FieldLabel}" />
+
+                            <!-- Base Mesh Presets (when Base is selected) -->
+                            <UniformGrid Columns="3" Margin="0,2,0,2">
+                                <UniformGrid.Style>
+                                    <Style TargetType="UniformGrid">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Base}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </UniformGrid.Style>
+                                <Button Content="Top" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Top" ToolTip="Snap decal to Top apex of base model" />
+                                <Button Content="Front" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Front" ToolTip="Snap decal to Front center of base model" />
+                                <Button Content="Back" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Back" ToolTip="Snap decal to Back center of base model" />
+                            </UniformGrid>
+
+                            <!-- Mould Presets (when Mould is selected) -->
+                            <UniformGrid Columns="3" Margin="0,2,0,2">
+                                <UniformGrid.Style>
+                                    <Style TargetType="UniformGrid">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding HasMould}" Value="True" />
+                                                    <Condition Binding="{Binding Target, Converter={StaticResource EnumMatch}, ConverterParameter=Mould}" Value="True" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </UniformGrid.Style>
+                                <Button Content="Front" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Front" ToolTip="Snap decal to Front mould contour" />
+                                <Button Content="Back" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Back" ToolTip="Snap decal to Back mould contour" />
+                                <Button Content="Left" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Left" ToolTip="Snap decal to Left mould contour" />
+                                <Button Content="Right" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Right" ToolTip="Snap decal to Right mould contour" />
+                                <Button Content="Curve 1" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Curve 1" ToolTip="Snap decal to 1st strongest curve" />
+                                <Button Content="Curve 2" Style="{StaticResource Button.Secondary}" Height="26" Margin="1,2"
+                                        Command="{Binding ApplyPresetByNameCommand}" CommandParameter="Curve 2" ToolTip="Snap decal to 2nd strongest curve" />
+                            </UniformGrid>
+                        </StackPanel>
+
+                        <Border Style="{StaticResource SectionDivider}" Margin="0,2,0,10" />
+
+                        <!-- APPLIED DECALS LIST HEADER -->
+                        <TextBlock Text="APPLIED DECALS" Style="{StaticResource FieldLabel}" Margin="0,0,0,6" />
+                        <Button Command="{Binding AddDecalCommand}"
+                                Style="{StaticResource Button.Secondary}" Height="28" Margin="0,0,0,8"
+                                HorizontalAlignment="Stretch" ToolTip="Add a new decal at the first free preset anchor on the viewed target">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock Text="+ Add decal" VerticalAlignment="Center" FontSize="11.5" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Decals Collection -->
+                        <ItemsControl ItemsSource="{Binding DecalList}" Margin="0,0,0,8">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,5" CornerRadius="4" Padding="8,6"
+                                            BorderThickness="1" Cursor="Hand">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{DynamicResource Brush.Card}" />
+                                                <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                        <Setter Property="Background" Value="{DynamicResource Brush.Surface.Hover}" />
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Border.InputBindings>
+                                            <MouseBinding MouseAction="LeftClick"
+                                                          Command="{Binding DataContext.SelectDecalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                          CommandParameter="{Binding Id}" />
+                                        </Border.InputBindings>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Active indicator dot -->
+                                            <Ellipse Grid.Column="0" Width="6" Height="6" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                <Ellipse.Style>
+                                                    <Style TargetType="Ellipse">
+                                                        <Setter Property="Fill" Value="Transparent" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Fill" Value="{DynamicResource Brush.Accent}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Ellipse.Style>
+                                            </Ellipse>
+
+                                            <!-- Decal text & summary -->
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding DisplayText}" FontWeight="SemiBold"
+                                                           FontFamily="{DynamicResource Font.Sans}" FontSize="12"
+                                                           Foreground="{DynamicResource Brush.Text.Primary}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+
+                                            <!-- Operation and Target Badges -->
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+                                                <Border CornerRadius="3" Padding="5,2" Margin="2,0"
+                                                        Background="{DynamicResource Brush.Surface.Panel}">
+                                                    <TextBlock Text="{Binding OperationText}" FontSize="9.5" FontWeight="SemiBold">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" Value="True">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Success}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                                <Border CornerRadius="3" Padding="5,2" Margin="2,0"
+                                                        Background="{DynamicResource Brush.Surface.Panel}"
+                                                        Visibility="{Binding HasMould, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                    <TextBlock Text="{Binding TargetText}" FontSize="9.5" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource Brush.Accent.Pressed}" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- Delete button -->
+                                            <Button Grid.Column="3"
+                                                    Command="{Binding DataContext.DeleteDecalByIdCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding Id}"
+                                                    Style="{StaticResource Button.Secondary}"
+                                                    Width="24" Height="24" Padding="0"
+                                                    VerticalAlignment="Center"
+                                                    ToolTip="Remove decal">
+                                                <Viewbox Width="12" Height="12">
+                                                    <Path Data="{StaticResource Icon.Trash}"
+                                                          Stroke="{DynamicResource Brush.Danger}" StrokeThickness="1.5" Fill="{x:Null}"
+                                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                                                </Viewbox>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Selection Hint (when no decal is selected) -->
+                        <Border Background="{DynamicResource Brush.Surface.Panel}" CornerRadius="4" Padding="10,8" Margin="0,6,0,6"
+                                Visibility="{Binding HasSelectedDecal, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                            <TextBlock Text="No decal selected. Click a decal or preset anchor in the 3D viewport or list above to edit its parameters."
+                                       FontSize="11.5" Foreground="{DynamicResource Brush.Text.Muted}" TextWrapping="Wrap" LineHeight="16" />
+                        </Border>
+
+                        <!-- Selected Decal Parameters -->
+                        <StackPanel Margin="0,4,0,0" IsEnabled="{Binding HasSelectedDecal}">
+                            <Border Style="{StaticResource SectionDivider}" Margin="0,4,0,10" />
+
+                            <!-- 1. Text Input -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="LABEL TEXT" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Grid.Column="1" Text="{Binding LabelText.Length, StringFormat='{}{0} chars'}"
+                                           FontFamily="{DynamicResource Font.Mono}" FontSize="10.5" Foreground="{DynamicResource Brush.Text.Muted}" />
+                            </Grid>
+                            <TextBox Text="{Binding LabelText, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="13" FontFamily="{DynamicResource Font.Sans}" FontWeight="Medium"
+                                     Padding="8,6" Margin="0,0,0,10"
+                                     Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
+                                     mah:TextBoxHelper.ClearTextButton="True" />
+
+                            <!-- 2. Operation (Full width row) -->
+                            <StackPanel Margin="0,4,0,8">
+                                <TextBlock Text="OPERATION" Style="{StaticResource FieldLabel}" />
+                                <Border Style="{StaticResource SegmentGroup}">
+                                    <UniformGrid Columns="2">
+                                        <RadioButton Content="Emboss" GroupName="EmbossOp" Style="{StaticResource Segment}"
+                                                     IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
+                                        <RadioButton Content="Engrave" GroupName="EmbossOp" Style="{StaticResource Segment}"
+                                                     IsChecked="{Binding Operation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
+                                    </UniformGrid>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 3. Font (Full width row) -->
+                            <StackPanel Margin="0,0,0,10">
+                                <TextBlock Text="FONT" Style="{StaticResource FieldLabel}" />
+                                <Border Style="{StaticResource SegmentGroup}">
+                                    <UniformGrid Columns="2">
+                                        <RadioButton Content="Sans" GroupName="EmbossFont" Style="{StaticResource Segment}"
+                                                     IsChecked="{Binding Font, Converter={StaticResource EnumMatch}, ConverterParameter=Sans}" />
+                                        <RadioButton Content="Mono" GroupName="EmbossFont" Style="{StaticResource Segment}"
+                                                     IsChecked="{Binding Font, Converter={StaticResource EnumMatch}, ConverterParameter=Mono}" />
+                                    </UniformGrid>
+                                </Border>
+                            </StackPanel>
+
+                            <Border Style="{StaticResource SectionDivider}" />
+
+                            <!-- 4. Parameters -->
+                            <!-- Cap Height -->
+                            <Grid Margin="0,2,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="CAP HEIGHT (mm)" Style="{StaticResource FieldLabel}" />
+                                <mah:NumericUpDown Grid.Column="1" Value="{Binding CapHeight}" Minimum="2.0" Maximum="25.0" Interval="0.5"
+                                                   StringFormat="F1" Width="70" Height="26" FontSize="11" Margin="0,0,0,2" />
+                            </Grid>
+                            <Slider Value="{Binding CapHeight}" Minimum="2.0" Maximum="25.0" SmallChange="0.5" LargeChange="1.0"
+                                    TickFrequency="0.5" IsSnapToTickEnabled="False" Margin="0,0,0,8" />
+
+                            <!-- Depth / Height -->
+                            <Grid Margin="0,2,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding DepthLabel, StringFormat='{}{0} (mm)'}" Style="{StaticResource FieldLabel}" />
+                                <mah:NumericUpDown Grid.Column="1" Value="{Binding Depth}" Minimum="0.2" Maximum="3.0" Interval="0.1"
+                                                   StringFormat="F1" Width="70" Height="26" FontSize="11" Margin="0,0,0,2" />
+                            </Grid>
+                            <Slider Value="{Binding Depth}" Minimum="0.2" Maximum="3.0" SmallChange="0.1" LargeChange="0.5"
+                                    TickFrequency="0.1" IsSnapToTickEnabled="False" Margin="0,0,0,8" />
+
+                            <!-- Letter Spacing (Tracking) -->
+                            <Grid Margin="0,2,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="LETTER SPACING (mm)" Style="{StaticResource FieldLabel}" />
+                                <mah:NumericUpDown Grid.Column="1" Value="{Binding Tracking}" Minimum="0.0" Maximum="2.0" Interval="0.1"
+                                                   StringFormat="F1" Width="70" Height="26" FontSize="11" Margin="0,0,0,2" />
+                            </Grid>
+                            <Slider Value="{Binding Tracking}" Minimum="0.0" Maximum="2.0" SmallChange="0.1" LargeChange="0.2"
+                                    TickFrequency="0.1" IsSnapToTickEnabled="False" Margin="0,0,0,8" />
+
+                            <!-- Rotation Slider -->
+                            <Grid Margin="0,2,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="ROTATION (°)" Style="{StaticResource FieldLabel}" />
+                                <mah:NumericUpDown Grid.Column="1" Value="{Binding Rotation}" Minimum="-180" Maximum="180" Interval="1"
+                                                   StringFormat="F0" Width="70" Height="26" FontSize="11" Margin="0,0,0,2" />
+                            </Grid>
+                            <Slider Value="{Binding Rotation}" Minimum="-180" Maximum="180" SmallChange="1" LargeChange="15"
+                                    TickFrequency="1" IsSnapToTickEnabled="False" Margin="0,0,0,8" />
+
+                            <!-- Decal Action Buttons: Delete and Clear All -->
+                            <Grid Margin="0,6,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Command="{Binding DeleteSelectedDecalCommand}"
+                                        Style="{StaticResource Button.Secondary}" Margin="0,0,4,0"
+                                        Foreground="{DynamicResource Brush.Danger}"
+                                        BorderBrush="{DynamicResource Brush.Danger}"
+                                        HorizontalAlignment="Stretch">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Viewbox Width="14" Height="14" Margin="0,0,6,0">
+                                            <Path Data="{StaticResource Icon.Trash}"
+                                                  Stroke="{DynamicResource Brush.Danger}" StrokeThickness="1.5" Fill="{x:Null}"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                                        </Viewbox>
+                                        <TextBlock Text="Delete" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="1" Command="{Binding ClearDecalsCommand}"
+                                        Content="Clear all" Style="{StaticResource Button.Secondary}"
+                                        Margin="4,0,0,0" HorizontalAlignment="Stretch" />
+                            </Grid>
+
+                            <!-- Warning / Error alert banners -->
+                            <Border Background="#20E0A024" BorderBrush="{DynamicResource Brush.Warning}" BorderThickness="1" CornerRadius="5" Padding="8,6" Margin="0,0,0,6">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WarningText.Length, FallbackValue=0}" Value="0">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding WarningText.Length, Converter={StaticResource GreaterThanZeroConverter}, FallbackValue=False}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding WarningText}" TextWrapping="Wrap" FontSize="11" Foreground="#FF9A6800" FontWeight="Medium" />
+                            </Border>
+
+                            <Border Background="#20D64545" BorderBrush="{DynamicResource Brush.Danger}" BorderThickness="1" CornerRadius="5" Padding="8,6" Margin="0,0,0,6">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ErrorText.Length, FallbackValue=0}" Value="0">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ErrorText.Length, Converter={StaticResource GreaterThanZeroConverter}, FallbackValue=False}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Brush.Danger}" FontWeight="Medium" />
+                            </Border>
+                        </StackPanel>
+
+                    </StackPanel>
+                </Expander>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer / Action Area -->
+        <Border Grid.Row="1" BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,1,0,0" Padding="0,12,0,0">
+            <StackPanel Orientation="Vertical">
+
+                <!-- Status Strip -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{Binding StatusColor, Converter={StaticResource StringToBrush}}"
+                            CornerRadius="4" Padding="6,2" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding StatusWord}" Foreground="White" FontSize="10" FontWeight="Bold" FontFamily="{DynamicResource Font.Mono}" />
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding TextStatusLine}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Font.Mono}" FontSize="10" Foreground="{DynamicResource Brush.Text.Muted}" />
+                </Grid>
+
+                <TextBlock Text="{Binding Hint}" TextWrapping="Wrap" FontSize="10.5" Foreground="{DynamicResource Brush.Text.Muted}" Margin="0,0,0,10" />
+
+                <!-- Action Button -->
+                <Button Style="{StaticResource PrimaryActionButtonStyle}" Height="36" />
+            </StackPanel>
+        </Border>
+
+    </Grid>
+</UserControl>

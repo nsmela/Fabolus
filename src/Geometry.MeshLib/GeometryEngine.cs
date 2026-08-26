@@ -18,6 +18,8 @@ public sealed class GeometryEngine : IGeometryEngine
 
     public IGeometryEvaluators Evaluators { get; }
 
+    public IPolygonOperations Polygons { get; }
+
     public GeometryEngine(IFileSystem fileSystem)
     {
         IO = new GeometryIO(fileSystem, this);
@@ -26,6 +28,7 @@ public sealed class GeometryEngine : IGeometryEngine
         Modifiers = new GeometryModifiers(this);
         Generators = new GeometryGenerators(this);
         Evaluators = new GeometryEvaluators(this);
+        Polygons = new Polygons(this);
     }
 
     internal Result<IMesh> CreateMesh(MR.Mesh mesh, MeshMetadata metadata)

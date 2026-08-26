@@ -7,7 +7,6 @@ using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Features.Smoothing;
-using Fabolus.Core.Features.Transforms;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
@@ -19,9 +18,8 @@ namespace Fabolus.Wpf.Features.Export;
 
 public class OperationItem
 {
-    public string Name { get; set; }
-    public string Value { get; set; }
-    public OperationItem(string name, string value) { Name = name; Value = value; }
+    public string Text { get; set; }
+    public OperationItem(string text) { Text = text; }
 }
 
 public partial class ExportViewModel : ObservableObject, IViewState
@@ -100,38 +98,26 @@ public partial class ExportViewModel : ObservableObject, IViewState
         FileName = metadata.Name;
 
         BakedOperations.Clear();
-        var smoothing = metadata.GetSmoothing();
-        if (smoothing.HasValue)
+
+        // Each command names itself (IMeshCommand.Describe), so a new operation shows up here
+        // without this view model having to learn about it. Ordered by pipeline stage rather
+        // than by the order they happened to be recorded in.
+        foreach (var command in metadata.Commands.OrderBy(c => c.Priority))
         {
-            BakedOperations.Add(new OperationItem("Smoothing", $"{smoothing.Value.Intensity.ToString():F2} mm · {smoothing.Value.Iterations}x"));
-        }
-        var rotation = metadata.Rotation();
-        if (rotation.HasValue)
-        {
-            BakedOperations.Add(new OperationItem("Rotation", "auto Z-up"));
-        }
-        var mould = metadata.MouldDefinition();
-        if (mould.HasValue)
-        {
-            string mouldType = mould.Value switch
-            {
-                ConvexMouldDefinition => "Convex",
-                ConcaveMouldDefinition => "Concave",
-                ContouredMouldDefinition => "Contoured",
-                _ => "2-part"
-            };
-            BakedOperations.Add(new OperationItem("Mould", mouldType));
+            var description = command.Describe();
+            if (string.IsNullOrEmpty(description)) continue;
+            BakedOperations.Add(new OperationItem(description));
         }
 
         BakedOperationsCount = BakedOperations.Count;
         HasBakedOperations = BakedOperationsCount > 0;
-        BakedOperationsText = BakedOperationsCount == 3 ? "All 3 included" : $"{BakedOperationsCount} included";
+        BakedOperationsText = $"{BakedOperationsCount} included";
 
-        if (mould.HasValue)
+        if (metadata.MouldDefinition().HasValue)
         {
             PrintableMeshName = "mould";
         }
-        else if (smoothing.HasValue)
+        else if (metadata.GetSmoothing().HasValue)
         {
             PrintableMeshName = "smoothed mesh";
         }

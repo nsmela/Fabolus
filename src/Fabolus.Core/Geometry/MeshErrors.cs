@@ -18,8 +18,10 @@ public static class MeshErrors
     public static readonly Error ExportMeshIsNull = new("Export.MeshIsNull", "Mesh cannot be null.");
     public static readonly Error ExportFilePathIsEmpty = new("Export.FilePathIsEmpty", "File path cannot be null or empty.");
 
-    // ===== TRANSFORM =====
     public static readonly Error UnknownRotationAxis = new("Transform.UnknownAxis", "The specified rotation axis is not recognized.");
+
+    // ===== RAYCAST =====
+    public static readonly Error RaycastMiss = new("Mesh.RaycastMiss", "The ray did not intersect with the mesh.");
 
     public static readonly Error NotImplemented = new("Feature.NotImplemented", "This feature is not yet implemented.");
 

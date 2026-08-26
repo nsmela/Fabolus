@@ -100,35 +100,24 @@ public interface IGeometryGenerators
     Result<IReadOnlyList<Vector3>> ResampleOpenPath(IReadOnlyList<Vector3> path, float targetSpacing, int smoothingIterations = 2);
 
     /// <summary>
-    /// Gets the exact 2D projection outline (shadow) of the mesh.
+    /// Builds an extruded 3D solid mesh from 2D polygon outlines in the tangent frame, optionally contouring to a target mesh surface.
     /// </summary>
-    Result<Polygon2D> GetMeshShadow(IMesh mesh);
+    Result<IMesh> BuildTextPrism(IReadOnlyList<Polygon2D> outlines, Features.Decal.DecalFrame frame, float depth, float sink, float overshoot, float maxEdgeLength = 0f, IMesh? targetMesh = null);
 
     /// <summary>
-    /// Gets the 2D convex hull of the mesh's projection.
+    /// Asynchronously builds an extruded 3D solid mesh from 2D polygon outlines in the tangent frame.
     /// </summary>
-    Result<Polygon2D> GetConvexHull(IMesh mesh);
+    Task<Result<IMesh>> BuildTextPrismAsync(IReadOnlyList<Polygon2D> outlines, Features.Decal.DecalFrame frame, float depth, float sink, float overshoot, float maxEdgeLength = 0f, IMesh? targetMesh = null) =>
+        Task.Run(() => BuildTextPrism(outlines, frame, depth, sink, overshoot, maxEdgeLength, targetMesh));
 
     /// <summary>
-    /// Offsets a 2D polygon by the specified distance. A negative distance insets it, and
-    /// where that splits the polygon into islands, the largest one is returned.
+    /// Projects each vertex of a text prism onto the curved surface of the target mesh along the frame's normal.
     /// </summary>
-    Result<Polygon2D> OffsetPolygon(Polygon2D polygon, float distance);
+    Result<IMesh> ProjectTextPrism(IMesh targetMesh, Features.Decal.DecalFrame frame, IMesh prismMesh, List<string>? warnings = null);
 
     /// <summary>
-    /// Closes an open 2D polyline into the polygon covering everything within
-    /// <paramref name="distance"/> of it. A single-point path buffers into a disc.
+    /// Asynchronously projects each vertex of a text prism onto the curved surface of the target mesh.
     /// </summary>
-    Result<Polygon2D> BufferPath(IReadOnlyList<Vector2> path, float distance);
-
-    /// <summary>
-    /// Merges overlapping 2D polygons into a single outline. Anything left disjoint is
-    /// dropped - the largest resulting contour is the one returned.
-    /// </summary>
-    Result<Polygon2D> UnionPolygons(IReadOnlyList<Polygon2D> polygons);
-
-    /// <summary>
-    /// Extrudes a 2D polygon into a 3D mesh.
-    /// </summary>
-    Result<IMesh> ExtrudePolygon(Polygon2D polygon, float zMin, float zMax);
+    Task<Result<IMesh>> ProjectTextPrismAsync(IMesh targetMesh, Features.Decal.DecalFrame frame, IMesh prismMesh, List<string>? warnings = null) =>
+        Task.Run(() => ProjectTextPrism(targetMesh, frame, prismMesh, warnings));
 }

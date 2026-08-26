@@ -146,7 +146,7 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
 
     [RelayCommand]
     public async Task ApplyCutAsync() {
-        if (ActiveMesh == null) return;
+        if (ActiveMesh is null) return;
         if (IsMould) {
             _alert.ShowError("Split operation is not yet implemented for moulds.");
             return;
@@ -185,7 +185,7 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
 
     [RelayCommand]
     public void ResetPlane() {
-        if (ActiveMesh == null) return;
+        if (ActiveMesh is null) return;
         var statsResult = _engine.Evaluators.GetStatistics(ActiveMesh);
         if (statsResult.IsSuccess) {
             var stats = statsResult.Value;

@@ -40,7 +40,7 @@ internal sealed class GeometryIO : IGeometryIO
             using (var baseArchive = ZipFile.OpenRead(baseTempFile))
             {
                 var modelEntry = baseArchive.GetEntry("3D/3dmodel.model");
-                if (modelEntry != null)
+                if (modelEntry is not null)
                 {
                     using var stream = modelEntry.Open();
                     var xdoc = XDocument.Load(stream);
@@ -53,7 +53,7 @@ internal sealed class GeometryIO : IGeometryIO
         using (var mainArchive = ZipFile.Open(tempFile, ZipArchiveMode.Update))
         {
             var modelEntry = mainArchive.GetEntry("3D/3dmodel.model");
-            if (modelEntry != null)
+            if (modelEntry is not null)
             {
                 XDocument mainDoc;
                 using (var stream = modelEntry.Open())
@@ -61,7 +61,7 @@ internal sealed class GeometryIO : IGeometryIO
                     mainDoc = XDocument.Load(stream);
                 }
 
-                if (mainDoc.Root != null)
+                if (mainDoc.Root is not null)
                 {
                     // Add JSON command history as standard <metadata> with custom namespace to satisfy strict 3MF rules
                     XNamespace fabNs = "http://fabolus.io/2026/metadata";
@@ -76,14 +76,14 @@ internal sealed class GeometryIO : IGeometryIO
                     mainDoc.Root.AddFirst(new XElement(ns + "metadata", new XAttribute("name", "fab:Commands"), json));
 
                     // Add base object to resources
-                    if (baseObject != null)
+                    if (baseObject is not null)
                     {
                         var resources = mainDoc.Root.Element(ns + "resources");
-                        if (resources != null)
+                        if (resources is not null)
                         {
                             var existingIds = resources.Elements()
                                 .Select(e => e.Attribute("id")?.Value)
-                                .Where(v => v != null)
+                                .Where(v => v is not null)
                                 .Select(v => int.TryParse(v, out int id) ? id : 0)
                                 .ToList();
                             
@@ -114,7 +114,7 @@ internal sealed class GeometryIO : IGeometryIO
             }
         }
 
-        if (baseTempFile != null && File.Exists(baseTempFile))
+        if (baseTempFile is not null && File.Exists(baseTempFile))
         {
             File.Delete(baseTempFile);
         }
@@ -132,7 +132,7 @@ internal sealed class GeometryIO : IGeometryIO
             using (var archive = ZipFile.OpenRead(filePath))
             {
                 var modelEntry = archive.GetEntry("3D/3dmodel.model");
-                if (modelEntry == null) return IOErrors.NoMeshData;
+                if (modelEntry is null) return IOErrors.NoMeshData;
 
                 using (var stream = modelEntry.Open())
                 {
@@ -140,13 +140,13 @@ internal sealed class GeometryIO : IGeometryIO
                 }
             }
 
-            if (xdoc.Root != null)
+            if (xdoc.Root is not null)
             {
                 // 1. Read JSON command history from standard 3MF <metadata> element
                 var metadataElem = xdoc.Root.Elements(ns + "metadata")
                     .FirstOrDefault(e => string.Equals(e.Attribute("name")?.Value, "fab:Commands", StringComparison.OrdinalIgnoreCase));
                 
-                if (metadataElem != null && !string.IsNullOrWhiteSpace(metadataElem.Value))
+                if (metadataElem is not null && !string.IsNullOrWhiteSpace(metadataElem.Value))
                 {
                     // A command that fails to load must not be skipped: the main object's geometry
                     // already has it baked in, so dropping it leaves the history disagreeing with
@@ -194,10 +194,10 @@ internal sealed class GeometryIO : IGeometryIO
             }
 
             var resources = xdoc.Root?.Element(ns + "resources");
-            if (resources == null) return IOErrors.NoMeshData;
+            if (resources is null) return IOErrors.NoMeshData;
 
             var objects = resources.Elements(ns + "object")
-                .Where(o => o.Element(ns + "mesh") != null) // Only consider objects that actually contain a mesh
+                .Where(o => o.Element(ns + "mesh") is not null) // Only consider objects that actually contain a mesh
                 .ToList();
 
             if (objects.Count == 0) return IOErrors.NoMeshData;
@@ -212,7 +212,7 @@ internal sealed class GeometryIO : IGeometryIO
             // Main object is whatever has a mesh and is NOT the base object
             var mainObject = objects.FirstOrDefault(o => o != baseObject);
 
-            if (mainObject == null) 
+            if (mainObject is null) 
             {
                 // Fallback in case there's only one object and it was mistakenly flagged as base
                 mainObject = objects.First();
@@ -229,7 +229,7 @@ internal sealed class GeometryIO : IGeometryIO
                 loadedMesh.pack();
                 
                 // Load base mesh if exists
-                if (baseObject != null)
+                if (baseObject is not null)
                 {
                     string baseTemp = Path.GetTempFileName() + ".obj";
                     try
@@ -271,14 +271,14 @@ internal sealed class GeometryIO : IGeometryIO
     private void WriteObjectToObj(XElement objNode, XNamespace ns, string outputPath)
     {
         var meshNode = objNode.Element(ns + "mesh");
-        if (meshNode == null)
+        if (meshNode is null)
             throw new System.Exception("WriteObjectToObj: meshNode is null. The object might be a <components> instead of a <mesh>! XML: " + objNode.ToString());
 
         var vertices = meshNode.Element(ns + "vertices")?.Elements(ns + "vertex");
         var triangles = meshNode.Element(ns + "triangles")?.Elements(ns + "triangle");
         
-        if (vertices == null || triangles == null)
-            throw new System.Exception($"WriteObjectToObj: vertices or triangles are null. vertices: {vertices != null}, triangles: {triangles != null}. XML: " + meshNode.ToString());
+        if (vertices is null || triangles is null)
+            throw new System.Exception($"WriteObjectToObj: vertices or triangles are null. vertices: {vertices is not null}, triangles: {triangles is not null}. XML: " + meshNode.ToString());
 
         using var writer = new StreamWriter(outputPath);
         foreach (var v in vertices)
@@ -286,7 +286,7 @@ internal sealed class GeometryIO : IGeometryIO
             var x = v.Attribute("x")?.Value;
             var y = v.Attribute("y")?.Value;
             var z = v.Attribute("z")?.Value;
-            if (x == null || y == null || z == null)
+            if (x is null || y is null || z is null)
                 throw new System.Exception($"WriteObjectToObj: missing coordinate. x:{x} y:{y} z:{z}");
             writer.WriteLine($"v {x} {y} {z}");
         }

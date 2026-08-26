@@ -47,6 +47,19 @@ public abstract record MouldDefinition : IMeshCommand
     /// target mesh, then subtract each air channel. Does not take ownership of
     /// <paramref name="mesh"/>; intermediates created along the way are disposed here.
     /// </summary>
+    public string Describe()
+    {
+        var shape = this switch
+        {
+            ConvexMouldDefinition => "Convex",
+            ConcaveMouldDefinition => "Concave",
+            ContouredMouldDefinition => "Contoured",
+            _ => "2-part"
+        };
+
+        return $"Mould ({shape})";
+    }
+
     public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh)
     {
         var generateResult = Generate(engine, mesh);
@@ -89,7 +102,7 @@ public abstract record MouldDefinition : IMeshCommand
     {
         var bodyTopZ = HasTrough ? coverTopZ + (float)TroughHeight : coverTopZ;
 
-        var body = engine.Generators.ExtrudePolygon(footprint, zMin, bodyTopZ);
+        var body = engine.Polygons.ExtrudePolygon(footprint, zMin, bodyTopZ);
         if (body.IsFailure || !HasTrough) return body;
 
         return MouldTrough.Carve(engine, body.Value, footprint, coverTopZ, bodyTopZ, this);
@@ -106,7 +119,7 @@ public sealed record ConvexMouldDefinition(double OffsetXY = 2.0, double OffsetB
 
         var bounds = statsResult.Value;
         
-        var hull = engine.Generators.GetConvexHull(mesh);
+        var hull = engine.Polygons.GetConvexHull(mesh);
         if (hull.IsFailure) return hull.Error;
         
         var offset = MouldFootprint.Build(engine, hull.Value, OffsetXY, AirChannels);
@@ -128,7 +141,7 @@ public sealed record ConcaveMouldDefinition(double OffsetXY = 2.0, double Offset
 
         var bounds = statsResult.Value;
 
-        var shadow = engine.Generators.GetMeshShadow(mesh);
+        var shadow = engine.Polygons.GetMeshShadow(mesh);
         if (shadow.IsFailure) return shadow.Error;
         
         var offset = MouldFootprint.Build(engine, shadow.Value, OffsetXY, AirChannels);

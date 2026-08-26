@@ -23,7 +23,7 @@ public static class MeshConverters {
         }
         geometry.Positions = positions;
 
-        if (renderData.Normals != null && renderData.Normals.Length > 0) {
+        if (renderData.Normals is not null && renderData.Normals.Length > 0) {
             var normals = new Vector3Collection();
             for (int i = 0; i < renderData.Normals.Length; i += 3)
                 normals.Add(new Vector3(
@@ -34,7 +34,7 @@ public static class MeshConverters {
         }
 
         var colors = vertexColours ?? renderData.Colors;
-        if (colors != null && colors.Length > 0) {
+        if (colors is not null && colors.Length > 0) {
             var colorCollection = new Color4Collection();
             for (int i = 0; i < colors.Length; i += 3)
                 colorCollection.Add(new Color4((float)colors[i], (float)colors[i + 1], (float)colors[i + 2], 1.0f));

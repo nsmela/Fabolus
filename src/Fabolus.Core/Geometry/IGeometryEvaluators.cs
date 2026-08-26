@@ -43,4 +43,8 @@ public interface IGeometryEvaluators {
     /// </summary>
     Result<TopologyValidation> ValidateTopology(IMesh mesh);
 
+    /// <summary>
+    /// Casts a ray against the mesh and returns the closest intersection point, normal, and distance.
+    /// </summary>
+    Result<RaycastHit> Raycast(IMesh mesh, Vector3 rayOrigin, Vector3 rayDirection);
 }

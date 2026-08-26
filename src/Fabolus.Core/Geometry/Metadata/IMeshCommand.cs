@@ -22,4 +22,14 @@ public interface IMeshCommand {
     /// Execute/orchestrator class) own that decision.
     /// </summary>
     Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh);
+
+    /// <summary>
+    /// One line naming this command where the mesh's baked history is listed to the user, or an
+    /// empty string when it is bookkeeping rather than something the user chose (an automatic
+    /// re-centring, say). Lives on the command so adding one shows up in those lists without any
+    /// consumer having to learn about it; the default names it after its own type, which is a
+    /// poor label but a visible one, so a command that forgets to override this is obvious
+    /// rather than silently missing.
+    /// </summary>
+    string Describe() => GetType().Name;
 }

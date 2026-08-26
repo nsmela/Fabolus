@@ -13,6 +13,8 @@ public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float I
     /// way are disposed here. Engine modifiers never return their input instance, so every
     /// stage's output is a fresh mesh this pipeline owns until it's replaced or returned.
     /// </summary>
+    public string Describe() => $"Smoothing ({Intensity:F2} mm \u00b7 {Iterations}x)";
+
     public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) {
         int baseTriangleCount = mesh.TriangleCount;
 

@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="Fabolus.Wpf.Features.Moulding.ChannelsControl"
+<UserControl x:Class="Fabolus.Wpf.Features.Moulding.ChannelsControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -13,7 +13,6 @@
         <Geometry x:Key="Icon.ChannelStraight">M8 14 L8 3 M5 6 L8 3 L11 6</Geometry>
         <Geometry x:Key="Icon.ChannelAngled">M4 14 L8 8.5 L8 3 M5.6 4.6 L8 2.6 L10.4 4.6</Geometry>
         <Geometry x:Key="Icon.ChannelPath">M2.5 11 C5.1 11 4.9 6 7.5 6 S10.1 11 13 11</Geometry>
-        <Geometry x:Key="Icon.Trash">M3 4.5 L13 4.5 M6.5 4.5 L6.5 3.2 L9.5 3.2 L9.5 4.5 M4.5 4.5 L5 12.8 a1 1 0 0 0 1 0.9 L10 13.7 a1 1 0 0 0 1 -0.9 L11.5 4.5</Geometry>
 
         <!-- Field caption above each control -->
         <Style x:Key="FieldLabel" TargetType="TextBlock">
