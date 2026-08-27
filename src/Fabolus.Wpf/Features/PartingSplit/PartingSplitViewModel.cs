@@ -1016,9 +1016,13 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// </summary>
     private void OnHandleRequested(PartingInsertion insertion)
     {
-        if (_edit is null || insertion.Rim >= _edit.Rims.Count) return;
+        if (_edit is null || insertion.Rim < 0 || insertion.Rim >= _edit.Rims.Count) return;
 
         var (line, anchor) = PartingLineEditor.Insert(_edit.Rims[insertion.Rim].Line, insertion);
+
+        // A placement that no longer names a section divides nothing. It reads to the user as a click
+        // that did not take, which is right - the marker it was aimed at is gone too.
+        if (anchor < 0) return;
 
         _edit = _edit.With(insertion.Rim, line);
         _hasEdits = true;
