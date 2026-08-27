@@ -34,6 +34,18 @@ public interface IGeometryEvaluators {
     Result<bool> HasMultipleComponents(IMesh mesh);
 
     /// <summary>
+    /// Measures how thick a solid is, by probing inward from every face along its own normal until
+    /// the probe comes out the far side. See <see cref="WallThickness"/> for what the result means.
+    ///
+    /// <para>
+    /// Purely a measurement of the shape - it reads the same however finely the mesh is tessellated,
+    /// which is what makes it useful on bodies where curvature-based measures are at the mercy of
+    /// the triangle size.
+    /// </para>
+    /// </summary>
+    Result<WallThickness> MeasureWallThickness(IMesh mesh, WallThicknessOptions options);
+
+    /// <summary>
     /// Separates a single mesh into multiple disjoint components.
     /// </summary>
     Result<IEnumerable<IMesh>> SeparateComponents(IMesh mesh);

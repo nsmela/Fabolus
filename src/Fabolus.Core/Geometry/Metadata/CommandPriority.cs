@@ -19,4 +19,7 @@ public static class CommandPriority {
 
     /// <summary>Text embossing / engraving on generated mould mesh.</summary>
     public const int MouldTextEmboss = 25;
+
+    /// <summary>Splits a mould into pieces along a parting line. Depends on the Mould shape.</summary>
+    public const int Split = 30;
 }

@@ -43,6 +43,7 @@ public partial class PreferencesViewModel : ObservableObject
 
     // ---- Appearance ----------------------------------------------------
     [ObservableProperty] private ViewportBackground _viewportBackground;
+    [ObservableProperty] private AppTheme _appTheme;
 
     // ---- Cut / Split --------------------------------------------------
     [ObservableProperty] private bool _enableSplitView;
@@ -120,6 +121,7 @@ public partial class PreferencesViewModel : ObservableObject
 
         // ---- Appearance ----
         _viewportBackground = Enum.Parse<ViewportBackground>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response);
+        _appTheme = Enum.Parse<AppTheme>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AppThemeLabel)).Response);
 
         // ---- Cut / Split ----
         _enableSplitView = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SplitViewEnabledLabel)).Response;
@@ -242,6 +244,9 @@ public partial class PreferencesViewModel : ObservableObject
 
     partial void OnViewportBackgroundChanged(ViewportBackground value)
         => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.ViewportBackgroundLabel, value));
+
+    partial void OnAppThemeChanged(AppTheme value)
+        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.AppThemeLabel, value));
 
     partial void OnEnableSplitViewChanged(bool oldValue, bool newValue)
     {

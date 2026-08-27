@@ -55,6 +55,7 @@ public class AppPreferencesStore {
                 AutodetectChannels = bed.AutodetectChannels,
                 ChannelDiameter = bed.ChannelDiameter,
                 ViewportBackground = general.ViewportBackground.ToString(),
+                AppTheme = AppTheme.Dark.ToString(),
                 SplitViewEnabled = cutSplit.SplitViewEnabled,
                 CutViewEnabled = cutSplit.CutViewEnabled,
                 CutViewScope = cutSplit.CutScope.ToString(),
@@ -229,8 +230,10 @@ public class AppPreferencesStore {
     }
 
     private void RegisterRequests() {
-        WeakReferenceMessenger.Default.Register<AppPreferencesStore, AppPreferenceRequestMessage>(this, (_, msg) => {
-            msg.Reply(_settings[msg.Key]);
+        WeakReferenceMessenger.Default.Register<AppPreferenceRequestMessage>(this, (_, msg) => {
+            if (_settings[msg.Key] is object value) {
+                msg.Reply(value);
+            }
         });
 
         WeakReferenceMessenger.Default.Register<AppPreferencesStore, PreferenceSectionRequestMessage<SmoothingPreferences>>(this, (_, msg) => {
@@ -261,4 +264,6 @@ public class AppPreferencesStore {
             msg.Reply(GetPrintBedPreferences());
         });
     }
+
+    public object GetPreference(string key) => _settings[key];
 }

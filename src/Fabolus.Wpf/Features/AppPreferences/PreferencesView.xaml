@@ -876,6 +876,19 @@
 
                         <Border Style="{StaticResource Row}">
                             <Grid>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Application theme" />
+                                <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Style="{StaticResource Segment}" GroupName="theme" Content="Dark"
+                                                     IsChecked="{Binding AppTheme, Converter={StaticResource EnumMatch}, ConverterParameter=Dark}" />
+                                        <RadioButton Style="{StaticResource Segment}" GroupName="theme" Content="Light"
+                                                     IsChecked="{Binding AppTheme, Converter={StaticResource EnumMatch}, ConverterParameter=Light}" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
                                 <TextBlock Style="{StaticResource RowLabel}" Text="Viewport background" />
                                 <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
                                     <StackPanel Orientation="Horizontal">

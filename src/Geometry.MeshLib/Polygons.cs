@@ -227,7 +227,22 @@ internal sealed class Polygons : IPolygonOperations
         {
             contour.pushBack(new MR.Vector2f(pt.X, pt.Y));
         }
-        contours.pushBack(contour);
+        contour.pushBack(new MR.Vector2f(polygon.OuterBoundary[0].X, polygon.OuterBoundary[0].Y));
+        contours.pushBack(contour);
+
+        // Each hole is its own closed contour; triangulateContours treats a contour nested
+        // inside another as a hole to cut out (this was previously dropped - polygon.Holes
+        // was never read - so extruding a Polygon2D with holes silently ignored them).
+        foreach (var hole in polygon.Holes)
+        {
+            using var holeContour = new MR.Std.Vector_MRVector2f();
+            foreach (var pt in hole)
+            {
+                holeContour.pushBack(new MR.Vector2f(pt.X, pt.Y));
+            }
+            holeContour.pushBack(new MR.Vector2f(hole[0].X, hole[0].Y));
+            contours.pushBack(holeContour);
+        }
 
         var polyMesh = MR.PlanarTriangulation.triangulateContours(contours, null);
         if (polyMesh is null || polyMesh.topology.getValidFaces().count() == 0)

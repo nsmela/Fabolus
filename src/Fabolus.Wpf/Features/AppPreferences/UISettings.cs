@@ -24,6 +24,7 @@ public class UISettings : ConfigurationSection {
     public const string AutodetectChannelsLabel = "autodetect_channels";
     public const string ChannelDiameterLabel = "channel_diameter";
     public const string ViewportBackgroundLabel = "viewport_background";
+    public const string AppThemeLabel = "app_theme";
     public const string SplitViewEnabledLabel = "split_view_enabled";
     public const string CutViewEnabledLabel = "cut_view_enabled";
     public const string DecalsEnabledLabel = "decals_enabled";
@@ -114,6 +115,12 @@ public class UISettings : ConfigurationSection {
     public string ViewportBackground {
         get => (string)this[ViewportBackgroundLabel];
         set => this[ViewportBackgroundLabel] = value;
+    }
+
+    [ConfigurationProperty(AppThemeLabel, DefaultValue = "Dark")]
+    public string AppTheme {
+        get => (string)this[AppThemeLabel];
+        set => this[AppThemeLabel] = value;
     }
 
     // ---- Cut / Split --------------------------------------------------

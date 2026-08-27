@@ -27,6 +27,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{4A098B28
 		files\test bolus 107mL.stl = files\test bolus 107mL.stl
 		files\test bolus 7mm.stl = files\test bolus 7mm.stl
 		files\test_smoothed_bolus.stl = files\test_smoothed_bolus.stl
+		\\PHSAhome2.phsabc.ehcnet.ca\nsmela\Programming\Fabolus\files\test bolus standard.3mf = \\PHSAhome2.phsabc.ehcnet.ca\nsmela\Programming\Fabolus\files\test bolus standard.3mf
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus.Core", "src\Fabolus.Core\Fabolus.Core.csproj", "{0DFCD2FD-52E4-4BF9-879C-70493FD982BC}"

@@ -85,6 +85,7 @@ public class MainViewModelTests
             [UISettings.AutodetectChannelsLabel] = true,
             [UISettings.ChannelDiameterLabel] = 4.0f,
             [UISettings.ViewportBackgroundLabel] = ViewportBackground.Graphite.ToString(),
+            [UISettings.AppThemeLabel] = AppTheme.Light.ToString(),
             [UISettings.SplitViewEnabledLabel] = false,
             [UISettings.CutViewEnabledLabel] = false,
             [UISettings.DecalsEnabledLabel] = true,

@@ -80,8 +80,8 @@ public class EmbossViewModelTests
             .Returns<IMesh, Vector3, Vector3>((m, o, d) => Result<RaycastHit>.Success(new RaycastHit(o + d * 10f, -d, 10f)));
         engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
             .Returns<IMesh, IMesh>((a, b) => Result<IMesh>.Success(a));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns<IMesh, IMesh>((a, b) => Result<IMesh>.Success(a));
+        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>(), It.IsAny<Vector3>()))
+            .Returns<IMesh, IMesh, Vector3>((a, b, shift) => Result<IMesh>.Success(a));
 
         var vm = new DecalViewModel(messenger, alertMock.Object, engineMock.Object, outlineSource);
         return (vm, messenger, engineMock);
@@ -300,7 +300,7 @@ public class EmbossViewModelTests
 
         engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
             .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>(), It.IsAny<Vector3>()))
             .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
         engineMock.Setup(e => e.Generators.BuildTextPrism(
             It.IsAny<IReadOnlyList<Polygon2D>>(),
@@ -489,7 +489,7 @@ public class EmbossViewModelTests
 
         engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
             .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>(), It.IsAny<Vector3>()))
             .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
 
         var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
@@ -661,7 +661,7 @@ public class EmbossViewModelTests
 
         engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
             .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>(), It.IsAny<Vector3>()))
             .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
 
         var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
@@ -750,7 +750,7 @@ public class EmbossViewModelTests
             .Returns<Polygon2D, float>((p, _) => Result<Polygon2D>.Success(p));
         engineMock.Setup(e => e.Polygons.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
             .Returns(Result<IMesh>.Success(mockMesh.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>(), It.IsAny<Vector3>()))
             .Returns(Result<IMesh>.Success(mockMesh.Object));
 
         var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
@@ -1113,7 +1113,7 @@ public class EmbossViewModelTests
             .Returns<Polygon2D, float>((p, _) => Result<Polygon2D>.Success(p));
         engineMock.Setup(e => e.Polygons.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
             .Returns(Result<IMesh>.Success(mockMesh.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
+        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>(), It.IsAny<Vector3>()))
             .Returns(Result<IMesh>.Success(mockMesh.Object));
 
         var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;

@@ -22,7 +22,7 @@
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="Foreground" Value="#5E6B73" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
         </Style>
 
         <DataTemplate DataType="{x:Type local:TextInfoItem}">
@@ -31,8 +31,8 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Label}" Foreground="#5E6B73" FontSize="13" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding Value}" FontFamily="Consolas" FontWeight="SemiBold" Foreground="#1B2227" FontSize="13" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource Brush.Text.Secondary}" FontSize="13" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding Value}" FontFamily="Consolas" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Text.Primary}" FontSize="13" VerticalAlignment="Center" />
             </Grid>
         </DataTemplate>
 
@@ -42,7 +42,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding Label}" Foreground="#5E6B73" FontSize="13" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource Brush.Text.Secondary}" FontSize="13" VerticalAlignment="Center" />
                 <Border Grid.Column="1" CornerRadius="4" Padding="6,2">
                     <Border.Background>
                         <SolidColorBrush Color="{Binding Colour}" />
@@ -55,10 +55,10 @@
         <DataTemplate DataType="{x:Type local:ProgressInfoItem}">
             <StackPanel Margin="0,6">
                 <Grid>
-                    <TextBlock Text="{Binding Label}" Foreground="#5E6B73" FontSize="13" />
-                    <TextBlock Text="{Binding Caption}" HorizontalAlignment="Right" Foreground="#5E6B73" FontSize="11" />
+                    <TextBlock Text="{Binding Label}" Foreground="{DynamicResource Brush.Text.Secondary}" FontSize="13" />
+                    <TextBlock Text="{Binding Caption}" HorizontalAlignment="Right" Foreground="{DynamicResource Brush.Text.Secondary}" FontSize="11" />
                 </Grid>
-                <ProgressBar Margin="0,6,0,0" Height="4" Maximum="{Binding Maximum}" Value="{Binding Value}" BorderThickness="0" Background="#E2E7EA" Foreground="#0CA3B4" />
+                <ProgressBar Margin="0,6,0,0" Height="4" Maximum="{Binding Maximum}" Value="{Binding Value}" BorderThickness="0" Background="{DynamicResource Brush.Slider.Track}" Foreground="{DynamicResource Brush.Accent}" />
             </StackPanel>
         </DataTemplate>
 
@@ -69,8 +69,8 @@
         <DataTemplate DataType="{x:Type local:OutputHeaderInfoItem}">
             <Grid Margin="0,0,0,14">
                 <TextBlock Text="{Binding Label}" Style="{StaticResource Text.CardHeader}" VerticalAlignment="Center"/>
-                <Border Background="#E0F7FA" CornerRadius="4" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding PillText}" FontSize="10" FontWeight="SemiBold" FontFamily="Consolas" Foreground="#0097A7"/>
+                <Border Background="{DynamicResource Brush.Accent.Soft}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding PillText}" FontSize="10" FontWeight="SemiBold" FontFamily="Consolas" Foreground="{DynamicResource Brush.Accent}"/>
                 </Border>
             </Grid>
         </DataTemplate>
@@ -82,25 +82,25 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <Path Data="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" Fill="#0097A7" Width="12" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                <TextBlock Grid.Column="1" Text="{Binding FileName}" FontFamily="Consolas" FontSize="13" Foreground="#1B2227" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Grid.Column="2" Text="{Binding FileSize}" FontFamily="Consolas" FontSize="12" Foreground="#5E6B73" VerticalAlignment="Center" FontWeight="SemiBold" Margin="10,0,0,0"/>
+                <Path Data="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" Fill="{DynamicResource Brush.Accent}" Width="12" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1" Text="{Binding FileName}" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource Brush.Text.Primary}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="2" Text="{Binding FileSize}" FontFamily="Consolas" FontSize="12" Foreground="{DynamicResource Brush.Text.Secondary}" VerticalAlignment="Center" FontWeight="SemiBold" Margin="10,0,0,0"/>
             </Grid>
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type local:SeparatorInfoItem}">
-            <Border Height="1" Background="#E2E7EA" Margin="0,4,0,12"/>
+            <Border Height="1" Background="{DynamicResource Brush.Divider}" Margin="0,4,0,12"/>
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type local:SubtitleInfoItem}">
-            <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#8C9CA6" FontWeight="SemiBold" Margin="0,0,0,10"/>
+            <TextBlock Text="{Binding Label}" FontSize="11" Foreground="{DynamicResource Brush.Text.Muted}" FontWeight="SemiBold" Margin="0,0,0,10"/>
         </DataTemplate>
     </UserControl.Resources>
     
     <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
         Margin="0,0,16,16" Width="300"
-        Background="#F0FFFFFF"
-        BorderBrush="#99FFFFFF" BorderThickness="1"
+        Background="{DynamicResource Brush.Card}"
+        BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
         CornerRadius="9" Padding="14,13">
         <Border.Style>
             <Style TargetType="Border">

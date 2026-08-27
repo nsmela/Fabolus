@@ -6,10 +6,10 @@ using System.Numerics;
 
 namespace Geometry.MeshLib;
 
-public class GeometryEvaluators : IGeometryEvaluators {
+public class Evaluators : IGeometryEvaluators {
     private readonly GeometryEngine _engine;
 
-    public GeometryEvaluators(GeometryEngine engine) {
+    public Evaluators(GeometryEngine engine) {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
     }
 
@@ -212,7 +212,7 @@ public class GeometryEvaluators : IGeometryEvaluators {
                 var ptRef = pt;
                 using var distResultOpt = MR.findSignedDistance(in ptRef, originalPart, null, null);
                 using var distResult = distResultOpt.value();
-                double d = distResult.dist;
+                double d = distResult?.dist ?? 0;
                 
                 // Map distance from [-scale, scale] to [0, 1]
                 double t = Math.Clamp((d + scale) / (2.0 * scale), 0.0, 1.0);
@@ -225,6 +225,166 @@ public class GeometryEvaluators : IGeometryEvaluators {
         }
 
         return colors;
+    }
+
+    /// <summary>
+    /// Probes inward from each face along its own normal and reports where the probe came out the
+    /// far side. Inside the solid the signed distance is negative, outside it is positive, so the
+    /// crossing is the point where that flips - the search brackets it on a coarse sweep and then
+    /// bisects, rather than stepping finely all the way, which is what keeps this to a couple of
+    /// dozen probes a face instead of hundreds.
+    /// </summary>
+    public Result<WallThickness> MeasureWallThickness(IMesh mesh, WallThicknessOptions options) {
+        if (mesh is null) return MeshErrors.NullSource;
+        options ??= WallThicknessOptions.Default;
+
+        if (options.MaxThicknessMm <= 0f || options.CoarseSteps < 1 || options.ToleranceMm <= 0f)
+            return new Error("Geometry.InvalidThicknessOptions",
+                "Search distance, step count and tolerance must all be positive.");
+
+        try {
+            using var mlMesh = mesh.ToMRMesh();
+            using var part = new MR.MeshPart(mlMesh);
+
+            var vertices = mesh.Vertices;
+            var triangles = mesh.Triangles;
+            int faceCount = triangles.Length / 3;
+
+            var perFace = new float[faceCount];
+            var partner = new int[faceCount];
+            var faceArea = new float[faceCount];
+            Array.Fill(partner, -1);
+            float coarse = options.MaxThicknessMm / options.CoarseSteps;
+            var measured = new List<float>(faceCount);
+
+            for (int f = 0; f < faceCount; f++) {
+                var a = vertices[triangles[f * 3]];
+                var b = vertices[triangles[(f * 3) + 1]];
+                var c = vertices[triangles[(f * 3) + 2]];
+
+                var cross = Vector3.Cross(b - a, c - a);
+                faceArea[f] = cross.Length() * 0.5f;
+                if (cross.LengthSquared() < 1e-12f) {
+                    perFace[f] = float.PositiveInfinity;   // degenerate face, no normal to probe along
+                    continue;
+                }
+
+                var origin = (a + b + c) / 3f;
+                var inward = -Vector3.Normalize(cross);
+
+                // Bracket: walk out until the probe reads outside.
+                float previous = 0f;
+                float exit = float.PositiveInfinity;
+                for (int step = 1; step <= options.CoarseSteps; step++) {
+                    float t = step * coarse;
+                    if (SignedDistance(part, origin + (inward * t)) > 0f) { exit = t; break; }
+                    previous = t;
+                }
+
+                if (float.IsPositiveInfinity(exit)) {
+                    perFace[f] = float.PositiveInfinity;
+                    continue;
+                }
+
+                // Bisect the bracket down to the requested tolerance.
+                float low = previous, high = exit;
+                while (high - low > options.ToleranceMm) {
+                    float mid = (low + high) * 0.5f;
+                    if (SignedDistance(part, origin + (inward * mid)) > 0f) high = mid;
+                    else low = mid;
+                }
+
+                perFace[f] = high;
+                partner[f] = FaceAt(part, origin + (inward * high));
+                measured.Add(high);
+            }
+
+            return new WallThickness {
+                PerFace = perFace,
+                PerVertex = CarryToVertices(perFace, faceArea, triangles, vertices.Length),
+                PartnerFace = partner,
+                Statistics = Summarise(measured, faceCount),
+                Options = options,
+            };
+        } catch (Exception ex) {
+            return new Error("Geometry.EvaluatorFailed", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Spreads the per-face measurement onto the vertices, weighted by face area so a fan of slivers
+    /// around a vertex cannot outweigh the one broad face beside it. Faces that never exited carry no
+    /// weight at all rather than counting as very thick.
+    /// </summary>
+    private static float[] CarryToVertices(
+        float[] perFace, float[] faceArea, int[] triangles, int vertexCount) {
+        var weighted = new float[vertexCount];
+        var weight = new float[vertexCount];
+
+        for (int f = 0; f < perFace.Length; f++) {
+            if (!float.IsFinite(perFace[f])) continue;
+
+            float w = faceArea[f];
+            for (int corner = 0; corner < 3; corner++) {
+                int v = triangles[(f * 3) + corner];
+                weighted[v] += perFace[f] * w;
+                weight[v] += w;
+            }
+        }
+
+        var perVertex = new float[vertexCount];
+        for (int v = 0; v < vertexCount; v++)
+            perVertex[v] = weight[v] > 0f ? weighted[v] / weight[v] : float.PositiveInfinity;
+
+        return perVertex;
+    }
+
+    /// <summary>
+    /// Summarises the faces that returned a thickness. <paramref name="measured"/> is sorted here
+    /// rather than by the caller, since every figure below wants it in order.
+    /// </summary>
+    private static WallThicknessStatistics Summarise(List<float> measured, int faceCount) {
+        if (measured.Count == 0)
+            return WallThicknessStatistics.Empty with { TotalFaces = faceCount };
+
+        measured.Sort();
+
+        double total = 0d;
+        foreach (float value in measured) total += value;
+        float mean = (float)(total / measured.Count);
+
+        double variance = 0d;
+        foreach (float value in measured) {
+            double d = value - mean;
+            variance += d * d;
+        }
+
+        return new WallThicknessStatistics {
+            Median = measured[measured.Count / 2],
+            Mean = mean,
+            Minimum = measured[0],
+            Maximum = measured[^1],
+            StandardDeviation = (float)Math.Sqrt(variance / measured.Count),
+            FifthPercentile = measured[(int)(measured.Count * 0.05)],
+            NinetyFifthPercentile = measured[Math.Min(measured.Count - 1, (int)(measured.Count * 0.95))],
+            MeasuredFaces = measured.Count,
+            TotalFaces = faceCount,
+        };
+    }
+
+    /// <summary>The face nearest a point - the one the probe came out through. -1 if none.</summary>
+    private static int FaceAt(MR.MeshPart part, Vector3 point) {
+        var query = new MR.Vector3f(point.X, point.Y, point.Z);
+        using var found = MR.findProjection(in query, part, float.MaxValue, null, 0f, null);
+        var face = found.proj.face;
+        return face.valid() ? face.get() : -1;
+    }
+
+    private static float SignedDistance(MR.MeshPart part, Vector3 point) {
+        var query = new MR.Vector3f(point.X, point.Y, point.Z);
+        using var found = MR.findSignedDistance(in query, part, null, null);
+        using var hit = found?.value();
+        return hit is null ? float.MaxValue : (float)hit.dist;
     }
 
     public Result<bool> HasMultipleComponents(IMesh mesh) {

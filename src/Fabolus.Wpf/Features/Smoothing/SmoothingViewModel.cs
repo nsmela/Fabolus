@@ -234,12 +234,14 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     public async Task ApplySmoothingAsync() {
         _messenger.Send(new IsLoadingMessage(true));
 
-        var settings = new SmoothSettings(
-            Iterations,
-            Intensity,
-            Inflation,
-            RemeshRatio,
-            Resolution);
+        var settings = new SmoothSettings
+        {
+            Iterations = Iterations,
+            Intensity = Intensity,
+            Inflation = Inflation,
+            RemeshRatio =RemeshRatio,
+            Resolution = Resolution
+        };
 
         var result = await Task.Run(() => _smoothFeature.Execute(Workspace, settings));
         if (result.IsFailure) {

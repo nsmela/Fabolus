@@ -22,9 +22,7 @@
             </Grid.Style>
             <StackPanel Margin="16">
                 <TextBlock Text="Split View" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Text="This mesh is a mould. Split by parting line is planned for a future update." TextWrapping="Wrap" Margin="0,0,0,8"/>
-                
-                <Button Content="Split (Not Implemented)" IsEnabled="False" Command="{Binding ApplyCutCommand}" />
+                <TextBlock Text="This mesh is a mould. Flat-plane cutting isn't available for moulds - use the Parting Split view (if enabled in preferences) to split along a direction-aware parting line instead." TextWrapping="Wrap" Margin="0,0,0,8"/>
             </StackPanel>
         </Grid>
 

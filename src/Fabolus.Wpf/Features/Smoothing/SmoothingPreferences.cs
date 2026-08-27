@@ -37,8 +37,15 @@ public sealed record SmoothingPreferences(
         public const float ResolutionMax = 4.0f;
     }
 
-    public SmoothSettings ToSmoothSettings() => new(
-        Iterations, Intensity, Inflation, RemeshRatio, Resolution);
+    // Object initialiser rather than positional: SmoothSettings carries init properties with
+    // defaults, so there is no positional constructor to call.
+    public SmoothSettings ToSmoothSettings() => new() {
+        Iterations = Iterations,
+        Intensity = Intensity,
+        Inflation = Inflation,
+        RemeshRatio = RemeshRatio,
+        Resolution = Resolution
+    };
 
     public SmoothingPreferences Clamped() => new(
         Math.Clamp(Iterations, Ranges.IterationsMin, Ranges.IterationsMax),

@@ -18,6 +18,7 @@ using Fabolus.Wpf.Pages.Preferences;
 using Fabolus.Wpf.Features.CutSplit;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Wpf.Features.Decal;
+using Fabolus.Wpf.Features.PartingSplit;
 
 namespace Fabolus.Wpf.Features.Main;
 
@@ -102,7 +103,6 @@ public partial class MainViewModel : ObservableObject
         _messenger.Register<WorkspaceChangedMessage>(this, (r, m) => WorkspaceUpdated(m.Workspace));
         _messenger.Register<IsLoadingMessage>(this, (r, m) => IsLoading = m.IsLoading);
         _messenger.Register<SwitchToMeshManagerMessage>(this, async (r, m) => await SwitchToMeshManagerViewAsync());
-
         // Take the new value off the message rather than reading it back from the store,
         // so this doesn't depend on which recipient the messenger notifies first.
         _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
@@ -110,12 +110,14 @@ public partial class MainViewModel : ObservableObject
             else if (m.Key == UISettings.CutViewEnabledLabel) { ApplyCutViewPreference(m.Value); }
             else if (m.Key == UISettings.CutViewScopeLabel) { ApplyCutViewScope(m.Value); }
             else if (m.Key == UISettings.DecalsEnabledLabel) { ApplyDecalViewPreference(m.Value); }
+            else if (m.Key == UISettings.SplitViewEnabledLabel && m.Value is bool split) { ShowSplitView = split; }
         });
 
         _messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (r, m) => ApplyViewportBackground(m.Section.ViewportBackground));
         _messenger.Register<PreferenceSectionUpdateMessage<CutSplitPreferences>>(this, (r, m) => {
             _cutViewPreferenceEnabled = m.Section.CutViewEnabled;
             _cutViewScope = m.Section.CutScope;
+            ShowSplitView = m.Section.SplitViewEnabled;
             UpdateCutViewAvailability();
         });
         _messenger.Register<PreferenceSectionUpdateMessage<DecalPreferences>>(this, (r, m) => {
@@ -132,6 +134,11 @@ public partial class MainViewModel : ObservableObject
         ApplyCutViewPreference(_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewEnabledLabel)).Response);
         ApplyCutViewScope(_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewScopeLabel)).Response);
         ApplyDecalViewPreference(_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalsEnabledLabel)).Response);
+
+        // The parting-split tab is the one view v1's section model has no Apply* for, since the
+        // feature arrived on this branch. It rides on CutSplitPreferences.SplitViewEnabled above.
+        var splitViewPref = _messenger.Send(new AppPreferenceRequestMessage(UISettings.SplitViewEnabledLabel)).Response;
+        ShowSplitView = splitViewPref is bool sv && sv;
 
         _ = SwitchToMeshManagerViewAsync();
 
@@ -428,6 +435,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task ShowCutSplitAsync()
     {
+        if (!ShowCutView) return;
         if (CurrentView is CutSplitViewModel)
             return;
 
@@ -441,6 +449,32 @@ public partial class MainViewModel : ObservableObject
         CurrentViewTitle = "cut / split";
 
         var newView = new CutSplitViewModel(_messenger, _alertDialog, _engine, _dialogueSystem);
+        SceneManager = newView.SceneManager;
+        CurrentView = newView;
+        await CurrentView.ActivateAsync(Workspace);
+
+        IsLoading = false;
+    }
+
+    // Switching CurrentView always deactivates whatever was active first (see above), so this
+    // and ShowCutSplitAsync are naturally mutually exclusive - only one can ever be CurrentView.
+    [RelayCommand]
+    public async Task ShowPartingSplitAsync()
+    {
+        if (!ShowSplitView) return;
+        if (CurrentView is PartingSplitViewModel)
+            return;
+
+        IsLoading = true;
+
+        if (CurrentView is not null)
+        {
+            WorkspaceUpdated(await CurrentView.DeactivateAsync());
+        }
+
+        CurrentViewTitle = "parting split";
+
+        var newView = new PartingSplitViewModel(_messenger, _alertDialog, _engine);
         SceneManager = newView.SceneManager;
         CurrentView = newView;
         await CurrentView.ActivateAsync(Workspace);
