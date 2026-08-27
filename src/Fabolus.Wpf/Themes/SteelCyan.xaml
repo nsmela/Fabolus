@@ -196,31 +196,7 @@
     <DropShadowEffect x:Key="Shadow.Card" BlurRadius="18" ShadowDepth="6" Direction="270" Opacity="0.14" Color="#FF141E28" />
     <DropShadowEffect x:Key="Shadow.Accent" BlurRadius="6" ShadowDepth="2" Direction="270" Opacity="0.35" Color="{StaticResource Cyan.AccentPressed}" />
 
-    <!-- ============================================================ -->
-    <!--  STEP-NAV ICONS  (16x16 stroke geometries for the tab strip) -->
-    <!--  Use with Stroke (not Fill); bind Stroke to the button's     -->
-    <!--  Foreground so they recolor on hover/active. See usage.       -->
-    <!-- ============================================================ -->
-    <Geometry x:Key="Icon.Import">M8 2 L8 8.5 M5.4 6 L8 8.6 L10.6 6 M2.6 10.5 L2.6 12.4 a1 1 0 0 0 1 1 L12.4 13.4 a1 1 0 0 0 1 -1 L13.4 10.5</Geometry>
-    <Geometry x:Key="Icon.Smooth">M2 10 C4 5.6 6 5.6 8 10 S12 14.4 14 10</Geometry>
-    <Geometry x:Key="Icon.Rotate">M13.2 8 a5.2 5.2 0 1 1 -1.7 -3.9 M13.4 2.6 L13.4 5.2 L10.8 5.2</Geometry>
-    <Geometry x:Key="Icon.Channels">M4.3 2.5 L4.3 13.5 M8 2.5 L8 13.5 M11.7 2.5 L11.7 13.5</Geometry>
-    <Geometry x:Key="Icon.Mould">M8 2.2 L13.5 5 L13.5 11 L8 13.8 L2.5 11 L2.5 5 Z M2.5 5 L8 7.8 L13.5 5 M8 7.8 L8 13.8</Geometry>
-    <Geometry x:Key="Icon.Split">M8 1.8 L8 14.2 M3 5 L3 11 M13 5 L13 11</Geometry>
-    <Geometry x:Key="Icon.Export">M8 9.4 L8 2.6 M5.4 5.2 L8 2.6 L10.6 5.2 M2.6 10 L2.6 12.4 a1 1 0 0 0 1 1 L12.4 13.4 a1 1 0 0 0 1 -1 L13.4 10</Geometry>
-    <Geometry x:Key="Icon.Text">M3 4.5 L13 4.5 M8 4.5 L8 13.5 M5.5 13.5 L10.5 13.5</Geometry>
-    <Geometry x:Key="Icon.Decals">M3.5 2.5 L12.5 2.5 a1 1 0 0 1 1 1 L13.5 9.5 L9.5 13.5 L3.5 13.5 a1 1 0 0 1 -1 -1 L2.5 3.5 a1 1 0 0 1 1 -1 Z M9.5 9.5 L13.5 9.5 M9.5 9.5 L9.5 13.5 M5.5 6 L10.5 6 M8 6 L8 10</Geometry>
-    <Geometry x:Key="Icon.Trash">M3 4.5 L13 4.5 M6.5 4.5 L6.5 3.2 L9.5 3.2 L9.5 4.5 M4.5 4.5 L5 12.8 a1 1 0 0 0 1 0.9 L10 13.7 a1 1 0 0 0 1 -0.9 L11.5 4.5</Geometry>
 
-    <!-- Viewport overlay icons (same 16x16 stroke style as the tab strip) -->
-    <!-- One per WireframeMode. An obliquely projected box: silhouette only -> plus the -->
-    <!-- visible edges -> plus the three edges hidden behind it. The projection is oblique -->
-    <!-- rather than isometric so the far corner stays clear of the near one. -->
-    <Geometry x:Key="Icon.Wireframe.None">M2.5 13.5 L2.5 5.5 L5.5 2.5 L13.5 2.5 L13.5 10.5 L10.5 13.5 Z</Geometry>
-    <Geometry x:Key="Icon.Wireframe.Overlay">M2.5 13.5 L2.5 5.5 L5.5 2.5 L13.5 2.5 L13.5 10.5 L10.5 13.5 Z M2.5 5.5 L10.5 5.5 L10.5 13.5 M10.5 5.5 L13.5 2.5</Geometry>
-    <Geometry x:Key="Icon.Wireframe.Only">M2.5 13.5 L2.5 5.5 L5.5 2.5 L13.5 2.5 L13.5 10.5 L10.5 13.5 Z M2.5 5.5 L10.5 5.5 L10.5 13.5 M10.5 5.5 L13.5 2.5 M5.5 2.5 L5.5 10.5 L13.5 10.5 M5.5 10.5 L2.5 13.5</Geometry>
-    <Geometry x:Key="Icon.Screenshot">M1.6 6.2 a1.6 1.6 0 0 1 1.6 -1.6 L5.9 4.6 L7 2.9 L9 2.9 L10.1 4.6 L12.8 4.6 a1.6 1.6 0 0 1 1.6 1.6 L14.4 12 a1.6 1.6 0 0 1 -1.6 1.6 L3.2 13.6 a1.6 1.6 0 0 1 -1.6 -1.6 Z M10.5 9.2 a2.5 2.5 0 1 1 -5 0 a2.5 2.5 0 1 1 5 0</Geometry>
-    <Geometry x:Key="Icon.Preferences">M2 4.4 L4.5 4.4 M7.5 4.4 L14 4.4 M7.5 4.4 a1.5 1.5 0 1 0 -3 0 a1.5 1.5 0 1 0 3 0 M2 8 L9 8 M12 8 L14 8 M12 8 a1.5 1.5 0 1 0 -3 0 a1.5 1.5 0 1 0 3 0 M2 11.6 L4 11.6 M7 11.6 L14 11.6 M7 11.6 a1.5 1.5 0 1 0 -3 0 a1.5 1.5 0 1 0 3 0</Geometry>
 
     <!-- ============================================================ -->
     <!--  COMPONENT STYLES                                            -->

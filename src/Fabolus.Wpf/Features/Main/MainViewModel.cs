@@ -23,7 +23,6 @@ namespace Fabolus.Wpf.Features.Main;
 
 public partial class MainViewModel : ObservableObject
 {
-    private readonly AppPreferencesStore _appPreferenceStore;
     private readonly IMessenger _messenger;
     private readonly IGeometryEngine _engine;
     private readonly IDialogueSystem _dialogueSystem;
@@ -111,6 +110,20 @@ public partial class MainViewModel : ObservableObject
             else if (m.Key == UISettings.CutViewEnabledLabel) { ApplyCutViewPreference(m.Value); }
             else if (m.Key == UISettings.CutViewScopeLabel) { ApplyCutViewScope(m.Value); }
             else if (m.Key == UISettings.DecalsEnabledLabel) { ApplyDecalViewPreference(m.Value); }
+        });
+
+        _messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (r, m) => ApplyViewportBackground(m.Section.ViewportBackground));
+        _messenger.Register<PreferenceSectionUpdateMessage<CutSplitPreferences>>(this, (r, m) => {
+            _cutViewPreferenceEnabled = m.Section.CutViewEnabled;
+            _cutViewScope = m.Section.CutScope;
+            UpdateCutViewAvailability();
+        });
+        _messenger.Register<PreferenceSectionUpdateMessage<DecalPreferences>>(this, (r, m) => {
+            ShowDecalView = m.Section.Enabled;
+            if (!ShowDecalView && CurrentView is DecalViewModel)
+            {
+                _ = SwitchToMeshManagerViewAsync();
+            }
         });
 
         PreferencesViewModel = new PreferencesViewModel(_messenger, _appPreferencesStore, _alertDialog);

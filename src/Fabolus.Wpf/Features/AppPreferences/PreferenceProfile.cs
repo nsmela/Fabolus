@@ -2,6 +2,10 @@ using System.IO;
 using System.Text.Json;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;
+using Fabolus.Wpf.Features.CutSplit;
+using Fabolus.Wpf.Features.Decal;
+using Fabolus.Wpf.Features.Moulding;
+using Fabolus.Wpf.Features.Rotatation;
 using Fabolus.Wpf.Features.Smoothing;
 
 namespace Fabolus.Wpf.Features.AppPreferences;
@@ -12,62 +16,101 @@ namespace Fabolus.Wpf.Features.AppPreferences;
 /// silently fall behind when a preference is added.
 /// </summary>
 public sealed record PreferenceProfile {
-    // Folders default to the same places AppPreferencesStore seeds a fresh section with.
-    public static PreferenceProfile Defaults => new() {
-        ImportFolder = Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments),
-        ExportFolder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    };
+    public static PreferenceProfile Defaults {
+        get {
+            var general = GeneralPreferences.Default;
+            var bed = PrintBedPreferences.Default;
+            var cutSplit = CutSplitPreferences.Default;
+            var mould = MouldPreferences.Default;
+            var decal = DecalPreferences.Default;
+            var smooth = SmoothingPreferences.Default;
+            var rotate = RotationPreferences.Default;
 
-    public string ImportFolder { get; init; } = string.Empty;
-    public string ExportFolder { get; init; } = string.Empty;
-    public ExportFormat ExportFormat { get; init; } = ExportFormat.Stl;
+            return new PreferenceProfile {
+                ImportFolder = general.ImportFolder,
+                ExportFolder = general.ExportFolder,
+                ExportFormat = general.ExportFormat,
+                PrintBedWidth = bed.Width,
+                PrintBedDepth = bed.Depth,
+                ShowBedGrid = bed.ShowGrid,
+                AutodetectChannels = bed.AutodetectChannels,
+                ChannelDiameter = bed.ChannelDiameter,
+                ViewportBackground = general.ViewportBackground,
+                SplitViewEnabled = cutSplit.SplitViewEnabled,
+                CutViewEnabled = cutSplit.CutViewEnabled,
+                CutScope = cutSplit.CutScope,
+                MouldShape = mould.Shape,
+                MouldWallThickness = mould.WallThickness,
+                MouldBaseHeight = mould.BaseHeight,
+                MouldTroughHeight = mould.TroughHeight,
+                MouldTroughOffset = mould.TroughOffset,
+                MouldTroughShape = mould.TroughShape,
+                DecalsEnabled = decal.Enabled,
+                DecalScope = decal.Scope,
+                AutoPlaceFilename = decal.AutoPlaceFilename,
+                FilenameAnchor = decal.FilenameAnchor,
+                AutoPlaceVolume = decal.AutoPlaceVolume,
+                VolumeAnchor = decal.VolumeAnchor,
+                DecalFont = decal.Font,
+                DecalCapHeight = decal.CapHeight,
+                DecalDepth = decal.Depth,
+                DecalOperation = decal.Operation,
+                SmoothIterations = smooth.Iterations,
+                SmoothIntensity = smooth.Intensity,
+                SmoothInflation = smooth.Inflation,
+                SmoothRemeshRatio = smooth.RemeshRatio,
+                SmoothResolution = smooth.Resolution,
+                SmoothDisplay = smooth.DisplayMode,
+                OverhangWarningAngle = rotate.OverhangWarningAngle,
+                OverhangCriticalAngle = rotate.OverhangCriticalAngle,
+            };
+        }
+    }
 
-    public float PrintBedWidth { get; init; } = 250.0f;
-    public float PrintBedDepth { get; init; } = 250.0f;
-    public bool ShowBedGrid { get; init; } = true;
+    public string ImportFolder { get; init; } = GeneralPreferences.Default.ImportFolder;
+    public string ExportFolder { get; init; } = GeneralPreferences.Default.ExportFolder;
+    public ExportFormat ExportFormat { get; init; } = GeneralPreferences.Default.ExportFormat;
 
-    public bool AutodetectChannels { get; init; } = true;
-    public float ChannelDiameter { get; init; } = 4.0f;
+    public float PrintBedWidth { get; init; } = PrintBedPreferences.Default.Width;
+    public float PrintBedDepth { get; init; } = PrintBedPreferences.Default.Depth;
+    public bool ShowBedGrid { get; init; } = PrintBedPreferences.Default.ShowGrid;
 
-    public ViewportBackground ViewportBackground { get; init; } = ViewportBackground.Graphite;
+    public bool AutodetectChannels { get; init; } = PrintBedPreferences.Default.AutodetectChannels;
+    public float ChannelDiameter { get; init; } = PrintBedPreferences.Default.ChannelDiameter;
 
-    public bool SplitViewEnabled { get; init; } = false;
-    public bool CutViewEnabled { get; init; } = false;
-    /// <summary>Which meshes the cut view appears on. Base matches the rule this replaced.</summary>
-    public CutViewScope CutScope { get; init; } = CutViewScope.Base;
+    public ViewportBackground ViewportBackground { get; init; } = GeneralPreferences.Default.ViewportBackground;
 
-    public MouldShapeType MouldShape { get; init; } = MouldShapeType.Concave;
-    public float MouldWallThickness { get; init; } = 2.0f;
-    public float MouldBaseHeight { get; init; } = 5.0f;
-    /// <summary>0 leaves the top of the mould solid.</summary>
-    public float MouldTroughHeight { get; init; } = 0.0f;
-    public float MouldTroughOffset { get; init; } = 2.5f;
-    public TroughShapeType MouldTroughShape { get; init; } = TroughShapeType.Footprint;
+    public bool SplitViewEnabled { get; init; } = CutSplitPreferences.Default.SplitViewEnabled;
+    public bool CutViewEnabled { get; init; } = CutSplitPreferences.Default.CutViewEnabled;
+    public CutViewScope CutScope { get; init; } = CutSplitPreferences.Default.CutScope;
 
-    public bool DecalsEnabled { get; init; } = true;
-    public DecalAutoPlaceScope DecalScope { get; init; } = DecalAutoPlaceScope.Mould;
-    public bool AutoPlaceFilename { get; init; } = true;
-    public DecalAnchor FilenameAnchor { get; init; } = DecalAnchor.Front;
-    public bool AutoPlaceVolume { get; init; } = true;
-    public DecalAnchor VolumeAnchor { get; init; } = DecalAnchor.Back;
-    public DecalFont DecalFont { get; init; } = DecalFont.Sans;
-    public float DecalCapHeight { get; init; } = 6.0f;
-    public float DecalDepth { get; init; } = 0.8f;
-    public EmbossOperation DecalOperation { get; init; } = EmbossOperation.Engrave;
+    public MouldShapeType MouldShape { get; init; } = MouldPreferences.Default.Shape;
+    public float MouldWallThickness { get; init; } = MouldPreferences.Default.WallThickness;
+    public float MouldBaseHeight { get; init; } = MouldPreferences.Default.BaseHeight;
+    public float MouldTroughHeight { get; init; } = MouldPreferences.Default.TroughHeight;
+    public float MouldTroughOffset { get; init; } = MouldPreferences.Default.TroughOffset;
+    public TroughShapeType MouldTroughShape { get; init; } = MouldPreferences.Default.TroughShape;
 
-    // Smoothing. These are the values SmoothingViewModel was already initialising its sliders
-    // with; until now ActivateAsync overwrote them with the SmoothSettings record's defaults
-    // before they could ever be seen.
-    public int SmoothIterations { get; init; } = 1;
-    public float SmoothIntensity { get; init; } = 1.5f;
-    public float SmoothInflation { get; init; } = 0.2f;
-    public float SmoothRemeshRatio { get; init; } = 1.0f;
-    public float SmoothResolution { get; init; } = 1.0f;
-    public SmoothDisplayMode SmoothDisplay { get; init; } = SmoothDisplayMode.None;
+    public bool DecalsEnabled { get; init; } = DecalPreferences.Default.Enabled;
+    public DecalAutoPlaceScope DecalScope { get; init; } = DecalPreferences.Default.Scope;
+    public bool AutoPlaceFilename { get; init; } = DecalPreferences.Default.AutoPlaceFilename;
+    public DecalAnchor FilenameAnchor { get; init; } = DecalPreferences.Default.FilenameAnchor;
+    public bool AutoPlaceVolume { get; init; } = DecalPreferences.Default.AutoPlaceVolume;
+    public DecalAnchor VolumeAnchor { get; init; } = DecalPreferences.Default.VolumeAnchor;
+    public DecalFont DecalFont { get; init; } = DecalPreferences.Default.Font;
+    public float DecalCapHeight { get; init; } = DecalPreferences.Default.CapHeight;
+    public float DecalDepth { get; init; } = DecalPreferences.Default.Depth;
+    public EmbossOperation DecalOperation { get; init; } = DecalPreferences.Default.Operation;
 
-    // Rotation: the overhang gradient's two thresholds, in degrees from the build plate.
-    public float OverhangWarningAngle { get; init; } = 45.0f;
-    public float OverhangCriticalAngle { get; init; } = 65.0f;
+    public int SmoothIterations { get; init; } = SmoothingPreferences.Default.Iterations;
+    public float SmoothIntensity { get; init; } = SmoothingPreferences.Default.Intensity;
+    public float SmoothInflation { get; init; } = SmoothingPreferences.Default.Inflation;
+    public float SmoothRemeshRatio { get; init; } = SmoothingPreferences.Default.RemeshRatio;
+    public float SmoothResolution { get; init; } = SmoothingPreferences.Default.Resolution;
+    public SmoothDisplayMode SmoothDisplay { get; init; } = SmoothingPreferences.Default.DisplayMode;
+
+    public float OverhangWarningAngle { get; init; } = RotationPreferences.Default.OverhangWarningAngle;
+    public float OverhangCriticalAngle { get; init; } = RotationPreferences.Default.OverhangCriticalAngle;
 }
 
 /// <summary>What an import did, so the caller can tell the user rather than failing silently.</summary>
@@ -142,13 +185,6 @@ public static class PreferenceProfileIO {
         File.WriteAllText(path, JsonSerializer.Serialize(document, WriteOptions));
     }
 
-    /// <summary>
-    /// Parses a profile from disk. Import replaces the whole set, so anything the file does not
-    /// carry - or carries in a form that no longer reads - lands on the shipped default rather
-    /// than on whatever happened to be set before. Every such case is named in Adjusted so the
-    /// caller can say what did not survive instead of quietly changing settings.
-    /// </summary>
-    /// <exception cref="InvalidDataException">The file is not a Fabolus preferences file.</exception>
     public static PreferenceImportResult Read(string path) {
         var text = File.ReadAllText(path);
 
@@ -186,20 +222,20 @@ public static class PreferenceProfileIO {
                 ImportFolder = ReadFolder(settings, UISettings.DefaultImportFolderLabel, defaults.ImportFolder, "Import folder", adjusted),
                 ExportFolder = ReadFolder(settings, UISettings.DefaultExportFolderLabel, defaults.ExportFolder, "Export folder", adjusted),
                 ExportFormat = ReadEnum(settings, UISettings.DefaultExportFormatLabel, defaults.ExportFormat, "Export format", adjusted),
-                PrintBedWidth = ReadFloat(settings, UISettings.PrintBedWidthLabel, defaults.PrintBedWidth, "Print bed width", adjusted, PreferenceRanges.PrintBedMin, PreferenceRanges.PrintBedMax),
-                PrintBedDepth = ReadFloat(settings, UISettings.PrintBedDepthLabel, defaults.PrintBedDepth, "Print bed depth", adjusted, PreferenceRanges.PrintBedMin, PreferenceRanges.PrintBedMax),
+                PrintBedWidth = ReadFloat(settings, UISettings.PrintBedWidthLabel, defaults.PrintBedWidth, "Print bed width", adjusted, PrintBedPreferences.Ranges.PrintBedMin, PrintBedPreferences.Ranges.PrintBedMax),
+                PrintBedDepth = ReadFloat(settings, UISettings.PrintBedDepthLabel, defaults.PrintBedDepth, "Print bed depth", adjusted, PrintBedPreferences.Ranges.PrintBedMin, PrintBedPreferences.Ranges.PrintBedMax),
                 ShowBedGrid = ReadBool(settings, UISettings.ShowBedGridLabel, defaults.ShowBedGrid, "Show bed grid", adjusted),
                 AutodetectChannels = ReadBool(settings, UISettings.AutodetectChannelsLabel, defaults.AutodetectChannels, "Autodetect channels", adjusted),
-                ChannelDiameter = ReadFloat(settings, UISettings.ChannelDiameterLabel, defaults.ChannelDiameter, "Channel diameter", adjusted, PreferenceRanges.ChannelDiameterMin, PreferenceRanges.ChannelDiameterMax),
+                ChannelDiameter = ReadFloat(settings, UISettings.ChannelDiameterLabel, defaults.ChannelDiameter, "Channel diameter", adjusted, PrintBedPreferences.Ranges.ChannelDiameterMin, PrintBedPreferences.Ranges.ChannelDiameterMax),
                 ViewportBackground = ReadEnum(settings, UISettings.ViewportBackgroundLabel, defaults.ViewportBackground, "Viewport background", adjusted),
                 SplitViewEnabled = ReadBool(settings, UISettings.SplitViewEnabledLabel, defaults.SplitViewEnabled, "Split view", adjusted),
                 CutViewEnabled = ReadBool(settings, UISettings.CutViewEnabledLabel, defaults.CutViewEnabled, "Cut view", adjusted),
                 CutScope = ReadEnum(settings, UISettings.CutViewScopeLabel, defaults.CutScope, "Cut view scope", adjusted),
                 MouldShape = ReadEnum(settings, UISettings.MouldShapeLabel, defaults.MouldShape, "Mould shape", adjusted),
-                MouldWallThickness = ReadFloat(settings, UISettings.MouldWallThicknessLabel, defaults.MouldWallThickness, "Mould wall thickness", adjusted, PreferenceRanges.MouldWallThicknessMin, PreferenceRanges.MouldWallThicknessMax),
-                MouldBaseHeight = ReadFloat(settings, UISettings.MouldBaseHeightLabel, defaults.MouldBaseHeight, "Mould base height", adjusted, PreferenceRanges.MouldBaseHeightMin, PreferenceRanges.MouldBaseHeightMax),
-                MouldTroughHeight = ReadFloat(settings, UISettings.MouldTroughHeightLabel, defaults.MouldTroughHeight, "Mould trough depth", adjusted, PreferenceRanges.MouldTroughHeightMin, PreferenceRanges.MouldTroughHeightMax),
-                MouldTroughOffset = ReadFloat(settings, UISettings.MouldTroughOffsetLabel, defaults.MouldTroughOffset, "Mould trough margin", adjusted, PreferenceRanges.MouldTroughOffsetMin, PreferenceRanges.MouldTroughOffsetMax),
+                MouldWallThickness = ReadFloat(settings, UISettings.MouldWallThicknessLabel, defaults.MouldWallThickness, "Mould wall thickness", adjusted, MouldPreferences.Ranges.WallThicknessMin, MouldPreferences.Ranges.WallThicknessMax),
+                MouldBaseHeight = ReadFloat(settings, UISettings.MouldBaseHeightLabel, defaults.MouldBaseHeight, "Mould base height", adjusted, MouldPreferences.Ranges.BaseHeightMin, MouldPreferences.Ranges.BaseHeightMax),
+                MouldTroughHeight = ReadFloat(settings, UISettings.MouldTroughHeightLabel, defaults.MouldTroughHeight, "Mould trough depth", adjusted, MouldPreferences.Ranges.TroughHeightMin, MouldPreferences.Ranges.TroughHeightMax),
+                MouldTroughOffset = ReadFloat(settings, UISettings.MouldTroughOffsetLabel, defaults.MouldTroughOffset, "Mould trough margin", adjusted, MouldPreferences.Ranges.TroughOffsetMin, MouldPreferences.Ranges.TroughOffsetMax),
                 MouldTroughShape = ReadEnum(settings, UISettings.MouldTroughShapeLabel, defaults.MouldTroughShape, "Mould trough shape", adjusted),
                 DecalsEnabled = ReadBool(settings, UISettings.DecalsEnabledLabel, defaults.DecalsEnabled, "Decal tool", adjusted),
                 DecalScope = ReadEnum(settings, UISettings.DecalAutoPlaceScopeLabel, defaults.DecalScope, "Decal placement scope", adjusted),
@@ -208,31 +244,27 @@ public static class PreferenceProfileIO {
                 AutoPlaceVolume = ReadBool(settings, UISettings.DecalAutoPlaceVolumeLabel, defaults.AutoPlaceVolume, "Auto-place volume", adjusted),
                 VolumeAnchor = ReadEnum(settings, UISettings.DecalVolumeAnchorLabel, defaults.VolumeAnchor, "Volume anchor", adjusted),
                 DecalFont = ReadEnum(settings, UISettings.DecalDefaultFontLabel, defaults.DecalFont, "Decal font", adjusted),
-                DecalCapHeight = ReadFloat(settings, UISettings.DecalDefaultCapHeightLabel, defaults.DecalCapHeight, "Decal cap height", adjusted, PreferenceRanges.DecalCapHeightMin, PreferenceRanges.DecalCapHeightMax),
-                DecalDepth = ReadFloat(settings, UISettings.DecalDefaultDepthLabel, defaults.DecalDepth, "Decal depth", adjusted, PreferenceRanges.DecalDepthMin, PreferenceRanges.DecalDepthMax),
+                DecalCapHeight = ReadFloat(settings, UISettings.DecalDefaultCapHeightLabel, defaults.DecalCapHeight, "Decal cap height", adjusted, DecalPreferences.Ranges.CapHeightMin, DecalPreferences.Ranges.CapHeightMax),
+                DecalDepth = ReadFloat(settings, UISettings.DecalDefaultDepthLabel, defaults.DecalDepth, "Decal depth", adjusted, DecalPreferences.Ranges.DepthMin, DecalPreferences.Ranges.DepthMax),
                 DecalOperation = ReadEnum(settings, UISettings.DecalDefaultOperationLabel, defaults.DecalOperation, "Decal operation", adjusted),
-                SmoothIterations = ReadInt(settings, UISettings.SmoothIterationsLabel, defaults.SmoothIterations, "Smoothing iterations", adjusted, PreferenceRanges.SmoothIterationsMin, PreferenceRanges.SmoothIterationsMax),
-                SmoothIntensity = ReadFloat(settings, UISettings.SmoothIntensityLabel, defaults.SmoothIntensity, "Smoothing intensity", adjusted, PreferenceRanges.SmoothIntensityMin, PreferenceRanges.SmoothIntensityMax),
-                SmoothInflation = ReadFloat(settings, UISettings.SmoothInflationLabel, defaults.SmoothInflation, "Smoothing inflation", adjusted, PreferenceRanges.SmoothInflationMin, PreferenceRanges.SmoothInflationMax),
-                SmoothRemeshRatio = ReadFloat(settings, UISettings.SmoothRemeshRatioLabel, defaults.SmoothRemeshRatio, "Smoothing triangle ratio", adjusted, PreferenceRanges.SmoothRemeshRatioMin, PreferenceRanges.SmoothRemeshRatioMax),
-                SmoothResolution = ReadFloat(settings, UISettings.SmoothResolutionLabel, defaults.SmoothResolution, "Smoothing smoothness", adjusted, PreferenceRanges.SmoothResolutionMin, PreferenceRanges.SmoothResolutionMax),
+                SmoothIterations = ReadInt(settings, UISettings.SmoothIterationsLabel, defaults.SmoothIterations, "Smoothing iterations", adjusted, SmoothingPreferences.Ranges.IterationsMin, SmoothingPreferences.Ranges.IterationsMax),
+                SmoothIntensity = ReadFloat(settings, UISettings.SmoothIntensityLabel, defaults.SmoothIntensity, "Smoothing intensity", adjusted, SmoothingPreferences.Ranges.IntensityMin, SmoothingPreferences.Ranges.IntensityMax),
+                SmoothInflation = ReadFloat(settings, UISettings.SmoothInflationLabel, defaults.SmoothInflation, "Smoothing inflation", adjusted, SmoothingPreferences.Ranges.InflationMin, SmoothingPreferences.Ranges.InflationMax),
+                SmoothRemeshRatio = ReadFloat(settings, UISettings.SmoothRemeshRatioLabel, defaults.SmoothRemeshRatio, "Smoothing triangle ratio", adjusted, SmoothingPreferences.Ranges.RemeshRatioMin, SmoothingPreferences.Ranges.RemeshRatioMax),
+                SmoothResolution = ReadFloat(settings, UISettings.SmoothResolutionLabel, defaults.SmoothResolution, "Smoothing smoothness", adjusted, SmoothingPreferences.Ranges.ResolutionMin, SmoothingPreferences.Ranges.ResolutionMax),
                 SmoothDisplay = ReadEnum(settings, UISettings.SmoothDisplayModeLabel, defaults.SmoothDisplay, "Smoothing display mode", adjusted),
-                OverhangWarningAngle = ReadFloat(settings, UISettings.OverhangWarningAngleLabel, defaults.OverhangWarningAngle, "Overhang warning angle", adjusted, PreferenceRanges.OverhangAngleMin, PreferenceRanges.OverhangAngleMax),
-                OverhangCriticalAngle = ReadFloat(settings, UISettings.OverhangCriticalAngleLabel, defaults.OverhangCriticalAngle, "Overhang critical angle", adjusted, PreferenceRanges.OverhangAngleMin, PreferenceRanges.OverhangAngleMax),
+                OverhangWarningAngle = ReadFloat(settings, UISettings.OverhangWarningAngleLabel, defaults.OverhangWarningAngle, "Overhang warning angle", adjusted, RotationPreferences.Ranges.OverhangAngleMin, RotationPreferences.Ranges.OverhangAngleMax),
+                OverhangCriticalAngle = ReadFloat(settings, UISettings.OverhangCriticalAngleLabel, defaults.OverhangCriticalAngle, "Overhang critical angle", adjusted, RotationPreferences.Ranges.OverhangAngleMin, RotationPreferences.Ranges.OverhangAngleMax),
             };
 
-            // The two overhang thresholds are only meaningful as an ordered pair, and each was
-            // read on its own above. A file that puts warning at or above critical describes a
-            // gradient with no band between them - which the range slider cannot produce - so
-            // both go back to their defaults rather than one being silently bent to fit.
-            if (profile.OverhangWarningAngle + PreferenceRanges.OverhangMinGap > profile.OverhangCriticalAngle) {
+            if (profile.OverhangWarningAngle + RotationPreferences.Ranges.OverhangMinGap > profile.OverhangCriticalAngle) {
                 profile = profile with {
                     OverhangWarningAngle = defaults.OverhangWarningAngle,
                     OverhangCriticalAngle = defaults.OverhangCriticalAngle,
                 };
                 adjusted.RemoveAll(a => a.StartsWith("Overhang ", StringComparison.Ordinal));
                 adjusted.Add("Overhang thresholds (warning was not at least "
-                    + $"{PreferenceRanges.OverhangMinGap:0.##}\u00b0 below critical)");
+                    + $"{RotationPreferences.Ranges.OverhangMinGap:0.##}\u00b0 below critical)");
             }
 
             return new PreferenceImportResult(profile, adjusted);
@@ -246,9 +278,6 @@ public static class PreferenceProfileIO {
         return fallback;
     }
 
-    // Bounded by what the matching control can express (see PreferenceRanges), so a profile
-    // cannot carry in a value the preferences window itself would refuse. NaN and infinity fail
-    // the range test on their own.
     private static float ReadFloat(JsonElement settings, string key, float fallback, string label,
                                    List<string> adjusted, float min, float max) {
         if (!settings.TryGetProperty(key, out var value)) { adjusted.Add($"{label} (not in file)"); return fallback; }
@@ -283,8 +312,6 @@ public static class PreferenceProfileIO {
         return fallback;
     }
 
-    // A folder from another machine may simply not exist here. Falling back to the default
-    // keeps the app pointing somewhere real instead of at a path that fails on first use.
     private static string ReadFolder(JsonElement settings, string key, string fallback, string label, List<string> adjusted) {
         if (!settings.TryGetProperty(key, out var value)) { adjusted.Add($"{label} (not in file)"); return fallback; }
         if (value.ValueKind != JsonValueKind.String) { adjusted.Add($"{label} (not a path)"); return fallback; }
@@ -296,7 +323,6 @@ public static class PreferenceProfileIO {
             if (!Directory.Exists(path)) { adjusted.Add($"{label} (no such folder on this machine)"); return fallback; }
         }
         catch (Exception) {
-            // Malformed paths throw rather than returning false.
             adjusted.Add($"{label} (not a usable path on this machine)");
             return fallback;
         }

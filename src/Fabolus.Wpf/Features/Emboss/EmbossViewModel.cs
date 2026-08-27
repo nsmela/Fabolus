@@ -57,7 +57,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     /// App-preference values this view starts from. Re-read on every activation so a change
     /// made in the preferences window takes effect without restarting the app.
     /// </summary>
-    private DecalPreferences _prefs = DecalPreferences.Fallback;
+    private DecalPreferences _prefs = DecalPreferences.Default;
 
     [ObservableProperty] private Guid _selectedDecalId = Guid.Empty;
     [ObservableProperty] private bool _isDecalsExpanded = true;
@@ -605,17 +605,15 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     /// </summary>
     private DecalPreferences LoadPreferences()
     {
-        var fallback = DecalPreferences.Fallback;
-        return new DecalPreferences(
-            AppPreferenceReader.Enum(_messenger, UISettings.DecalAutoPlaceScopeLabel, fallback.Scope),
-            AppPreferenceReader.Bool(_messenger, UISettings.DecalAutoPlaceFilenameLabel, fallback.AutoPlaceFilename),
-            AppPreferenceReader.Enum(_messenger, UISettings.DecalFilenameAnchorLabel, fallback.FilenameAnchor),
-            AppPreferenceReader.Bool(_messenger, UISettings.DecalAutoPlaceVolumeLabel, fallback.AutoPlaceVolume),
-            AppPreferenceReader.Enum(_messenger, UISettings.DecalVolumeAnchorLabel, fallback.VolumeAnchor),
-            AppPreferenceReader.Enum(_messenger, UISettings.DecalDefaultFontLabel, fallback.Font),
-            AppPreferenceReader.Float(_messenger, UISettings.DecalDefaultCapHeightLabel, fallback.CapHeight, PreferenceRanges.DecalCapHeightMin, PreferenceRanges.DecalCapHeightMax),
-            AppPreferenceReader.Float(_messenger, UISettings.DecalDefaultDepthLabel, fallback.Depth, PreferenceRanges.DecalDepthMin, PreferenceRanges.DecalDepthMax),
-            AppPreferenceReader.Enum(_messenger, UISettings.DecalDefaultOperationLabel, fallback.Operation));
+        try
+        {
+            return _messenger.Send(new PreferenceSectionRequestMessage<DecalPreferences>()).Response
+                ?? DecalPreferences.Default;
+        }
+        catch
+        {
+            return DecalPreferences.Default;
+        }
     }
 
     /// <summary>
@@ -1186,36 +1184,6 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     }
 }
 
-/// <summary>
-/// The decal app preferences, resolved once per activation. Kept as a record so the view model
-/// reads a consistent set rather than re-querying the store mid-placement.
-/// </summary>
-internal sealed record DecalPreferences(
-    DecalAutoPlaceScope Scope,
-    bool AutoPlaceFilename,
-    DecalAnchor FilenameAnchor,
-    bool AutoPlaceVolume,
-    DecalAnchor VolumeAnchor,
-    DecalFont Font,
-    float CapHeight,
-    float Depth,
-    EmbossOperation Operation)
-{
-    /// <summary>
-    /// Matches the defaults seeded by AppPreferencesStore, and stands in whenever a stored
-    /// value is missing or no longer parses.
-    /// </summary>
-    public static DecalPreferences Fallback { get; } = new(
-        DecalAutoPlaceScope.Mould,
-        AutoPlaceFilename: true,
-        DecalAnchor.Front,
-        AutoPlaceVolume: true,
-        DecalAnchor.Back,
-        TextDecal.DefaultFont,
-        TextDecal.DefaultCapHeight,
-        TextDecal.DefaultDepth,
-        TextDecal.DefaultOperation);
-}
 
 public partial class TextDecalItemViewModel : ObservableObject
 {

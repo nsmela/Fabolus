@@ -104,17 +104,29 @@ public partial class PreferencesViewModel : ObservableObject
         _store = store;
         _alert = alert;
 
+        // ---- Folders & General ----
         _importFilepath = (string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultImportFolderLabel)).Response;
         _exportFilepath = (string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFolderLabel)).Response;
         _exportFormat = Enum.Parse<ExportFormat>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFormatLabel)).Response);
+
+        // ---- Print Bed ----
         _printbedWidth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
         _printbedDepth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
         _showBedGrid = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+
+        // ---- Air Channels ----
         _autodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
         _channelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
+
+        // ---- Appearance ----
         _viewportBackground = Enum.Parse<ViewportBackground>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response);
+
+        // ---- Cut / Split ----
         _enableSplitView = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SplitViewEnabledLabel)).Response;
         _enableCutView = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewEnabledLabel)).Response;
+        _cutScope = Enum.Parse<CutViewScope>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewScopeLabel)).Response);
+
+        // ---- Decals ----
         _enableDecals = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalsEnabledLabel)).Response;
         _decalPlacementScope = Enum.Parse<DecalAutoPlaceScope>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalAutoPlaceScopeLabel)).Response);
         _autoPlaceFilename = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalAutoPlaceFilenameLabel)).Response;
@@ -125,15 +137,20 @@ public partial class PreferencesViewModel : ObservableObject
         _decalCapHeight = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalDefaultCapHeightLabel)).Response;
         _decalDepth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalDefaultDepthLabel)).Response;
         _decalOperation = Enum.Parse<EmbossOperation>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalDefaultOperationLabel)).Response);
+
+        // ---- Smoothing ----
         _smoothIterations = (int)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothIterationsLabel)).Response;
         _smoothIntensity = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothIntensityLabel)).Response;
         _smoothInflation = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothInflationLabel)).Response;
         _smoothRemeshRatio = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothRemeshRatioLabel)).Response;
         _smoothResolution = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothResolutionLabel)).Response;
         _smoothDisplay = Enum.Parse<SmoothDisplayMode>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothDisplayModeLabel)).Response);
+
+        // ---- Rotation ----
         _overhangWarningAngle = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.OverhangWarningAngleLabel)).Response;
         _overhangCriticalAngle = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.OverhangCriticalAngleLabel)).Response;
-        _cutScope = Enum.Parse<CutViewScope>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewScopeLabel)).Response);
+
+        // ---- Mould ----
         _mouldShape = Enum.Parse<MouldShapeType>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldShapeLabel)).Response);
         _mouldWallThickness = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldWallThicknessLabel)).Response;
         _mouldBaseHeight = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldBaseHeightLabel)).Response;
@@ -142,27 +159,29 @@ public partial class PreferencesViewModel : ObservableObject
         _mouldTroughShape = Enum.Parse<TroughShapeType>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldTroughShapeLabel)).Response);
 
         Categories = new ObservableCollection<PreferenceCategory> {
-            new() { Key = "general",      Name = "General",      Keywords = "folder import export format file", Icon = Geo("M8 1.4v1.9M8 12.7v1.9M14.6 8h-1.9M3.3 8H1.4M12.7 3.3l-1.3 1.3M4.6 11.4l-1.3 1.3M12.7 12.7l-1.3-1.3M4.6 4.6 3.3 3.3 M10.3 8 a2.3 2.3 0 1 1 -4.6 0 a2.3 2.3 0 0 1 4.6 0") },
-            new() { Key = "bed",          Name = "Print Bed",    Keywords = "width depth height size volume grid", Icon = Geo("M8 2 14 5v6l-6 3-6-3V5z M2 5l6 3 6-3 M8 8v6") },
-            new() { Key = "rotation",     Name = "Rotation",     Keywords = "rotate overhang angle threshold warning critical support", Icon = Geo("M13.2 8 a5.2 5.2 0 1 1 -1.7 -3.9 M13.4 2.6 L13.4 5.2 L10.8 5.2") },
-            new() { Key = "smoothing",    Name = "Smoothing",    Keywords = "smooth intensity inflation iterations triangle ratio resolution voxel display heatmap cross section", Icon = Geo("M2 10 C4 5.6 6 5.6 8 10 S12 14.4 14 10") },
-            new() { Key = "cut",          Name = "Cut",          Keywords = "cut view toggle base mould scope", Icon = Geo("M6.2 2h3.6 M6.6 2v3.4L3.3 12a1.3 1.3 0 0 0 1.1 2h7.2a1.3 1.3 0 0 0 1.1-2L9.4 5.4V2") },
-            new() { Key = "split",        Name = "Split",        Keywords = "split parting line view toggle", Icon = Geo("M8 1.8 L8 14.2 M3 5 L3 11 M13 5 L13 11") },
-            new() { Key = "channels",     Name = "Air Channels", Keywords = "autodetect diameter vent",           Icon = Geo("M4.3 2.5v11 M8 2.5v11 M11.7 2.5v11") },
-            new() { Key = "mould",        Name = "Mould",        Keywords = "shape convex concave contoured wall thickness base height trough depth margin", Icon = Geo("M8 2.2 L13.5 5 L13.5 11 L8 13.8 L2.5 11 L2.5 5 Z M2.5 5 L8 7.8 L13.5 5 M8 7.8 L8 13.8") },
-            new() { Key = "decals",       Name = "Decals",       Keywords = "text emboss engrave font label filename volume anchor", Icon = Geo("M3.5 2.5 L12.5 2.5 a1 1 0 0 1 1 1 L13.5 9.5 L9.5 13.5 L3.5 13.5 a1 1 0 0 1 -1 -1 L2.5 3.5 a1 1 0 0 1 1 -1 Z M9.5 9.5 L13.5 9.5 M9.5 9.5 L9.5 13.5 M5.5 6 L10.5 6 M8 6 L8 10") },
-            new() { Key = "appearance",   Name = "Appearance",   Keywords = "theme viewport background",          Icon = Geo("M8 2 a6 6 0 1 0 0 12 c1 0 1.4-.7 1.4-1.4 0-.9-.8-1.2-.8-2 0-.6.5-1 1.1-1 H12 a2.5 2.5 0 0 0 2.5-2.5 C14.5 4.4 11.6 2 8 2z") },
+            new() { Key = "general",      Name = "General",      Keywords = "folder import export format file", Icon = GetIcon("Icon.Preferences.General") },
+            new() { Key = "bed",          Name = "Print Bed",    Keywords = "width depth height size volume grid", Icon = GetIcon("Icon.Preferences.PrintBed") },
+            new() { Key = "rotation",     Name = "Rotation",     Keywords = "rotate overhang angle threshold warning critical support", Icon = GetIcon("Icon.Preferences.Rotation") },
+            new() { Key = "smoothing",    Name = "Smoothing",    Keywords = "smooth intensity inflation iterations triangle ratio resolution voxel display heatmap cross section", Icon = GetIcon("Icon.Preferences.Smoothing") },
+            new() { Key = "cut",          Name = "Cut",          Keywords = "cut view toggle base mould scope", Icon = GetIcon("Icon.Preferences.Cut") },
+            new() { Key = "split",        Name = "Split",        Keywords = "split parting line view toggle", Icon = GetIcon("Icon.Preferences.Split") },
+            new() { Key = "channels",     Name = "Air Channels", Keywords = "autodetect diameter vent",           Icon = GetIcon("Icon.Preferences.Channels") },
+            new() { Key = "mould",        Name = "Mould",        Keywords = "shape convex concave contoured wall thickness base height trough depth margin", Icon = GetIcon("Icon.Preferences.Mould") },
+            new() { Key = "decals",       Name = "Decals",       Keywords = "text emboss engrave font label filename volume anchor", Icon = GetIcon("Icon.Preferences.Decals") },
+            new() { Key = "appearance",   Name = "Appearance",   Keywords = "theme viewport background",          Icon = GetIcon("Icon.Preferences.Appearance") },
         };
 
         FilteredCategories = CollectionViewSource.GetDefaultView(Categories);
         FilteredCategories.Filter = o => o is PreferenceCategory c && c.Matches(SearchText);
     }
 
-    private static System.Windows.Media.Geometry Geo(string data)
+    private static System.Windows.Media.Geometry GetIcon(string resourceKey)
     {
-        var g = System.Windows.Media.Geometry.Parse(data);
-        g.Freeze();
-        return g;
+        if (System.Windows.Application.Current?.TryFindResource(resourceKey) is System.Windows.Media.Geometry geo)
+        {
+            return geo;
+        }
+        return System.Windows.Media.Geometry.Empty;
     }
 
     partial void OnSearchTextChanged(string value)
@@ -178,13 +197,13 @@ public partial class PreferencesViewModel : ObservableObject
     }
 
     // ---- Change notifications → store ---------------------------------
-    partial void OnImportFilepathChanged(string oldValue, string newValue)
+    partial void OnImportFilepathChanged(string? oldValue, string newValue)
     {
         if (oldValue == newValue) { return; }
         _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultImportFolderLabel, newValue));
     }
 
-    partial void OnExportFilepathChanged(string oldValue, string newValue)
+    partial void OnExportFilepathChanged(string? oldValue, string newValue)
     {
         if (oldValue == newValue) { return; }
         _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultExportFolderLabel, newValue));

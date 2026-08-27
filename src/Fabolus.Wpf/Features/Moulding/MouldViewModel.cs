@@ -457,39 +457,20 @@ public partial class MouldViewModel : ObservableObject, IViewState
             Workspace = result.Value;
     }
 
-    /// <summary>
-    /// The mould a mesh with no saved settings starts from, taken from app preferences and read
-    /// fresh each activation so a change applies without restarting. Every read falls back to
-    /// the shipped default, so an unreachable store or a hand-edited config cannot break this.
-    /// </summary>
     private MouldDefinition BuildPreferredMouldDefinition()
     {
-        var shape = AppPreferenceReader.Enum(_messenger, UISettings.MouldShapeLabel, MouldShapeType.Concave);
-
-        double wall = AppPreferenceReader.Float(_messenger, UISettings.MouldWallThicknessLabel, 2.0f,
-            PreferenceRanges.MouldWallThicknessMin, PreferenceRanges.MouldWallThicknessMax);
-        double baseHeight = AppPreferenceReader.Float(_messenger, UISettings.MouldBaseHeightLabel, 5.0f,
-            PreferenceRanges.MouldBaseHeightMin, PreferenceRanges.MouldBaseHeightMax);
-        double troughHeight = AppPreferenceReader.Float(_messenger, UISettings.MouldTroughHeightLabel, 0.0f,
-            PreferenceRanges.MouldTroughHeightMin, PreferenceRanges.MouldTroughHeightMax);
-        double troughOffset = AppPreferenceReader.Float(_messenger, UISettings.MouldTroughOffsetLabel, 2.5f,
-            PreferenceRanges.MouldTroughOffsetMin, PreferenceRanges.MouldTroughOffsetMax);
-        var troughShape = AppPreferenceReader.Enum(_messenger, UISettings.MouldTroughShapeLabel, TroughShapeType.Footprint);
-
-        // Base height feeds both the bottom and top offsets, matching BuildMouldDefinition.
-        MouldDefinition definition = shape switch
+        MouldPreferences prefs;
+        try
         {
-            MouldShapeType.Convex => new ConvexMouldDefinition(wall, baseHeight, baseHeight),
-            MouldShapeType.Contoured => new ContouredMouldDefinition(wall),
-            _ => new ConcaveMouldDefinition(wall, baseHeight, baseHeight)
-        };
-
-        return definition with
+            prefs = _messenger.Send(new PreferenceSectionRequestMessage<MouldPreferences>()).Response
+                ?? MouldPreferences.Default;
+        }
+        catch
         {
-            TroughHeight = troughHeight,
-            TroughOffset = troughOffset,
-            TroughShape = troughShape
-        };
+            prefs = MouldPreferences.Default;
+        }
+
+        return prefs.Clamped().ToMouldDefinition();
     }
 
     private MouldDefinition BuildMouldDefinition()

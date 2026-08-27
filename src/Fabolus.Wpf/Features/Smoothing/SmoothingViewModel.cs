@@ -79,7 +79,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         // A mesh that has already been smoothed reopens with the settings it was actually
         // smoothed at; the preference only supplies the starting point for one that has not.
-        var settings = preferences;
+        var settings = preferences.ToSmoothSettings();
         var metadataResult = Workspace.GetActiveMeshMetadata();
         if (metadataResult.IsSuccess) {
             var settingsResult = metadataResult.Value.GetSmoothing();
@@ -90,25 +90,23 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         // Display is a property of the view, not of the mesh, so it always comes from the
         // preference. Assigned after the meshes are cached, because the change handler renders.
-        DisplayMode = AppPreferenceReader.Enum(_messenger, UISettings.SmoothDisplayModeLabel, SmoothDisplayMode.None);
+        DisplayMode = preferences.DisplayMode;
     }
 
     /// <summary>
     /// The smoothing parameters an unsmoothed mesh starts from, taken from app preferences.
-    /// Falls back to this view model's own defaults when the store cannot be reached - which
-    /// is the case for the design-time constructor.
+    /// Falls back to default when the store cannot be reached - which is the case for the
+    /// design-time constructor.
     /// </summary>
-    private SmoothSettings LoadPreferences() => new(
-        AppPreferenceReader.Int(_messenger, UISettings.SmoothIterationsLabel, Iterations,
-            PreferenceRanges.SmoothIterationsMin, PreferenceRanges.SmoothIterationsMax),
-        AppPreferenceReader.Float(_messenger, UISettings.SmoothIntensityLabel, Intensity,
-            PreferenceRanges.SmoothIntensityMin, PreferenceRanges.SmoothIntensityMax),
-        AppPreferenceReader.Float(_messenger, UISettings.SmoothInflationLabel, Inflation,
-            PreferenceRanges.SmoothInflationMin, PreferenceRanges.SmoothInflationMax),
-        AppPreferenceReader.Float(_messenger, UISettings.SmoothRemeshRatioLabel, RemeshRatio,
-            PreferenceRanges.SmoothRemeshRatioMin, PreferenceRanges.SmoothRemeshRatioMax),
-        AppPreferenceReader.Float(_messenger, UISettings.SmoothResolutionLabel, Resolution,
-            PreferenceRanges.SmoothResolutionMin, PreferenceRanges.SmoothResolutionMax));
+    private SmoothingPreferences LoadPreferences() {
+        try {
+            return _messenger.Send(new PreferenceSectionRequestMessage<SmoothingPreferences>()).Response
+                ?? SmoothingPreferences.Default;
+        }
+        catch {
+            return SmoothingPreferences.Default;
+        }
+    }
 
     public Task<Workspace> DeactivateAsync() {
         ReleaseCachedMeshes();

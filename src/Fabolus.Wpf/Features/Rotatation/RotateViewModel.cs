@@ -107,15 +107,18 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     /// is dropped entirely, since neither half of it describes a usable gradient on its own.
     /// </summary>
     private void LoadOverhangPreferences() {
-        float warning = AppPreferenceReader.Float(_messenger, UISettings.OverhangWarningAngleLabel,
-            WarningAngle, PreferenceRanges.OverhangAngleMin, PreferenceRanges.OverhangAngleMax);
-        float critical = AppPreferenceReader.Float(_messenger, UISettings.OverhangCriticalAngleLabel,
-            CriticalAngle, PreferenceRanges.OverhangAngleMin, PreferenceRanges.OverhangAngleMax);
+        RotationPreferences prefs;
+        try {
+            prefs = _messenger.Send(new PreferenceSectionRequestMessage<RotationPreferences>()).Response
+                ?? RotationPreferences.Default;
+        }
+        catch {
+            prefs = RotationPreferences.Default;
+        }
 
-        if (warning + PreferenceRanges.OverhangMinGap > critical) { return; }
-
-        CriticalAngle = critical;
-        WarningAngle = warning;
+        prefs = prefs.Clamped();
+        CriticalAngle = prefs.OverhangCriticalAngle;
+        WarningAngle = prefs.OverhangWarningAngle;
     }
 
     // The scene manager only ever renders the active mesh, so that's all it gets -
