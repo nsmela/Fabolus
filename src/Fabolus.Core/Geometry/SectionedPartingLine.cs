@@ -299,8 +299,15 @@ public static class PartingLineEditor
 
         // The span leaving this anchor, and the one arriving at it. Both, because a handle is the join
         // between two stretches and moving it changes where each of them ends.
-        Retrace(spans, anchors, anchor, graph, geodesic);
-        Retrace(spans, anchors, ((anchor - 1) % n + n) % n, graph, geodesic);
+        bool leaving = Retrace(spans, anchors, anchor, graph, geodesic);
+        bool arriving = Retrace(spans, anchors, ((anchor - 1) % n + n) % n, graph, geodesic);
+
+        // Neither span could be re-walked, so the handle has moved somewhere the wall cannot be crossed
+        // to. Committing it anyway leaves both stretches still ending where the handle used to be - a
+        // line with a step in it at the join, and a Flatten that no longer passes through the handle at
+        // all. The drag is refused instead, which reads as the handle declining to follow the cursor
+        // rather than as the line coming apart behind it.
+        if (!leaving && !arriving) return line;
 
         return new SectionedPartingLine(anchors, spans);
     }
@@ -337,7 +344,13 @@ public static class PartingLineEditor
 
         var kept = anchors.ToArray();
         var keptSpans = spans.ToArray();
-        Retrace(keptSpans, kept, anchor > previous ? previous : previous - 1, graph, geodesic);
+
+        // Same refusal as Move makes, for the same reason. The merged stretch is the only thing joining
+        // the two handles either side of the one being dropped, so if the wall cannot be crossed between
+        // them the span left in its place still ends where the dropped handle was - a gap in the line
+        // rather than a merge. Better to keep the handle than to break the ring.
+        if (!Retrace(keptSpans, kept, anchor > previous ? previous : previous - 1, graph, geodesic))
+            return line;
 
         return new SectionedPartingLine(kept, keptSpans);
     }
@@ -389,10 +402,31 @@ public static class PartingLineEditor
     }
 
     /// <summary>Applies a placement <see cref="TryPlan"/> already worked out.</summary>
-    /// <returns>The line, and the index of the handle now sitting at that spot.</returns>
+    /// <returns>
+    /// The line, and the index of the handle now sitting at that spot - or the line unchanged and -1
+    /// where the placement no longer names anything.
+    ///
+    /// <para>
+    /// Checked rather than trusted because a placement outlives the line it was worked out against: it
+    /// is planned when the cursor moves and applied when the button goes down, and an edit in between
+    /// renumbers the sections under it. A stale one used to index <see cref="SectionedPartingLine.Spans"/>
+    /// straight out of range.
+    /// </para>
+    /// </returns>
     public static (SectionedPartingLine Line, int Anchor) Insert(
-        SectionedPartingLine line, PartingInsertion insertion) =>
-        (Insert(line, insertion.Span, insertion.Point), insertion.Span + 1);
+        SectionedPartingLine line, PartingInsertion insertion)
+    {
+        if (line is null || insertion.Span < 0 || insertion.Span >= line.Spans.Count)
+            return (line!, -1);
+
+        var span = line.Spans[insertion.Span];
+
+        // The ends are the anchors either side, so a handle placed on one of them divides nothing and
+        // leaves a span with no length - the same refusal TryPlace makes when it plans the placement.
+        if (insertion.Point <= 0 || insertion.Point >= span.Points.Count - 1) return (line, -1);
+
+        return (Insert(line, insertion.Span, insertion.Point), insertion.Span + 1);
+    }
 
     private static SectionedPartingLine Insert(SectionedPartingLine line, int at, int point)
     {
@@ -872,12 +906,17 @@ public static class PartingLineEditor
     /// what the parting line becomes and what the flange is swept along.
     /// </para>
     /// </summary>
-    private static void Retrace(
+    /// <returns>
+    /// Whether the span was re-walked. False means the wall could not be crossed between these two
+    /// handles at all, and the span has been left exactly as it was - which the caller has to act on
+    /// rather than ignore, since a span left behind by a handle that moved no longer meets it.
+    /// </returns>
+    private static bool Retrace(
         PartingSpan[] spans, PartingAnchor[] anchors, int from, PartingBandGraph graph,
         ISurfaceGeodesic? geodesic)
     {
         int n = anchors.Length;
-        if (n == 0 || spans.Length != n) return;
+        if (n == 0 || spans.Length != n) return false;
 
         from = ((from % n) + n) % n;
         int to = (from + 1) % n;
@@ -897,7 +936,7 @@ public static class PartingLineEditor
             geodesic?.Path(anchors[from].Position, anchors[to].Position)
             ?? graph.WalkGeodesic(anchors[from].Position, anchors[to].Position, forward);
 
-        if (walked is null || walked.Count < 2) return;
+        if (walked is null || walked.Count < 2) return false;
 
         // Anchored at both ends explicitly. A handle that has not been dragged yet sits where the trace
         // put it rather than on a gate, so the walk's own ends are the snapped versions of it - and a
@@ -918,8 +957,9 @@ public static class PartingLineEditor
         else
             points[^1] = anchors[to].Position;
 
-        if (points.Count < 2) return;
+        if (points.Count < 2) return false;
 
         spans[from] = spans[from] with { Points = points, IsRetraced = true };
+        return true;
     }
 }
