@@ -192,7 +192,23 @@ public sealed class PartingBandGraph
             if (best >= 0) return best;
         }
 
-        return -1;
+        // As in Snap: the grid only reaches so far, and a point beyond it is not a point with no
+        // nearest face - it is one the grid cannot see. Answering -1 there strands the callers that
+        // cannot do anything useful with it, WalkFaces above all, which returns null and leaves a
+        // dragged handle with its spans un-rewalked.
+        int nearest = -1;
+        float nearestDistance = float.MaxValue;
+
+        foreach (int f in _faces)
+        {
+            float d = Vector3.DistanceSquared(_centroid[f], point);
+            if (d >= nearestDistance) continue;
+
+            nearestDistance = d;
+            nearest = f;
+        }
+
+        return nearest;
     }
 
     /// <summary>
@@ -255,6 +271,36 @@ public sealed class PartingBandGraph
             // that held anything - a face's surface reaches into cells it was never filed in, and past
             // that there is nothing left to find.
             if (firstHit >= 0 && radius > firstHit) break;
+        }
+
+        // The grid reaches about seven cells, which is a little over a dozen edge lengths, and the wall
+        // is a narrow strip on a body far bigger than that. A handle thrown clear across the body lands
+        // outside it, and returning the point as it came - which this did - puts an anchor somewhere
+        // that is not on the wall at all, silently: every guarantee the editor makes rests on Snap
+        // answering with a point on the band, and nothing downstream re-checks it. So the miss falls
+        // back to measuring every band face. It is a few thousand triangles on the paths that reach it,
+        // and it only ever runs when the grid found nothing, which no drag on or near the rim does.
+        return firstHit >= 0 ? best : Furthest(point);
+    }
+
+    /// <summary>
+    /// The nearest point on the wall by measuring every face - the answer <see cref="Snap"/> falls back
+    /// to when its grid search comes up empty. Linear on purpose: it is the correct answer at any
+    /// distance, which is the whole reason it is here.
+    /// </summary>
+    private Vector3 Furthest(Vector3 point)
+    {
+        var best = point;
+        float bestDistance = float.MaxValue;
+
+        foreach (int f in _faces)
+        {
+            var candidate = ClosestOnFace(f, point);
+            float d = Vector3.DistanceSquared(candidate, point);
+            if (d >= bestDistance) continue;
+
+            bestDistance = d;
+            best = candidate;
         }
 
         return best;

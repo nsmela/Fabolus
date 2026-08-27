@@ -491,6 +491,28 @@ public class PartingSplitSceneManager : ISceneManager
     private float _handleSize = 1f;
 
     /// <summary>
+    /// How many sections each rim had when the controls were last shown, which is the whole of what a
+    /// held pick or plan depends on. Point counts within a section are deliberately not included: a
+    /// drag re-walks the spans it touches and changes those on every frame, and clearing the drag's own
+    /// selection each frame would end the drag it belongs to.
+    /// </summary>
+    private int[] _layout = Array.Empty<int>();
+
+    private static int[] LayoutOf(PartingLineEdit? edit) =>
+        edit is null ? Array.Empty<int>() : edit.Rims.Select(r => r.Line.Spans.Count).ToArray();
+
+    private static bool SameLayout(int[] was, PartingLineEdit? edit)
+    {
+        var now = LayoutOf(edit);
+        if (was.Length != now.Length) return false;
+
+        for (int i = 0; i < now.Length; i++)
+            if (was[i] != now[i]) return false;
+
+        return true;
+    }
+
+    /// <summary>
     /// Shows the edit as it now stands, patching the controls already on screen where it can and
     /// replacing them where it cannot - see <see cref="PartingLineEditVisuals.TryUpdate"/>. Every drag
     /// frame comes through here, so the patching path is the one that matters.
@@ -501,14 +523,19 @@ public class PartingSplitSceneManager : ISceneManager
         _handleSize = handleSize;
 
         // A selection or a hover that pointed into the old sections cannot be trusted to mean the same
-        // thing after an edit changed how many there are.
-        if (edit is null || edit.IsEmpty)
+        // thing after an edit changed how many there are. Measured against the section layout rather
+        // than against emptiness: a Remove or an Insert leaves the edit perfectly non-empty while
+        // renumbering everything after it, and a plan held over from before then names a section that
+        // no longer exists - PartingLineEditor.Insert indexes Spans with it directly.
+        if (!SameLayout(_layout, edit))
         {
             _selected = null;
             _hovered = null;
             _previewAt = null;
             _planned = null;
         }
+
+        _layout = LayoutOf(edit);
 
         if (_editVisuals.TryUpdate(edit, handleSize, _selected, _hovered)) return;
 
