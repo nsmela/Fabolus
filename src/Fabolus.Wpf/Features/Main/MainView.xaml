@@ -236,7 +236,8 @@
                     </Button.Style>
                 </Button>
 
-                <Button Command="{Binding SwitchToEmbossViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                <Button Command="{Binding SwitchToEmbossViewCommand}" IsEnabled="{Binding MeshLoaded}"
+                        Visibility="{Binding ShowDecalView, Converter={StaticResource BoolToVis}}">
                     <Button.Content>
                         <StackPanel Orientation="Horizontal">
                             <Viewbox Width="16" Height="16" Margin="0,0,7,0">

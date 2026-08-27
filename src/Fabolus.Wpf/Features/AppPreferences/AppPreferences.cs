@@ -2,6 +2,8 @@ using CommunityToolkit.Mvvm.Messaging;
 using CommunityToolkit.Mvvm.Messaging.Messages;
 using System;
 using System.Configuration;
+using Fabolus.Core.Features.Decal;
+using Fabolus.Core.Features.Moulds;
 
 namespace Fabolus.Wpf.Features.AppPreferences;
 
@@ -38,6 +40,31 @@ public class AppPreferencesStore {
                 ViewportBackground = ViewportBackground.Graphite.ToString(),
                 SplitViewEnabled = false,
                 CutViewEnabled = false,
+                DecalsEnabled = true,
+                DecalAutoPlaceScope = DecalAutoPlaceScope.Mould.ToString(),
+                DecalAutoPlaceFilename = true,
+                DecalFilenameAnchor = DecalAnchor.Front.ToString(),
+                DecalAutoPlaceVolume = true,
+                DecalVolumeAnchor = DecalAnchor.Back.ToString(),
+                DecalDefaultFont = DecalFont.Sans.ToString(),
+                DecalDefaultCapHeight = 6.0f,
+                DecalDefaultDepth = 0.8f,
+                DecalDefaultOperation = EmbossOperation.Engrave.ToString(),
+                SmoothIterations = 1,
+                SmoothIntensity = 1.5f,
+                SmoothInflation = 0.2f,
+                SmoothRemeshRatio = 1.0f,
+                SmoothResolution = 1.0f,
+                SmoothDisplayMode = Wpf.Features.Smoothing.SmoothDisplayMode.None.ToString(),
+                OverhangWarningAngle = 45.0f,
+                OverhangCriticalAngle = 65.0f,
+                CutViewScope = AppPreferences.CutViewScope.Base.ToString(),
+                MouldShape = MouldShapeType.Concave.ToString(),
+                MouldWallThickness = 2.0f,
+                MouldBaseHeight = 5.0f,
+                MouldTroughHeight = 0.0f,
+                MouldTroughOffset = 2.5f,
+                MouldTroughShape = TroughShapeType.Footprint.ToString(),
             });
         }
 

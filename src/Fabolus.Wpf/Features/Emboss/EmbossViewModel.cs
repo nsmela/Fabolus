@@ -10,6 +10,7 @@ using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Viewport;
 
 namespace Fabolus.Wpf.Features.Decal;
@@ -51,6 +52,12 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     /// so the two can never disagree about the same anchor.
     /// </summary>
     private const float AnchorOccupiedRadiusMm = 3.0f;
+
+    /// <summary>
+    /// App-preference values this view starts from. Re-read on every activation so a change
+    /// made in the preferences window takes effect without restarting the app.
+    /// </summary>
+    private DecalPreferences _prefs = DecalPreferences.Fallback;
 
     [ObservableProperty] private Guid _selectedDecalId = Guid.Empty;
     [ObservableProperty] private bool _isDecalsExpanded = true;
@@ -591,6 +598,118 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         Invalidate();
     }
 
+    /// <summary>
+    /// Reads the decal preferences through the messenger. A hand-edited config can hold a value
+    /// that no longer parses, so every field falls back to the shipped default rather than throwing
+    /// and taking the whole view down with it.
+    /// </summary>
+    private DecalPreferences LoadPreferences()
+    {
+        var fallback = DecalPreferences.Fallback;
+        return new DecalPreferences(
+            AppPreferenceReader.Enum(_messenger, UISettings.DecalAutoPlaceScopeLabel, fallback.Scope),
+            AppPreferenceReader.Bool(_messenger, UISettings.DecalAutoPlaceFilenameLabel, fallback.AutoPlaceFilename),
+            AppPreferenceReader.Enum(_messenger, UISettings.DecalFilenameAnchorLabel, fallback.FilenameAnchor),
+            AppPreferenceReader.Bool(_messenger, UISettings.DecalAutoPlaceVolumeLabel, fallback.AutoPlaceVolume),
+            AppPreferenceReader.Enum(_messenger, UISettings.DecalVolumeAnchorLabel, fallback.VolumeAnchor),
+            AppPreferenceReader.Enum(_messenger, UISettings.DecalDefaultFontLabel, fallback.Font),
+            AppPreferenceReader.Float(_messenger, UISettings.DecalDefaultCapHeightLabel, fallback.CapHeight, PreferenceRanges.DecalCapHeightMin, PreferenceRanges.DecalCapHeightMax),
+            AppPreferenceReader.Float(_messenger, UISettings.DecalDefaultDepthLabel, fallback.Depth, PreferenceRanges.DecalDepthMin, PreferenceRanges.DecalDepthMax),
+            AppPreferenceReader.Enum(_messenger, UISettings.DecalDefaultOperationLabel, fallback.Operation));
+    }
+
+    /// <summary>
+    /// The meshes automatic decals are placed on, in the order they should be created.
+    /// A target with no preset points is dropped by the caller.
+    /// </summary>
+    private IReadOnlyList<EmbossTarget> ResolveAutoPlaceTargets(DecalAutoPlaceScope scope)
+    {
+        var mouldOnly = new[] { EmbossTarget.Mould };
+        var baseOnly = new[] { EmbossTarget.Base };
+
+        return scope switch
+        {
+            DecalAutoPlaceScope.Base => baseOnly,
+            DecalAutoPlaceScope.MouldAndBase => HasMould ? new[] { EmbossTarget.Mould, EmbossTarget.Base } : baseOnly,
+            DecalAutoPlaceScope.BaseIfNoMould => HasMould ? mouldOnly : baseOnly,
+            // Mould, and anything a hand-edited config produced that no longer parses.
+            _ => HasMould ? mouldOnly : Array.Empty<EmbossTarget>()
+        };
+    }
+
+    /// <summary>
+    /// The preset matching <paramref name="anchor"/>, or the first one this mesh does have.
+    /// Anchors are shared across base and mould meshes but each only produces some of them -
+    /// a base mesh has no Left, a mould has no Top - so a miss has to degrade rather than skip.
+    /// Presets already used by <paramref name="taken"/> are passed over, so two auto-placed
+    /// decals cannot land on the same spot.
+    /// </summary>
+    private static DecalPresetPoint? ResolveAnchor(
+        IReadOnlyList<DecalPresetPoint> presets,
+        DecalAnchor anchor,
+        ICollection<string> taken)
+    {
+        if (presets.Count == 0) { return null; }
+
+        var name = anchor.ToPresetName();
+        var match = presets.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (match is not null && !taken.Contains(match.Name))
+        {
+            taken.Add(match.Name);
+            return match;
+        }
+
+        var free = presets.FirstOrDefault(p => !taken.Contains(p.Name));
+        if (free is null) { return null; }
+
+        taken.Add(free.Name);
+        return free;
+    }
+
+    /// <summary>Builds one automatic decal, scaled to the anchor when its span is known.</summary>
+    private TextDecal BuildAutoDecal(string text, DecalPresetPoint preset, EmbossTarget target)
+    {
+        return new TextDecal
+        {
+            Id = Guid.NewGuid(),
+            Text = text,
+            Operation = _prefs.Operation,
+            Target = target,
+            Font = _prefs.Font,
+            CapHeight = SuggestedCapHeight(preset, target, text.Length, _prefs.CapHeight),
+            Depth = _prefs.Depth,
+            Tracking = TextDecal.DefaultTracking,
+            RotationDeg = (int)preset.RotationDeg,
+            Anchor = preset.Position,
+            AnchorNormal = preset.Normal
+        };
+    }
+
+    /// <summary>The mesh's file name, stripped of its extension, for the automatic name decal.</summary>
+    private string ResolveFileNameText()
+    {
+        string rawName = !string.IsNullOrWhiteSpace(_baseMesh?.Metadata.Name)
+            ? _baseMesh!.Metadata.Name
+            : !string.IsNullOrWhiteSpace(_activeMesh?.Metadata.Name)
+                ? _activeMesh!.Metadata.Name
+                : TextDecal.DefaultText;
+
+        string fileName = Path.GetFileNameWithoutExtension(rawName);
+        return string.IsNullOrWhiteSpace(fileName) ? TextDecal.DefaultText : fileName;
+    }
+
+    /// <summary>The base mesh volume in cc, for the automatic volume decal.</summary>
+    private string ResolveVolumeText()
+    {
+        double volume = 0.0;
+        if (_baseMesh is not null)
+        {
+            var baseStats = _engine.Evaluators.GetStatistics(_baseMesh);
+            if (baseStats.IsSuccess) { volume = baseStats.Value.Volume; }
+        }
+        return volume > 0 ? $"{volume:0.0} cc" : "0.0 cc";
+    }
+
     [RelayCommand]
     public void AddDecal()
     {
@@ -905,6 +1024,15 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             await Task.Yield();
             Workspace = workspace;
 
+            // Re-read every activation, so editing preferences applies to the next decal
+            // session without a restart. Safe to assign through the observable properties:
+            // _isActivating short-circuits both SyncActiveDecal and Invalidate.
+            _prefs = LoadPreferences();
+            Operation = _prefs.Operation;
+            Font = _prefs.Font;
+            CapHeight = _prefs.CapHeight;
+            Depth = _prefs.Depth;
+
             var activeResult = Workspace.GetActiveMesh();
             if (activeResult.IsFailure) return;
 
@@ -947,88 +1075,63 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                 Target = HasMould ? EmbossTarget.Mould : EmbossTarget.Base;
                 UpdatePresets();
 
-                if (HasMould && _mouldPresetPoints.Count > 0)
+                var autoPlaced = new List<TextDecal>();
+
+                foreach (var autoTarget in ResolveAutoPlaceTargets(_prefs.Scope))
                 {
-                    // 1. File name decal on Front anchor
-                    var frontPreset = _mouldPresetPoints.FirstOrDefault(p => p.Name == "Front") ?? _mouldPresetPoints[0];
-                    string rawName = !string.IsNullOrWhiteSpace(_baseMesh?.Metadata.Name)
-                        ? _baseMesh.Metadata.Name
-                        : !string.IsNullOrWhiteSpace(_activeMesh?.Metadata.Name)
-                            ? _activeMesh.Metadata.Name
-                            : "FABOLUS";
-                    string fileName = Path.GetFileNameWithoutExtension(rawName);
-                    if (string.IsNullOrWhiteSpace(fileName)) fileName = "FABOLUS";
+                    var presets = autoTarget == EmbossTarget.Mould ? _mouldPresetPoints : _basePresetPoints;
+                    if (presets.Count == 0) { continue; }
 
-                    float capHeight1 = SuggestedCapHeight(frontPreset, EmbossTarget.Mould, fileName.Length, TextDecal.DefaultCapHeight);
+                    // Per target: two decals must not share an anchor, but the same anchor
+                    // name on the mould and on the base are different places.
+                    var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-                    var fileDecal = new TextDecal
+                    if (_prefs.AutoPlaceFilename)
                     {
-                        Id = Guid.NewGuid(),
-                        Text = fileName,
-                        Operation = EmbossOperation.Engrave,
-                        Target = EmbossTarget.Mould,
-                        Font = DecalFont.Sans,
-                        CapHeight = capHeight1,
-                        Depth = 0.8f,
-                        Tracking = 0.4f,
-                        RotationDeg = (int)frontPreset.RotationDeg,
-                        Anchor = frontPreset.Position,
-                        AnchorNormal = frontPreset.Normal
-                    };
-
-                    // 2. Base mesh volume decal on Back anchor
-                    var backPreset = _mouldPresetPoints.FirstOrDefault(p => p.Name == "Back")
-                        ?? (_mouldPresetPoints.Count > 1 ? _mouldPresetPoints[1] : frontPreset);
-
-                    double volume = 0.0;
-                    if (_baseMesh is not null)
-                    {
-                        var baseStats = _engine.Evaluators.GetStatistics(_baseMesh);
-                        if (baseStats.IsSuccess)
+                        var preset = ResolveAnchor(presets, _prefs.FilenameAnchor, taken);
+                        if (preset is not null)
                         {
-                            volume = baseStats.Value.Volume;
+                            autoPlaced.Add(BuildAutoDecal(ResolveFileNameText(), preset, autoTarget));
                         }
                     }
-                    string volumeText = volume > 0 ? $"{volume:0.0} cc" : "0.0 cc";
 
-                    float capHeight2 = SuggestedCapHeight(backPreset, EmbossTarget.Mould, volumeText.Length, TextDecal.DefaultCapHeight);
-
-                    var volumeDecal = new TextDecal
+                    if (_prefs.AutoPlaceVolume)
                     {
-                        Id = Guid.NewGuid(),
-                        Text = volumeText,
-                        Operation = EmbossOperation.Engrave,
-                        Target = EmbossTarget.Mould,
-                        Font = DecalFont.Sans,
-                        CapHeight = capHeight2,
-                        Depth = 0.8f,
-                        Tracking = 0.4f,
-                        RotationDeg = (int)backPreset.RotationDeg,
-                        Anchor = backPreset.Position,
-                        AnchorNormal = backPreset.Normal
-                    };
+                        var preset = ResolveAnchor(presets, _prefs.VolumeAnchor, taken);
+                        if (preset is not null)
+                        {
+                            autoPlaced.Add(BuildAutoDecal(ResolveVolumeText(), preset, autoTarget));
+                        }
+                    }
+                }
 
-                    _decals = [fileDecal, volumeDecal];
+                if (autoPlaced.Count > 0)
+                {
+                    _decals = autoPlaced;
+                    // Show the mesh the first automatic decal landed on, not whichever one
+                    // the mould check happened to select above.
+                    Target = autoPlaced[0].Target;
                     SelectedDecalId = Guid.Empty;
                 }
                 else
                 {
+                    // Nothing was auto-placed - either both kinds are switched off, or the
+                    // scope resolved to a mesh with no anchors. Seed the single starter decal.
                     var presets = ActivePresetPoints;
                     var firstAnchor = presets.Count > 0 ? presets[0] : null;
 
                     string text = TextDecal.DefaultText;
-                    float capHeight = SuggestedCapHeight(firstAnchor, Target, text.Length, TextDecal.DefaultCapHeight);
 
                     var defaultDecal = new TextDecal
                     {
                         Id = Guid.NewGuid(),
                         Text = text,
-                        Operation = EmbossOperation.Engrave,
+                        Operation = _prefs.Operation,
                         Target = Target,
-                        Font = DecalFont.Sans,
-                        CapHeight = capHeight,
-                        Depth = 0.8f,
-                        Tracking = 0.4f,
+                        Font = _prefs.Font,
+                        CapHeight = SuggestedCapHeight(firstAnchor, Target, text.Length, _prefs.CapHeight),
+                        Depth = _prefs.Depth,
+                        Tracking = TextDecal.DefaultTracking,
                         RotationDeg = firstAnchor is not null ? (int)firstAnchor.RotationDeg : 0,
                         Anchor = firstAnchor?.Position ?? _meshCenter,
                         AnchorNormal = firstAnchor?.Normal ?? Vector3.UnitZ
@@ -1081,6 +1184,37 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     {
         _previewTimer.Stop();
     }
+}
+
+/// <summary>
+/// The decal app preferences, resolved once per activation. Kept as a record so the view model
+/// reads a consistent set rather than re-querying the store mid-placement.
+/// </summary>
+internal sealed record DecalPreferences(
+    DecalAutoPlaceScope Scope,
+    bool AutoPlaceFilename,
+    DecalAnchor FilenameAnchor,
+    bool AutoPlaceVolume,
+    DecalAnchor VolumeAnchor,
+    DecalFont Font,
+    float CapHeight,
+    float Depth,
+    EmbossOperation Operation)
+{
+    /// <summary>
+    /// Matches the defaults seeded by AppPreferencesStore, and stands in whenever a stored
+    /// value is missing or no longer parses.
+    /// </summary>
+    public static DecalPreferences Fallback { get; } = new(
+        DecalAutoPlaceScope.Mould,
+        AutoPlaceFilename: true,
+        DecalAnchor.Front,
+        AutoPlaceVolume: true,
+        DecalAnchor.Back,
+        TextDecal.DefaultFont,
+        TextDecal.DefaultCapHeight,
+        TextDecal.DefaultDepth,
+        TextDecal.DefaultOperation);
 }
 
 public partial class TextDecalItemViewModel : ObservableObject

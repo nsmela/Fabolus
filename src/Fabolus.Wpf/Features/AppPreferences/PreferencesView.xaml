@@ -7,6 +7,8 @@
         xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert"
         xmlns:common="clr-namespace:Fabolus.Wpf.Common"
         xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Preferences"
+        xmlns:smooth="clr-namespace:Fabolus.Wpf.Features.Smoothing"
+        xmlns:moulds="clr-namespace:Fabolus.Core.Features.Moulds;assembly=Fabolus.Core"
         common:DataContextDisposal.AutoDispose="True"
         mc:Ignorable="d"
         Title="Preferences — Fabolus"
@@ -120,6 +122,13 @@
             <Setter Property="FontSize" Value="15" />
         </Style>
 
+        <!-- outlined footer action (Import / Export) -->
+        <Style x:Key="FooterButton" TargetType="Button" BasedOn="{StaticResource Button.Secondary}">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="MinWidth" Value="98" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
         <!-- link-style text button (footer "Restore defaults") -->
         <Style x:Key="LinkButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
@@ -220,8 +229,39 @@
         <Border DockPanel.Dock="Bottom" Height="52" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
                 Background="{DynamicResource Brush.Brushed.StatusBar}">
             <Grid Margin="18,0">
-                <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left"
-                        Content="Restore defaults" Command="{Binding RestoreDefaultsCommand}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <Button Style="{StaticResource FooterButton}"
+                            ToolTip="Replace every preference with the contents of a profile file"
+                            Command="{Binding ImportPreferencesCommand}">
+                        <StackPanel Orientation="Horizontal" Margin="11,0">
+                            <Viewbox Width="13" Height="13" Margin="0,0,7,0">
+                                <Path Data="{DynamicResource Icon.Import}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            </Viewbox>
+                            <TextBlock Text="Import…" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Style="{StaticResource FooterButton}" Margin="8,0,0,0"
+                            ToolTip="Save every preference to a profile file"
+                            Command="{Binding ExportPreferencesCommand}">
+                        <StackPanel Orientation="Horizontal" Margin="11,0">
+                            <Viewbox Width="13" Height="13" Margin="0,0,7,0">
+                                <Path Data="{DynamicResource Icon.Export}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            </Viewbox>
+                            <TextBlock Text="Export…" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- stays a quiet link: destructive, and not something to invite a stray click -->
+                    <Button Style="{StaticResource LinkButton}" Margin="18,0,0,0"
+                            Content="Restore defaults" Command="{Binding RestoreDefaultsCommand}" />
+                </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="CancelButton" Style="{StaticResource Button.Secondary}"
                             Content="Cancel" MinWidth="84" Click="OnCancelClick" />
@@ -367,6 +407,189 @@
                         </Border>
                     </StackPanel>
 
+                    <!-- ========== ROTATION ========== -->
+                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=rotation}">
+                        <TextBlock Style="{StaticResource PanelTitle}" Text="Rotation" />
+                        <TextBlock Style="{StaticResource PanelSubtitle}"
+                                   Text="Overhang shading in the rotate view, in degrees from the build plate." />
+
+                        <Border Style="{StaticResource Row}">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,10">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Overhang thresholds" HorizontalAlignment="Left" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Text="{Binding OverhangWarningAngle, StringFormat={}{0:0}°}"
+                                                   FontFamily="{DynamicResource Font.Mono}" FontSize="12.5" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" Foreground="{DynamicResource Brush.Warning}" />
+                                        <TextBlock Text="–" FontFamily="{DynamicResource Font.Mono}" FontSize="12.5"
+                                                   VerticalAlignment="Center" Margin="5,0"
+                                                   Foreground="{DynamicResource Brush.Text.Muted}" />
+                                        <TextBlock Text="{Binding OverhangCriticalAngle, StringFormat={}{0:0}°}"
+                                                   FontFamily="{DynamicResource Font.Mono}" FontSize="12.5" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" Foreground="{DynamicResource Brush.Danger}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <mah:RangeSlider Minimum="40" Maximum="90" MinRange="1" MinRangeWidth="5"
+                                                 LowerValue="{Binding OverhangWarningAngle, Mode=TwoWay}"
+                                                 UpperValue="{Binding OverhangCriticalAngle, Mode=TwoWay}" />
+
+                                <Grid Margin="0,7,0,0">
+                                    <TextBlock Text="40°" HorizontalAlignment="Left"
+                                               FontFamily="{DynamicResource Font.Mono}" FontSize="10.5"
+                                               Foreground="{DynamicResource Brush.Text.Muted}" />
+                                    <TextBlock Text="90°" HorizontalAlignment="Right"
+                                               FontFamily="{DynamicResource Font.Mono}" FontSize="10.5"
+                                               Foreground="{DynamicResource Brush.Text.Muted}" />
+                                </Grid>
+
+                                <TextBlock Style="{StaticResource RowCaption}" Margin="0,10,0,0"
+                                           Text="Surfaces past the first threshold shade yellow, past the second red." />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========== SMOOTHING ========== -->
+                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=smoothing}">
+                        <TextBlock Style="{StaticResource PanelTitle}" Text="Smoothing" />
+                        <TextBlock Style="{StaticResource PanelSubtitle}"
+                                   Text="Starting values for the smooth view. A mesh that has already been smoothed reopens with the settings it was smoothed at." />
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Intensity " />
+                                    <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                </StackPanel>
+                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0" Maximum="20" Interval="0.5"
+                                                   StringFormat="N1" Value="{Binding SmoothIntensity}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <StackPanel Grid.Column="0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource RowLabel}" Text="Inflation " />
+                                        <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Style="{StaticResource RowCaption}" Text="Zero skips the inflation pass entirely." />
+                                </StackPanel>
+                                <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
+                                                   Minimum="0" Maximum="2" Interval="0.1"
+                                                   StringFormat="N1" Value="{Binding SmoothInflation}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Iterations" />
+                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="1" Maximum="12" Interval="1"
+                                                   StringFormat="N0" Value="{Binding SmoothIterations}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Triangle ratio" />
+                                    <TextBlock Style="{StaticResource RowCaption}" Text="Triangle budget after smoothing, relative to the original mesh." />
+                                </StackPanel>
+                                <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
+                                                   Minimum="0.5" Maximum="10" Interval="0.5"
+                                                   StringFormat="N1" Value="{Binding SmoothRemeshRatio}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <StackPanel Grid.Column="0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource RowLabel}" Text="Smoothness " />
+                                        <TextBlock Text="mm voxels" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Style="{StaticResource RowCaption}" Text="Smaller voxels keep more detail and take longer to compute." />
+                                </StackPanel>
+                                <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
+                                                   Minimum="0.5" Maximum="10" Interval="0.5"
+                                                   StringFormat="N1" Value="{Binding SmoothResolution}" />
+                            </Grid>
+                        </Border>
+
+                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,6" Text="Display" />
+                        <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Style="{StaticResource Segment}" GroupName="smoothDisplay" Content="None"
+                                             IsChecked="{Binding SmoothDisplay, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static smooth:SmoothDisplayMode.None}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="smoothDisplay" Content="Cross Section"
+                                             IsChecked="{Binding SmoothDisplay, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static smooth:SmoothDisplayMode.CrossSection}}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="smoothDisplay" Content="Heat Map"
+                                             IsChecked="{Binding SmoothDisplay, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static smooth:SmoothDisplayMode.Heatmap}}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========== CUT ========== -->
+                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=cut}">
+                        <TextBlock Style="{StaticResource PanelTitle}" Text="Cut" />
+                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="The mesh cutting tool." />
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Cut view" />
+                                    <TextBlock Style="{StaticResource RowCaption}" Text="Adds the mesh cutting tool to the workflow." />
+                                </StackPanel>
+                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding EnableCutView}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Row}" IsEnabled="{Binding EnableCutView}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Show on" />
+                                    <TextBlock Style="{StaticResource RowCaption}" Text="Which meshes offer the cut tab." />
+                                </StackPanel>
+                                <ComboBox Grid.Column="1" Width="150" VerticalAlignment="Center"
+                                          ItemsSource="{Binding CutScopeOptions}"
+                                          DisplayMemberPath="Label"
+                                          SelectedValuePath="Value"
+                                          SelectedValue="{Binding CutScope}" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========== SPLIT ========== -->
+                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=split}">
+                        <TextBlock Style="{StaticResource PanelTitle}" Text="Split" />
+                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="The parting-line splitting tool." />
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Split view (for moulds)" />
+                                    <TextBlock Style="{StaticResource RowCaption}" Text="Adds the parting-line splitting tool to the workflow." />
+                                </StackPanel>
+                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding EnableSplitView}" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
                     <!-- ========== AIR CHANNELS ========== -->
                     <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=channels}">
                         <TextBlock Style="{StaticResource PanelTitle}" Text="Air Channels" />
@@ -398,6 +621,254 @@
                         </Border>
                     </StackPanel>
 
+                    <!-- ========== MOULD ========== -->
+                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=mould}">
+                        <TextBlock Style="{StaticResource PanelTitle}" Text="Mould" />
+                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Starting values for a newly generated mould." />
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <TextBlock Style="{StaticResource RowLabel}" Text="Shape" />
+                                <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Style="{StaticResource Segment}" GroupName="mouldShape" Content="Convex"
+                                                     IsChecked="{Binding MouldShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:MouldShapeType.Convex}}" />
+                                        <RadioButton Style="{StaticResource Segment}" GroupName="mouldShape" Content="Concave"
+                                                     IsChecked="{Binding MouldShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:MouldShapeType.Concave}}" />
+                                        <RadioButton Style="{StaticResource Segment}" GroupName="mouldShape" Content="Contoured"
+                                                     IsChecked="{Binding MouldShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:MouldShapeType.Contoured}}" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Wall thickness " />
+                                    <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                </StackPanel>
+                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="1" Maximum="10" Interval="0.5"
+                                                   StringFormat="N1" Value="{Binding MouldWallThickness}" />
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Base height " />
+                                    <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                </StackPanel>
+                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0" Maximum="30" Interval="1"
+                                                   StringFormat="N0" Value="{Binding MouldBaseHeight}" />
+                            </Grid>
+                        </Border>
+
+                        <!-- A contoured shell hugs the bolus, so it has no flat top to recess a basin into -->
+                        <StackPanel IsEnabled="{Binding MouldSupportsTrough}">
+                            <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,0" Text="TROUGH" />
+                            <TextBlock Style="{StaticResource RowCaption}" Margin="0,0,0,4"
+                                       Text="The basin excess silicone pools in while the mould fills." />
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <StackPanel Grid.Column="0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource RowLabel}" Text="Depth " />
+                                            <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Style="{StaticResource RowCaption}" Text="0 leaves the top of the mould solid." />
+                                    </StackPanel>
+                                    <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
+                                                       Minimum="0" Maximum="20" Interval="0.5"
+                                                       StringFormat="N1" Value="{Binding MouldTroughHeight}" />
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Shape" />
+                                    <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Style="{StaticResource Segment}" GroupName="troughShape" Content="Footprint"
+                                                         IsChecked="{Binding MouldTroughShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:TroughShapeType.Footprint}}" />
+                                            <RadioButton Style="{StaticResource Segment}" GroupName="troughShape" Content="Channels"
+                                                         IsChecked="{Binding MouldTroughShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:TroughShapeType.Channels}}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <StackPanel Grid.Column="0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource RowLabel}" Text="Margin " />
+                                            <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Style="{StaticResource RowCaption}" Text="How far the trough stops short of the mould wall." />
+                                    </StackPanel>
+                                    <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
+                                                       Minimum="0.5" Maximum="10" Interval="0.5"
+                                                       StringFormat="N1" Value="{Binding MouldTroughOffset}" />
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- ========== DECALS ========== -->
+                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=decals}">
+                        <TextBlock Style="{StaticResource PanelTitle}" Text="Decals" />
+                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Text engraved into or embossed onto the mesh." />
+
+                        <Border Style="{StaticResource Row}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Decal tool" />
+                                    <TextBlock Style="{StaticResource RowCaption}" Text="Adds the text decal step to the workflow." />
+                                </StackPanel>
+                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding EnableDecals}" />
+                            </Grid>
+                        </Border>
+
+                        <!-- everything below is meaningless while the tool is switched off -->
+                        <StackPanel IsEnabled="{Binding EnableDecals}">
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,0" Text="AUTOMATIC PLACEMENT" />
+                            <TextBlock Style="{StaticResource RowCaption}" Margin="0,0,0,4"
+                                       Text="Decals added for you when the decal step is opened on a mesh that has none yet." />
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                        <TextBlock Style="{StaticResource RowLabel}" Text="Place on" />
+                                        <TextBlock Style="{StaticResource RowCaption}" Text="Which mesh the automatic decals are applied to." />
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="1" Width="176" VerticalAlignment="Center"
+                                              ItemsSource="{Binding ScopeOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              SelectedValue="{Binding DecalPlacementScope}" />
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                        <TextBlock Style="{StaticResource RowLabel}" Text="File name" />
+                                        <TextBlock Style="{StaticResource RowCaption}" Text="Engraves the mesh's file name at this anchor." />
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="1" Width="104" VerticalAlignment="Center" Margin="0,0,12,0"
+                                              IsEnabled="{Binding AutoPlaceFilename}"
+                                              ItemsSource="{Binding AnchorOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              SelectedValue="{Binding FilenameAnchor}" />
+                                    <mah:ToggleSwitch Grid.Column="2" VerticalAlignment="Center" IsOn="{Binding AutoPlaceFilename}" />
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                        <TextBlock Style="{StaticResource RowLabel}" Text="Volume" />
+                                        <TextBlock Style="{StaticResource RowCaption}" Text="Engraves the base mesh volume in cc at this anchor." />
+                                    </StackPanel>
+                                    <ComboBox Grid.Column="1" Width="104" VerticalAlignment="Center" Margin="0,0,12,0"
+                                              IsEnabled="{Binding AutoPlaceVolume}"
+                                              ItemsSource="{Binding AnchorOptions}"
+                                              DisplayMemberPath="Label"
+                                              SelectedValuePath="Value"
+                                              SelectedValue="{Binding VolumeAnchor}" />
+                                    <mah:ToggleSwitch Grid.Column="2" VerticalAlignment="Center" IsOn="{Binding AutoPlaceVolume}" />
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,0" Text="NEW DECAL DEFAULTS" />
+                            <TextBlock Style="{StaticResource RowCaption}" Margin="0,0,0,4"
+                                       Text="Starting values for every decal added in the decal view." />
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Operation" />
+                                    <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalOp" Content="Emboss"
+                                                         IsChecked="{Binding DecalOperation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
+                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalOp" Content="Engrave"
+                                                         IsChecked="{Binding DecalOperation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource RowLabel}" Text="Font" />
+                                    <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalFont" Content="Sans"
+                                                         IsChecked="{Binding DecalDefaultFont, Converter={StaticResource EnumMatch}, ConverterParameter=Sans}" />
+                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalFont" Content="Mono"
+                                                         IsChecked="{Binding DecalDefaultFont, Converter={StaticResource EnumMatch}, ConverterParameter=Mono}" />
+                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalFont" Content="Bold"
+                                                         IsChecked="{Binding DecalDefaultFont, Converter={StaticResource EnumMatch}, ConverterParameter=Bold}" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource RowLabel}" Text="Cap height " />
+                                        <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                    </StackPanel>
+                                    <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0.5" Interval="0.5"
+                                                       StringFormat="N1" Value="{Binding DecalCapHeight}" />
+                                </Grid>
+                            </Border>
+
+                            <Border Style="{StaticResource Row}">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource RowLabel}" Text="Depth " />
+                                        <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                                    </StackPanel>
+                                    <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0.1" Interval="0.1"
+                                                       StringFormat="N1" Value="{Binding DecalDepth}" />
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Style="{StaticResource RowCaption}" Margin="0,12,0,0"
+                                       Text="Cap height is a starting point only — a decal snapped to an anchor is still scaled to fit the room available there." />
+                        </StackPanel>
+                    </StackPanel>
+
                     <!-- ========== APPEARANCE ========== -->
                     <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=appearance}">
                         <TextBlock Style="{StaticResource PanelTitle}" Text="Appearance" />
@@ -414,40 +885,6 @@
                                                      IsChecked="{Binding ViewportBackground, Converter={StaticResource EnumMatch}, ConverterParameter=LightSteel}" />
                                     </StackPanel>
                                 </Border>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ========== CUT / SPLIT ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=cutsplit}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Cut / Split" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Cut and split views." />
-
-                        <Border Style="{StaticResource Row}" Margin="0,12,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Cut view (for non-mould meshes)" />
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Adds the mesh cutting tool to the workflow." />
-                                </StackPanel>
-                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding EnableCutView}" />
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Split view (for moulds)" />
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Adds the parting-line splitting tool to the workflow." />
-                                </StackPanel>
-                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding EnableSplitView}" />
                             </Grid>
                         </Border>
                     </StackPanel>
