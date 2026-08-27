@@ -5,6 +5,7 @@ using Fabolus.Core.Features.Transforms;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Viewport;
 using GeometryMeshLib;
@@ -32,6 +33,8 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     partial void OnYAxisAngleChanged(float value) => SendTempRotation(Vector3.UnitY, value);
     partial void OnZAxisAngleChanged(float value) => SendTempRotation(Vector3.UnitZ, value);
 
+    // Seeded from app preferences on every activation (see ActivateAsync). The values here are
+    // only what a design-time instance shows, and are kept in step with the shipped defaults.
     [ObservableProperty] private float _warningAngle = 45.0f;
     [ObservableProperty] private float _criticalAngle = 65.0f;
 
@@ -65,6 +68,8 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     public RotateViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryEngine(new FileSystem())) { }
 
     public async Task ActivateAsync(Workspace workspace) {
+        LoadOverhangPreferences();
+
         // Seed the gradient from the current slider values before the first render,
         // so the initial frame matches the warning/critical thresholds. The scene
         // manager skips rendering here because it has no mesh yet.
@@ -90,6 +95,31 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
     private void SendOverhangSettings() =>
         _sceneManager.SetOverhangs(WarningAngle, CriticalAngle);
+
+    /// <summary>
+    /// Takes the overhang thresholds from app preferences, re-read each activation so a change
+    /// made in the preferences window applies without restarting. Falls back to this view
+    /// model's own defaults when the store cannot be reached, as in the design-time constructor.
+    ///
+    /// Critical is assigned first: the range slider will not let the lower thumb cross the
+    /// upper one, so raising the ceiling before the floor keeps a preferred pair higher than
+    /// the current one from being clamped. A stored pair that is inverted or too close together
+    /// is dropped entirely, since neither half of it describes a usable gradient on its own.
+    /// </summary>
+    private void LoadOverhangPreferences() {
+        RotationPreferences prefs;
+        try {
+            prefs = _messenger.Send(new PreferenceSectionRequestMessage<RotationPreferences>()).Response
+                ?? RotationPreferences.Default;
+        }
+        catch {
+            prefs = RotationPreferences.Default;
+        }
+
+        prefs = prefs.Clamped();
+        CriticalAngle = prefs.OverhangCriticalAngle;
+        WarningAngle = prefs.OverhangWarningAngle;
+    }
 
     // The scene manager only ever renders the active mesh, so that's all it gets -
     // the Workspace itself stays here in the view model.

@@ -373,11 +373,13 @@
                             <StackPanel Margin="0,0,0,10">
                                 <TextBlock Text="FONT" Style="{StaticResource FieldLabel}" />
                                 <Border Style="{StaticResource SegmentGroup}">
-                                    <UniformGrid Columns="2">
+                                    <UniformGrid Columns="3">
                                         <RadioButton Content="Sans" GroupName="EmbossFont" Style="{StaticResource Segment}"
                                                      IsChecked="{Binding Font, Converter={StaticResource EnumMatch}, ConverterParameter=Sans}" />
                                         <RadioButton Content="Mono" GroupName="EmbossFont" Style="{StaticResource Segment}"
                                                      IsChecked="{Binding Font, Converter={StaticResource EnumMatch}, ConverterParameter=Mono}" />
+                                        <RadioButton Content="Bold" GroupName="EmbossFont" Style="{StaticResource Segment}"
+                                                     IsChecked="{Binding Font, Converter={StaticResource EnumMatch}, ConverterParameter=Bold}" />
                                     </UniformGrid>
                                 </Border>
                             </StackPanel>

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
+using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
@@ -22,7 +23,6 @@ namespace Fabolus.Wpf.Features.Main;
 
 public partial class MainViewModel : ObservableObject
 {
-    private readonly AppPreferencesStore _appPreferenceStore;
     private readonly IMessenger _messenger;
     private readonly IGeometryEngine _engine;
     private readonly IDialogueSystem _dialogueSystem;
@@ -55,7 +55,18 @@ public partial class MainViewModel : ObservableObject
 
     // display views
     [ObservableProperty] private bool _showSplitView;
+
+    // Whether the cut / split tab button is offered at all. Both halves come from preferences
+    // now: an on/off switch, and which meshes it applies to. Withholding it on a generated
+    // mould used to be hardcoded here; it is the default of that scope preference instead.
     [ObservableProperty] private bool _showCutView;
+    private bool _cutViewPreferenceEnabled;
+    private CutViewScope _cutViewScope = CutViewScope.Base;
+    private bool _activeMeshIsMould;
+
+    // Whether the decals tab button is offered at all. Purely a preference - unlike the cut
+    // view there is no mesh state that makes decals inapplicable.
+    [ObservableProperty] private bool _showDecalView = true;
     [ObservableProperty] private Brush _viewportBackgroundBrush;
     [ObservableProperty] private InfoPanelViewModel _infoViewModel;
 
@@ -92,20 +103,52 @@ public partial class MainViewModel : ObservableObject
         _messenger.Register<IsLoadingMessage>(this, (r, m) => IsLoading = m.IsLoading);
         _messenger.Register<SwitchToMeshManagerMessage>(this, async (r, m) => await SwitchToMeshManagerViewAsync());
 
-        PreferencesViewModel = new PreferencesViewModel(_messenger, _appPreferencesStore);
+        // Take the new value off the message rather than reading it back from the store,
+        // so this doesn't depend on which recipient the messenger notifies first.
+        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
+            if (m.Key == UISettings.ViewportBackgroundLabel) { ApplyViewportBackground(m.Value); }
+            else if (m.Key == UISettings.CutViewEnabledLabel) { ApplyCutViewPreference(m.Value); }
+            else if (m.Key == UISettings.CutViewScopeLabel) { ApplyCutViewScope(m.Value); }
+            else if (m.Key == UISettings.DecalsEnabledLabel) { ApplyDecalViewPreference(m.Value); }
+        });
 
-        var bgPref = _messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response;
-        if (bgPref is string s && Enum.TryParse<ViewportBackground>(s, out var parsedBg))
-        {
-            UpdateViewportBackground(parsedBg);
-        }
-        else if (bgPref is ViewportBackground bgEnum)
-        {
-            UpdateViewportBackground(bgEnum);
-        }
+        _messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (r, m) => ApplyViewportBackground(m.Section.ViewportBackground));
+        _messenger.Register<PreferenceSectionUpdateMessage<CutSplitPreferences>>(this, (r, m) => {
+            _cutViewPreferenceEnabled = m.Section.CutViewEnabled;
+            _cutViewScope = m.Section.CutScope;
+            UpdateCutViewAvailability();
+        });
+        _messenger.Register<PreferenceSectionUpdateMessage<DecalPreferences>>(this, (r, m) => {
+            ShowDecalView = m.Section.Enabled;
+            if (!ShowDecalView && CurrentView is DecalViewModel)
+            {
+                _ = SwitchToMeshManagerViewAsync();
+            }
+        });
+
+        PreferencesViewModel = new PreferencesViewModel(_messenger, _appPreferencesStore, _alertDialog);
+
+        ApplyViewportBackground(_messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response);
+        ApplyCutViewPreference(_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewEnabledLabel)).Response);
+        ApplyCutViewScope(_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewScopeLabel)).Response);
+        ApplyDecalViewPreference(_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalsEnabledLabel)).Response);
 
         _ = SwitchToMeshManagerViewAsync();
 
+    }
+
+    // Stored as the enum's name; a hand-edited config can hold anything, so keep the
+    // current background rather than guessing when the value won't parse.
+    private void ApplyViewportBackground(object? pref)
+    {
+        if (pref is ViewportBackground bg)
+        {
+            UpdateViewportBackground(bg);
+        }
+        else if (pref is string s && Enum.TryParse<ViewportBackground>(s, out var parsed))
+        {
+            UpdateViewportBackground(parsed);
+        }
     }
 
     private void UpdateViewportBackground(ViewportBackground bg)
@@ -132,12 +175,69 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private void ApplyCutViewPreference(object? pref)
+    {
+        _cutViewPreferenceEnabled = pref is bool enabled && enabled;
+        UpdateCutViewAvailability();
+    }
+
+    // Stored as the enum's name; a hand-edited config can hold anything, so an unreadable
+    // value keeps the shipped default rather than guessing.
+    private void ApplyCutViewScope(object? pref)
+    {
+        if (pref is CutViewScope scope) { _cutViewScope = scope; }
+        else if (pref is string s && Enum.TryParse<CutViewScope>(s, out var parsed) && Enum.IsDefined(parsed))
+        {
+            _cutViewScope = parsed;
+        }
+
+        UpdateCutViewAvailability();
+    }
+
+    private void UpdateCutViewAvailability()
+    {
+        bool scopeAllows = _cutViewScope switch
+        {
+            CutViewScope.Mould => _activeMeshIsMould,
+            CutViewScope.Both => true,
+            _ => !_activeMeshIsMould
+        };
+
+        ShowCutView = _cutViewPreferenceEnabled && scopeAllows;
+
+        // Narrowing the scope while the cut view is open would otherwise leave the user on a
+        // view whose tab has just disappeared.
+        if (!ShowCutView && CurrentView is CutSplitViewModel)
+        {
+            _ = SwitchToMeshManagerViewAsync();
+        }
+    }
+
+    // A hand-edited config can hold anything; anything that isn't a bool leaves decals on,
+    // which is the shipped default and the less surprising of the two failure modes.
+    private void ApplyDecalViewPreference(object? pref)
+    {
+        ShowDecalView = pref is not bool enabled || enabled;
+
+        // Switching the tool off while it is open would otherwise strand the user on a view
+        // they can no longer navigate back to.
+        if (!ShowDecalView && CurrentView is DecalViewModel)
+        {
+            _ = SwitchToMeshManagerViewAsync();
+        }
+    }
+
     private void WorkspaceUpdated(Workspace workspace)
     {
         Workspace = workspace;
 
-        // Metadata-only read - only the name is needed here.
+        // Metadata-only read - the name and the mould command are all that is needed here.
         var result = Workspace.GetActiveMeshMetadata();
+
+        // Without readable metadata there is no mould to detect, so the cut view falls back
+        // to whatever the preference allows.
+        _activeMeshIsMould = result.IsSuccess && result.Value.MouldDefinition().HasValue;
+        UpdateCutViewAvailability();
 
         if (result.IsFailure && result.Error == WorkspaceErrors.NoActiveMesh)
         {

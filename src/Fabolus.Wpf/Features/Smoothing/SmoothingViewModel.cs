@@ -6,6 +6,7 @@ using Fabolus.Core.Features.Smoothing;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Viewport;
 
@@ -31,6 +32,8 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     private IMesh? _unsmoothedTwin;
     private MeshStatistics? _originalStats;
 
+    // Seeded from app preferences on every activation (see ActivateAsync). The values here are
+    // only what a design-time instance shows, and are kept in step with the shipped defaults.
     [ObservableProperty] private int _iterations = 1;
     [ObservableProperty] private float _intensity = 1.5f;
     [ObservableProperty] private float _inflation = 0.2f;
@@ -68,18 +71,40 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     public ISceneManager SceneManager => _sceneManager;
 
     public async Task ActivateAsync(Workspace workspace) {
+        // Read fresh each activation, so a change made in the preferences window applies to the
+        // next mesh without restarting.
+        var preferences = LoadPreferences();
+
         await UpdateWorkspaceAsync(workspace);
 
+        // A mesh that has already been smoothed reopens with the settings it was actually
+        // smoothed at; the preference only supplies the starting point for one that has not.
+        var settings = preferences.ToSmoothSettings();
         var metadataResult = Workspace.GetActiveMeshMetadata();
         if (metadataResult.IsSuccess) {
-
             var settingsResult = metadataResult.Value.GetSmoothing();
+            if (settingsResult.HasValue) { settings = settingsResult.Value; }
+        }
 
-            var settings = settingsResult.HasValue
-                ? settingsResult.Value
-                : new SmoothSettings();
+        UpdateSettings(settings);
 
-            UpdateSettings(settings);
+        // Display is a property of the view, not of the mesh, so it always comes from the
+        // preference. Assigned after the meshes are cached, because the change handler renders.
+        DisplayMode = preferences.DisplayMode;
+    }
+
+    /// <summary>
+    /// The smoothing parameters an unsmoothed mesh starts from, taken from app preferences.
+    /// Falls back to default when the store cannot be reached - which is the case for the
+    /// design-time constructor.
+    /// </summary>
+    private SmoothingPreferences LoadPreferences() {
+        try {
+            return _messenger.Send(new PreferenceSectionRequestMessage<SmoothingPreferences>()).Response
+                ?? SmoothingPreferences.Default;
+        }
+        catch {
+            return SmoothingPreferences.Default;
         }
     }
 

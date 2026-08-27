@@ -1,4 +1,4 @@
-﻿<Application x:Class="Fabolus.Wpf.App"
+<Application x:Class="Fabolus.Wpf.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Fabolus.Wpf"
@@ -16,6 +16,7 @@
                 <ResourceDictionary Source="Themes\Buttons.xaml" />
                 <ResourceDictionary Source="Themes\Colours.xaml" />
                 <ResourceDictionary Source="Themes\Controls.xaml" />
+                <ResourceDictionary Source="Themes\Icons.xaml" />
                 <ResourceDictionary Source="Themes\SteelSlider.xaml" />
 
                 <!-- Overrides -->

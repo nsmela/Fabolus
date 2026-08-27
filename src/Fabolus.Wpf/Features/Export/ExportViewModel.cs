@@ -74,12 +74,27 @@ public partial class ExportViewModel : ObservableObject, IViewState
         _exportFeature = new ExportMesh(_engine);
     }
 
+    private ExportFormat GetPreferredExportFormat()
+    {
+        try
+        {
+            var general = _messenger.Send(new PreferenceSectionRequestMessage<GeneralPreferences>()).Response;
+            return general?.ExportFormat ?? GeneralPreferences.Default.ExportFormat;
+        }
+        catch
+        {
+            return GeneralPreferences.Default.ExportFormat;
+        }
+    }
+
     public async Task ActivateAsync(Workspace workspace)
     {
         await Task.Yield();
 
         Workspace = workspace;
         _sceneManager.UpdateWorkspace(workspace);
+
+        Is3mfSelected = GetPreferredExportFormat() == ExportFormat.ThreeMF;
 
         FileCount = workspace.MeshCount;
         ExportButtonText = Is3mfSelected ? "Export package" : "Export file";

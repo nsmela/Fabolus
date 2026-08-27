@@ -356,9 +356,11 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         IsGenerated = mouldResult.HasValue;
 
+        // A mesh that already carries a mould - baked or still being edited - reopens with its
+        // own settings. Only a mesh with neither falls back to the app preferences.
         var mouldDefinition = mouldResult.HasValue
             ? mouldResult.Value
-            : mesh.Metadata.PendingMouldDefinition().GetValueOrDefault(new ConcaveMouldDefinition());
+            : mesh.Metadata.PendingMouldDefinition().GetValueOrDefault(BuildPreferredMouldDefinition());
 
         SelectedChannelId = Guid.Empty;
         Channels = mouldDefinition.AirChannels.ToList();
@@ -453,6 +455,22 @@ public partial class MouldViewModel : ObservableObject, IViewState
         var result = Workspace.UpdateMesh(updatedMesh);
         if (result.IsSuccess)
             Workspace = result.Value;
+    }
+
+    private MouldDefinition BuildPreferredMouldDefinition()
+    {
+        MouldPreferences prefs;
+        try
+        {
+            prefs = _messenger.Send(new PreferenceSectionRequestMessage<MouldPreferences>()).Response
+                ?? MouldPreferences.Default;
+        }
+        catch
+        {
+            prefs = MouldPreferences.Default;
+        }
+
+        return prefs.Clamped().ToMouldDefinition();
     }
 
     private MouldDefinition BuildMouldDefinition()
