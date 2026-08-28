@@ -90,6 +90,67 @@ public class GeodesicEditDrift
         // it started as? Measured as how near the flange's own vertices come to each line.
         Flange("seeded    ", seeded.ToPartingLine(), traced.Value, mould.Value, body);
         Flange("geodesic  ", freed.ToPartingLine(), traced.Value, mould.Value, body);
+
+        // Aggregate length hides the shape, so look at each span: an unconstrained path between two
+        // handles well apart round the rim takes the short way, straight over a shell, and that is a
+        // span that has left the wall entirely rather than one that merely wanders.
+        Spans("seeded  ", seeded);
+        Spans("geodesic", freed);
+
+        // The flange is swept ring by ring along the line's own points, so how evenly those are spaced
+        // is not cosmetic - a run of near-coincident samples puts consecutive rings on top of each
+        // other, and the sweep crosses itself there.
+        Spacing("seeded  ", seeded.ToPartingLine());
+        Spacing("geodesic", freed.ToPartingLine());
+    }
+
+    private void Spacing(string stage, PartingLine line)
+    {
+        for (int i = 0; i < line.Loops.Count; i++)
+        {
+            var loop = line.Loops[i];
+            var steps = new List<float>(loop.Count);
+            for (int k = 0; k < loop.Count; k++)
+                steps.Add(Vector3.Distance(loop[k], loop[(k + 1) % loop.Count]));
+
+            steps.Sort();
+            int tiny = steps.Count(s => s < 0.05f);
+            float mean = steps.Average();
+
+            _out.WriteLine(
+                $"  {stage} loop {i} spacing: min={steps[0],7:F4}  median={steps[steps.Count / 2],6:F3}" +
+                $"  mean={mean,6:F3}  max={steps[^1],6:F3}mm   under 0.05mm={tiny,4}  ratio max/median=" +
+                $"{(steps[steps.Count / 2] > 0 ? steps[^1] / steps[steps.Count / 2] : 0),6:F1}");
+        }
+    }
+
+    private void Spans(string stage, PartingLineEdit edit)
+    {
+        for (int rim = 0; rim < edit.Rims.Count; rim++)
+        {
+            var line = edit.Rims[rim].Line;
+            var band = edit.Rims[rim].Graph.Band;
+            float wall = band.Span;
+
+            int strayed = 0;
+            float worstSpan = 0f;
+
+            foreach (var span in line.Spans)
+            {
+                float worst = 0f;
+                foreach (var p in span.Points)
+                    worst = MathF.Max(worst, MathF.Min(
+                        PartingBand.Closest(p, band.First).Distance,
+                        PartingBand.Closest(p, band.Second).Distance));
+
+                if (worst > wall) strayed++;
+                worstSpan = MathF.Max(worstSpan, worst);
+            }
+
+            _out.WriteLine(
+                $"  {stage} rim {rim}: wall={wall,5:F2}mm  spans={line.Spans.Count,3}  " +
+                $"off the wall={strayed,3}  furthest={worstSpan,6:F2}mm ({worstSpan / wall,4:F1}x wall)");
+        }
     }
 
     private void Flange(
@@ -106,10 +167,15 @@ public class GeodesicEditDrift
 
         // Mean distance from the flange's inner rim to each candidate line. The flange is built from
         // one of them, so whichever it sits on is the one it was built from.
+        var topology = _engine.Evaluators.ValidateTopology(flange.Value);
+        string health = topology.IsSuccess
+            ? $"selfInt={topology.Value.SelfIntersectionCount,5}  degenerate={topology.Value.HasDegenerateTriangles}"
+            : "topology unavailable";
+
         _out.WriteLine(
             $"  {stage} flange tris={flange.Value.Triangles.Length / 3,6}  " +
             $"mean gap to USED line={MeanGap(flange.Value, used),6:F3}mm  " +
-            $"to TRACED line={MeanGap(flange.Value, tracedLine),6:F3}mm");
+            $"to TRACED line={MeanGap(flange.Value, tracedLine),6:F3}mm  {health}");
     }
 
     /// <summary>How near the flange's nearest tenth of vertices come to a line, averaged.</summary>
