@@ -119,11 +119,18 @@ public class FlangeWaviness
             return running / totalArea * 100f;
         }
 
+        // The flange only earns a flatter mating face if it still seals: every rim point outside the
+        // body is a hairline bridge the cut leaves behind, holding the mould in one piece.
+        var seal = _sut.InspectFlangeSeal(mesh, body, line, resolved.Value);
+        string sealed_ = seal.IsSuccess
+            ? $"breached={seal.Value.Count(p => !p.IsSealed),3}/{seal.Value.Count,4}"
+            : "seal unknown";
+
         _out.WriteLine(
             $"  {label,-13} slope: median={Percentile(0.5f),5:F1}  p90={Percentile(0.9f),5:F1}  " +
             $"p99={Percentile(0.99f),5:F1}  max={slopes[^1].Deg,5:F1} deg   " +
             $"area past 40deg={Beyond(40f),5:F1}%  past 60deg={Beyond(60f),5:F1}%  " +
-            $"tris={t.Length / 3}");
+            $"{sealed_}  tris={t.Length / 3}");
     }
 
     private static string Assets()
