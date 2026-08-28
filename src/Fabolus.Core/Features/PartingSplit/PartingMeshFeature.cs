@@ -550,7 +550,25 @@ public sealed class PartingMeshFeature
         var meshes = new List<IMesh>();
 
         Result<IMesh> outerMeshResult;
-        if (parameters.Sweep == PartingMeshSweep.SurfaceSweep)
+        if (parameters.Sweep == PartingMeshSweep.MouldLoft)
+        {
+            // The only sweep that asks the mould where the flange should come out, so it is the only
+            // one that needs it. A body handed over without one is a caller that never had a mould
+            // rather than a caller in error, so it falls back to the marching sweep instead of failing.
+            outerMeshResult = body.ParentMould.HasValue
+                ? _engine.PartingTools.GenerateMouldLoftFlangeMesh(
+                    partingLine.Loops[0],
+                    parameters.Axis,
+                    body.Mesh,
+                    body.ParentMould.Value.Mesh)
+                : _engine.PartingTools.GenerateSurfaceSweepFlangeMesh3D(
+                    partingLine.Loops[0],
+                    parameters.Axis,
+                    body.Mesh,
+                    parameters.StepDistanceMm,
+                    boundsMarginMm: parameters.OuterContourMargin);
+        }
+        else if (parameters.Sweep == PartingMeshSweep.SurfaceSweep)
         {
             outerMeshResult = _engine.PartingTools.GenerateSurfaceSweepFlangeMesh3D(
                 partingLine.Loops[0],
@@ -1274,6 +1292,20 @@ public enum PartingMeshSweep
     /// </para>
     /// </summary>
     SurfaceSweep,
+
+    /// <summary>
+    /// Lofts the parting line out to a ring on the mould, the ring taking its shape from the mould's
+    /// outline and its height from the line at the same bearing.
+    ///
+    /// <para>
+    /// The other two build the flange from the body alone and never consult the mould, so the body's
+    /// undulation reaches the outer wall and the mating face carries it. This asks the mould where the
+    /// surface should come out, which is the one part of the answer the body has no claim on. Matching
+    /// the ring's height to the line's leaves every radial of the loft level, so the climb that made
+    /// the steep faces is not there to be made.
+    /// </para>
+    /// </summary>
+    MouldLoft,
 }
 
 /// <summary>Which of the two ways of choosing the parting mesh's axis is in force.</summary>

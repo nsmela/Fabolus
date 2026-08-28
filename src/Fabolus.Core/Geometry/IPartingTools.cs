@@ -154,6 +154,24 @@ public interface IPartingTools
         float innerBleedMm = 2.5f,
         float boundsMarginMm = 10f);
 
+    /// <summary>
+    /// Builds the flange by lofting the parting line out to a ring on the mould, taking the ring's
+    /// shape from the mould's outline and its height from the parting line at the same bearing. Every
+    /// radial then runs out level, which is what keeps the mating face flat - see the implementation
+    /// for the measurements against <see cref="GenerateSurfaceSweepFlangeMesh3D"/>.
+    /// </summary>
+    /// <param name="mould">The mould being split - what the outer ring is taken from.</param>
+    /// <param name="innerBleedMm">How far inside the body the flange starts, which carries the seal.</param>
+    Result<IMesh> GenerateMouldLoftFlangeMesh(
+        IReadOnlyList<Vector3> partingLine,
+        Vector3 planeNormal,
+        IMesh body,
+        IMesh mould,
+        float innerBleedMm = 2.5f,
+        float outerMarginMm = 10f,
+        int rings = 16,
+        int heightSmoothing = 6);
+
     Result<IMesh> GenerateSurfaceSweepFlangeMesh3D(
         IReadOnlyList<Vector3> inner3DLoop,
         Vector3 planeNormal,
