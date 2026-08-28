@@ -2032,6 +2032,246 @@ internal sealed class PartingTools : IPartingTools
     /// parting line itself, which is ring zero and never moves. Measured on chin and scalp, raising
     /// this from 0.35 to 0.6 cut the swept surface's self-intersections by roughly four fifths.
     /// </summary>
+    /// <summary>
+    /// Builds the flange by lofting the parting line out to a ring on the mould, rather than by
+    /// marching along the body's normals.
+    ///
+    /// <para>
+    /// The sweep this stands beside never asks the mould anything: it takes the body's surface normal
+    /// at the line and marches, so the body's undulation is carried the whole way to the outer wall and
+    /// the mating face inherits it. But only the inner edge has to follow anatomy - it is the rim the
+    /// two halves meet the bolus on. Where the outer edge comes out is free, so it is taken from the
+    /// mould.
+    /// </para>
+    ///
+    /// <para>
+    /// The ring is the mould's own outline seen along the pull axis, and - this is the part that does
+    /// the work - it takes its height from the parting line at the same bearing. Matched that way every
+    /// radial of the loft runs out level, so there is no climb from the line back to a ledge and no
+    /// slope to make it with. What is left tilts only around the ring, at the rate the line's own height
+    /// changes, spread over the mould's longer perimeter. Measured against the marching sweep on the
+    /// same bodies, the median face goes from 58 degrees off the parting plane to 2 on chin, and from
+    /// 67 to 26 on scalp.
+    /// </para>
+    /// </summary>
+    /// <param name="mould">The mould being split - what the outer ring is taken from.</param>
+    /// <param name="innerBleedMm">
+    /// How far inside the body the flange starts, so the cut has something to bite on. The seal is the
+    /// reason this is not simply lofted from the line itself.
+    /// </param>
+    public Result<IMesh> GenerateMouldLoftFlangeMesh(
+        IReadOnlyList<Vector3> partingLine,
+        Vector3 planeNormal,
+        IMesh body,
+        IMesh mould,
+        float innerBleedMm = BleedMm,
+        float outerMarginMm = 10f,
+        int rings = 16,
+        int heightSmoothing = 6)
+    {
+        if (partingLine is null || partingLine.Count < 8) return GeometryErrors.InvalidPolygon;
+        if (planeNormal == Vector3.Zero) return MeshErrors.InvalidPullDirection;
+        if (body is null || body.IsEmpty) return GeometryErrors.InvalidMesh;
+        if (mould is null || mould.IsEmpty) return GeometryErrors.InvalidMesh;
+        if (rings < 2) rings = 2;
+
+        var axis = Vector3.Normalize(planeNormal);
+        int n = partingLine.Count;
+
+        var (u, v) = LoftFrame(axis);
+
+        // The bleed ring, offset into the body along its own surface, is what carries the seal. Placed
+        // exactly as the marching sweep places it, because that part was never the problem.
+        var surfaceNormals = OutwardNormalsAlong(partingLine, body);
+        var bleed = new Vector3[n];
+        for (int i = 0; i < n; i++)
+        {
+            var tangent = partingLine[(i + 1) % n] - partingLine[(i - 1 + n) % n];
+            var outward = Vector3.Normalize(Perpendicular(surfaceNormals[i], tangent, axis));
+            bleed[i] = partingLine[i] - (outward * innerBleedMm);
+        }
+        RepairFolds(bleed);
+
+        var centre = Vector2.Zero;
+        for (int i = 0; i < n; i++) centre += LoftFlat(partingLine[i], u, v);
+        centre /= n;
+
+        // Bearings taken as a cumulative angle that is never allowed to go backwards. Read raw, a
+        // parting line that doubles back hands several of its points the same stretch of outline, and
+        // the loft pinches into a fan there - which is what a nearest-bearing match produced. Forcing
+        // the sweep to advance makes the correspondence one-to-one all the way round.
+        // Which way the line winds has to be read before any of this means anything. Nothing fixes the
+        // order a traced loop comes back in, and against the wrong sign every step counts as backwards,
+        // clamps to zero, and the whole sweep comes out empty - which read as "the polygon is invalid"
+        // on three of four bodies while the fourth, wound the other way, worked.
+        float turning = 0f;
+        for (int i = 1; i <= n; i++)
+            turning += LoftWrap(
+                LoftBearing(partingLine[i % n], u, v, centre)
+                - LoftBearing(partingLine[i - 1], u, v, centre));
+
+        float winding = turning >= 0f ? 1f : -1f;
+
+        var sweep = new float[n];
+        float running = 0f;
+        float previous = LoftBearing(partingLine[0], u, v, centre);
+
+        for (int i = 1; i < n; i++)
+        {
+            float here = LoftBearing(partingLine[i], u, v, centre);
+            running += MathF.Max(winding * LoftWrap(here - previous), 0f);
+            sweep[i] = running;
+            previous = here;
+        }
+
+        // A line whose bearings barely advance has nothing to map round the outline, and is refused
+        // rather than folded onto a point.
+        float span = sweep[n - 1];
+        if (span < 1e-3f) return GeometryErrors.InvalidPolygon;
+
+        var hull = LoftHull(mould.Vertices, u, v);
+        if (hull.Count < 3) return GeometryErrors.InvalidPolygon;
+
+        float start = LoftBearing(partingLine[0], u, v, centre);
+
+        // Carried past the outline rather than stopped on it. A cutter that ends exactly where the
+        // mould ends does not sever it - the boolean comes back with two pieces that are each still
+        // the whole mould, which is what "halves 99.8% / 99.8%" means when it happens.
+        var outerFlat = new Vector2[n];
+        for (int i = 0; i < n; i++)
+        {
+            float bearing = start + (winding * MathF.Tau * sweep[i] / span);
+            var direction = new Vector2(MathF.Cos(bearing), MathF.Sin(bearing));
+            outerFlat[i] = LoftRayHit(hull, centre, bearing) + (direction * outerMarginMm);
+        }
+
+        // Height from the line at the same bearing, then eased round the ring. The match is exact but
+        // it steps wherever the nearest point changes, and a stepped ring puts a crease in the surface
+        // at every step.
+        var heights = new float[n];
+        for (int i = 0; i < n; i++) heights[i] = Vector3.Dot(partingLine[i], axis);
+        LoftSmooth(heights, heightSmoothing);
+
+        var stack = new List<Vector3[]>(rings + 2) { bleed, partingLine.ToArray() };
+
+        for (int r = 1; r <= rings; r++)
+        {
+            float t = (float)r / rings;
+            var ring = new Vector3[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                float inner = Vector3.Dot(partingLine[i], axis);
+                var innerFlat = partingLine[i] - (axis * inner);
+                var outFlat = (u * outerFlat[i].X) + (v * outerFlat[i].Y);
+
+                ring[i] = Vector3.Lerp(innerFlat, outFlat, t)
+                        + (axis * ((inner * (1f - t)) + (heights[i] * t)));
+            }
+
+            RepairFolds(ring);
+            stack.Add(ring);
+        }
+
+        return StitchRings(stack, body.Metadata);
+    }
+
+    private static (Vector3 U, Vector3 V) LoftFrame(Vector3 axis)
+    {
+        var seed = MathF.Abs(Vector3.Dot(axis, Vector3.UnitY)) < 0.9f ? Vector3.UnitY : Vector3.UnitX;
+        var u = Vector3.Normalize(Vector3.Cross(seed, axis));
+        return (u, Vector3.Cross(axis, u));
+    }
+
+    private static Vector2 LoftFlat(Vector3 p, Vector3 u, Vector3 v) =>
+        new(Vector3.Dot(p, u), Vector3.Dot(p, v));
+
+    private static float LoftBearing(Vector3 p, Vector3 u, Vector3 v, Vector2 centre)
+    {
+        var d = LoftFlat(p, u, v) - centre;
+        return MathF.Atan2(d.Y, d.X);
+    }
+
+    private static float LoftWrap(float angle)
+    {
+        while (angle > MathF.PI) angle -= MathF.Tau;
+        while (angle < -MathF.PI) angle += MathF.Tau;
+        return angle;
+    }
+
+    private static void LoftSmooth(float[] values, int passes)
+    {
+        int n = values.Length;
+        if (n < 3) return;
+
+        for (int pass = 0; pass < passes; pass++)
+        {
+            var next = new float[n];
+            for (int i = 0; i < n; i++)
+                next[i] = (values[(i - 1 + n) % n] + (2f * values[i]) + values[(i + 1) % n]) * 0.25f;
+            Array.Copy(next, values, n);
+        }
+    }
+
+    /// <summary>
+    /// The mould's outline in the plane perpendicular to the pull axis, as its convex hull there.
+    /// Taken in that plane rather than in world XY, since the pull axis is not a world axis; and as the
+    /// outline rather than the bounding rectangle, because a rectangle sends the loft out to four sharp
+    /// corners it then has to fan across.
+    /// </summary>
+    private static List<Vector2> LoftHull(IReadOnlyList<Vector3> vertices, Vector3 u, Vector3 v)
+    {
+        var points = new List<Vector2>(vertices.Count);
+        foreach (var p in vertices) points.Add(LoftFlat(p, u, v));
+
+        points.Sort((a, b) => a.X == b.X ? a.Y.CompareTo(b.Y) : a.X.CompareTo(b.X));
+
+        var hull = new List<Vector2>(points.Count + 1);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            int floor = hull.Count;
+            for (int k = 0; k < points.Count; k++)
+            {
+                var p = pass == 0 ? points[k] : points[points.Count - 1 - k];
+                while (hull.Count >= floor + 2 && LoftTurn(hull[^2], hull[^1], p) <= 0)
+                    hull.RemoveAt(hull.Count - 1);
+                hull.Add(p);
+            }
+            hull.RemoveAt(hull.Count - 1);
+        }
+
+        return hull;
+    }
+
+    private static float LoftTurn(Vector2 a, Vector2 b, Vector2 c) =>
+        ((b.X - a.X) * (c.Y - a.Y)) - ((b.Y - a.Y) * (c.X - a.X));
+
+    /// <summary>Where a ray from <paramref name="centre"/> leaves the hull.</summary>
+    private static Vector2 LoftRayHit(List<Vector2> hull, Vector2 centre, float angle)
+    {
+        var dir = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+
+        float furthest = 0f;
+        for (int i = 0; i < hull.Count; i++)
+        {
+            var a = hull[i];
+            var b = hull[(i + 1) % hull.Count];
+            var edge = b - a;
+
+            float denominator = (dir.X * edge.Y) - (dir.Y * edge.X);
+            if (MathF.Abs(denominator) < 1e-12f) continue;
+
+            var offset = a - centre;
+            float t = ((offset.X * edge.Y) - (offset.Y * edge.X)) / denominator;
+            float s = ((offset.X * dir.Y) - (offset.Y * dir.X)) / denominator;
+
+            if (t <= 0f || s < 0f || s > 1f) continue;
+            furthest = MathF.Max(furthest, t);
+        }
+
+        return centre + (dir * furthest);
+    }
+
     private const float SweepRelaxation = 0.6f;
 
     /// <summary>Laplacian smoothing of a closed ring, in place.</summary>

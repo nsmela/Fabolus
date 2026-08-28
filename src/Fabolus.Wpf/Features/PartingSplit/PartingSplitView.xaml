@@ -308,6 +308,15 @@
                             <TextBlock DockPanel.Dock="Right" Text="{Binding CutterDepthMm, StringFormat={}{0:F1} mm}" Margin="8,0,0,0" Width="50" TextAlignment="Right"/>
                             <Slider Minimum="0.1" Maximum="5.0" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding CutterDepthMm, UpdateSourceTrigger=PropertyChanged}" />
                         </DockPanel>
+
+                        <!-- Which shape the mating face inherits. The marching sweep takes the body's
+                             normals all the way out, so the face carries the body's undulation; the loft
+                             asks the mould where to come out instead - see
+                             PartingSplitViewModel.UseMouldLoft. Toggling clears the built mesh, so press
+                             Back then Next to rebuild it. -->
+                        <CheckBox Content="Loft to the mould" IsChecked="{Binding UseMouldLoft}"
+                                  Margin="0,10,0,0"
+                                  ToolTip="Build the parting mesh by lofting out to a ring on the mould, whose height follows the parting line, instead of marching along the body's normals. Much flatter mating face."/>
                     </StackPanel>
 
                     <!-- Step 3: how the applied result lands in the workspace -->

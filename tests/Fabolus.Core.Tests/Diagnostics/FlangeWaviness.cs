@@ -47,15 +47,26 @@ public class FlangeWaviness
 
         _out.WriteLine($"--- {file}");
 
-        foreach (var sweep in new[]
-                 {
-                     PartingMeshSweep.SurfaceSweep,     // what the view uses today
-                     PartingMeshSweep.TangentLaunch,    // what the comment above MeshSweep argues for
-                 })
+        // The view's own recipe, not PartingMeshParameters.Default - the two differ on exactly the
+        // settings that decide waviness. PartingSplitViewModel states FlangeMaxSlopeDeg = 80 and
+        // NormalFollowMm = 100 against the record's 40 and 15, so anything measured at the defaults
+        // is measuring a configuration the app never runs.
+        var recipe = PartingMeshParameters.Default with
         {
-            Measure(sweep.ToString(), traced.Value, mould.Value, body,
-                PartingMeshParameters.Default with { Sweep = sweep });
-        }
+            Sweep = PartingMeshSweep.SurfaceSweep,
+            AxisSource = PartingMeshAxisSource.PartingLine,
+            Thickening = PartingMeshThickening.Extrude,
+            FlangeMaxSlopeDeg = 80f,
+            NormalFollowMm = 100f,
+            NormalSmoothingPasses = 5,
+        };
+
+        // What the ceiling is actually worth. The comment above the view's 80 says lowering it back
+        // toward 45 "keeps most of the normal-following and all of the printability" - this is that
+        // claim, measured.
+        Measure("marching sweep", traced.Value, mould.Value, body, recipe);
+        Measure("mould loft   ", traced.Value, mould.Value, body,
+            recipe with { Sweep = PartingMeshSweep.MouldLoft });
     }
 
     private void Measure(

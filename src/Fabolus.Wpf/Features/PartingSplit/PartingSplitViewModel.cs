@@ -131,7 +131,34 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// turn written to carry it there produced the flange that was rejected on sight.
     /// </para>
     /// </summary>
-    public PartingMeshSweep MeshSweep => PartingMeshSweep.SurfaceSweep;
+    public PartingMeshSweep MeshSweep =>
+        UseMouldLoft ? PartingMeshSweep.MouldLoft : PartingMeshSweep.SurfaceSweep;
+
+    /// <summary>
+    /// Build the flange by lofting to a ring on the mould instead of marching along the body's normals
+    /// - <see cref="PartingMeshSweep.MouldLoft"/>.
+    ///
+    /// <para>
+    /// Offered as a switch rather than settled because it is new and the two want comparing on real
+    /// bodies. What it changes is which shape the mating face inherits: the marching sweep carries the
+    /// body's undulation all the way to the outer wall, and this asks the mould where to come out
+    /// instead. On the measured set the median face falls from 58 degrees off the parting plane to 2
+    /// on chin and from 67 to 26 on scalp.
+    /// </para>
+    /// </summary>
+    [ObservableProperty] private bool _useMouldLoft = true;
+
+    partial void OnUseMouldLoftChanged(bool value)
+    {
+        // The flange is built from this, so the one already on screen belongs to the other mode.
+        _flangeSurface = null;
+        PartingMesh = null;
+        PositiveRegionMesh = null;
+        NegativeRegionMesh = null;
+
+        _sceneManager.UpdatePartingMesh(null);
+        _sceneManager.SetRegions(null, null);
+    }
 
     /// <summary>
     /// How steep, in degrees from level, the flange is allowed to be.
