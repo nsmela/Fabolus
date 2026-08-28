@@ -959,7 +959,64 @@ public static class PartingLineEditor
 
         if (points.Count < 2) return false;
 
-        spans[from] = spans[from] with { Points = points, IsRetraced = true };
+        spans[from] = spans[from] with { Points = Even(points, graph.MeanEdge), IsRetraced = true };
         return true;
+    }
+
+    /// <summary>
+    /// Resamples a walked span to an even spacing, holding both ends exactly where they are.
+    ///
+    /// <para>
+    /// A walk reports where it crossed something - a gate between two band faces, or a mesh edge - and
+    /// those crossings fall wherever the triangulation put them rather than at any regular interval. On
+    /// the unconstrained geodesic that is severe: measured across the asset set it comes back with a
+    /// median step of 0.7mm, a longest of 6mm and a handful of steps under a hundredth of a millimetre,
+    /// against the even 1.8mm the traced line arrives at.
+    /// </para>
+    ///
+    /// <para>
+    /// That matters because the flange is swept ring by ring along these very points. Two samples a
+    /// hundredth of a millimetre apart put two rings on top of each other, and the sweep crosses itself
+    /// there - which is what turned a whole flange into flipped, self-intersecting fragments the moment
+    /// every span was re-walked at once. The trace resamples for the same reason; a re-walked span was
+    /// simply missing the step.
+    /// </para>
+    ///
+    /// <para>
+    /// Spaced at the mesh's own mean edge, which is what the trace uses, so a re-walked span is spaced
+    /// like the rest of the line rather than like the walk that produced it. The ends are kept exactly:
+    /// they are the anchors, and a span that does not meet its own handles leaves a step at the join.
+    /// </para>
+    /// </summary>
+    private static List<Vector3> Even(List<Vector3> points, float spacing)
+    {
+        if (points.Count < 3 || spacing <= 1e-4f) return points;
+
+        var cumulative = new float[points.Count];
+        for (int i = 1; i < points.Count; i++)
+            cumulative[i] = cumulative[i - 1] + Vector3.Distance(points[i - 1], points[i]);
+
+        float total = cumulative[^1];
+
+        // Nothing to divide: a span shorter than one step is already as even as it can be, and
+        // resampling it would only round its two ends together.
+        if (total <= spacing) return points;
+
+        int steps = Math.Max(2, (int)MathF.Round(total / spacing));
+        var even = new List<Vector3>(steps + 1) { points[0] };
+
+        int segment = 0;
+        for (int k = 1; k < steps; k++)
+        {
+            float target = total * k / steps;
+            while (segment < points.Count - 2 && cumulative[segment + 1] < target) segment++;
+
+            float span = cumulative[segment + 1] - cumulative[segment];
+            float t = span > 1e-6f ? Math.Clamp((target - cumulative[segment]) / span, 0f, 1f) : 0f;
+            even.Add(Vector3.Lerp(points[segment], points[segment + 1], t));
+        }
+
+        even.Add(points[^1]);
+        return even;
     }
 }
