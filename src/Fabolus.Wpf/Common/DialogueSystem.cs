@@ -20,9 +20,11 @@ public sealed class DialogueSystem : IDialogueSystem {
         MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)
             == MessageBoxResult.Yes;
 
+    private GeneralPreferences General => _messenger.GetSection(GeneralPreferences.Default);
+
     public Maybe<string> ShowOpenFolderDialogue(string initialDirectory = "") {
         if (string.IsNullOrWhiteSpace(initialDirectory)) {
-            initialDirectory = (string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFolderLabel)).Response;
+            initialDirectory = General.ExportFolder;
         }
 
         var dialog = new OpenFolderDialog {
@@ -36,8 +38,8 @@ public sealed class DialogueSystem : IDialogueSystem {
     }
 
     public Maybe<string> ShowOpenFileDialog(string filter) {
-        var defaultFolder = (string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultImportFolderLabel)).Response;
-        
+        var defaultFolder = General.ImportFolder;
+
         var dialog = new OpenFileDialog {
             Filter = filter,
             Multiselect = false,
@@ -51,8 +53,8 @@ public sealed class DialogueSystem : IDialogueSystem {
     }
 
     public Maybe<string> ShowSaveFileDialog(string filter, string defaultExtension) {
-        var defaultFolder = (string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFolderLabel)).Response;
-        
+        var defaultFolder = General.ExportFolder;
+
         var dialog = new SaveFileDialog {
             Filter = filter,
             DefaultExt = defaultExtension,

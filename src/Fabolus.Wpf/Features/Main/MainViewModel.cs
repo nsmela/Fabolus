@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,7 +14,6 @@ using Fabolus.Wpf.Features.Moulding;
 using Fabolus.Wpf.Features.Rotatation;
 using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
-using Fabolus.Wpf.Pages.Preferences;
 using Fabolus.Wpf.Features.CutSplit;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Wpf.Features.Decal;
@@ -27,7 +26,6 @@ public partial class MainViewModel : ObservableObject
     private readonly IGeometryEngine _engine;
     private readonly IDialogueSystem _dialogueSystem;
     private readonly IAlertDialog _alertDialog;
-    private readonly AppPreferencesStore _appPreferencesStore;
     private readonly IGlyphOutlineSource _glyphOutlineSource;
     private const string NoFileText = "No file loaded";
 
@@ -84,7 +82,6 @@ public partial class MainViewModel : ObservableObject
         IGeometryEngine engine,
         IDialogueSystem dialogueSystem,
         IAlertDialog alertDialog,
-        AppPreferencesStore appPreferencesStore,
         IGlyphOutlineSource? glyphOutlineSource = null)
     {
         // Optional so tests can construct without one; in the app it comes from DI as a
@@ -96,7 +93,6 @@ public partial class MainViewModel : ObservableObject
         _engine = engine;
         _dialogueSystem = dialogueSystem;
         _alertDialog = alertDialog;
-        _appPreferencesStore = appPreferencesStore;
         InfoViewModel = new InfoPanelViewModel(_messenger);
 
         _messenger.Register<WorkspaceChangedMessage>(this, (r, m) => WorkspaceUpdated(m.Workspace));
@@ -105,14 +101,7 @@ public partial class MainViewModel : ObservableObject
 
         // Take the new value off the message rather than reading it back from the store,
         // so this doesn't depend on which recipient the messenger notifies first.
-        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
-            if (m.Key == UISettings.ViewportBackgroundLabel) { ApplyViewportBackground(m.Value); }
-            else if (m.Key == UISettings.CutViewEnabledLabel) { ApplyCutViewPreference(m.Value); }
-            else if (m.Key == UISettings.CutViewScopeLabel) { ApplyCutViewScope(m.Value); }
-            else if (m.Key == UISettings.DecalsEnabledLabel) { ApplyDecalViewPreference(m.Value); }
-        });
-
-        _messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (r, m) => ApplyViewportBackground(m.Section.ViewportBackground));
+        _messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (r, m) => UpdateViewportBackground(m.Section.ViewportBackground));
         _messenger.Register<PreferenceSectionUpdateMessage<CutSplitPreferences>>(this, (r, m) => {
             _cutViewPreferenceEnabled = m.Section.CutViewEnabled;
             _cutViewScope = m.Section.CutScope;
@@ -126,29 +115,19 @@ public partial class MainViewModel : ObservableObject
             }
         });
 
-        PreferencesViewModel = new PreferencesViewModel(_messenger, _appPreferencesStore, _alertDialog);
+        PreferencesViewModel = new PreferencesViewModel(_messenger, _alertDialog);
 
-        ApplyViewportBackground(_messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response);
-        ApplyCutViewPreference(_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewEnabledLabel)).Response);
-        ApplyCutViewScope(_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewScopeLabel)).Response);
-        ApplyDecalViewPreference(_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalsEnabledLabel)).Response);
+        UpdateViewportBackground(_messenger.GetSection(GeneralPreferences.Default).ViewportBackground);
+
+        var cutSplit = _messenger.GetSection(CutSplitPreferences.Default);
+        _cutViewPreferenceEnabled = cutSplit.CutViewEnabled;
+        _cutViewScope = cutSplit.CutScope;
+        UpdateCutViewAvailability();
+
+        ShowDecalView = _messenger.GetSection(DecalPreferences.Default).Enabled;
 
         _ = SwitchToMeshManagerViewAsync();
 
-    }
-
-    // Stored as the enum's name; a hand-edited config can hold anything, so keep the
-    // current background rather than guessing when the value won't parse.
-    private void ApplyViewportBackground(object? pref)
-    {
-        if (pref is ViewportBackground bg)
-        {
-            UpdateViewportBackground(bg);
-        }
-        else if (pref is string s && Enum.TryParse<ViewportBackground>(s, out var parsed))
-        {
-            UpdateViewportBackground(parsed);
-        }
     }
 
     private void UpdateViewportBackground(ViewportBackground bg)
@@ -175,25 +154,6 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private void ApplyCutViewPreference(object? pref)
-    {
-        _cutViewPreferenceEnabled = pref is bool enabled && enabled;
-        UpdateCutViewAvailability();
-    }
-
-    // Stored as the enum's name; a hand-edited config can hold anything, so an unreadable
-    // value keeps the shipped default rather than guessing.
-    private void ApplyCutViewScope(object? pref)
-    {
-        if (pref is CutViewScope scope) { _cutViewScope = scope; }
-        else if (pref is string s && Enum.TryParse<CutViewScope>(s, out var parsed) && Enum.IsDefined(parsed))
-        {
-            _cutViewScope = parsed;
-        }
-
-        UpdateCutViewAvailability();
-    }
-
     private void UpdateCutViewAvailability()
     {
         bool scopeAllows = _cutViewScope switch
@@ -208,20 +168,6 @@ public partial class MainViewModel : ObservableObject
         // Narrowing the scope while the cut view is open would otherwise leave the user on a
         // view whose tab has just disappeared.
         if (!ShowCutView && CurrentView is CutSplitViewModel)
-        {
-            _ = SwitchToMeshManagerViewAsync();
-        }
-    }
-
-    // A hand-edited config can hold anything; anything that isn't a bool leaves decals on,
-    // which is the shipped default and the less surprising of the two failure modes.
-    private void ApplyDecalViewPreference(object? pref)
-    {
-        ShowDecalView = pref is not bool enabled || enabled;
-
-        // Switching the tool off while it is open would otherwise strand the user on a view
-        // they can no longer navigate back to.
-        if (!ShowDecalView && CurrentView is DecalViewModel)
         {
             _ = SwitchToMeshManagerViewAsync();
         }

@@ -1,4 +1,6 @@
 using Fabolus.Core.Features.Moulds;
+using Fabolus.Wpf.Features;
+using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Moulding;
 
@@ -12,9 +14,11 @@ public sealed record MouldPreferences(
     float TroughHeight,
     float TroughOffset,
     TroughShapeType TroughShape
-) : IPreferenceSettings
+) : IPreferenceSettings<MouldPreferences>
 {
-    public static readonly MouldPreferences Default = new(
+    public static string SectionKey => "mould";
+
+    public static MouldPreferences Default { get; } = new(
         Shape: MouldShapeType.Concave,
         WallThickness: 2.0f,
         BaseHeight: 5.0f,
@@ -33,6 +37,39 @@ public sealed record MouldPreferences(
         public const float TroughHeightMax = 10.0f;
         public const float TroughOffsetMin = 1.0f;
         public const float TroughOffsetMax = 10.0f;
+    }
+
+    public static class Keys
+    {
+        public const string Shape = "mould_shape";
+        public const string WallThickness = "mould_wall_thickness";
+        public const string BaseHeight = "mould_base_height";
+        public const string TroughHeight = "mould_trough_height";
+        public const string TroughOffset = "mould_trough_offset";
+        public const string TroughShape = "mould_trough_shape";
+    }
+
+    public static MouldPreferences Read(IPreferenceReader reader) => new(
+        reader.GetEnum(Keys.Shape, "Mould shape", Default.Shape),
+        reader.GetFloat(Keys.WallThickness, "Mould wall thickness", Default.WallThickness,
+            Ranges.WallThicknessMin, Ranges.WallThicknessMax),
+        reader.GetFloat(Keys.BaseHeight, "Mould base height", Default.BaseHeight,
+            Ranges.BaseHeightMin, Ranges.BaseHeightMax),
+        reader.GetFloat(Keys.TroughHeight, "Mould trough depth", Default.TroughHeight,
+            Ranges.TroughHeightMin, Ranges.TroughHeightMax),
+        reader.GetFloat(Keys.TroughOffset, "Mould trough margin", Default.TroughOffset,
+            Ranges.TroughOffsetMin, Ranges.TroughOffsetMax),
+        reader.GetEnum(Keys.TroughShape, "Mould trough shape", Default.TroughShape)
+    );
+
+    public void Write(IPreferenceWriter writer)
+    {
+        writer.SetEnum(Keys.Shape, Shape);
+        writer.Set(Keys.WallThickness, WallThickness);
+        writer.Set(Keys.BaseHeight, BaseHeight);
+        writer.Set(Keys.TroughHeight, TroughHeight);
+        writer.Set(Keys.TroughOffset, TroughOffset);
+        writer.SetEnum(Keys.TroughShape, TroughShape);
     }
 
     public MouldDefinition ToMouldDefinition()

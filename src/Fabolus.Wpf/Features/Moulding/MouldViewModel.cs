@@ -298,17 +298,19 @@ public partial class MouldViewModel : ObservableObject, IViewState
         _sceneManager.StrokeCompleted += OnStrokeCompleted;
 
         _syncingSelection = true;
-        ChannelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
-        AutodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
+        ApplyPrintBedPreferences(_messenger.GetSection(PrintBedPreferences.Default));
         _syncingSelection = false;
 
-        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
-            if (m.Key == UISettings.ChannelDiameterLabel) {
-                ChannelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
-            } else if (m.Key == UISettings.AutodetectChannelsLabel) {
-                AutodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
-            }
-        });
+        _messenger.Register<PreferenceSectionUpdateMessage<PrintBedPreferences>>(
+            this, (r, m) => ApplyPrintBedPreferences(m.Section));
+    }
+
+    // Air-channel defaults are stored alongside the print bed; the panel mirrors them so a
+    // change in preferences shows up here without reopening the view.
+    private void ApplyPrintBedPreferences(PrintBedPreferences bed)
+    {
+        ChannelDiameter = bed.ChannelDiameter;
+        AutodetectChannels = bed.AutodetectChannels;
     }
 
     private void OnStrokeUpdated(IReadOnlyList<Vector3> points)

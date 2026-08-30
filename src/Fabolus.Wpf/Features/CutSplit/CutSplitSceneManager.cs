@@ -1,4 +1,5 @@
-﻿using Fabolus.Core.Geometry;
+﻿using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
@@ -16,7 +17,7 @@ public class CutSplitSceneManager : ISceneManager
     private readonly Material _topSkin = Skins.Surface.SkyBlue;
     private readonly Material _bottomSkin = Skins.Surface.Orange;
 
-    private readonly Element3D _grid;
+    private readonly PrintBedGrid _grid;
     private CrossSectionMeshGeometryModel3D? _topModel;
     private CrossSectionMeshGeometryModel3D? _bottomModel;
     private MeshGeometryModel3D? _planeVisual;
@@ -35,10 +36,16 @@ public class CutSplitSceneManager : ISceneManager
     // We can expose an event for widget manipulation if we had one
     public event Action<System.Numerics.Vector3, System.Numerics.Vector3>? PlaneChanged;
 
-    public CutSplitSceneManager(IGeometryEngine engine)
+    public CutSplitSceneManager(IGeometryEngine engine, IMessenger messenger)
     {
         _engine = engine;
-        _grid = SceneHelpers.GenerateGrid();
+
+        _grid = new PrintBedGrid(messenger);
+        _grid.Replaced += (replacedId, grid) =>
+        {
+            VisualRemovedById?.Invoke(replacedId);
+            VisualAddedOrUpdated?.Invoke(grid);
+        };
     }
 
     private IMesh? _activeMesh;
@@ -243,7 +250,7 @@ public class CutSplitSceneManager : ISceneManager
     public void OnActivated()
     {
         VisualsCleared?.Invoke();
-        VisualAddedOrUpdated?.Invoke(_grid);
+        VisualAddedOrUpdated?.Invoke(_grid.Current);
         if (_topModel is not null) VisualAddedOrUpdated?.Invoke(_topModel);
         if (_bottomModel is not null) VisualAddedOrUpdated?.Invoke(_bottomModel);
         if (_planeVisual is not null) VisualAddedOrUpdated?.Invoke(_planeVisual);

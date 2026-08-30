@@ -54,7 +54,7 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         _dialogue = dialogue;
 
         _cutFeature = new CutMeshFeature(engine);
-        _sceneManager = new CutSplitSceneManager(engine);
+        _sceneManager = new CutSplitSceneManager(engine, messenger);
         
         _sceneManager.PlaneChanged += (origin, normal) => {
             _isUpdatingFromScene = true;

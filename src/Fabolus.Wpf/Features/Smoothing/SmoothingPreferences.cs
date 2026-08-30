@@ -1,4 +1,6 @@
 using Fabolus.Core.Features.Smoothing;
+using Fabolus.Wpf.Features;
+using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Smoothing;
 
@@ -12,9 +14,11 @@ public sealed record SmoothingPreferences(
     float RemeshRatio,
     float Resolution,
     SmoothDisplayMode DisplayMode
-) : IPreferenceSettings
+) : IPreferenceSettings<SmoothingPreferences>
 {
-    public static readonly SmoothingPreferences Default = new(
+    public static string SectionKey => "smoothing";
+
+    public static SmoothingPreferences Default { get; } = new(
         Iterations: 1,
         Intensity: 1.5f,
         Inflation: 0.2f,
@@ -35,6 +39,40 @@ public sealed record SmoothingPreferences(
         public const float RemeshRatioMax = 2.0f;
         public const float ResolutionMin = 0.25f;
         public const float ResolutionMax = 4.0f;
+    }
+
+    public static class Keys
+    {
+        public const string Iterations = "smooth_iterations";
+        public const string Intensity = "smooth_intensity";
+        public const string Inflation = "smooth_inflation";
+        public const string RemeshRatio = "smooth_remesh_ratio";
+        public const string Resolution = "smooth_resolution";
+        public const string DisplayMode = "smooth_display_mode";
+    }
+
+    public static SmoothingPreferences Read(IPreferenceReader reader) => new(
+        reader.GetInt(Keys.Iterations, "Smoothing iterations", Default.Iterations,
+            Ranges.IterationsMin, Ranges.IterationsMax),
+        reader.GetFloat(Keys.Intensity, "Smoothing intensity", Default.Intensity,
+            Ranges.IntensityMin, Ranges.IntensityMax),
+        reader.GetFloat(Keys.Inflation, "Smoothing inflation", Default.Inflation,
+            Ranges.InflationMin, Ranges.InflationMax),
+        reader.GetFloat(Keys.RemeshRatio, "Smoothing triangle ratio", Default.RemeshRatio,
+            Ranges.RemeshRatioMin, Ranges.RemeshRatioMax),
+        reader.GetFloat(Keys.Resolution, "Smoothing smoothness", Default.Resolution,
+            Ranges.ResolutionMin, Ranges.ResolutionMax),
+        reader.GetEnum(Keys.DisplayMode, "Smoothing display mode", Default.DisplayMode)
+    );
+
+    public void Write(IPreferenceWriter writer)
+    {
+        writer.Set(Keys.Iterations, Iterations);
+        writer.Set(Keys.Intensity, Intensity);
+        writer.Set(Keys.Inflation, Inflation);
+        writer.Set(Keys.RemeshRatio, RemeshRatio);
+        writer.Set(Keys.Resolution, Resolution);
+        writer.SetEnum(Keys.DisplayMode, DisplayMode);
     }
 
     public SmoothSettings ToSmoothSettings() => new(

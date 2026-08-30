@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Windows.Data;
@@ -8,24 +8,34 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Wpf.Common;
-using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.CutSplit;
+using Fabolus.Wpf.Features.Decal;
+using Fabolus.Wpf.Features.Moulding;
+using Fabolus.Wpf.Features.Rotatation;
 using Fabolus.Wpf.Features.Smoothing;
 using Microsoft.Win32;
 
-namespace Fabolus.Wpf.Pages.Preferences;
+namespace Fabolus.Wpf.Features.AppPreferences;
 
 public partial class PreferencesViewModel : ObservableObject
 {
     private readonly IMessenger _messenger;
-    private readonly AppPreferencesStore _store;
     private readonly IAlertDialog _alert;
 
     // ---- Navigation ----------------------------------------------------
-    [ObservableProperty] private string _selectedCategoryKey = "general";
     [ObservableProperty] private string _searchText = string.Empty;
 
-    public ObservableCollection<PreferenceCategory> Categories { get; }
-    public ICollectionView FilteredCategories { get; }
+    private readonly IReadOnlyList<IPreferenceSection> _sections;
+    private readonly Dictionary<string, IReadOnlyList<PreferenceRow>> _rowsBySection = [];
+
+    /// <summary>The sidebar, filtered by the search box.</summary>
+    public ObservableCollection<IPreferenceSection> Sections { get; } = [];
+
+    [ObservableProperty] private IPreferenceSection? _selectedSection;
+
+    /// <summary>Rows of the open page. Built once per page and reused.</summary>
+    public IReadOnlyList<PreferenceRow> Rows =>
+        SelectedSection is null ? [] : _rowsBySection[SelectedSection.Key];
 
     // ---- Folders -------------------------------------------------------
     [ObservableProperty] private string _importFilepath = string.Empty;
@@ -98,293 +108,245 @@ public partial class PreferencesViewModel : ObservableObject
     public IReadOnlyList<ScopeOption> ScopeOptions { get; } =
         Enum.GetValues<DecalAutoPlaceScope>().Select(s => new ScopeOption(s, s.ToLabel())).ToList();
 
-    public PreferencesViewModel(IMessenger messenger, AppPreferencesStore store, IAlertDialog alert)
+    /// <param name="sections">
+    /// The pages to show. Defaults to the shipped catalogue; overridden by tests.
+    /// </param>
+    public PreferencesViewModel(
+        IMessenger messenger,
+        IAlertDialog alert,
+        IEnumerable<IPreferenceSection>? sections = null)
     {
         _messenger = messenger;
-        _store = store;
         _alert = alert;
+        _sections = sections is null
+            ? PreferenceSectionCatalog.Default
+            : PreferenceSectionCatalog.Sort(sections);
 
-        // ---- Folders & General ----
-        _importFilepath = (string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultImportFolderLabel)).Response;
-        _exportFilepath = (string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFolderLabel)).Response;
-        _exportFormat = Enum.Parse<ExportFormat>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DefaultExportFormatLabel)).Response);
+        // Each section arrives already validated by its own Clamped(), so nothing here has to
+        // re-parse strings or guard against a value the running build no longer recognises.
+        var general = _messenger.GetSection(GeneralPreferences.Default);
+        _importFilepath = general.ImportFolder;
+        _exportFilepath = general.ExportFolder;
+        _exportFormat = general.ExportFormat;
+        _viewportBackground = general.ViewportBackground;
 
-        // ---- Print Bed ----
-        _printbedWidth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
-        _printbedDepth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
-        _showBedGrid = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
+        var bed = _messenger.GetSection(PrintBedPreferences.Default);
+        _printbedWidth = bed.Width;
+        _printbedDepth = bed.Depth;
+        _showBedGrid = bed.ShowGrid;
+        _autodetectChannels = bed.AutodetectChannels;
+        _channelDiameter = bed.ChannelDiameter;
 
-        // ---- Air Channels ----
-        _autodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
-        _channelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
+        var cutSplit = _messenger.GetSection(CutSplitPreferences.Default);
+        _enableCutView = cutSplit.CutViewEnabled;
+        _cutScope = cutSplit.CutScope;
+        _enableSplitView = cutSplit.SplitViewEnabled;
 
-        // ---- Appearance ----
-        _viewportBackground = Enum.Parse<ViewportBackground>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ViewportBackgroundLabel)).Response);
+        var decal = _messenger.GetSection(DecalPreferences.Default);
+        _enableDecals = decal.Enabled;
+        _decalPlacementScope = decal.Scope;
+        _autoPlaceFilename = decal.AutoPlaceFilename;
+        _filenameAnchor = decal.FilenameAnchor;
+        _autoPlaceVolume = decal.AutoPlaceVolume;
+        _volumeAnchor = decal.VolumeAnchor;
+        _decalDefaultFont = decal.Font;
+        _decalCapHeight = decal.CapHeight;
+        _decalDepth = decal.Depth;
+        _decalOperation = decal.Operation;
 
-        // ---- Cut / Split ----
-        _enableSplitView = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SplitViewEnabledLabel)).Response;
-        _enableCutView = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewEnabledLabel)).Response;
-        _cutScope = Enum.Parse<CutViewScope>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.CutViewScopeLabel)).Response);
+        var smooth = _messenger.GetSection(SmoothingPreferences.Default);
+        _smoothIterations = smooth.Iterations;
+        _smoothIntensity = smooth.Intensity;
+        _smoothInflation = smooth.Inflation;
+        _smoothRemeshRatio = smooth.RemeshRatio;
+        _smoothResolution = smooth.Resolution;
+        _smoothDisplay = smooth.DisplayMode;
 
-        // ---- Decals ----
-        _enableDecals = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalsEnabledLabel)).Response;
-        _decalPlacementScope = Enum.Parse<DecalAutoPlaceScope>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalAutoPlaceScopeLabel)).Response);
-        _autoPlaceFilename = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalAutoPlaceFilenameLabel)).Response;
-        _filenameAnchor = Enum.Parse<DecalAnchor>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalFilenameAnchorLabel)).Response);
-        _autoPlaceVolume = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalAutoPlaceVolumeLabel)).Response;
-        _volumeAnchor = Enum.Parse<DecalAnchor>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalVolumeAnchorLabel)).Response);
-        _decalDefaultFont = Enum.Parse<DecalFont>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalDefaultFontLabel)).Response);
-        _decalCapHeight = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalDefaultCapHeightLabel)).Response;
-        _decalDepth = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalDefaultDepthLabel)).Response;
-        _decalOperation = Enum.Parse<EmbossOperation>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.DecalDefaultOperationLabel)).Response);
+        var rotation = _messenger.GetSection(RotationPreferences.Default);
+        _overhangWarningAngle = rotation.OverhangWarningAngle;
+        _overhangCriticalAngle = rotation.OverhangCriticalAngle;
 
-        // ---- Smoothing ----
-        _smoothIterations = (int)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothIterationsLabel)).Response;
-        _smoothIntensity = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothIntensityLabel)).Response;
-        _smoothInflation = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothInflationLabel)).Response;
-        _smoothRemeshRatio = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothRemeshRatioLabel)).Response;
-        _smoothResolution = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothResolutionLabel)).Response;
-        _smoothDisplay = Enum.Parse<SmoothDisplayMode>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.SmoothDisplayModeLabel)).Response);
+        var mould = _messenger.GetSection(MouldPreferences.Default);
+        _mouldShape = mould.Shape;
+        _mouldWallThickness = mould.WallThickness;
+        _mouldBaseHeight = mould.BaseHeight;
+        _mouldTroughHeight = mould.TroughHeight;
+        _mouldTroughOffset = mould.TroughOffset;
+        _mouldTroughShape = mould.TroughShape;
 
-        // ---- Rotation ----
-        _overhangWarningAngle = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.OverhangWarningAngleLabel)).Response;
-        _overhangCriticalAngle = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.OverhangCriticalAngleLabel)).Response;
-
-        // ---- Mould ----
-        _mouldShape = Enum.Parse<MouldShapeType>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldShapeLabel)).Response);
-        _mouldWallThickness = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldWallThicknessLabel)).Response;
-        _mouldBaseHeight = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldBaseHeightLabel)).Response;
-        _mouldTroughHeight = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldTroughHeightLabel)).Response;
-        _mouldTroughOffset = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldTroughOffsetLabel)).Response;
-        _mouldTroughShape = Enum.Parse<TroughShapeType>((string)_messenger.Send(new AppPreferenceRequestMessage(UISettings.MouldTroughShapeLabel)).Response);
-
-        Categories = new ObservableCollection<PreferenceCategory> {
-            new() { Key = "general",      Name = "General",      Keywords = "folder import export format file", Icon = GetIcon("Icon.Preferences.General") },
-            new() { Key = "bed",          Name = "Print Bed",    Keywords = "width depth height size volume grid", Icon = GetIcon("Icon.Preferences.PrintBed") },
-            new() { Key = "rotation",     Name = "Rotation",     Keywords = "rotate overhang angle threshold warning critical support", Icon = GetIcon("Icon.Preferences.Rotation") },
-            new() { Key = "smoothing",    Name = "Smoothing",    Keywords = "smooth intensity inflation iterations triangle ratio resolution voxel display heatmap cross section", Icon = GetIcon("Icon.Preferences.Smoothing") },
-            new() { Key = "cut",          Name = "Cut",          Keywords = "cut view toggle base mould scope", Icon = GetIcon("Icon.Preferences.Cut") },
-            new() { Key = "split",        Name = "Split",        Keywords = "split parting line view toggle", Icon = GetIcon("Icon.Preferences.Split") },
-            new() { Key = "channels",     Name = "Air Channels", Keywords = "autodetect diameter vent",           Icon = GetIcon("Icon.Preferences.Channels") },
-            new() { Key = "mould",        Name = "Mould",        Keywords = "shape convex concave contoured wall thickness base height trough depth margin", Icon = GetIcon("Icon.Preferences.Mould") },
-            new() { Key = "decals",       Name = "Decals",       Keywords = "text emboss engrave font label filename volume anchor", Icon = GetIcon("Icon.Preferences.Decals") },
-            new() { Key = "appearance",   Name = "Appearance",   Keywords = "theme viewport background",          Icon = GetIcon("Icon.Preferences.Appearance") },
-        };
-
-        FilteredCategories = CollectionViewSource.GetDefaultView(Categories);
-        FilteredCategories.Filter = o => o is PreferenceCategory c && c.Matches(SearchText);
-    }
-
-    private static System.Windows.Media.Geometry GetIcon(string resourceKey)
-    {
-        if (System.Windows.Application.Current?.TryFindResource(resourceKey) is System.Windows.Media.Geometry geo)
+        foreach (var section in _sections)
         {
-            return geo;
+            _rowsBySection[section.Key] = section.BuildRows(this);
         }
-        return System.Windows.Media.Geometry.Empty;
+
+        RefreshSectionList();
     }
 
-    partial void OnSearchTextChanged(string value)
+    /// <summary>Re-applies the search filter, keeping a page open if it still matches.</summary>
+    private void RefreshSectionList()
     {
-        FilteredCategories.Refresh();
-        // If the active category was filtered out, jump to the first visible one.
-        var stillVisible = Categories.Any(c => c.Key == SelectedCategoryKey && c.Matches(value));
-        if (!stillVisible)
+        var previous = SelectedSection;
+
+        Sections.Clear();
+        foreach (var section in _sections.Where(s => s.Matches(SearchText)))
         {
-            var first = FilteredCategories.Cast<PreferenceCategory>().FirstOrDefault();
-            if (first is not null) { SelectedCategoryKey = first.Key; }
+            Sections.Add(section);
+        }
+
+        if (previous is not null && Sections.Contains(previous)) { return; }
+
+        SelectedSection = Sections.FirstOrDefault();
+    }
+
+    partial void OnSearchTextChanged(string value) => RefreshSectionList();
+
+    partial void OnSelectedSectionChanged(IPreferenceSection? value)
+    {
+        OnPropertyChanged(nameof(Rows));
+        RefreshRows();
+    }
+
+    /// <summary>
+    /// Rows read their values straight off this view model, so anything that changes a property
+    /// from underneath them - restore defaults, an import, a dependent row being switched off -
+    /// has to tell them to look again.
+    /// </summary>
+    private void RefreshRows()
+    {
+        if (SelectedSection is null) { return; }
+
+        foreach (var row in _rowsBySection[SelectedSection.Key])
+        {
+            row.Refresh();
         }
     }
 
     // ---- Change notifications → store ---------------------------------
-    partial void OnImportFilepathChanged(string? oldValue, string newValue)
+
+    /// <summary>
+    /// Set while a whole profile is being written, so restoring defaults or importing a file
+    /// saves each affected section once at the end rather than once per property it touches.
+    /// </summary>
+    private bool _applyingProfile;
+
+    /// <summary>
+    /// Routes a changed property to the section that owns it, and saves that section.
+    ///
+    /// [ObservableProperty] only raises this when the value actually changed, so an assignment
+    /// that matches what is already there costs nothing - the per-property equality guards the
+    /// old handlers carried were doing work SetProperty had already done.
+    /// </summary>
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
     {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultImportFolderLabel, newValue));
+        base.OnPropertyChanged(e);
+
+        // One preference can gate another - the decal defaults under the decal switch, the
+        // trough rows under a non-contoured shape - so any change re-reads the visible rows.
+        if (e.PropertyName is not (nameof(Rows) or nameof(SearchText) or nameof(SelectedSection)))
+        {
+            RefreshRows();
+        }
+
+        if (_applyingProfile) { return; }
+
+        switch (e.PropertyName)
+        {
+            case nameof(ImportFilepath):
+            case nameof(ExportFilepath):
+            case nameof(ExportFormat):
+            case nameof(ViewportBackground):
+                _messenger.SaveSection(CaptureGeneral());
+                break;
+
+            case nameof(PrintbedWidth):
+            case nameof(PrintbedDepth):
+            case nameof(ShowBedGrid):
+            case nameof(AutodetectChannels):
+            case nameof(ChannelDiameter):
+                _messenger.SaveSection(CapturePrintBed());
+                break;
+
+            case nameof(EnableCutView):
+            case nameof(CutScope):
+            case nameof(EnableSplitView):
+                _messenger.SaveSection(CaptureCutSplit());
+                break;
+
+            case nameof(EnableDecals):
+            case nameof(DecalPlacementScope):
+            case nameof(AutoPlaceFilename):
+            case nameof(FilenameAnchor):
+            case nameof(AutoPlaceVolume):
+            case nameof(VolumeAnchor):
+            case nameof(DecalDefaultFont):
+            case nameof(DecalCapHeight):
+            case nameof(DecalDepth):
+            case nameof(DecalOperation):
+                _messenger.SaveSection(CaptureDecal());
+                break;
+
+            case nameof(SmoothIterations):
+            case nameof(SmoothIntensity):
+            case nameof(SmoothInflation):
+            case nameof(SmoothRemeshRatio):
+            case nameof(SmoothResolution):
+            case nameof(SmoothDisplay):
+                _messenger.SaveSection(CaptureSmoothing());
+                break;
+
+            case nameof(OverhangWarningAngle):
+            case nameof(OverhangCriticalAngle):
+                _messenger.SaveSection(CaptureRotation());
+                break;
+
+            case nameof(MouldShape):
+            case nameof(MouldWallThickness):
+            case nameof(MouldBaseHeight):
+            case nameof(MouldTroughHeight):
+            case nameof(MouldTroughOffset):
+            case nameof(MouldTroughShape):
+                _messenger.SaveSection(CaptureMould());
+                break;
+        }
     }
 
-    partial void OnExportFilepathChanged(string? oldValue, string newValue)
+    // ---- Section captures ----------------------------------------------
+
+    private GeneralPreferences CaptureGeneral() =>
+        new(ImportFilepath, ExportFilepath, ExportFormat, ViewportBackground);
+
+    private PrintBedPreferences CapturePrintBed() =>
+        new(PrintbedWidth, PrintbedDepth, ShowBedGrid, AutodetectChannels, ChannelDiameter);
+
+    private CutSplitPreferences CaptureCutSplit() =>
+        new(EnableCutView, CutScope, EnableSplitView);
+
+    private DecalPreferences CaptureDecal() =>
+        new(EnableDecals, DecalPlacementScope, AutoPlaceFilename, FilenameAnchor, AutoPlaceVolume,
+            VolumeAnchor, DecalDefaultFont, DecalCapHeight, DecalDepth, DecalOperation);
+
+    private SmoothingPreferences CaptureSmoothing() =>
+        new(SmoothIterations, SmoothIntensity, SmoothInflation, SmoothRemeshRatio, SmoothResolution, SmoothDisplay);
+
+    private RotationPreferences CaptureRotation() =>
+        new(OverhangWarningAngle, OverhangCriticalAngle);
+
+    private MouldPreferences CaptureMould() =>
+        new(MouldShape, MouldWallThickness, MouldBaseHeight, MouldTroughHeight, MouldTroughOffset, MouldTroughShape);
+
+    /// <summary>Saves every section. Used after a profile has been written onto the properties.</summary>
+    private void SaveAllSections()
     {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultExportFolderLabel, newValue));
+        _messenger.SaveSection(CaptureGeneral());
+        _messenger.SaveSection(CapturePrintBed());
+        _messenger.SaveSection(CaptureCutSplit());
+        _messenger.SaveSection(CaptureDecal());
+        _messenger.SaveSection(CaptureSmoothing());
+        _messenger.SaveSection(CaptureRotation());
+        _messenger.SaveSection(CaptureMould());
     }
-
-    partial void OnExportFormatChanged(ExportFormat value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DefaultExportFormatLabel, value));
-
-    partial void OnPrintbedWidthChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.PrintBedWidthLabel, newValue));
-    }
-
-    partial void OnPrintbedDepthChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.PrintBedDepthLabel, newValue));
-    }
-
-    partial void OnShowBedGridChanged(bool value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.ShowBedGridLabel, value));
-
-    partial void OnAutodetectChannelsChanged(bool oldValue, bool newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.AutodetectChannelsLabel, newValue));
-    }
-
-    partial void OnChannelDiameterChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.ChannelDiameterLabel, newValue));
-    }
-
-
-    partial void OnViewportBackgroundChanged(ViewportBackground value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.ViewportBackgroundLabel, value));
-
-    partial void OnEnableSplitViewChanged(bool oldValue, bool newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.SplitViewEnabledLabel, newValue));
-    }
-
-    partial void OnEnableCutViewChanged(bool oldValue, bool newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.CutViewEnabledLabel, newValue));
-    }
-
-    partial void OnEnableDecalsChanged(bool oldValue, bool newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalsEnabledLabel, newValue));
-    }
-
-    partial void OnDecalPlacementScopeChanged(DecalAutoPlaceScope value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalAutoPlaceScopeLabel, value));
-
-    partial void OnAutoPlaceFilenameChanged(bool oldValue, bool newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalAutoPlaceFilenameLabel, newValue));
-    }
-
-    partial void OnFilenameAnchorChanged(DecalAnchor value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalFilenameAnchorLabel, value));
-
-    partial void OnAutoPlaceVolumeChanged(bool oldValue, bool newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalAutoPlaceVolumeLabel, newValue));
-    }
-
-    partial void OnVolumeAnchorChanged(DecalAnchor value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalVolumeAnchorLabel, value));
-
-    partial void OnDecalDefaultFontChanged(DecalFont value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalDefaultFontLabel, value));
-
-    partial void OnDecalCapHeightChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalDefaultCapHeightLabel, newValue));
-    }
-
-    partial void OnDecalDepthChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalDefaultDepthLabel, newValue));
-    }
-
-    partial void OnDecalOperationChanged(EmbossOperation value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.DecalDefaultOperationLabel, value));
-
-    partial void OnSmoothIterationsChanged(int oldValue, int newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.SmoothIterationsLabel, newValue));
-    }
-
-    partial void OnSmoothIntensityChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.SmoothIntensityLabel, newValue));
-    }
-
-    partial void OnSmoothInflationChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.SmoothInflationLabel, newValue));
-    }
-
-    partial void OnSmoothRemeshRatioChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.SmoothRemeshRatioLabel, newValue));
-    }
-
-    partial void OnSmoothResolutionChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.SmoothResolutionLabel, newValue));
-    }
-
-    partial void OnSmoothDisplayChanged(SmoothDisplayMode value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.SmoothDisplayModeLabel, value));
-
-    partial void OnOverhangWarningAngleChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.OverhangWarningAngleLabel, newValue));
-    }
-
-    partial void OnOverhangCriticalAngleChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.OverhangCriticalAngleLabel, newValue));
-    }
-
-    partial void OnCutScopeChanged(CutViewScope value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.CutViewScopeLabel, value));
-
-    partial void OnMouldShapeChanged(MouldShapeType oldValue, MouldShapeType newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.MouldShapeLabel, newValue));
-    }
-
-    partial void OnMouldWallThicknessChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.MouldWallThicknessLabel, newValue));
-    }
-
-    partial void OnMouldBaseHeightChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.MouldBaseHeightLabel, newValue));
-    }
-
-    partial void OnMouldTroughHeightChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.MouldTroughHeightLabel, newValue));
-    }
-
-    partial void OnMouldTroughOffsetChanged(float oldValue, float newValue)
-    {
-        if (oldValue == newValue) { return; }
-        _messenger.Send(new AppPreferenceUpdateMessage(UISettings.MouldTroughOffsetLabel, newValue));
-    }
-
-    partial void OnMouldTroughShapeChanged(TroughShapeType value)
-        => _messenger.Send(new AppPreferenceUpdateMessage(UISettings.MouldTroughShapeLabel, value));
 
     // ---- Commands ------------------------------------------------------
-    [RelayCommand]
-    private void SelectCategory(string key) => SelectedCategoryKey = key;
-
     [RelayCommand]
     private void SetImportFolder()
     {
@@ -414,97 +376,98 @@ public partial class PreferencesViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void RestoreDefaults() => Apply(PreferenceProfile.Defaults);
+    private void RestoreDefaults() => Apply(PreferenceBag.FromDefaults());
 
     // ---- Profile import / export ---------------------------------------
 
-    /// <summary>Everything currently set, as one value, for export.</summary>
-    private PreferenceProfile Capture() => new()
+    /// <summary>Everything currently set, for export.</summary>
+    private PreferenceBag Capture()
     {
-        ImportFolder = ImportFilepath,
-        ExportFolder = ExportFilepath,
-        ExportFormat = ExportFormat,
-        PrintBedWidth = PrintbedWidth,
-        PrintBedDepth = PrintbedDepth,
-        ShowBedGrid = ShowBedGrid,
-        AutodetectChannels = AutodetectChannels,
-        ChannelDiameter = ChannelDiameter,
-        ViewportBackground = ViewportBackground,
-        SplitViewEnabled = EnableSplitView,
-        CutViewEnabled = EnableCutView,
-        CutScope = CutScope,
-        MouldShape = MouldShape,
-        MouldWallThickness = MouldWallThickness,
-        MouldBaseHeight = MouldBaseHeight,
-        MouldTroughHeight = MouldTroughHeight,
-        MouldTroughOffset = MouldTroughOffset,
-        MouldTroughShape = MouldTroughShape,
-        DecalsEnabled = EnableDecals,
-        DecalScope = DecalPlacementScope,
-        AutoPlaceFilename = AutoPlaceFilename,
-        FilenameAnchor = FilenameAnchor,
-        AutoPlaceVolume = AutoPlaceVolume,
-        VolumeAnchor = VolumeAnchor,
-        DecalFont = DecalDefaultFont,
-        DecalCapHeight = DecalCapHeight,
-        DecalDepth = DecalDepth,
-        DecalOperation = DecalOperation,
-        SmoothIterations = SmoothIterations,
-        SmoothIntensity = SmoothIntensity,
-        SmoothInflation = SmoothInflation,
-        SmoothRemeshRatio = SmoothRemeshRatio,
-        SmoothResolution = SmoothResolution,
-        SmoothDisplay = SmoothDisplay,
-        OverhangWarningAngle = OverhangWarningAngle,
-        OverhangCriticalAngle = OverhangCriticalAngle,
-    };
+        var bag = new PreferenceBag();
+        CaptureGeneral().Write(bag);
+        CapturePrintBed().Write(bag);
+        CaptureCutSplit().Write(bag);
+        CaptureDecal().Write(bag);
+        CaptureSmoothing().Write(bag);
+        CaptureRotation().Write(bag);
+        CaptureMould().Write(bag);
+        return bag;
+    }
 
     /// <summary>
-    /// Writes a profile onto every property. Each assignment fires its own change handler,
-    /// which persists that key and notifies live consumers - so a value that already matches
-    /// costs nothing and one that differs updates the running app straight away.
+    /// Writes a profile onto every property, then saves each section once. Saving is held off
+    /// until the end so a profile touching five print-bed values persists that section once
+    /// instead of five times - and so half-written sections never reach live consumers.
     /// </summary>
-    private void Apply(PreferenceProfile p)
+    private void Apply(PreferenceBag bag)
     {
-        ImportFilepath = p.ImportFolder;
-        ExportFilepath = p.ExportFolder;
-        ExportFormat = p.ExportFormat;
-        PrintbedWidth = p.PrintBedWidth;
-        PrintbedDepth = p.PrintBedDepth;
-        ShowBedGrid = p.ShowBedGrid;
-        AutodetectChannels = p.AutodetectChannels;
-        ChannelDiameter = p.ChannelDiameter;
-        ViewportBackground = p.ViewportBackground;
-        EnableSplitView = p.SplitViewEnabled;
-        EnableCutView = p.CutViewEnabled;
-        CutScope = p.CutScope;
-        MouldShape = p.MouldShape;
-        MouldWallThickness = p.MouldWallThickness;
-        MouldBaseHeight = p.MouldBaseHeight;
-        MouldTroughHeight = p.MouldTroughHeight;
-        MouldTroughOffset = p.MouldTroughOffset;
-        MouldTroughShape = p.MouldTroughShape;
-        EnableDecals = p.DecalsEnabled;
-        DecalPlacementScope = p.DecalScope;
-        AutoPlaceFilename = p.AutoPlaceFilename;
-        FilenameAnchor = p.FilenameAnchor;
-        AutoPlaceVolume = p.AutoPlaceVolume;
-        VolumeAnchor = p.VolumeAnchor;
-        DecalDefaultFont = p.DecalFont;
-        DecalCapHeight = p.DecalCapHeight;
-        DecalDepth = p.DecalDepth;
-        DecalOperation = p.DecalOperation;
-        SmoothIterations = p.SmoothIterations;
-        SmoothIntensity = p.SmoothIntensity;
-        SmoothInflation = p.SmoothInflation;
-        SmoothRemeshRatio = p.SmoothRemeshRatio;
-        SmoothResolution = p.SmoothResolution;
-        SmoothDisplay = p.SmoothDisplay;
+        _applyingProfile = true;
+        try
+        {
+            ApplyToProperties(bag);
+        }
+        finally
+        {
+            _applyingProfile = false;
+        }
+
+        SaveAllSections();
+    }
+
+    private void ApplyToProperties(IPreferenceReader source)
+    {
+        var general = GeneralPreferences.Read(source).Clamped();
+        ImportFilepath = general.ImportFolder;
+        ExportFilepath = general.ExportFolder;
+        ExportFormat = general.ExportFormat;
+        ViewportBackground = general.ViewportBackground;
+
+        var bed = PrintBedPreferences.Read(source).Clamped();
+        PrintbedWidth = bed.Width;
+        PrintbedDepth = bed.Depth;
+        ShowBedGrid = bed.ShowGrid;
+        AutodetectChannels = bed.AutodetectChannels;
+        ChannelDiameter = bed.ChannelDiameter;
+
+        var cutSplit = CutSplitPreferences.Read(source).Clamped();
+        EnableCutView = cutSplit.CutViewEnabled;
+        CutScope = cutSplit.CutScope;
+        EnableSplitView = cutSplit.SplitViewEnabled;
+
+        var decal = DecalPreferences.Read(source).Clamped();
+        EnableDecals = decal.Enabled;
+        DecalPlacementScope = decal.Scope;
+        AutoPlaceFilename = decal.AutoPlaceFilename;
+        FilenameAnchor = decal.FilenameAnchor;
+        AutoPlaceVolume = decal.AutoPlaceVolume;
+        VolumeAnchor = decal.VolumeAnchor;
+        DecalDefaultFont = decal.Font;
+        DecalCapHeight = decal.CapHeight;
+        DecalDepth = decal.Depth;
+        DecalOperation = decal.Operation;
+
+        var smooth = SmoothingPreferences.Read(source).Clamped();
+        SmoothIterations = smooth.Iterations;
+        SmoothIntensity = smooth.Intensity;
+        SmoothInflation = smooth.Inflation;
+        SmoothRemeshRatio = smooth.RemeshRatio;
+        SmoothResolution = smooth.Resolution;
+        SmoothDisplay = smooth.DisplayMode;
+
+        var rotation = RotationPreferences.Read(source).Clamped();
         // Critical first: the range slider will not let the lower thumb pass the upper one, so
         // raising the ceiling before the floor keeps a profile with higher thresholds than the
         // current pair from being clamped on the way in.
-        OverhangCriticalAngle = p.OverhangCriticalAngle;
-        OverhangWarningAngle = p.OverhangWarningAngle;
+        OverhangCriticalAngle = rotation.OverhangCriticalAngle;
+        OverhangWarningAngle = rotation.OverhangWarningAngle;
+
+        var mould = MouldPreferences.Read(source).Clamped();
+        MouldShape = mould.Shape;
+        MouldWallThickness = mould.WallThickness;
+        MouldBaseHeight = mould.BaseHeight;
+        MouldTroughHeight = mould.TroughHeight;
+        MouldTroughOffset = mould.TroughOffset;
+        MouldTroughShape = mould.TroughShape;
     }
 
     [RelayCommand]
@@ -567,7 +530,7 @@ public partial class PreferencesViewModel : ObservableObject
 
         // Nothing is written until the file has parsed, so a rejected import leaves the
         // current preferences exactly as they were.
-        Apply(result.Profile);
+        Apply(result.Bag);
 
         if (result.Adjusted.Count == 0)
         {

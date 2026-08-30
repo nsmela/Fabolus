@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
@@ -122,6 +122,21 @@ public class LightOffsetConverter : IValueConverter {
 
         direction.Normalize();
         return direction;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
+}
+
+/// <summary>
+/// Resolves a resource key to whatever it names - a Geometry for a sidebar icon, a Brush for a
+/// unit label. Lets a preference section describe its look with a plain string and stay clear of
+/// WPF types.
+/// </summary>
+public class ResourceKeyConverter : IValueConverter {
+    public object? Convert(object value, Type targetType, object parameter, CultureInfo culture) {
+        if (value is not string key || string.IsNullOrWhiteSpace(key)) { return null; }
+        return Application.Current?.TryFindResource(key);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
