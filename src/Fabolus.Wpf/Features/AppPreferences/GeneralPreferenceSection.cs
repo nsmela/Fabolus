@@ -1,11 +1,14 @@
-namespace Fabolus.Wpf.Features.AppPreferences;
+﻿namespace Fabolus.Wpf.Features.AppPreferences;
 
-/// <summary>Default folders and export format.</summary>
+/// <summary>Default folders, export format and viewport appearance.</summary>
 public sealed class GeneralPreferenceSection : IPreferenceSection {
     public string Key => "general";
     public string Name => "General";
-    public string Description => "Default folders and export format.";
-    public string Keywords => "folder import export format file";
+    public string Description => "Default folders, export format and viewport appearance.";
+
+    // Carries the old Appearance page's terms too, so a search for "theme" or "background"
+    // still finds the setting now that it lives here.
+    public string Keywords => "folder import export format file theme viewport background appearance";
     public string IconKey => "Icon.Preferences.General";
     public int Order => 0;
 
@@ -29,21 +32,11 @@ public sealed class GeneralPreferenceSection : IPreferenceSection {
             Read = () => vm.ExportFormat,
             Write = value => vm.ExportFormat = (ExportFormat)value,
         },
-    ];
-}
 
-/// <summary>Viewport appearance.</summary>
-public sealed class AppearancePreferenceSection : IPreferenceSection {
-    public string Key => "appearance";
-    public string Name => "Appearance";
-    public string Description => "Viewport appearance.";
-    public string Keywords => "theme viewport background";
-    public string IconKey => "Icon.Preferences.Appearance";
-
-    // Trails the feature pages, where it has always sat.
-    public int Order => 900;
-
-    public IReadOnlyList<PreferenceRow> BuildRows(PreferencesViewModel vm) => [
+        // Appearance used to be a page of its own, trailing the feature pages. It held one
+        // setting, and it is stored on this same section's record, so it reads as a group here
+        // rather than a sidebar entry of its own.
+        new HeaderRow { Label = "APPEARANCE" },
         new SegmentedRow {
             Label = "Viewport background",
             Choices = [

@@ -1,4 +1,4 @@
-using Fabolus.Wpf.Features.CutSplit;
+﻿using Fabolus.Wpf.Features.CutSplit;
 using Fabolus.Wpf.Features.Decal;
 using Fabolus.Wpf.Features.Moulding;
 using Fabolus.Wpf.Features.Rotatation;
@@ -26,7 +26,6 @@ public static class PreferenceSectionCatalog {
         new AirChannelPreferenceSection(),
         new MouldPreferenceSection(),
         new DecalPreferenceSection(),
-        new AppearancePreferenceSection(),
     ]);
 
     public static IReadOnlyList<IPreferenceSection> Sort(IEnumerable<IPreferenceSection> sections) =>

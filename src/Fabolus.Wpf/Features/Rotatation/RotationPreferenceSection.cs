@@ -1,4 +1,4 @@
-using Fabolus.Wpf.Features.AppPreferences;
+﻿using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Rotatation;
 
@@ -12,7 +12,7 @@ public sealed class RotationPreferenceSection : IPreferenceSection {
     public string Description => "Overhang shading in the rotate view, in degrees from the build plate.";
     public string Keywords => "rotate overhang angle threshold warning critical support";
     public string IconKey => "Icon.Preferences.Rotation";
-    public int Order => 100;
+    public int Order => 110;
 
     public IReadOnlyList<PreferenceRow> BuildRows(PreferencesViewModel vm) => [
         // The two angles are one control: a range slider whose thumbs cannot cross. No

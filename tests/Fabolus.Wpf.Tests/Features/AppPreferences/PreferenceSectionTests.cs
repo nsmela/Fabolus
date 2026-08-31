@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -52,13 +52,34 @@ public class PreferenceSectionTests : IDisposable
         Assert.Equal(sections.Select(s => s.Key).Distinct().Count(), sections.Count);
     }
 
+    /// <summary>
+    /// Application-wide pages take Order 0-99 and features 100 and up, so a feature cannot push
+    /// General down the list. Appearance used to bookend the other end at 900; its one setting
+    /// is a group on the General page now, so the invariant is the banding itself.
+    /// </summary>
     [Fact]
-    public void Catalog_KeepsApplicationPagesAtTheEnds()
+    public void Catalog_KeepsApplicationPagesAheadOfFeaturePages()
     {
         var sections = PreferenceSectionCatalog.Default;
 
         Assert.Equal("general", sections[0].Key);
-        Assert.Equal("appearance", sections[^1].Key);
+
+        var lastApplicationPage = sections.Select((s, i) => (s, i)).Last(x => x.s.Order < 100).i;
+        var firstFeaturePage = sections.Select((s, i) => (s, i)).First(x => x.s.Order >= 100).i;
+
+        Assert.True(lastApplicationPage < firstFeaturePage,
+            "every application-wide page must come before the first feature page");
+    }
+
+    [Fact]
+    public void TheViewportBackground_LivesOnTheGeneralPage()
+    {
+        Assert.DoesNotContain(PreferenceSectionCatalog.Default, s => s.Key == "appearance");
+
+        var general = PreferenceSectionCatalog.Default.Single(s => s.Key == "general");
+        var rows = RowsOf(_viewModel, general);
+
+        Assert.Contains(rows, r => r.Label == "Viewport background");
     }
 
     [Theory]

@@ -1,4 +1,4 @@
-using Fabolus.Wpf.Features.AppPreferences;
+﻿using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Smoothing;
 
@@ -11,7 +11,7 @@ public sealed class SmoothingPreferenceSection : IPreferenceSection {
     public string Keywords =>
         "smooth intensity inflation iterations triangle ratio resolution voxel display heatmap cross section";
     public string IconKey => "Icon.Preferences.Smoothing";
-    public int Order => 110;
+    public int Order => 100;
 
     public IReadOnlyList<PreferenceRow> BuildRows(PreferencesViewModel vm) => [
         new NumberRow {
