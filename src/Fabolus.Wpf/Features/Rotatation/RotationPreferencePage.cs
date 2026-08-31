@@ -3,7 +3,7 @@
 namespace Fabolus.Wpf.Features.Rotatation;
 
 /// <summary>Overhang shading thresholds for the rotate view.</summary>
-public sealed class RotationPreferenceSection : IPreferenceSection {
+public sealed class RotationPreferencePage : IPreferencePage {
     /// <summary>Template key for the paired-threshold slider this page is built around.</summary>
     public const string OverhangRangeTemplate = "PreferenceRow.OverhangRange";
 

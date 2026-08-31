@@ -3,7 +3,7 @@
 namespace Fabolus.Wpf.Features.Smoothing;
 
 /// <summary>Starting values for the smooth view.</summary>
-public sealed class SmoothingPreferenceSection : IPreferenceSection {
+public sealed class SmoothingPreferencePage : IPreferencePage {
     public string Key => "smoothing";
     public string Name => "Smoothing";
     public string Description =>

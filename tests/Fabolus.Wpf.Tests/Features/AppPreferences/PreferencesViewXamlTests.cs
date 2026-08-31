@@ -112,7 +112,7 @@ public class PreferencesViewXamlTests {
         OnStaThread(() => {
             var view = BuildView();
 
-            var key = Fabolus.Wpf.Features.Rotatation.RotationPreferenceSection.OverhangRangeTemplate;
+            var key = Fabolus.Wpf.Features.Rotatation.RotationPreferencePage.OverhangRangeTemplate;
             var template = view.TryFindResource(key) as DataTemplate;
 
             Assert.NotNull(template);
@@ -128,7 +128,7 @@ public class PreferencesViewXamlTests {
             Assert.NotNull(selector);
 
             var custom = new CustomRow {
-                TemplateKey = Fabolus.Wpf.Features.Rotatation.RotationPreferenceSection.OverhangRangeTemplate,
+                TemplateKey = Fabolus.Wpf.Features.Rotatation.RotationPreferencePage.OverhangRangeTemplate,
                 Context = new object(),
             };
 

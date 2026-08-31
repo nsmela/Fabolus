@@ -1,9 +1,9 @@
-using Fabolus.Wpf.Features.AppPreferences;
+﻿using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.CutSplit;
 
 /// <summary>The mesh cutting tool.</summary>
-public sealed class CutPreferenceSection : IPreferenceSection {
+public sealed class CutPreferencePage : IPreferencePage {
     public string Key => "cut";
     public string Name => "Cut";
     public string Description => "The mesh cutting tool.";
@@ -29,7 +29,7 @@ public sealed class CutPreferenceSection : IPreferenceSection {
 }
 
 /// <summary>The parting-line splitting tool.</summary>
-public sealed class SplitPreferenceSection : IPreferenceSection {
+public sealed class SplitPreferencePage : IPreferencePage {
     public string Key => "split";
     public string Name => "Split";
     public string Description => "The parting-line splitting tool.";

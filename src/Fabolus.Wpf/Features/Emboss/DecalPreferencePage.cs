@@ -1,10 +1,10 @@
-using Fabolus.Core.Features.Decal;
+﻿using Fabolus.Core.Features.Decal;
 using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Decal;
 
 /// <summary>Text engraved into or embossed onto the mesh.</summary>
-public sealed class DecalPreferenceSection : IPreferenceSection {
+public sealed class DecalPreferencePage : IPreferencePage {
     public string Key => "decals";
     public string Name => "Decals";
     public string Description => "Text engraved into or embossed onto the mesh.";

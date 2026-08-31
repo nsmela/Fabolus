@@ -25,17 +25,17 @@ public partial class PreferencesViewModel : ObservableObject
     // ---- Navigation ----------------------------------------------------
     [ObservableProperty] private string _searchText = string.Empty;
 
-    private readonly IReadOnlyList<IPreferenceSection> _sections;
-    private readonly Dictionary<string, IReadOnlyList<PreferenceRow>> _rowsBySection = [];
+    private readonly IReadOnlyList<IPreferencePage> _pages;
+    private readonly Dictionary<string, IReadOnlyList<PreferenceRow>> _rowsByPage = [];
 
     /// <summary>The sidebar, filtered by the search box.</summary>
-    public ObservableCollection<IPreferenceSection> Sections { get; } = [];
+    public ObservableCollection<IPreferencePage> Pages { get; } = [];
 
-    [ObservableProperty] private IPreferenceSection? _selectedSection;
+    [ObservableProperty] private IPreferencePage? _selectedPage;
 
     /// <summary>Rows of the open page. Built once per page and reused.</summary>
     public IReadOnlyList<PreferenceRow> Rows =>
-        SelectedSection is null ? [] : _rowsBySection[SelectedSection.Key];
+        SelectedPage is null ? [] : _rowsByPage[SelectedPage.Key];
 
     // ---- Folders -------------------------------------------------------
     [ObservableProperty] private string _importFilepath = string.Empty;
@@ -100,7 +100,7 @@ public partial class PreferencesViewModel : ObservableObject
     [ObservableProperty] private float _overhangWarningAngle;
     [ObservableProperty] private float _overhangCriticalAngle;
 
-    // The overhang page draws its own range slider (see RotationPreferenceSection), so unlike a
+    // The overhang page draws its own range slider (see RotationPreferencePage), so unlike a
     // NumberRow it has no descriptor to take its limits from. It binds these instead.
     public double OverhangAngleMinimum => RotationPreferences.Ranges.OverhangAngleMin;
     public double OverhangAngleMaximum => RotationPreferences.Ranges.OverhangAngleMax;
@@ -114,21 +114,21 @@ public partial class PreferencesViewModel : ObservableObject
     public IReadOnlyList<ScopeOption> ScopeOptions { get; } =
         Enum.GetValues<DecalAutoPlaceScope>().Select(s => new ScopeOption(s, s.ToLabel())).ToList();
 
-    /// <param name="sections">
+    /// <param name="pages">
     /// The pages to show. Defaults to the shipped catalogue; overridden by tests.
     /// </param>
     public PreferencesViewModel(
         IMessenger messenger,
         IAlertDialog alert,
-        IEnumerable<IPreferenceSection>? sections = null)
+        IEnumerable<IPreferencePage>? pages = null)
     {
         _messenger = messenger;
         _alert = alert;
-        _sections = sections is null
-            ? PreferenceSectionCatalog.Default
-            : PreferenceSectionCatalog.Sort(sections);
+        _pages = pages is null
+            ? PreferencePageCatalog.Default
+            : PreferencePageCatalog.Sort(pages);
 
-        // Each section arrives already validated by its own Clamped(), so nothing here has to
+        // Each page arrives already validated by its own Clamped(), so nothing here has to
         // re-parse strings or guard against a value the running build no longer recognises.
         var general = _messenger.GetSection(GeneralPreferences.Default);
         _importFilepath = general.ImportFolder;
@@ -180,33 +180,33 @@ public partial class PreferencesViewModel : ObservableObject
         _mouldTroughOffset = mould.TroughOffset;
         _mouldTroughShape = mould.TroughShape;
 
-        foreach (var section in _sections)
+        foreach (var page in _pages)
         {
-            _rowsBySection[section.Key] = section.BuildRows(this);
+            _rowsByPage[page.Key] = page.BuildRows(this);
         }
 
-        RefreshSectionList();
+        RefreshPageList();
     }
 
     /// <summary>Re-applies the search filter, keeping a page open if it still matches.</summary>
-    private void RefreshSectionList()
+    private void RefreshPageList()
     {
-        var previous = SelectedSection;
+        var previous = SelectedPage;
 
-        Sections.Clear();
-        foreach (var section in _sections.Where(s => s.Matches(SearchText)))
+        Pages.Clear();
+        foreach (var page in _pages.Where(s => s.Matches(SearchText)))
         {
-            Sections.Add(section);
+            Pages.Add(page);
         }
 
-        if (previous is not null && Sections.Contains(previous)) { return; }
+        if (previous is not null && Pages.Contains(previous)) { return; }
 
-        SelectedSection = Sections.FirstOrDefault();
+        SelectedPage = Pages.FirstOrDefault();
     }
 
-    partial void OnSearchTextChanged(string value) => RefreshSectionList();
+    partial void OnSearchTextChanged(string value) => RefreshPageList();
 
-    partial void OnSelectedSectionChanged(IPreferenceSection? value)
+    partial void OnSelectedSectionChanged(IPreferencePage? value)
     {
         OnPropertyChanged(nameof(Rows));
         RefreshRows();
@@ -219,9 +219,9 @@ public partial class PreferencesViewModel : ObservableObject
     /// </summary>
     private void RefreshRows()
     {
-        if (SelectedSection is null) { return; }
+        if (SelectedPage is null) { return; }
 
-        foreach (var row in _rowsBySection[SelectedSection.Key])
+        foreach (var row in _rowsByPage[SelectedPage.Key])
         {
             row.Refresh();
         }
@@ -231,12 +231,12 @@ public partial class PreferencesViewModel : ObservableObject
 
     /// <summary>
     /// Set while a whole profile is being written, so restoring defaults or importing a file
-    /// saves each affected section once at the end rather than once per property it touches.
+    /// saves each affected page once at the end rather than once per property it touches.
     /// </summary>
     private bool _applyingProfile;
 
     /// <summary>
-    /// Routes a changed property to the section that owns it, and saves that section.
+    /// Routes a changed property to the page that owns it, and saves that page.
     ///
     /// [ObservableProperty] only raises this when the value actually changed, so an assignment
     /// that matches what is already there costs nothing - the per-property equality guards the
@@ -248,7 +248,7 @@ public partial class PreferencesViewModel : ObservableObject
 
         // One preference can gate another - the decal defaults under the decal switch, the
         // trough rows under a non-contoured shape - so any change re-reads the visible rows.
-        if (e.PropertyName is not (nameof(Rows) or nameof(SearchText) or nameof(SelectedSection)))
+        if (e.PropertyName is not (nameof(Rows) or nameof(SearchText) or nameof(SelectedPage)))
         {
             RefreshRows();
         }
@@ -340,7 +340,7 @@ public partial class PreferencesViewModel : ObservableObject
     private MouldPreferences CaptureMould() =>
         new(MouldShape, MouldWallThickness, MouldBaseHeight, MouldTroughHeight, MouldTroughOffset, MouldTroughShape);
 
-    /// <summary>Saves every section. Used after a profile has been written onto the properties.</summary>
+    /// <summary>Saves every page. Used after a profile has been written onto the properties.</summary>
     private void SaveAllSections()
     {
         _messenger.SaveSection(CaptureGeneral());
@@ -401,9 +401,9 @@ public partial class PreferencesViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Writes a profile onto every property, then saves each section once. Saving is held off
-    /// until the end so a profile touching five print-bed values persists that section once
-    /// instead of five times - and so half-written sections never reach live consumers.
+    /// Writes a profile onto every property, then saves each page once. Saving is held off
+    /// until the end so a profile touching five print-bed values persists that page once
+    /// instead of five times - and so half-written pages never reach live consumers.
     /// </summary>
     private void Apply(PreferenceBag bag)
     {

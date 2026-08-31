@@ -153,7 +153,7 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <DataTemplate x:Key="SidebarItemTemplate" DataType="{x:Type local:IPreferenceSection}">
+        <DataTemplate x:Key="SidebarItemTemplate" DataType="{x:Type local:IPreferencePage}">
             <StackPanel Orientation="Horizontal">
                 <Path x:Name="ic" Width="16" Height="16" Stretch="Uniform"
                       Data="{Binding IconKey, Converter={StaticResource ResourceKey}}" Stroke="{DynamicResource Brush.Text.Secondary}"
@@ -516,8 +516,8 @@
                                Foreground="{DynamicResource Brush.Border.Strong}" />
 
                     <ListBox x:Name="CategoryList" Background="Transparent" BorderThickness="0" Margin="10,0,10,10"
-                             ItemsSource="{Binding Sections}"
-                             SelectedItem="{Binding SelectedSection}"
+                             ItemsSource="{Binding Pages}"
+                             SelectedItem="{Binding SelectedPage}"
                              ItemContainerStyle="{StaticResource SidebarItem}"
                              ItemTemplate="{StaticResource SidebarItemTemplate}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
@@ -527,8 +527,8 @@
             <!-- CONTENT PANE -->
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Background="{DynamicResource Brush.Card}">
                 <StackPanel Margin="24,20">
-                    <TextBlock Style="{StaticResource PanelTitle}" Text="{Binding SelectedSection.Name}" />
-                    <TextBlock Style="{StaticResource PanelSubtitle}" Text="{Binding SelectedSection.Description}" />
+                    <TextBlock Style="{StaticResource PanelTitle}" Text="{Binding SelectedPage.Name}" />
+                    <TextBlock Style="{StaticResource PanelSubtitle}" Text="{Binding SelectedPage.Description}" />
 
                     <ItemsControl ItemsSource="{Binding Rows}"
                                   ItemTemplateSelector="{StaticResource RowTemplates}" />

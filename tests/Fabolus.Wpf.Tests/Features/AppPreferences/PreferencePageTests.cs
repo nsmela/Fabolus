@@ -12,7 +12,7 @@ using Xunit;
 
 namespace Fabolus.Wpf.Tests.Features.AppPreferences;
 
-public class PreferenceSectionTests : IDisposable
+public class PreferencePageTests : IDisposable
 {
     private readonly string _tempDir;
     private readonly string _path;
@@ -20,7 +20,7 @@ public class PreferenceSectionTests : IDisposable
     private readonly AppPreferencesStore _store;
     private readonly PreferencesViewModel _viewModel;
 
-    public PreferenceSectionTests()
+    public PreferencePageTests()
     {
         _tempDir = Path.Combine(Path.GetTempPath(), $"fabolus_sections_{Guid.NewGuid():N}");
         _path = Path.Combine(_tempDir, "preferences.json");
@@ -33,23 +33,23 @@ public class PreferenceSectionTests : IDisposable
         try { if (Directory.Exists(_tempDir)) { Directory.Delete(_tempDir, recursive: true); } } catch { }
     }
 
-    private static IEnumerable<PreferenceRow> RowsOf(PreferencesViewModel vm, IPreferenceSection section) =>
-        section.BuildRows(vm);
+    private static IEnumerable<PreferenceRow> RowsOf(PreferencesViewModel vm, IPreferencePage page) =>
+        page.BuildRows(vm);
 
-    public static TheoryData<string> SectionKeys()
+    public static TheoryData<string> PageKeys()
     {
         var data = new TheoryData<string>();
-        foreach (var section in PreferenceSectionCatalog.Default) { data.Add(section.Key); }
+        foreach (var page in PreferencePageCatalog.Default) { data.Add(page.Key); }
         return data;
     }
 
     [Fact]
     public void Catalog_IsSortedAndHasUniqueKeys()
     {
-        var sections = PreferenceSectionCatalog.Default;
+        var pages = PreferencePageCatalog.Default;
 
-        Assert.Equal(sections.OrderBy(s => s.Order).Select(s => s.Key), sections.Select(s => s.Key));
-        Assert.Equal(sections.Select(s => s.Key).Distinct().Count(), sections.Count);
+        Assert.Equal(pages.OrderBy(s => s.Order).Select(s => s.Key), pages.Select(s => s.Key));
+        Assert.Equal(pages.Select(s => s.Key).Distinct().Count(), pages.Count);
     }
 
     /// <summary>
@@ -60,12 +60,12 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void Catalog_KeepsApplicationPagesAheadOfFeaturePages()
     {
-        var sections = PreferenceSectionCatalog.Default;
+        var pages = PreferencePageCatalog.Default;
 
-        Assert.Equal("general", sections[0].Key);
+        Assert.Equal("general", pages[0].Key);
 
-        var lastApplicationPage = sections.Select((s, i) => (s, i)).Last(x => x.s.Order < 100).i;
-        var firstFeaturePage = sections.Select((s, i) => (s, i)).First(x => x.s.Order >= 100).i;
+        var lastApplicationPage = pages.Select((s, i) => (s, i)).Last(x => x.s.Order < 100).i;
+        var firstFeaturePage = pages.Select((s, i) => (s, i)).First(x => x.s.Order >= 100).i;
 
         Assert.True(lastApplicationPage < firstFeaturePage,
             "every application-wide page must come before the first feature page");
@@ -74,20 +74,20 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void TheViewportBackground_LivesOnTheGeneralPage()
     {
-        Assert.DoesNotContain(PreferenceSectionCatalog.Default, s => s.Key == "appearance");
+        Assert.DoesNotContain(PreferencePageCatalog.Default, s => s.Key == "appearance");
 
-        var general = PreferenceSectionCatalog.Default.Single(s => s.Key == "general");
+        var general = PreferencePageCatalog.Default.Single(s => s.Key == "general");
         var rows = RowsOf(_viewModel, general);
 
         Assert.Contains(rows, r => r.Label == "Viewport background");
     }
 
     [Theory]
-    [MemberData(nameof(SectionKeys))]
+    [MemberData(nameof(PageKeys))]
     public void EverySection_BuildsRowsWithLabels(string key)
     {
-        var section = PreferenceSectionCatalog.Default.Single(s => s.Key == key);
-        var rows = RowsOf(_viewModel, section);
+        var page = PreferencePageCatalog.Default.Single(s => s.Key == key);
+        var rows = RowsOf(_viewModel, page);
 
         Assert.NotEmpty(rows);
         Assert.All(rows, row =>
@@ -98,15 +98,15 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void EveryToggleRow_RoundTripsThroughTheStore()
     {
-        foreach (var section in PreferenceSectionCatalog.Default)
+        foreach (var page in PreferencePageCatalog.Default)
         {
-            foreach (var row in RowsOf(_viewModel, section).OfType<ToggleRow>())
+            foreach (var row in RowsOf(_viewModel, page).OfType<ToggleRow>())
             {
                 var original = row.Value;
                 row.Value = !original;
 
                 Assert.True(row.Value == !original,
-                    $"'{row.Label}' on '{section.Key}' did not take the value written to it.");
+                    $"'{row.Label}' on '{page.Key}' did not take the value written to it.");
 
                 row.Value = original;
             }
@@ -116,9 +116,9 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void EveryNumberRow_RoundTripsAValueInsideItsRange()
     {
-        foreach (var section in PreferenceSectionCatalog.Default)
+        foreach (var page in PreferencePageCatalog.Default)
         {
-            foreach (var row in RowsOf(_viewModel, section).OfType<NumberRow>())
+            foreach (var row in RowsOf(_viewModel, page).OfType<NumberRow>())
             {
                 var target = Math.Round((row.Minimum + row.Maximum) / 2, 1);
                 if (Math.Abs(target - row.Value) < 0.001) { target = row.Minimum; }
@@ -126,7 +126,7 @@ public class PreferenceSectionTests : IDisposable
                 row.Value = target;
 
                 Assert.True(Math.Abs(row.Value - target) < 0.01,
-                    $"'{row.Label}' on '{section.Key}' read back {row.Value} after {target} was written.");
+                    $"'{row.Label}' on '{page.Key}' read back {row.Value} after {target} was written.");
             }
         }
     }
@@ -134,9 +134,9 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void EveryChoiceRow_RoundTripsEachOfItsChoices()
     {
-        foreach (var section in PreferenceSectionCatalog.Default)
+        foreach (var page in PreferencePageCatalog.Default)
         {
-            foreach (var row in RowsOf(_viewModel, section).OfType<ChoiceRow>())
+            foreach (var row in RowsOf(_viewModel, page).OfType<ChoiceRow>())
             {
                 Assert.NotEmpty(row.Choices);
 
@@ -145,7 +145,7 @@ public class PreferenceSectionTests : IDisposable
                     row.Value = choice.Value;
 
                     Assert.True(Equals(row.Value, choice.Value),
-                        $"'{row.Label}' on '{section.Key}' would not take '{choice.Label}'.");
+                        $"'{row.Label}' on '{page.Key}' would not take '{choice.Label}'.");
                 }
             }
         }
@@ -156,7 +156,7 @@ public class PreferenceSectionTests : IDisposable
     {
         // The spinner limits and the stored ranges are the same numbers by construction now.
         // Typing a value the spinner allows must never be silently corrected on the way in.
-        var mould = PreferenceSectionCatalog.Default.Single(s => s.Key == "mould");
+        var mould = PreferencePageCatalog.Default.Single(s => s.Key == "mould");
         var wall = RowsOf(_viewModel, mould).OfType<NumberRow>().Single(r => r.Label == "Wall thickness");
 
         Assert.Equal(MouldPreferences.Ranges.WallThicknessMin, wall.Minimum);
@@ -166,7 +166,7 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void EditingARow_ReachesTheStore()
     {
-        var channels = PreferenceSectionCatalog.Default.Single(s => s.Key == "channels");
+        var channels = PreferencePageCatalog.Default.Single(s => s.Key == "channels");
         var diameter = RowsOf(_viewModel, channels).OfType<NumberRow>().Single();
 
         diameter.Value = 6.5;
@@ -177,7 +177,7 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void TroughRows_AreDisabledForAContouredMould()
     {
-        var mould = PreferenceSectionCatalog.Default.Single(s => s.Key == "mould");
+        var mould = PreferencePageCatalog.Default.Single(s => s.Key == "mould");
         var rows = RowsOf(_viewModel, mould);
         var troughDepth = rows.OfType<NumberRow>().Single(r => r.Label == "Depth");
 
@@ -191,7 +191,7 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void DecalDefaults_AreDisabledWhileTheToolIsOff()
     {
-        var decals = PreferenceSectionCatalog.Default.Single(s => s.Key == "decals");
+        var decals = PreferencePageCatalog.Default.Single(s => s.Key == "decals");
         var rows = RowsOf(_viewModel, decals);
         var master = rows.OfType<ToggleRow>().Single(r => r.Label == "Decal tool");
         var capHeight = rows.OfType<NumberRow>().Single(r => r.Label == "Cap height");
@@ -208,7 +208,7 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void CutScope_IsDisabledWhileTheCutViewIsOff()
     {
-        var cut = PreferenceSectionCatalog.Default.Single(s => s.Key == "cut");
+        var cut = PreferencePageCatalog.Default.Single(s => s.Key == "cut");
         var rows = RowsOf(_viewModel, cut);
         var enable = rows.OfType<ToggleRow>().Single();
         var scope = rows.OfType<DropdownRow>().Single();
@@ -225,19 +225,19 @@ public class PreferenceSectionTests : IDisposable
     {
         _viewModel.SearchText = "trough";
 
-        Assert.Contains(_viewModel.Sections, s => s.Key == "mould");
-        Assert.DoesNotContain(_viewModel.Sections, s => s.Key == "decals");
-        Assert.NotNull(_viewModel.SelectedSection);
-        Assert.Contains(_viewModel.Sections, s => s == _viewModel.SelectedSection);
+        Assert.Contains(_viewModel.Pages, s => s.Key == "mould");
+        Assert.DoesNotContain(_viewModel.Pages, s => s.Key == "decals");
+        Assert.NotNull(_viewModel.SelectedPage);
+        Assert.Contains(_viewModel.Pages, s => s == _viewModel.SelectedPage);
 
         _viewModel.SearchText = string.Empty;
-        Assert.Equal(PreferenceSectionCatalog.Default.Count, _viewModel.Sections.Count);
+        Assert.Equal(PreferencePageCatalog.Default.Count, _viewModel.Pages.Count);
     }
 
     [Fact]
     public void SelectingASection_ExposesItsRows()
     {
-        _viewModel.SelectedSection = _viewModel.Sections.Single(s => s.Key == "split");
+        _viewModel.SelectedPage = _viewModel.Pages.Single(s => s.Key == "split");
 
         Assert.Single(_viewModel.Rows);
         Assert.Equal("Split view (for moulds)", _viewModel.Rows[0].Label);
@@ -246,7 +246,7 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void RestoringDefaults_IsVisibleOnTheRows()
     {
-        _viewModel.SelectedSection = _viewModel.Sections.Single(s => s.Key == "channels");
+        _viewModel.SelectedPage = _viewModel.Pages.Single(s => s.Key == "channels");
         var diameter = _viewModel.Rows.OfType<NumberRow>().Single();
 
         diameter.Value = 9.0;
@@ -260,10 +260,10 @@ public class PreferenceSectionTests : IDisposable
     [Fact]
     public void CustomRow_NamesATemplateAndCarriesTheViewModel()
     {
-        var rotation = PreferenceSectionCatalog.Default.Single(s => s.Key == "rotation");
+        var rotation = PreferencePageCatalog.Default.Single(s => s.Key == "rotation");
         var custom = RowsOf(_viewModel, rotation).OfType<CustomRow>().Single();
 
-        Assert.Equal(Fabolus.Wpf.Features.Rotatation.RotationPreferenceSection.OverhangRangeTemplate,
+        Assert.Equal(Fabolus.Wpf.Features.Rotatation.RotationPreferencePage.OverhangRangeTemplate,
             custom.TemplateKey);
         Assert.Same(_viewModel, custom.Context);
     }

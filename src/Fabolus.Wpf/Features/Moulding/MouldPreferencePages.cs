@@ -1,4 +1,4 @@
-using Fabolus.Core.Features.Moulds;
+﻿using Fabolus.Core.Features.Moulds;
 using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Moulding;
@@ -9,7 +9,7 @@ namespace Fabolus.Wpf.Features.Moulding;
 /// Stored on the print bed record, shown on its own page - which is the reason a section is a
 /// separate thing from a settings record.
 /// </summary>
-public sealed class AirChannelPreferenceSection : IPreferenceSection {
+public sealed class AirChannelPreferencePage : IPreferencePage {
     public string Key => "channels";
     public string Name => "Air Channels";
     public string Description => "Automatic channel detection and defaults.";
@@ -37,7 +37,7 @@ public sealed class AirChannelPreferenceSection : IPreferenceSection {
 }
 
 /// <summary>Starting values for a newly generated mould, including its trough.</summary>
-public sealed class MouldPreferenceSection : IPreferenceSection {
+public sealed class MouldPreferencePage : IPreferencePage {
     public string Key => "mould";
     public string Name => "Mould";
     public string Description => "Starting values for a newly generated mould.";

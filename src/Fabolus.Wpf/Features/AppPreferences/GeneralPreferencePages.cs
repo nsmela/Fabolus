@@ -1,7 +1,7 @@
 ﻿namespace Fabolus.Wpf.Features.AppPreferences;
 
 /// <summary>Default folders, export format and viewport appearance.</summary>
-public sealed class GeneralPreferenceSection : IPreferenceSection {
+public sealed class GeneralPreferencePage : IPreferencePage {
     public string Key => "general";
     public string Name => "General";
     public string Description => "Default folders, export format and viewport appearance.";
@@ -50,7 +50,7 @@ public sealed class GeneralPreferenceSection : IPreferenceSection {
 }
 
 /// <summary>Build volume dimensions and the viewport grid.</summary>
-public sealed class PrintBedPreferenceSection : IPreferenceSection {
+public sealed class PrintBedPreferencePage : IPreferencePage {
     public string Key => "bed";
     public string Name => "Print Bed";
     public string Description => "Build volume dimensions, in millimetres.";
