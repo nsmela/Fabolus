@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.Transforms;
@@ -40,6 +40,18 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
     partial void OnWarningAngleChanged(float value) => SendOverhangSettings();
     partial void OnCriticalAngleChanged(float value) => SendOverhangSettings();
+
+    // ---- Slider bounds -------------------------------------------------
+    // Bound by the view rather than hardcoded in it, so the range a value can be given here is
+    // the same one its preference is validated against. The two used to be separate literals
+    // that had drifted apart, which let a user pick a default the tool would not accept - or
+    // set a value in the tool that no default could express.
+
+    public double OverhangAngleMinimum => RotationPreferences.Ranges.OverhangAngleMin;
+    public double OverhangAngleMaximum => RotationPreferences.Ranges.OverhangAngleMax;
+
+    /// <summary>How close the two thumbs may come. The pair is rejected below this.</summary>
+    public double OverhangMinimumGap => RotationPreferences.Ranges.OverhangMinGap;
 
     private void ResetValues() {
         _isLocked = true;

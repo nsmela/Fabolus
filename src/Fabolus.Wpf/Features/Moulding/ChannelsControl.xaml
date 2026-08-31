@@ -1,4 +1,4 @@
-<UserControl x:Class="Fabolus.Wpf.Features.Moulding.ChannelsControl"
+﻿<UserControl x:Class="Fabolus.Wpf.Features.Moulding.ChannelsControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -196,7 +196,7 @@
                         <TextBlock Text="{Binding ChannelDiameter, StringFormat={}{0:F1} mm}"
                                                    Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
                     </Grid>
-                    <Slider Minimum="1" Maximum="12" Style="{StaticResource Slider.Steel}"
+                    <Slider Minimum="{Binding ChannelDiameterMinimum}" Maximum="{Binding ChannelDiameterMaximum}" Style="{StaticResource Slider.Steel}"
                                             Value="{Binding ChannelDiameter, Mode=TwoWay}"
                                             SmallChange="0.1" LargeChange="1" VerticalAlignment="Center" />
                 </StackPanel>

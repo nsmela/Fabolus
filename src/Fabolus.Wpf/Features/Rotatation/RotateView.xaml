@@ -203,10 +203,10 @@
                        Style="{StaticResource Text.Value}" Foreground="{DynamicResource Brush.Danger}" />
                     </StackPanel>
                 </Grid>
-                <mah:RangeSlider Minimum="40" Maximum="90" MinHeight="18"
+                <mah:RangeSlider Minimum="{Binding OverhangAngleMinimum}" Maximum="{Binding OverhangAngleMaximum}" MinHeight="18"
                  LowerValue="{Binding WarningAngle, Mode=TwoWay}"
                  UpperValue="{Binding CriticalAngle, Mode=TwoWay}"
-                 MinRange="1" MinRangeWidth="5"
+                 MinRange="{Binding OverhangMinimumGap}" MinRangeWidth="5"
                  Background="Transparent"
                  HorizontalContentAlignment="Stretch"
                  VerticalContentAlignment="Stretch">

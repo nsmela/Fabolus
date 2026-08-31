@@ -100,6 +100,12 @@ public partial class PreferencesViewModel : ObservableObject
     [ObservableProperty] private float _overhangWarningAngle;
     [ObservableProperty] private float _overhangCriticalAngle;
 
+    // The overhang page draws its own range slider (see RotationPreferenceSection), so unlike a
+    // NumberRow it has no descriptor to take its limits from. It binds these instead.
+    public double OverhangAngleMinimum => RotationPreferences.Ranges.OverhangAngleMin;
+    public double OverhangAngleMaximum => RotationPreferences.Ranges.OverhangAngleMax;
+    public double OverhangMinimumGap => RotationPreferences.Ranges.OverhangMinGap;
+
     /// <summary>Anchor choices offered by the two auto-place pickers.</summary>
     public IReadOnlyList<AnchorOption> AnchorOptions { get; } =
         Enum.GetValues<DecalAnchor>().Select(a => new AnchorOption(a, a.ToLabel())).ToList();

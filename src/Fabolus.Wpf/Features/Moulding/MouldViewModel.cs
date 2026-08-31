@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.AirChannels;
@@ -237,6 +237,25 @@ public partial class MouldViewModel : ObservableObject, IViewState
     [ObservableProperty] private double _troughHeight;
     [ObservableProperty] private double _troughOffset = 2.5;
     [ObservableProperty] private TroughShapeType _selectedTroughShape = TroughShapeType.Footprint;
+
+    // ---- Slider bounds -------------------------------------------------
+    // Bound by the view rather than hardcoded in it, so the range a value can be given here is
+    // the same one its preference is validated against. The two used to be separate literals
+    // that had drifted apart, which let a user pick a default the tool would not accept - or
+    // set a value in the tool that no default could express.
+
+    public double WallThicknessMinimum => MouldPreferences.Ranges.WallThicknessMin;
+    public double WallThicknessMaximum => MouldPreferences.Ranges.WallThicknessMax;
+    public double BaseHeightMinimum => MouldPreferences.Ranges.BaseHeightMin;
+    public double BaseHeightMaximum => MouldPreferences.Ranges.BaseHeightMax;
+    public double TroughDepthMinimum => MouldPreferences.Ranges.TroughHeightMin;
+    public double TroughDepthMaximum => MouldPreferences.Ranges.TroughHeightMax;
+    public double TroughMarginMinimum => MouldPreferences.Ranges.TroughOffsetMin;
+    public double TroughMarginMaximum => MouldPreferences.Ranges.TroughOffsetMax;
+
+    // The air channels live on this view model too, but their diameter is a print-bed preference.
+    public double ChannelDiameterMinimum => PrintBedPreferences.Ranges.ChannelDiameterMin;
+    public double ChannelDiameterMaximum => PrintBedPreferences.Ranges.ChannelDiameterMax;
 
     // A contoured mould follows the bolus surface, so it has no flat top to recess into.
     public bool SupportsTrough => SelectedMouldType != MouldShapeType.Contoured;

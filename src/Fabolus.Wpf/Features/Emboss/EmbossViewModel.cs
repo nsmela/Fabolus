@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using System.Numerics;
 using System.Windows.Threading;
@@ -75,6 +75,17 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     [ObservableProperty] private Vector3 _anchorNormal = Vector3.UnitZ;
     [ObservableProperty] private string _errorText = string.Empty;
     [ObservableProperty] private string _warningText = string.Empty;
+
+    // ---- Slider bounds -------------------------------------------------
+    // Bound by the view rather than hardcoded in it, so the range a value can be given here is
+    // the same one its preference is validated against. The two used to be separate literals
+    // that had drifted apart, which let a user pick a default the tool would not accept - or
+    // set a value in the tool that no default could express.
+
+    public double CapHeightMinimum => DecalPreferences.Ranges.CapHeightMin;
+    public double CapHeightMaximum => DecalPreferences.Ranges.CapHeightMax;
+    public double DepthMinimum => DecalPreferences.Ranges.DepthMin;
+    public double DepthMaximum => DecalPreferences.Ranges.DepthMax;
 
     // Read-only dynamic properties
     public string DepthLabel => Operation == EmbossOperation.Engrave ? "Depth" : "Height";

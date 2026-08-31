@@ -409,7 +409,8 @@
                         </StackPanel>
                     </Grid>
 
-                    <mah:RangeSlider Minimum="40" Maximum="90" MinRange="1" MinRangeWidth="5"
+                    <mah:RangeSlider Minimum="{Binding OverhangAngleMinimum}" Maximum="{Binding OverhangAngleMaximum}"
+                                     MinRange="{Binding OverhangMinimumGap}" MinRangeWidth="5"
                                      LowerValue="{Binding OverhangWarningAngle, Mode=TwoWay}"
                                      UpperValue="{Binding OverhangCriticalAngle, Mode=TwoWay}" />
 
