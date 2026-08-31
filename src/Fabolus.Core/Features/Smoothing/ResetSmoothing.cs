@@ -8,9 +8,7 @@ namespace Fabolus.Core.Features.Smoothing;
 public sealed class ResetSmoothing {
     private readonly IGeometryEngine _engine;
 
-    public ResetSmoothing(IGeometryEngine engine) {
-        _engine = engine;
-    }
+    public ResetSmoothing(IGeometryEngine engine) => _engine = engine;
 
     /// <summary>
     /// The mesh as it would look with only its smoothing removed: BaseMesh with all remaining

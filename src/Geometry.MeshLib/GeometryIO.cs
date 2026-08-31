@@ -6,7 +6,6 @@ using Fabolus.Core.Features.MeshIO;
 using System.IO.Compression;
 using System.Xml.Linq;
 using System.Text.Json;
-using System.Linq;
 
 namespace GeometryMeshLib;
 

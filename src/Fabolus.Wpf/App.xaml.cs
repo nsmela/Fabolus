@@ -1,5 +1,8 @@
+using System;
+using System.Linq;
 using System.Windows;
 using CommunityToolkit.Mvvm.Messaging;
+using ControlzEx.Theming;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
@@ -52,10 +55,39 @@ public partial class App : Application
         // listening before the first view model asks for a section.
         AppHost.Services.GetRequiredService<AppPreferencesStore>();
 
+        // 1. Hook up dynamic theme switching
+        var messenger = AppHost.Services.GetRequiredService<IMessenger>();
+        messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (_, msg) =>
+        {
+            SetTheme(msg.Section.AppTheme);
+        });
+
+        // 2. Set initial theme
+        var general = messenger.GetSection(GeneralPreferences.Default);
+        SetTheme(general.AppTheme);
+
         var mainWindow = AppHost.Services.GetRequiredService<MainView>();
         mainWindow.Show();
 
         base.OnStartup(e);
     }
-}
 
+    private void SetTheme(AppTheme theme)
+    {
+        var isDark = theme == AppTheme.Dark;
+        
+        // 1. Change MahApps theme
+        ThemeManager.Current.ChangeTheme(this, isDark ? "Dark.Blue" : "Light.Blue");
+
+        // 2. Change our custom theme override
+        var targetThemePath = isDark ? "Themes/FabolusSteelDark.xaml" : "Themes/SteelCyan.xaml";
+        
+        var existingDict = Resources.MergedDictionaries.FirstOrDefault(d => 
+            d.Source is not null && (d.Source.OriginalString.EndsWith("SteelCyan.xaml") || d.Source.OriginalString.EndsWith("FabolusSteelDark.xaml")));
+            
+        if (existingDict is not null && existingDict.Source.OriginalString != targetThemePath)
+        {
+            existingDict.Source = new Uri(targetThemePath, UriKind.Relative);
+        }
+    }
+}

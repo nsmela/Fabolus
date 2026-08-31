@@ -13,12 +13,22 @@ internal sealed class Booleans : IBooleans
         _engine = engine;
     }
 
-    private Result<IMesh> DoBoolean(IMesh meshA, IMesh meshB, MR.BooleanOperation op)
+    private Result<IMesh> DoBoolean(
+        IMesh meshA, IMesh meshB, MR.BooleanOperation op, System.Numerics.Vector3 shiftB)
     {
         using var mrA = meshA.ToMRMesh();
         using var mrB = meshB.ToMRMesh();
-        
-        using var result = MR.boolean(mrA, mrB, op, null);
+
+        // rigidB2A - "rigid transformation for meshB into meshA space". Null is the identity, which
+        // is what every caller that does not ask for a shift wants.
+        MR.AffineXf3f? rigidB2A = null;
+        if (shiftB != System.Numerics.Vector3.Zero)
+        {
+            var translation = new MR.Vector3f(shiftB.X, shiftB.Y, shiftB.Z);
+            rigidB2A = MR.AffineXf3f.translation(in translation);
+        }
+
+        using var result = MR.boolean(mrA, mrB, op, rigidB2A);
 
         if (result is null)
             return new Error("MRBooleans.OperationFailed", "Boolean operation returned null result.");
@@ -41,13 +51,13 @@ internal sealed class Booleans : IBooleans
         return Result.Success(result.mesh.ToIMesh(metadata));
     }
 
-    public Result<IMesh> Intersect(IMesh meshA, IMesh meshB) =>
-        DoBoolean(meshA, meshB, MR.BooleanOperation.Intersection);
+    public Result<IMesh> Intersect(IMesh meshA, IMesh meshB, System.Numerics.Vector3 shiftB = default) =>
+        DoBoolean(meshA, meshB, MR.BooleanOperation.Intersection, shiftB);
 
-    public Result<IMesh> Subtract(IMesh meshA, IMesh meshB) =>
-        DoBoolean(meshA, meshB, MR.BooleanOperation.DifferenceAB);
+    public Result<IMesh> Subtract(IMesh meshA, IMesh meshB, System.Numerics.Vector3 shiftB = default) =>
+        DoBoolean(meshA, meshB, MR.BooleanOperation.DifferenceAB, shiftB);
 
     public Result<IMesh> Union(IMesh meshA, IMesh meshB) =>
-        DoBoolean(meshA, meshB, MR.BooleanOperation.Union);
+        DoBoolean(meshA, meshB, MR.BooleanOperation.Union, System.Numerics.Vector3.Zero);
 
 }

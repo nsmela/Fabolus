@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using System.Numerics;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;

@@ -16,6 +16,7 @@
         xmlns:meshManager="clr-namespace:Fabolus.Wpf.Features.MeshManager"
         xmlns:cutSplit="clr-namespace:Fabolus.Wpf.Features.CutSplit"
         xmlns:emboss="clr-namespace:Fabolus.Wpf.Features.Decal"
+        xmlns:partingSplit="clr-namespace:Fabolus.Wpf.Features.PartingSplit"
         mc:Ignorable="d"
         Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
         ResizeMode="CanResizeWithGrip"
@@ -39,6 +40,10 @@
         
         <DataTemplate DataType="{x:Type cutSplit:CutSplitViewModel}">
             <cutSplit:CutSplitView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type partingSplit:PartingSplitViewModel}">
+            <partingSplit:PartingSplitView />
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type rotate:RotateViewModel }">
@@ -260,6 +265,26 @@
                     </Button.Style>
                 </Button>
                     
+                <Button Command="{Binding ShowPartingSplitCommand}" IsEnabled="{Binding MeshLoaded}" Visibility="{Binding ShowSplitView, Converter={StaticResource BoolToVis}}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <TextBlock Text="⑃" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                            </Viewbox>
+                            <TextBlock Text="parting split" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="parting split">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                    
                 <Button Command="{Binding SwitchToExportViewCommand}" IsEnabled="{Binding MeshLoaded}">
                     <Button.Content>
                         <StackPanel Orientation="Horizontal">
@@ -299,22 +324,19 @@
 
             <!-- Information bar View -->
         <Border Grid.Row="2" Grid.ColumnSpan="2"
-                Height="27" BorderThickness="0,1,0,0" BorderBrush="#D5DBDF">
+                Height="27" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource Brush.Border}">
             <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#EEF1F3" Offset="0"/>
-                    <GradientStop Color="#E1E6E9" Offset="1"/>
-                </LinearGradientBrush>
+                <DynamicResource ResourceKey="Brush.Brushed.StatusBar"/>
             </Border.Background>
 
             <Grid Margin="14,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
                     <TextBlock Text="{Binding MeshName}" HorizontalAlignment="Left"
                        FontFamily="Consolas" FontSize="11" FontWeight="Medium"
-                       Foreground="#0B8593"/>
-                    <TextBlock Text="•" Margin="8,0" Foreground="#A8B1B6" VerticalAlignment="Center"/>
+                       Foreground="{DynamicResource Brush.Accent}"/>
+                    <TextBlock Text="•" Margin="8,0" Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center"/>
                     <TextBlock Text="Units: mm" FontFamily="Consolas" FontSize="11"
-                        FontWeight="Medium" Foreground="#5E6B73"/>
+                        FontWeight="Medium" Foreground="{DynamicResource Brush.Text.Secondary}"/>
                 </StackPanel>
             </Grid>
         </Border>

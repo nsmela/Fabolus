@@ -4,11 +4,11 @@ using Fabolus.Core.Geometry.Metadata;
 
 namespace GeometryMeshLib;
 
-public sealed class GeometryModifiers : IGeometryModifiers
+public sealed class Modifiers : IGeometryModifiers
 {
     private readonly GeometryEngine _engine;
 
-    public GeometryModifiers(GeometryEngine engine)
+    public Modifiers(GeometryEngine engine)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
     }
@@ -126,17 +126,29 @@ public sealed class GeometryModifiers : IGeometryModifiers
         }
     }
 
-    public Result<IMesh> RepairSelfIntersections(IMesh input)
+    public Result<IMesh> RepairSelfIntersections(
+        IMesh input, SelfIntersectionRepair method = SelfIntersectionRepair.Relax)
     {
         try
         {
             using var mesh = input.ToMRMesh();
-            using var settings = new MR.SelfIntersections.Settings();
+
+            // Everything but the method is left at MeshLib's defaults - relaxIterations 5, maxExpand 3,
+            // touchIsIntersection true - which is what every call here has always been getting, since
+            // the settings were constructed bare. Only the method is chosen, so switching it changes
+            // the operation and nothing else about how it is run.
+            using var settings = new MR.SelfIntersections.Settings
+            {
+                method = method == SelfIntersectionRepair.CutAndFill
+                    ? MR.SelfIntersections.Const_Settings.Method.CutAndFill
+                    : MR.SelfIntersections.Const_Settings.Method.Relax,
+            };
+
             MR.SelfIntersections.fix(mesh, settings);
 
             var newMetadata = input.Metadata.WithProperties(m =>
                 m.Set(CoreKeys.Name, $"Repaired SI ({input.Metadata.Name})")
-                 .Set(CoreKeys.CreatedBy, "RepairSelfIntersections"));
+                 .Set(CoreKeys.CreatedBy, $"RepairSelfIntersections({method})"));
             return Result.Success(mesh.ToIMesh(newMetadata));
         }
         catch (Exception ex)

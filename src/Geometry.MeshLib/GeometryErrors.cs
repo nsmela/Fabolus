@@ -56,4 +56,7 @@ public static class GeometryErrors
     // ===== NOT IMPLEMENTED =====
     public static readonly Error NotImplemented =
         new("Geometry.NotImplemented", "This operation is not yet implemented.");
+
+    public static readonly Error InvalidPolygon =
+        new("Geometry.InvalidPolygon", "The polygon is invalid");
 }

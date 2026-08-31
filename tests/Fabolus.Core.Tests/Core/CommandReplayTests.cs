@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Features.Smoothing;
 using Fabolus.Core.Geometry;
@@ -76,7 +76,7 @@ public class CommandReplayTests
         // Each Execute replays from a fresh base copy that the replay consumes; running it
         // repeatedly must not degrade or destroy the stored BaseMesh.
         workspace = smoothFeature.Execute(workspace, new SmoothSettings()).Value;
-        workspace = smoothFeature.Execute(workspace, new SmoothSettings(Iterations: 2)).Value;
+        workspace = smoothFeature.Execute(workspace, new SmoothSettings { Iterations = 2 }).Value;
 
         var reset = new ResetSmoothing(_fixture.Engine).Execute(workspace);
         reset.IsSuccess.Should().BeTrue();
