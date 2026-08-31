@@ -15,16 +15,16 @@ public sealed class CutPreferencePage : IPreferencePage {
         new ToggleRow {
             Label = "Cut view",
             Caption = "Adds the mesh cutting tool to the workflow.",
-            Read = () => vm.EnableCutView,
-            Write = value => vm.EnableCutView = value,
+            Read = () => vm.Get<CutSplitPreferences>().CutViewEnabled,
+            Write = value => vm.Update<CutSplitPreferences>(settings => settings with { CutViewEnabled = value }),
         },
         new DropdownRow {
             Label = "Show on",
             Caption = "Which meshes offer the cut tab.",
             Choices = [.. Enum.GetValues<CutViewScope>().Select(v => new PreferenceChoice(v, v.ToLabel()))],
-            Read = () => vm.CutScope,
-            Write = value => vm.CutScope = (CutViewScope)value,
-        }.EnabledWhen(() => vm.EnableCutView),
+            Read = () => vm.Get<CutSplitPreferences>().CutScope,
+            Write = value => vm.Update<CutSplitPreferences>(settings => settings with { CutScope = (CutViewScope)value }),
+        }.EnabledWhen(() => vm.Get<CutSplitPreferences>().CutViewEnabled),
     ];
 }
 
@@ -41,8 +41,8 @@ public sealed class SplitPreferencePage : IPreferencePage {
         new ToggleRow {
             Label = "Split view (for moulds)",
             Caption = "Adds the parting-line splitting tool to the workflow.",
-            Read = () => vm.EnableSplitView,
-            Write = value => vm.EnableSplitView = value,
+            Read = () => vm.Get<CutSplitPreferences>().SplitViewEnabled,
+            Write = value => vm.Update<CutSplitPreferences>(settings => settings with { SplitViewEnabled = value }),
         },
     ];
 }

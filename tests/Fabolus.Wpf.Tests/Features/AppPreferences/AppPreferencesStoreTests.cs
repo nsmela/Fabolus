@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.Moulds;
@@ -125,7 +125,7 @@ public class AppPreferencesStoreTests : IDisposable
         var viewModel = new Fabolus.Wpf.Features.AppPreferences.PreferencesViewModel(
             messenger, new Moq.Mock<Fabolus.Wpf.Common.IAlertDialog>().Object);
 
-        viewModel.MouldWallThickness = 4.25f;
+        viewModel.Update<MouldPreferences>(m => m with { WallThickness = 4.25f });
 
         Assert.Equal(4.25f, store.Get<MouldPreferences>().WallThickness);
 

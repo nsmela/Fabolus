@@ -1,18 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
-using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Features.Decal;
-using Fabolus.Core.Features.Moulds;
 using Fabolus.Wpf.Common;
-using Fabolus.Wpf.Features.CutSplit;
-using Fabolus.Wpf.Features.Decal;
-using Fabolus.Wpf.Features.Moulding;
 using Fabolus.Wpf.Features.Rotatation;
-using Fabolus.Wpf.Features.Smoothing;
 using Microsoft.Win32;
 
 namespace Fabolus.Wpf.Features.AppPreferences;
@@ -37,74 +29,77 @@ public partial class PreferencesViewModel : ObservableObject
     public IReadOnlyList<PreferenceRow> Rows =>
         SelectedPage is null ? [] : _rowsByPage[SelectedPage.Key];
 
-    // ---- Folders -------------------------------------------------------
-    [ObservableProperty] private string _importFilepath = string.Empty;
-    [ObservableProperty] private string _exportFilepath = string.Empty;
-    [ObservableProperty] private ExportFormat _exportFormat;
+    // ---- The settings themselves ---------------------------------------
 
-    // ---- Print bed -----------------------------------------------------
-    [ObservableProperty] private float _printbedWidth;
-    [ObservableProperty] private float _printbedDepth;
-    [ObservableProperty] private bool _showBedGrid;
+    /// <summary>
+    /// One entry per settings record, the validated value as it stands now.
+    ///
+    /// The view model used to mirror all thirty-nine preferences as loose properties: the
+    /// constructor shredded seven records into them, seven Capture methods reassembled the
+    /// records on the way out, and a switch over property names mapped each one back to its
+    /// owner. That map was hand-maintained - forget a case and the value edited fine, updated
+    /// live consumers, and never persisted. A page addresses its own record now, so which
+    /// record owns a preference is a compile-time fact again.
+    /// </summary>
+    private readonly Dictionary<Type, IPreferenceSettings> _settings = [];
 
-    // ---- Air channels --------------------------------------------------
-    [ObservableProperty] private bool _autodetectChannels;
-    [ObservableProperty] private float _channelDiameter;
+    /// <summary>The section as it stands, for a page building or refreshing its rows.</summary>
+    public T Get<T>() where T : class, IPreferenceSettings<T> => (T)_settings[typeof(T)];
 
-    // ---- Appearance ----------------------------------------------------
-    [ObservableProperty] private ViewportBackground _viewportBackground;
+    /// <summary>
+    /// Applies a change to one section and persists it.
+    ///
+    /// The section is clamped here as well as in the store, so the rows can never go on showing
+    /// a value the store refused - the overhang pair resets when its two angles come too close,
+    /// and this is what makes the window show that rather than the pair the user dragged to.
+    /// </summary>
+    public void Update<T>(Func<T, T> change) where T : class, IPreferenceSettings<T>
+    {
+        var current = Get<T>();
+        var updated = change(current).Clamped();
 
-    // ---- Cut / Split --------------------------------------------------
-    [ObservableProperty] private bool _enableSplitView;
-    [ObservableProperty] private bool _enableCutView;
-    [ObservableProperty] private CutViewScope _cutScope;
+        // Records compare by value, so an edit that lands on what is already there does nothing.
+        if (updated.Equals(current)) { return; }
+
+        _settings[typeof(T)] = updated;
+        _messenger.SaveSection(updated);
+        RefreshRows();
+    }
+
+    /// <summary>
+    /// The overhang page draws its own range slider (see RotationPreferencePage), so unlike a
+    /// NumberRow it has no descriptor to read through. These two are the only values the view
+    /// still exposes directly, and they read and write the rotation section rather than holding
+    /// a copy of it.
+    /// </summary>
+    public float OverhangWarningAngle
+    {
+        get => Get<RotationPreferences>().OverhangWarningAngle;
+        set => SetOverhang(r => r with { OverhangWarningAngle = value });
+    }
+
+    public float OverhangCriticalAngle
+    {
+        get => Get<RotationPreferences>().OverhangCriticalAngle;
+        set => SetOverhang(r => r with { OverhangCriticalAngle = value });
+    }
+
+    // Clamped() rejects a pair that has come too close together by resetting both angles, so a
+    // change to either thumb has to re-announce both.
+    private void SetOverhang(Func<RotationPreferences, RotationPreferences> change)
+    {
+        Update(change);
+        OnPropertyChanged(nameof(OverhangWarningAngle));
+        OnPropertyChanged(nameof(OverhangCriticalAngle));
+    }
+
+    public double OverhangAngleMinimum => RotationPreferences.Ranges.OverhangAngleMin;
+    public double OverhangAngleMaximum => RotationPreferences.Ranges.OverhangAngleMax;
+    public double OverhangMinimumGap => RotationPreferences.Ranges.OverhangMinGap;
 
     /// <summary>Which meshes the cut view is offered on.</summary>
     public IReadOnlyList<CutScopeOption> CutScopeOptions { get; } =
         Enum.GetValues<CutViewScope>().Select(v => new CutScopeOption(v, v.ToLabel())).ToList();
-
-    // ---- Mould ---------------------------------------------------------
-    [ObservableProperty] private MouldShapeType _mouldShape;
-    [ObservableProperty] private float _mouldWallThickness;
-    [ObservableProperty] private float _mouldBaseHeight;
-    [ObservableProperty] private float _mouldTroughHeight;
-    [ObservableProperty] private float _mouldTroughOffset;
-    [ObservableProperty] private TroughShapeType _mouldTroughShape;
-
-    /// <summary>A contoured shell follows the bolus surface, so it has no flat top to recess.</summary>
-    public bool MouldSupportsTrough => MouldShape != MouldShapeType.Contoured;
-
-    partial void OnMouldShapeChanged(MouldShapeType value) => OnPropertyChanged(nameof(MouldSupportsTrough));
-
-    // ---- Decals --------------------------------------------------------
-    [ObservableProperty] private bool _enableDecals;
-    [ObservableProperty] private DecalAutoPlaceScope _decalPlacementScope;
-    [ObservableProperty] private bool _autoPlaceFilename;
-    [ObservableProperty] private DecalAnchor _filenameAnchor;
-    [ObservableProperty] private bool _autoPlaceVolume;
-    [ObservableProperty] private DecalAnchor _volumeAnchor;
-    [ObservableProperty] private DecalFont _decalDefaultFont;
-    [ObservableProperty] private float _decalCapHeight;
-    [ObservableProperty] private float _decalDepth;
-    [ObservableProperty] private EmbossOperation _decalOperation;
-
-    // ---- Smoothing -----------------------------------------------------
-    [ObservableProperty] private int _smoothIterations;
-    [ObservableProperty] private float _smoothIntensity;
-    [ObservableProperty] private float _smoothInflation;
-    [ObservableProperty] private float _smoothRemeshRatio;
-    [ObservableProperty] private float _smoothResolution;
-    [ObservableProperty] private SmoothDisplayMode _smoothDisplay;
-
-    // ---- Rotation ------------------------------------------------------
-    [ObservableProperty] private float _overhangWarningAngle;
-    [ObservableProperty] private float _overhangCriticalAngle;
-
-    // The overhang page draws its own range slider (see RotationPreferencePage), so unlike a
-    // NumberRow it has no descriptor to take its limits from. It binds these instead.
-    public double OverhangAngleMinimum => RotationPreferences.Ranges.OverhangAngleMin;
-    public double OverhangAngleMaximum => RotationPreferences.Ranges.OverhangAngleMax;
-    public double OverhangMinimumGap => RotationPreferences.Ranges.OverhangMinGap;
 
     /// <summary>Anchor choices offered by the two auto-place pickers.</summary>
     public IReadOnlyList<AnchorOption> AnchorOptions { get; } =
@@ -128,57 +123,9 @@ public partial class PreferencesViewModel : ObservableObject
             ? PreferencePageCatalog.Default
             : PreferencePageCatalog.Sort(pages);
 
-        // Each page arrives already validated by its own Clamped(), so nothing here has to
-        // re-parse strings or guard against a value the running build no longer recognises.
-        var general = _messenger.GetSection(GeneralPreferences.Default);
-        _importFilepath = general.ImportFolder;
-        _exportFilepath = general.ExportFolder;
-        _exportFormat = general.ExportFormat;
-        _viewportBackground = general.ViewportBackground;
-
-        var bed = _messenger.GetSection(PrintBedPreferences.Default);
-        _printbedWidth = bed.Width;
-        _printbedDepth = bed.Depth;
-        _showBedGrid = bed.ShowGrid;
-        _autodetectChannels = bed.AutodetectChannels;
-        _channelDiameter = bed.ChannelDiameter;
-
-        var cutSplit = _messenger.GetSection(CutSplitPreferences.Default);
-        _enableCutView = cutSplit.CutViewEnabled;
-        _cutScope = cutSplit.CutScope;
-        _enableSplitView = cutSplit.SplitViewEnabled;
-
-        var decal = _messenger.GetSection(DecalPreferences.Default);
-        _enableDecals = decal.Enabled;
-        _decalPlacementScope = decal.Scope;
-        _autoPlaceFilename = decal.AutoPlaceFilename;
-        _filenameAnchor = decal.FilenameAnchor;
-        _autoPlaceVolume = decal.AutoPlaceVolume;
-        _volumeAnchor = decal.VolumeAnchor;
-        _decalDefaultFont = decal.Font;
-        _decalCapHeight = decal.CapHeight;
-        _decalDepth = decal.Depth;
-        _decalOperation = decal.Operation;
-
-        var smooth = _messenger.GetSection(SmoothingPreferences.Default);
-        _smoothIterations = smooth.Iterations;
-        _smoothIntensity = smooth.Intensity;
-        _smoothInflation = smooth.Inflation;
-        _smoothRemeshRatio = smooth.RemeshRatio;
-        _smoothResolution = smooth.Resolution;
-        _smoothDisplay = smooth.DisplayMode;
-
-        var rotation = _messenger.GetSection(RotationPreferences.Default);
-        _overhangWarningAngle = rotation.OverhangWarningAngle;
-        _overhangCriticalAngle = rotation.OverhangCriticalAngle;
-
-        var mould = _messenger.GetSection(MouldPreferences.Default);
-        _mouldShape = mould.Shape;
-        _mouldWallThickness = mould.WallThickness;
-        _mouldBaseHeight = mould.BaseHeight;
-        _mouldTroughHeight = mould.TroughHeight;
-        _mouldTroughOffset = mould.TroughOffset;
-        _mouldTroughShape = mould.TroughShape;
+        // Every section, loaded through the same roster the store and the profile use, so a
+        // new one is picked up here without this constructor changing.
+        PreferenceSections.ForEach(new Loader(this));
 
         foreach (var page in _pages)
         {
@@ -227,144 +174,19 @@ public partial class PreferencesViewModel : ObservableObject
         }
     }
 
-    // ---- Change notifications → store ---------------------------------
-
-    /// <summary>
-    /// Set while a whole profile is being written, so restoring defaults or importing a file
-    /// saves each affected page once at the end rather than once per property it touches.
-    /// </summary>
-    private bool _applyingProfile;
-
-    /// <summary>
-    /// Routes a changed property to the page that owns it, and saves that page.
-    ///
-    /// [ObservableProperty] only raises this when the value actually changed, so an assignment
-    /// that matches what is already there costs nothing - the per-property equality guards the
-    /// old handlers carried were doing work SetProperty had already done.
-    /// </summary>
-    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
-    {
-        base.OnPropertyChanged(e);
-
-        // One preference can gate another - the decal defaults under the decal switch, the
-        // trough rows under a non-contoured shape - so any change re-reads the visible rows.
-        if (e.PropertyName is not (nameof(Rows) or nameof(SearchText) or nameof(SelectedPage)))
-        {
-            RefreshRows();
-        }
-
-        if (_applyingProfile) { return; }
-
-        switch (e.PropertyName)
-        {
-            case nameof(ImportFilepath):
-            case nameof(ExportFilepath):
-            case nameof(ExportFormat):
-            case nameof(ViewportBackground):
-                _messenger.SaveSection(CaptureGeneral());
-                break;
-
-            case nameof(PrintbedWidth):
-            case nameof(PrintbedDepth):
-            case nameof(ShowBedGrid):
-            case nameof(AutodetectChannels):
-            case nameof(ChannelDiameter):
-                _messenger.SaveSection(CapturePrintBed());
-                break;
-
-            case nameof(EnableCutView):
-            case nameof(CutScope):
-            case nameof(EnableSplitView):
-                _messenger.SaveSection(CaptureCutSplit());
-                break;
-
-            case nameof(EnableDecals):
-            case nameof(DecalPlacementScope):
-            case nameof(AutoPlaceFilename):
-            case nameof(FilenameAnchor):
-            case nameof(AutoPlaceVolume):
-            case nameof(VolumeAnchor):
-            case nameof(DecalDefaultFont):
-            case nameof(DecalCapHeight):
-            case nameof(DecalDepth):
-            case nameof(DecalOperation):
-                _messenger.SaveSection(CaptureDecal());
-                break;
-
-            case nameof(SmoothIterations):
-            case nameof(SmoothIntensity):
-            case nameof(SmoothInflation):
-            case nameof(SmoothRemeshRatio):
-            case nameof(SmoothResolution):
-            case nameof(SmoothDisplay):
-                _messenger.SaveSection(CaptureSmoothing());
-                break;
-
-            case nameof(OverhangWarningAngle):
-            case nameof(OverhangCriticalAngle):
-                _messenger.SaveSection(CaptureRotation());
-                break;
-
-            case nameof(MouldShape):
-            case nameof(MouldWallThickness):
-            case nameof(MouldBaseHeight):
-            case nameof(MouldTroughHeight):
-            case nameof(MouldTroughOffset):
-            case nameof(MouldTroughShape):
-                _messenger.SaveSection(CaptureMould());
-                break;
-        }
-    }
-
-    // ---- Section captures ----------------------------------------------
-
-    private GeneralPreferences CaptureGeneral() =>
-        new(ImportFilepath, ExportFilepath, ExportFormat, ViewportBackground);
-
-    private PrintBedPreferences CapturePrintBed() =>
-        new(PrintbedWidth, PrintbedDepth, ShowBedGrid, AutodetectChannels, ChannelDiameter);
-
-    private CutSplitPreferences CaptureCutSplit() =>
-        new(EnableCutView, CutScope, EnableSplitView);
-
-    private DecalPreferences CaptureDecal() =>
-        new(EnableDecals, DecalPlacementScope, AutoPlaceFilename, FilenameAnchor, AutoPlaceVolume,
-            VolumeAnchor, DecalDefaultFont, DecalCapHeight, DecalDepth, DecalOperation);
-
-    private SmoothingPreferences CaptureSmoothing() =>
-        new(SmoothIterations, SmoothIntensity, SmoothInflation, SmoothRemeshRatio, SmoothResolution, SmoothDisplay);
-
-    private RotationPreferences CaptureRotation() =>
-        new(OverhangWarningAngle, OverhangCriticalAngle);
-
-    private MouldPreferences CaptureMould() =>
-        new(MouldShape, MouldWallThickness, MouldBaseHeight, MouldTroughHeight, MouldTroughOffset, MouldTroughShape);
-
-    /// <summary>Saves every page. Used after a profile has been written onto the properties.</summary>
-    private void SaveAllSections()
-    {
-        _messenger.SaveSection(CaptureGeneral());
-        _messenger.SaveSection(CapturePrintBed());
-        _messenger.SaveSection(CaptureCutSplit());
-        _messenger.SaveSection(CaptureDecal());
-        _messenger.SaveSection(CaptureSmoothing());
-        _messenger.SaveSection(CaptureRotation());
-        _messenger.SaveSection(CaptureMould());
-    }
-
     // ---- Commands ------------------------------------------------------
     [RelayCommand]
     private void SetImportFolder()
     {
         var ofd = new OpenFolderDialog
         {
-            InitialDirectory = ImportFilepath,
+            InitialDirectory = Get<GeneralPreferences>().ImportFolder,
             Title = "Select Import Folder",
             Multiselect = false
         };
         if (ofd.ShowDialog() != true) { return; }
 
-        ImportFilepath = Path.GetFullPath(ofd.FolderName);
+        Update<GeneralPreferences>(g => g with { ImportFolder = Path.GetFullPath(ofd.FolderName) });
     }
 
     [RelayCommand]
@@ -372,13 +194,13 @@ public partial class PreferencesViewModel : ObservableObject
     {
         var ofd = new OpenFolderDialog
         {
-            InitialDirectory = ExportFilepath,
+            InitialDirectory = Get<GeneralPreferences>().ExportFolder,
             Title = "Select Export Folder",
             Multiselect = false
         };
         if (ofd.ShowDialog() != true) { return; }
 
-        ExportFilepath = Path.GetFullPath(ofd.FolderName);
+        Update<GeneralPreferences>(g => g with { ExportFolder = Path.GetFullPath(ofd.FolderName) });
     }
 
     [RelayCommand]
@@ -390,90 +212,25 @@ public partial class PreferencesViewModel : ObservableObject
     private PreferenceBag Capture()
     {
         var bag = new PreferenceBag();
-        CaptureGeneral().Write(bag);
-        CapturePrintBed().Write(bag);
-        CaptureCutSplit().Write(bag);
-        CaptureDecal().Write(bag);
-        CaptureSmoothing().Write(bag);
-        CaptureRotation().Write(bag);
-        CaptureMould().Write(bag);
+        PreferenceSections.ForEach(new Writer(this, bag));
         return bag;
     }
 
     /// <summary>
-    /// Writes a profile onto every property, then saves each page once. Saving is held off
-    /// until the end so a profile touching five print-bed values persists that page once
-    /// instead of five times - and so half-written pages never reach live consumers.
+    /// Replaces every section from a profile, then saves them all.
+    ///
+    /// The sections are swapped in first and persisted afterwards, so a half-written set never
+    /// reaches a live consumer - the flag that used to hold saving off while thirty-nine
+    /// properties were assigned one at a time is not needed once a section moves as one value.
     /// </summary>
-    private void Apply(PreferenceBag bag)
+    private void Apply(IPreferenceReader source)
     {
-        _applyingProfile = true;
-        try
-        {
-            ApplyToProperties(bag);
-        }
-        finally
-        {
-            _applyingProfile = false;
-        }
+        PreferenceSections.ForEach(new Reader(this, source));
+        PreferenceSections.ForEach(new Saver(this));
 
-        SaveAllSections();
-    }
-
-    private void ApplyToProperties(IPreferenceReader source)
-    {
-        var general = GeneralPreferences.Read(source).Clamped();
-        ImportFilepath = general.ImportFolder;
-        ExportFilepath = general.ExportFolder;
-        ExportFormat = general.ExportFormat;
-        ViewportBackground = general.ViewportBackground;
-
-        var bed = PrintBedPreferences.Read(source).Clamped();
-        PrintbedWidth = bed.Width;
-        PrintbedDepth = bed.Depth;
-        ShowBedGrid = bed.ShowGrid;
-        AutodetectChannels = bed.AutodetectChannels;
-        ChannelDiameter = bed.ChannelDiameter;
-
-        var cutSplit = CutSplitPreferences.Read(source).Clamped();
-        EnableCutView = cutSplit.CutViewEnabled;
-        CutScope = cutSplit.CutScope;
-        EnableSplitView = cutSplit.SplitViewEnabled;
-
-        var decal = DecalPreferences.Read(source).Clamped();
-        EnableDecals = decal.Enabled;
-        DecalPlacementScope = decal.Scope;
-        AutoPlaceFilename = decal.AutoPlaceFilename;
-        FilenameAnchor = decal.FilenameAnchor;
-        AutoPlaceVolume = decal.AutoPlaceVolume;
-        VolumeAnchor = decal.VolumeAnchor;
-        DecalDefaultFont = decal.Font;
-        DecalCapHeight = decal.CapHeight;
-        DecalDepth = decal.Depth;
-        DecalOperation = decal.Operation;
-
-        var smooth = SmoothingPreferences.Read(source).Clamped();
-        SmoothIterations = smooth.Iterations;
-        SmoothIntensity = smooth.Intensity;
-        SmoothInflation = smooth.Inflation;
-        SmoothRemeshRatio = smooth.RemeshRatio;
-        SmoothResolution = smooth.Resolution;
-        SmoothDisplay = smooth.DisplayMode;
-
-        var rotation = RotationPreferences.Read(source).Clamped();
-        // Critical first: the range slider will not let the lower thumb pass the upper one, so
-        // raising the ceiling before the floor keeps a profile with higher thresholds than the
-        // current pair from being clamped on the way in.
-        OverhangCriticalAngle = rotation.OverhangCriticalAngle;
-        OverhangWarningAngle = rotation.OverhangWarningAngle;
-
-        var mould = MouldPreferences.Read(source).Clamped();
-        MouldShape = mould.Shape;
-        MouldWallThickness = mould.WallThickness;
-        MouldBaseHeight = mould.BaseHeight;
-        MouldTroughHeight = mould.TroughHeight;
-        MouldTroughOffset = mould.TroughOffset;
-        MouldTroughShape = mould.TroughShape;
+        RefreshRows();
+        OnPropertyChanged(nameof(OverhangWarningAngle));
+        OnPropertyChanged(nameof(OverhangCriticalAngle));
     }
 
     [RelayCommand]
@@ -487,7 +244,9 @@ public partial class PreferencesViewModel : ObservableObject
             FileName = PreferenceProfileIO.DefaultFileName,
             AddExtension = true,
             OverwritePrompt = true,
-            InitialDirectory = Directory.Exists(ExportFilepath) ? ExportFilepath : string.Empty
+            InitialDirectory = Directory.Exists(Get<GeneralPreferences>().ExportFolder)
+                ? Get<GeneralPreferences>().ExportFolder
+                : string.Empty
         };
 
         if (dialog.ShowDialog() != true) { return; }
@@ -513,7 +272,9 @@ public partial class PreferencesViewModel : ObservableObject
             DefaultExt = ".json",
             Multiselect = false,
             CheckFileExists = true,
-            InitialDirectory = Directory.Exists(ExportFilepath) ? ExportFilepath : string.Empty
+            InitialDirectory = Directory.Exists(Get<GeneralPreferences>().ExportFolder)
+                ? Get<GeneralPreferences>().ExportFolder
+                : string.Empty
         };
 
         if (dialog.ShowDialog() != true) { return; }
@@ -551,6 +312,30 @@ public partial class PreferencesViewModel : ObservableObject
             $"Preferences imported.{Environment.NewLine}{Environment.NewLine}" +
             $"{result.Adjusted.Count} setting(s) were reset to their default because the file did not " +
             $"carry a usable value:{Environment.NewLine}{detail}");
+    }
+
+    // ---- Roster walks ---------------------------------------------------
+    // Each section needs its own type as a generic argument, which a plain delegate cannot
+    // carry, so every "do this to all of them" is a visitor over the one roster.
+
+    private sealed class Loader(PreferencesViewModel vm) : IPreferenceSectionVisitor {
+        public void Visit<T>() where T : class, IPreferenceSettings<T> =>
+            vm._settings[typeof(T)] = vm._messenger.GetSection(T.Default);
+    }
+
+    private sealed class Saver(PreferencesViewModel vm) : IPreferenceSectionVisitor {
+        public void Visit<T>() where T : class, IPreferenceSettings<T> =>
+            vm._messenger.SaveSection(vm.Get<T>());
+    }
+
+    private sealed class Reader(PreferencesViewModel vm, IPreferenceReader source) : IPreferenceSectionVisitor {
+        public void Visit<T>() where T : class, IPreferenceSettings<T> =>
+            vm._settings[typeof(T)] = T.Read(source).Clamped();
+    }
+
+    private sealed class Writer(PreferencesViewModel vm, IPreferenceWriter target) : IPreferenceSectionVisitor {
+        public void Visit<T>() where T : class, IPreferenceSettings<T> =>
+            vm.Get<T>().Write(target);
     }
 }
 

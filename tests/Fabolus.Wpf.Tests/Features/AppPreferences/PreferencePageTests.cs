@@ -181,10 +181,10 @@ public class PreferencePageTests : IDisposable
         var rows = RowsOf(_viewModel, mould);
         var troughDepth = rows.OfType<NumberRow>().Single(r => r.Label == "Depth");
 
-        _viewModel.MouldShape = MouldShapeType.Concave;
+        _viewModel.Update<MouldPreferences>(m => m with { Shape = MouldShapeType.Concave });
         Assert.True(troughDepth.IsEnabled);
 
-        _viewModel.MouldShape = MouldShapeType.Contoured;
+        _viewModel.Update<MouldPreferences>(m => m with { Shape = MouldShapeType.Contoured });
         Assert.False(troughDepth.IsEnabled);
     }
 

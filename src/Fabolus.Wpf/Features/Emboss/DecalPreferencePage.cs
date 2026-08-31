@@ -14,7 +14,7 @@ public sealed class DecalPreferencePage : IPreferencePage {
 
     public IReadOnlyList<PreferenceRow> BuildRows(PreferencesViewModel vm) {
         // Everything below the master switch is meaningless while the tool is off.
-        bool Enabled() => vm.EnableDecals;
+        bool Enabled() => vm.Get<DecalPreferences>().Enabled;
 
         IReadOnlyList<PreferenceChoice> anchors =
             [.. Enum.GetValues<DecalAnchor>().Select(a => new PreferenceChoice(a, a.ToLabel()))];
@@ -23,8 +23,8 @@ public sealed class DecalPreferencePage : IPreferencePage {
             new ToggleRow {
                 Label = "Decal tool",
                 Caption = "Adds the text decal step to the workflow.",
-                Read = () => vm.EnableDecals,
-                Write = value => vm.EnableDecals = value,
+                Read = () => vm.Get<DecalPreferences>().Enabled,
+                Write = value => vm.Update<DecalPreferences>(settings => settings with { Enabled = value }),
             },
 
             new HeaderRow {
@@ -36,26 +36,26 @@ public sealed class DecalPreferencePage : IPreferencePage {
                 Caption = "Which mesh the automatic decals are applied to.",
                 PickerWidth = 176,
                 Choices = [.. Enum.GetValues<DecalAutoPlaceScope>().Select(s => new PreferenceChoice(s, s.ToLabel()))],
-                Read = () => vm.DecalPlacementScope,
-                Write = value => vm.DecalPlacementScope = (DecalAutoPlaceScope)value,
+                Read = () => vm.Get<DecalPreferences>().Scope,
+                Write = value => vm.Update<DecalPreferences>(settings => settings with { Scope = (DecalAutoPlaceScope)value }),
             }.EnabledWhen(Enabled),
             new AnchoredToggleRow {
                 Label = "File name",
                 Caption = "Engraves the mesh's file name at this anchor.",
                 Choices = anchors,
-                ReadAnchor = () => vm.FilenameAnchor,
-                WriteAnchor = value => vm.FilenameAnchor = (DecalAnchor)value,
-                ReadEnabled = () => vm.AutoPlaceFilename,
-                WriteEnabled = value => vm.AutoPlaceFilename = value,
+                ReadAnchor = () => vm.Get<DecalPreferences>().FilenameAnchor,
+                WriteAnchor = value => vm.Update<DecalPreferences>(settings => settings with { FilenameAnchor = (DecalAnchor)value }),
+                ReadEnabled = () => vm.Get<DecalPreferences>().AutoPlaceFilename,
+                WriteEnabled = value => vm.Update<DecalPreferences>(settings => settings with { AutoPlaceFilename = value }),
             }.EnabledWhen(Enabled),
             new AnchoredToggleRow {
                 Label = "Volume",
                 Caption = "Engraves the base mesh volume in cc at this anchor.",
                 Choices = anchors,
-                ReadAnchor = () => vm.VolumeAnchor,
-                WriteAnchor = value => vm.VolumeAnchor = (DecalAnchor)value,
-                ReadEnabled = () => vm.AutoPlaceVolume,
-                WriteEnabled = value => vm.AutoPlaceVolume = value,
+                ReadAnchor = () => vm.Get<DecalPreferences>().VolumeAnchor,
+                WriteAnchor = value => vm.Update<DecalPreferences>(settings => settings with { VolumeAnchor = (DecalAnchor)value }),
+                ReadEnabled = () => vm.Get<DecalPreferences>().AutoPlaceVolume,
+                WriteEnabled = value => vm.Update<DecalPreferences>(settings => settings with { AutoPlaceVolume = value }),
             }.EnabledWhen(Enabled),
 
             new HeaderRow {
@@ -68,8 +68,8 @@ public sealed class DecalPreferencePage : IPreferencePage {
                     new(EmbossOperation.Emboss, "Emboss"),
                     new(EmbossOperation.Engrave, "Engrave"),
                 ],
-                Read = () => vm.DecalOperation,
-                Write = value => vm.DecalOperation = (EmbossOperation)value,
+                Read = () => vm.Get<DecalPreferences>().Operation,
+                Write = value => vm.Update<DecalPreferences>(settings => settings with { Operation = (EmbossOperation)value }),
             }.EnabledWhen(Enabled),
             new SegmentedRow {
                 Label = "Font",
@@ -78,8 +78,8 @@ public sealed class DecalPreferencePage : IPreferencePage {
                     new(DecalFont.Mono, "Mono"),
                     new(DecalFont.Bold, "Bold"),
                 ],
-                Read = () => vm.DecalDefaultFont,
-                Write = value => vm.DecalDefaultFont = (DecalFont)value,
+                Read = () => vm.Get<DecalPreferences>().Font,
+                Write = value => vm.Update<DecalPreferences>(settings => settings with { Font = (DecalFont)value }),
             }.EnabledWhen(Enabled),
             new NumberRow {
                 Label = "Cap height",
@@ -87,8 +87,8 @@ public sealed class DecalPreferencePage : IPreferencePage {
                 Minimum = DecalPreferences.Ranges.CapHeightMin,
                 Maximum = DecalPreferences.Ranges.CapHeightMax,
                 Interval = 0.5,
-                Read = () => vm.DecalCapHeight,
-                Write = value => vm.DecalCapHeight = (float)value,
+                Read = () => vm.Get<DecalPreferences>().CapHeight,
+                Write = value => vm.Update<DecalPreferences>(settings => settings with { CapHeight = (float)value }),
             }.EnabledWhen(Enabled),
             new NumberRow {
                 Label = "Depth",
@@ -96,8 +96,8 @@ public sealed class DecalPreferencePage : IPreferencePage {
                 Minimum = DecalPreferences.Ranges.DepthMin,
                 Maximum = DecalPreferences.Ranges.DepthMax,
                 Interval = 0.1,
-                Read = () => vm.DecalDepth,
-                Write = value => vm.DecalDepth = (float)value,
+                Read = () => vm.Get<DecalPreferences>().Depth,
+                Write = value => vm.Update<DecalPreferences>(settings => settings with { Depth = (float)value }),
             }.EnabledWhen(Enabled),
             new NoteRow {
                 Caption = "Cap height is a starting point only — a decal snapped to an anchor is still "

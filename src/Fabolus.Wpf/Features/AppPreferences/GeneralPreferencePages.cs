@@ -15,12 +15,12 @@ public sealed class GeneralPreferencePage : IPreferencePage {
     public IReadOnlyList<PreferenceRow> BuildRows(PreferencesViewModel vm) => [
         new FolderRow {
             Label = "Default import folder",
-            Read = () => vm.ImportFilepath,
+            Read = () => vm.Get<GeneralPreferences>().ImportFolder,
             Browse = vm.SetImportFolderCommand,
         },
         new FolderRow {
             Label = "Default export folder",
-            Read = () => vm.ExportFilepath,
+            Read = () => vm.Get<GeneralPreferences>().ExportFolder,
             Browse = vm.SetExportFolderCommand,
         },
         new SegmentedRow {
@@ -29,8 +29,8 @@ public sealed class GeneralPreferencePage : IPreferencePage {
                 new(ExportFormat.Stl, ExportFormat.Stl.ToLabel()),
                 new(ExportFormat.ThreeMF, ExportFormat.ThreeMF.ToLabel()),
             ],
-            Read = () => vm.ExportFormat,
-            Write = value => vm.ExportFormat = (ExportFormat)value,
+            Read = () => vm.Get<GeneralPreferences>().ExportFormat,
+            Write = value => vm.Update<GeneralPreferences>(settings => settings with { ExportFormat = (ExportFormat)value }),
         },
 
         // Appearance used to be a page of its own, trailing the feature pages. It held one
@@ -43,8 +43,8 @@ public sealed class GeneralPreferencePage : IPreferencePage {
                 new(ViewportBackground.Graphite, "Graphite"),
                 new(ViewportBackground.LightSteel, "Light steel"),
             ],
-            Read = () => vm.ViewportBackground,
-            Write = value => vm.ViewportBackground = (ViewportBackground)value,
+            Read = () => vm.Get<GeneralPreferences>().ViewportBackground,
+            Write = value => vm.Update<GeneralPreferences>(settings => settings with { ViewportBackground = (ViewportBackground)value }),
         },
     ];
 }
@@ -65,8 +65,8 @@ public sealed class PrintBedPreferencePage : IPreferencePage {
             UnitBrushKey = "Brush.Axis.X",
             Minimum = PrintBedPreferences.Ranges.PrintBedMin,
             Maximum = PrintBedPreferences.Ranges.PrintBedMax,
-            Read = () => vm.PrintbedWidth,
-            Write = value => vm.PrintbedWidth = (float)value,
+            Read = () => vm.Get<PrintBedPreferences>().Width,
+            Write = value => vm.Update<PrintBedPreferences>(settings => settings with { Width = (float)value }),
         },
         new NumberRow {
             Label = "Depth",
@@ -74,13 +74,13 @@ public sealed class PrintBedPreferencePage : IPreferencePage {
             UnitBrushKey = "Brush.Axis.Y",
             Minimum = PrintBedPreferences.Ranges.PrintBedMin,
             Maximum = PrintBedPreferences.Ranges.PrintBedMax,
-            Read = () => vm.PrintbedDepth,
-            Write = value => vm.PrintbedDepth = (float)value,
+            Read = () => vm.Get<PrintBedPreferences>().Depth,
+            Write = value => vm.Update<PrintBedPreferences>(settings => settings with { Depth = (float)value }),
         },
         new ToggleRow {
             Label = "Show bed grid in viewport",
-            Read = () => vm.ShowBedGrid,
-            Write = value => vm.ShowBedGrid = value,
+            Read = () => vm.Get<PrintBedPreferences>().ShowGrid,
+            Write = value => vm.Update<PrintBedPreferences>(settings => settings with { ShowGrid = value }),
         },
     ];
 }

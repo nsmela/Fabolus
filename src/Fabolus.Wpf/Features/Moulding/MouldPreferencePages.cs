@@ -21,8 +21,8 @@ public sealed class AirChannelPreferencePage : IPreferencePage {
         new ToggleRow {
             Label = "Generate air channels automatically",
             Caption = "Detect and place channels when a mesh is imported.",
-            Read = () => vm.AutodetectChannels,
-            Write = value => vm.AutodetectChannels = value,
+            Read = () => vm.Get<PrintBedPreferences>().AutodetectChannels,
+            Write = value => vm.Update<PrintBedPreferences>(settings => settings with { AutodetectChannels = value }),
         },
         new NumberRow {
             Label = "Default channel diameter",
@@ -30,8 +30,8 @@ public sealed class AirChannelPreferencePage : IPreferencePage {
             Minimum = PrintBedPreferences.Ranges.ChannelDiameterMin,
             Maximum = PrintBedPreferences.Ranges.ChannelDiameterMax,
             Interval = 0.5,
-            Read = () => vm.ChannelDiameter,
-            Write = value => vm.ChannelDiameter = (float)value,
+            Read = () => vm.Get<PrintBedPreferences>().ChannelDiameter,
+            Write = value => vm.Update<PrintBedPreferences>(settings => settings with { ChannelDiameter = (float)value }),
         },
     ];
 }
@@ -53,8 +53,8 @@ public sealed class MouldPreferencePage : IPreferencePage {
                 new(MouldShapeType.Concave, "Concave"),
                 new(MouldShapeType.Contoured, "Contoured"),
             ],
-            Read = () => vm.MouldShape,
-            Write = value => vm.MouldShape = (MouldShapeType)value,
+            Read = () => vm.Get<MouldPreferences>().Shape,
+            Write = value => vm.Update<MouldPreferences>(settings => settings with { Shape = (MouldShapeType)value }),
         },
         new NumberRow {
             Label = "Wall thickness",
@@ -62,8 +62,8 @@ public sealed class MouldPreferencePage : IPreferencePage {
             Minimum = MouldPreferences.Ranges.WallThicknessMin,
             Maximum = MouldPreferences.Ranges.WallThicknessMax,
             Interval = 0.5,
-            Read = () => vm.MouldWallThickness,
-            Write = value => vm.MouldWallThickness = (float)value,
+            Read = () => vm.Get<MouldPreferences>().WallThickness,
+            Write = value => vm.Update<MouldPreferences>(settings => settings with { WallThickness = (float)value }),
         },
         new NumberRow {
             Label = "Base height",
@@ -71,15 +71,15 @@ public sealed class MouldPreferencePage : IPreferencePage {
             Minimum = MouldPreferences.Ranges.BaseHeightMin,
             Maximum = MouldPreferences.Ranges.BaseHeightMax,
             StringFormat = "N0",
-            Read = () => vm.MouldBaseHeight,
-            Write = value => vm.MouldBaseHeight = (float)value,
+            Read = () => vm.Get<MouldPreferences>().BaseHeight,
+            Write = value => vm.Update<MouldPreferences>(settings => settings with { BaseHeight = (float)value }),
         },
 
         // A contoured shell hugs the bolus, so it has no flat top to recess a basin into.
         new HeaderRow {
             Label = "TROUGH",
             Caption = "The basin excess silicone pools in while the mould fills.",
-        }.EnabledWhen(() => vm.MouldSupportsTrough),
+        }.EnabledWhen(() => vm.Get<MouldPreferences>().Shape != MouldShapeType.Contoured),
         new NumberRow {
             Label = "Depth",
             Unit = "mm",
@@ -87,18 +87,18 @@ public sealed class MouldPreferencePage : IPreferencePage {
             Minimum = MouldPreferences.Ranges.TroughHeightMin,
             Maximum = MouldPreferences.Ranges.TroughHeightMax,
             Interval = 0.5,
-            Read = () => vm.MouldTroughHeight,
-            Write = value => vm.MouldTroughHeight = (float)value,
-        }.EnabledWhen(() => vm.MouldSupportsTrough),
+            Read = () => vm.Get<MouldPreferences>().TroughHeight,
+            Write = value => vm.Update<MouldPreferences>(settings => settings with { TroughHeight = (float)value }),
+        }.EnabledWhen(() => vm.Get<MouldPreferences>().Shape != MouldShapeType.Contoured),
         new SegmentedRow {
             Label = "Shape",
             Choices = [
                 new(TroughShapeType.Footprint, "Footprint"),
                 new(TroughShapeType.Channels, "Channels"),
             ],
-            Read = () => vm.MouldTroughShape,
-            Write = value => vm.MouldTroughShape = (TroughShapeType)value,
-        }.EnabledWhen(() => vm.MouldSupportsTrough),
+            Read = () => vm.Get<MouldPreferences>().TroughShape,
+            Write = value => vm.Update<MouldPreferences>(settings => settings with { TroughShape = (TroughShapeType)value }),
+        }.EnabledWhen(() => vm.Get<MouldPreferences>().Shape != MouldShapeType.Contoured),
         new NumberRow {
             Label = "Margin",
             Unit = "mm",
@@ -106,8 +106,8 @@ public sealed class MouldPreferencePage : IPreferencePage {
             Minimum = MouldPreferences.Ranges.TroughOffsetMin,
             Maximum = MouldPreferences.Ranges.TroughOffsetMax,
             Interval = 0.5,
-            Read = () => vm.MouldTroughOffset,
-            Write = value => vm.MouldTroughOffset = (float)value,
-        }.EnabledWhen(() => vm.MouldSupportsTrough),
+            Read = () => vm.Get<MouldPreferences>().TroughOffset,
+            Write = value => vm.Update<MouldPreferences>(settings => settings with { TroughOffset = (float)value }),
+        }.EnabledWhen(() => vm.Get<MouldPreferences>().Shape != MouldShapeType.Contoured),
     ];
 }
