@@ -1,4 +1,4 @@
-using Fabolus.Core.Geometry;
+﻿using Fabolus.Core.Geometry;
 using Fabolus.Core.Features.Transforms;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
@@ -92,7 +92,9 @@ public class GeometryIOTests
         var original = _fixture.LoadStl("sphere.stl");
         
         // Add metadata
-        var command = new Fabolus.Core.Features.Smoothing.SmoothSettings(5, 3.5f, 0.2f, 1.5f, 0.5f);
+        var command = new Fabolus.Core.Features.Smoothing.SmoothSettings {
+            Iterations = 5, Intensity = 3.5f, Inflation = 0.2f, RemeshRatio = 1.5f, Resolution = 0.5f
+        };
         
         // Create a distinctly different base mesh so we can detect if they get swapped
         var baseMesh = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 50, 32).Value;

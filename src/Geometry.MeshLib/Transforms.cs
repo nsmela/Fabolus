@@ -6,11 +6,11 @@ using static MR;
 
 namespace GeometryMeshLib;
 
-internal sealed class GeometryTransforms : IGeometryTransforms
+internal sealed class Transforms : IGeometryTransforms
 {
     private readonly GeometryEngine _engine;
 
-    public GeometryTransforms(GeometryEngine engine)
+    public Transforms(GeometryEngine engine)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
     }

@@ -27,13 +27,25 @@ public sealed class ImportMesh {
         var initialMesh = importResult.Value;
         var importedMeshes = new List<IMesh>();
 
-        var multipleCompsResult = _geometryEngine.Evaluators.HasMultipleComponents(initialMesh);
-        if (multipleCompsResult.IsSuccess && multipleCompsResult.Value) {
-            var separatedResult = _geometryEngine.Evaluators.SeparateComponents(initialMesh);
-            if (separatedResult.IsSuccess)
-                importedMeshes.AddRange(separatedResult.Value);
-            else
+        // A mesh carrying its own command history is a saved project rather than raw geometry, and
+        // its meshes are deliberate: a combined cut is a single mesh even though the two halves it
+        // holds are geometrically disconnected. Auto-separating multi-body geometry is only right
+        // for raw imports (an STL with several bodies) - doing it to a saved project would break a
+        // combined cut back into two meshes on reload. Same test the centring below uses.
+        var initialMetadata = initialMesh.Metadata;
+        var isSavedProject = initialMetadata.HasBaseMesh || initialMetadata.Commands.Any();
+
+        if (!isSavedProject) {
+            var multipleCompsResult = _geometryEngine.Evaluators.HasMultipleComponents(initialMesh);
+            if (multipleCompsResult.IsSuccess && multipleCompsResult.Value) {
+                var separatedResult = _geometryEngine.Evaluators.SeparateComponents(initialMesh);
+                if (separatedResult.IsSuccess)
+                    importedMeshes.AddRange(separatedResult.Value);
+                else
+                    importedMeshes.Add(initialMesh);
+            } else {
                 importedMeshes.Add(initialMesh);
+            }
         } else {
             importedMeshes.Add(initialMesh);
         }

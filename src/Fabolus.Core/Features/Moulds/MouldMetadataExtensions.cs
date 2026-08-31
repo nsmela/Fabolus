@@ -1,6 +1,5 @@
 using Fabolus.Core.Common;
 using Fabolus.Core.Geometry.Metadata;
-using System.Linq;
 
 namespace Fabolus.Core.Features.Moulds;
 

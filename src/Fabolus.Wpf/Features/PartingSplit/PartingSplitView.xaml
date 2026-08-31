@@ -1,0 +1,339 @@
+<UserControl x:Class="Fabolus.Wpf.Features.PartingSplit.PartingSplitView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Fabolus.Wpf.Features.PartingSplit"
+             xmlns:core="clr-namespace:Fabolus.Core.Features.PartingSplit;assembly=Fabolus.Core"
+             xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="300">
+    <UserControl.Resources>
+        <conv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+    </UserControl.Resources>
+    <Grid>
+        <!-- Non-mould meshes: parting split doesn't apply -->
+        <Grid>
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsMould}" Value="False">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <StackPanel Margin="16">
+                <TextBlock Text="Parting Split" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="Generate a mould first - parting split works on the mould shell, not the base mesh." TextWrapping="Wrap"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Mould meshes -->
+        <Grid>
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsMould}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <!--
+                A DockPanel rather than a StackPanel, so the step controls can never push the step
+                buttons off the bottom of the panel. They were in one column together and the column
+                had nowhere to stop: every line of text added to a step moved Next further down, and
+                past the height of the panel it was simply gone, with no way to reach the next stage.
+                The buttons are docked first and so are reserved their space before anything else is
+                laid out; whatever is left over goes to the content, which scrolls inside it.
+            -->
+            <DockPanel Margin="16">
+                <TextBlock DockPanel.Dock="Top" Text="Parting Split"
+                           FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+                <!-- Navigation Controls -->
+                <Grid DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Back Button -->
+                    <Button Grid.Column="0" Content="Back" Command="{Binding PreviousStateCommand}" HorizontalAlignment="Stretch">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="DirectionSelection">
+                                        <Setter Property="Visibility" Value="Hidden" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Next Button -->
+                    <Button Grid.Column="2" Content="Next" Command="{Binding NextStateCommand}" HorizontalAlignment="Stretch">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="SplitResult">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Apply Split Button -->
+                    <Button Grid.Column="2" Content="Apply Split" Command="{Binding ApplySplitCommand}" HorizontalAlignment="Stretch">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="SplitResult">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="0,0,4,0">
+
+                    <!-- Dynamic Header -->
+                    <TextBlock FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="DirectionSelection">
+                                        <Setter Property="Text" Value="Step 1 of 3: Pull Direction" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="PartingMeshPreview">
+                                        <Setter Property="Text" Value="Step 2 of 3: Parting Mesh" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="SplitResult">
+                                        <Setter Property="Text" Value="Step 3 of 3: Split Result" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <!--
+                        Dynamic Description. One or two lines each: this is a caption for the stage, and
+                        the reasoning behind what each stage does belongs in the code that does it rather
+                        than in a panel the user reads once. Anything a user still needs while working is
+                        on the control it belongs to, as a tooltip.
+                    -->
+                    <TextBlock TextWrapping="Wrap" Margin="0,0,0,12" Opacity="0.85" FontSize="11">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="DirectionSelection">
+                                        <Setter Property="Text" Value="The shading shows which half each face pulls away from. Adjust where the mould parts using the handles on the line." />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="PartingMeshPreview">
+                                        <Setter Property="Text" Value="The parting mesh should pass cleanly through the mould on every side. Green is its outer face, red the inner - red where you expect green means a flipped or self-intersecting surface." />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="SplitResult">
+                                        <Setter Property="Text" Value="Review the positive (blue) and negative (orange) halves. Applying adds them to the workspace and opens the mesh manager." />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <!-- Step 1: pull direction -->
+                    <StackPanel>
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="DirectionSelection">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+
+                        <!-- What the body's shape says about how it should be parted. Read-only: the
+                             source is settled, so this reports rather than offers a choice. -->
+                        <Border BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,12"
+                                Visibility="{Binding HasStrategy, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#332ECC71" />
+                                    <Setter Property="BorderBrush" Value="#2ECC71" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding StrategyDisagrees}" Value="True">
+                                            <Setter Property="Background" Value="#33E67E22" />
+                                            <Setter Property="BorderBrush" Value="#E67E22" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <!--
+                                Folded away by default. It is eight wrapped lines of diagnosis that a user
+                                reads once per body and never again, and it was the single biggest thing in
+                                the panel. It opens itself when the assessment disagrees with the approach,
+                                which is the only time it has something the user has to act on - so what is
+                                hidden is the reading that says everything is fine.
+                            -->
+                            <Expander>
+                                <Expander.Style>
+                                    <Style TargetType="Expander">
+                                        <Setter Property="IsExpanded" Value="False" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding StrategyDisagrees}" Value="True">
+                                                <Setter Property="IsExpanded" Value="True" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Expander.Style>
+                                <Expander.Header>
+                                    <TextBlock Text="Body assessment" FontWeight="SemiBold"/>
+                                </Expander.Header>
+
+                                <StackPanel Margin="0,6,0,0">
+                                    <TextBlock Text="{Binding StrategyShape}" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                                    <TextBlock Text="{Binding StrategyContours}" TextWrapping="Wrap" Margin="0,0,0,2"/>
+                                    <TextBlock Text="{Binding StrategyRims}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                    <TextBlock Text="Approach" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                    <TextBlock Text="{Binding StrategyApproach}" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                                    <TextBlock Text="{Binding StrategySummary}" TextWrapping="Wrap"
+                                               Opacity="0.85" FontSize="11"/>
+                                </StackPanel>
+                            </Expander>
+                        </Border>
+
+                        <!--
+                            Adjusting the parting line by hand. Only offered when the body has a rim wall
+                            to confine the line to - without one there is nowhere a dragged handle could
+                            legally go, so the controls would promise an edit that cannot be honoured.
+                        -->
+                        <Border Background="#2246A0D0" BorderBrush="#46A0D0" BorderThickness="1"
+                                CornerRadius="4" Padding="8" Margin="0,0,0,12"
+                                Visibility="{Binding CanEditLine, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <!--
+                                Every explanation here is now a tooltip. They were three paragraphs of
+                                standing text describing behaviour the user can see happening the moment
+                                they move the mouse - hover grows a handle, a marker appears where a click
+                                would divide - so they were paying for permanent space to say what the
+                                viewport says better. On the control, they are there for whoever wants them.
+                            -->
+                            <StackPanel>
+                                <TextBlock Text="Adjust the line" FontWeight="SemiBold" Margin="0,0,0,4"
+                                           ToolTip="Drag a handle to move the line along the rim wall - it cannot leave the wall. Point at a section and a green marker shows where a click would divide it in two."/>
+                                <TextBlock Text="Drag a handle to move the line; click a section to divide it."
+                                           TextWrapping="Wrap" Opacity="0.85" FontSize="11" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="{Binding SelectionSummary}" TextWrapping="Wrap"
+                                           Margin="0,0,0,8"/>
+
+                                <!-- Which path a re-walked section takes. Off by default: the free path is
+                                     the smoother one, and on some bodies it gets there by leaving the rim
+                                     entirely - see PartingSplitViewModel.UseUnconstrainedGeodesic. -->
+                                <CheckBox Content="Free geodesic"
+                                          IsChecked="{Binding UseUnconstrainedGeodesic}" Margin="0,0,0,8"
+                                          ToolTip="Sections take the shortest path across the whole body instead of across the rim wall. Smoother, and on a tightly curved rim it cuts the corner onto the shell."/>
+
+                                <Button Content="Remove selected handle" Command="{Binding RemoveHandleCommand}"
+                                        IsEnabled="{Binding CanRemoveHandle}"
+                                        HorizontalAlignment="Stretch" Margin="0,0,0,6"/>
+
+                                <!-- Repeatable on purpose: each press eases the line further toward the
+                                     straightest path through the handles, and stops there. -->
+                                <Button Content="Smooth line" Command="{Binding SmoothLineCommand}"
+                                        HorizontalAlignment="Stretch" Margin="0,0,0,6"
+                                        ToolTip="Eases the line between the handles without lifting it off the rim wall. Press again for more."/>
+
+                                <Button Content="Reset line edits" Command="{Binding ResetLineEditsCommand}"
+                                        HorizontalAlignment="Stretch"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Button Content="Reset Direction" Command="{Binding ResetDirectionCommand}" HorizontalAlignment="Stretch" Margin="0,0,0,16"/>
+                    </StackPanel>
+
+                    <!-- Step 2: internal holes the parting mesh has to shut off -->
+                    <Border Background="#332ECC71" BorderBrush="#2ECC71" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,16">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="PartingMeshPreview">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock TextWrapping="Wrap">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="{Binding InternalHoleCount, StringFormat='{}{0} internal hole(s) detected - an additional parting mesh will be generated for each.'}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding InternalHoleCount}" Value="0">
+                                            <Setter Property="Text" Value="Parting line generated - no internal holes detected." />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Border>
+
+                    <!-- Step 2: Mesh Generation Settings -->
+                    <StackPanel Margin="0,0,0,16">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="PartingMeshPreview">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <TextBlock Text="Cutter Thickness" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding CutterDepthMm, StringFormat={}{0:F1} mm}" Margin="8,0,0,0" Width="50" TextAlignment="Right"/>
+                            <Slider Minimum="0.1" Maximum="5.0" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding CutterDepthMm, UpdateSourceTrigger=PropertyChanged}" />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <!-- Step 3: how the applied result lands in the workspace -->
+                    <StackPanel Margin="0,0,0,16">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentState}" Value="SplitResult">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <TextBlock Text="Export as" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <RadioButton GroupName="PartingResult" Margin="0,0,0,4"
+                                     Content="Separate files (one per half)"
+                                     IsChecked="{Binding ResultMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingResultMode.Separated}}" />
+                        <RadioButton GroupName="PartingResult"
+                                     Content="Single file (halves joined)"
+                                     IsChecked="{Binding ResultMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingResultMode.Combined}}" />
+                    </StackPanel>
+
+                </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Grid>
+    </Grid>
+</UserControl>

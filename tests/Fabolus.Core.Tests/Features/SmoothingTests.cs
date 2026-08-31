@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using System.Numerics;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
@@ -60,7 +60,7 @@ public class SmoothingTests
         // place, which disposes the original native mesh.
         var originalStats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
 
-        var result = _smoothingFeature.Execute(workspace, new SmoothSettings(Inflation: 2.0f));
+        var result = _smoothingFeature.Execute(workspace, new SmoothSettings { Inflation = 2.0f });
 
         result.IsSuccess.Should().BeTrue();
         var smoothedMesh = result.Value.GetActiveMesh().Value;
@@ -83,7 +83,7 @@ public class SmoothingTests
         var firstBaseMesh = workspace.GetActiveMeshMetadata().Value.GetBaseMesh().Value;
 
         // Smooth again with different settings
-        var result = _smoothingFeature.Execute(workspace, new SmoothSettings(Iterations: 2));
+        var result = _smoothingFeature.Execute(workspace, new SmoothSettings { Iterations = 2 });
 
         result.IsSuccess.Should().BeTrue();
         var finalWorkspace = result.Value;

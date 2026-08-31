@@ -1,4 +1,4 @@
-﻿namespace Fabolus.Wpf.Features.AppPreferences;
+namespace Fabolus.Wpf.Features.AppPreferences;
 
 /// <summary>Default folders, export format and viewport appearance.</summary>
 public sealed class GeneralPreferencePage : IPreferencePage {
@@ -37,6 +37,15 @@ public sealed class GeneralPreferencePage : IPreferencePage {
         // setting, and it is stored on this same section's record, so it reads as a group here
         // rather than a sidebar entry of its own.
         new HeaderRow { Label = "APPEARANCE" },
+        new SegmentedRow {
+            Label = "Application theme",
+            Choices = [
+                new(AppTheme.Dark, AppTheme.Dark.ToLabel()),
+                new(AppTheme.Light, AppTheme.Light.ToLabel()),
+            ],
+            Read = () => vm.Get<GeneralPreferences>().AppTheme,
+            Write = value => vm.Update<GeneralPreferences>(settings => settings with { AppTheme = (AppTheme)value }),
+        },
         new SegmentedRow {
             Label = "Viewport background",
             Choices = [

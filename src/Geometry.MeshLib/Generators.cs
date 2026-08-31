@@ -6,11 +6,11 @@ using Fabolus.Core.Geometry.Metadata;
 
 namespace GeometryMeshLib;
 
-internal sealed class GeometryGenerators : IGeometryGenerators
+internal sealed class Generators : IGeometryGenerators
 {
     private readonly GeometryEngine _engine;
 
-    public GeometryGenerators(GeometryEngine engine)
+    public Generators(GeometryEngine engine)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
     }

@@ -4,7 +4,13 @@ using Fabolus.Core.Geometry.Metadata;
 
 namespace Fabolus.Core.Features.Smoothing;
 
-public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float Inflation = 0.1f, float RemeshRatio = 2.0f, float Resolution = 1.0f) : IMeshCommand {
+public record SmoothSettings : IMeshCommand {
+    public int Iterations { get; init; } = 1;
+    public float Intensity { get; init; } = 1.0f;
+    public float Inflation { get; init; } = 0.1f;
+    public float RemeshRatio { get; init; } = 2.0f;
+    public float Resolution { get; init; } = 1.0f;
+
     public int Priority => CommandPriority.Transform;
 
     /// <summary>

@@ -273,4 +273,34 @@ public class GeometryGeneratorsTests
         var validation = _engine.Evaluators.ValidateTopology(mesh).Value;
         validation.IsWatertight.Should().BeTrue();
     }
+
+    [Fact]
+    public void ExtrudePolygon_WithHole_ProducesWatertightMeshWithReducedVolume()
+    {
+        var square = new Polygon2D
+        {
+            OuterBoundary = new[] { new Vector2(0, 0), new Vector2(10, 0), new Vector2(10, 10), new Vector2(0, 10) }
+        };
+        var squareWithHole = square with
+        {
+            Holes = new[] { (IReadOnlyList<Vector2>)new[] { new Vector2(3, 3), new Vector2(3, 7), new Vector2(7, 7), new Vector2(7, 3) } }
+        };
+
+        var solidResult = _fixture.Engine.Polygons.ExtrudePolygon(square, 0f, 10f);
+        var holedResult = _fixture.Engine.Polygons.ExtrudePolygon(squareWithHole, 0f, 10f);
+
+        solidResult.IsSuccess.Should().BeTrue();
+        holedResult.IsSuccess.Should().BeTrue();
+
+        var solidValidation = _engine.Evaluators.ValidateTopology(solidResult.Value).Value;
+        var holedValidation = _engine.Evaluators.ValidateTopology(holedResult.Value).Value;
+        solidValidation.IsWatertight.Should().BeTrue();
+        holedValidation.IsWatertight.Should().BeTrue("a hole contour should still close into a watertight tube, not leave the mesh open");
+
+        var solidStats = _engine.Evaluators.GetStatistics(solidResult.Value).Value;
+        var holedStats = _engine.Evaluators.GetStatistics(holedResult.Value).Value;
+        holedStats.Volume.Should().BeLessThan(solidStats.Volume, "the hole should carve material out of the extruded solid");
+    }
+
+
 }
