@@ -1,5 +1,4 @@
-using Fabolus.Core.Features.Smoothing;
-using Fabolus.Wpf.Features;
+﻿using Fabolus.Core.Features.Smoothing;
 using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Smoothing;

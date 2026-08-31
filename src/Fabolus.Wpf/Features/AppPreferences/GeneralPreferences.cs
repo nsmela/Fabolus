@@ -1,5 +1,4 @@
-using System.IO;
-using Fabolus.Wpf.Features;
+﻿using System.IO;
 
 namespace Fabolus.Wpf.Features.AppPreferences;
 

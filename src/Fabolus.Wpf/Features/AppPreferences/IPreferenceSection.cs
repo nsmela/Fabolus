@@ -1,9 +1,9 @@
-namespace Fabolus.Wpf.Features.AppPreferences;
+﻿namespace Fabolus.Wpf.Features.AppPreferences;
 
 /// <summary>
 /// One page in the preferences sidebar, contributed by the feature that owns those settings.
 ///
-/// Deliberately separate from <see cref="Fabolus.Wpf.Features.IPreferenceSettings{TSelf}"/>: how
+/// Deliberately separate from <see cref="IPreferenceSettings{TSelf}"/>: how
 /// preferences are stored and how they are presented are not the same grouping. The print bed
 /// record backs both the Print Bed and Air Channels pages; the general record backs General and
 /// Appearance; mould and trough share one page. A feature contributes as many sections as it
