@@ -20,24 +20,24 @@ public sealed record SmoothingPreferences(
 
     public static SmoothingPreferences Default { get; } = new(
         Iterations: 1,
-        Intensity: 1.5f,
-        Inflation: 0.2f,
-        RemeshRatio: 1.0f,
+        Intensity: 2.0f,
+        Inflation: 0.1f,
+        RemeshRatio: 2.0f,
         Resolution: 1.0f,
         DisplayMode: SmoothDisplayMode.None
     );
 
     public static class Ranges
     {
-        public const int IterationsMin = 1;
-        public const int IterationsMax = 5;
-        public const float IntensityMin = 0.1f;
-        public const float IntensityMax = 3.0f;
+        public const int IterationsMin = 0;
+        public const int IterationsMax = 10;
+        public const float IntensityMin = 0.0f;
+        public const float IntensityMax = 20.0f;
         public const float InflationMin = 0.0f;
         public const float InflationMax = 1.0f;
-        public const float RemeshRatioMin = 0.2f;
-        public const float RemeshRatioMax = 2.0f;
-        public const float ResolutionMin = 0.25f;
+        public const float RemeshRatioMin = 1.0f;
+        public const float RemeshRatioMax = 10.0f;
+        public const float ResolutionMin = 0.5f;
         public const float ResolutionMax = 4.0f;
     }
 

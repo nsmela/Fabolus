@@ -20,7 +20,7 @@ public sealed record RotationPreferences(
 
     public static class Ranges
     {
-        public const float OverhangAngleMin = 10.0f;
+        public const float OverhangAngleMin = 30.0f;
         public const float OverhangAngleMax = 90.0f;
         public const float OverhangMinGap = 5.0f;
     }

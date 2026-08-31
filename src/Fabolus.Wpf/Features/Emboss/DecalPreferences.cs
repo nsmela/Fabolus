@@ -37,10 +37,10 @@ public sealed record DecalPreferences(
 
     public static class Ranges
     {
-        public const float CapHeightMin = 2.0f;
+        public const float CapHeightMin = 4.0f;
         public const float CapHeightMax = 20.0f;
-        public const float DepthMin = 0.2f;
-        public const float DepthMax = 5.0f;
+        public const float DepthMin = 0.1f;
+        public const float DepthMax = 2.0f;
     }
 
     public static class Keys

@@ -1,5 +1,4 @@
 using Fabolus.Core.Features.Moulds;
-using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Moulding;
@@ -20,7 +19,7 @@ public sealed record MouldPreferences(
 
     public static MouldPreferences Default { get; } = new(
         Shape: MouldShapeType.Concave,
-        WallThickness: 2.0f,
+        WallThickness: 2.5f,
         BaseHeight: 5.0f,
         TroughHeight: 0.0f,
         TroughOffset: 2.5f,
@@ -29,14 +28,14 @@ public sealed record MouldPreferences(
 
     public static class Ranges
     {
-        public const float WallThicknessMin = 1.0f;
-        public const float WallThicknessMax = 10.0f;
+        public const float WallThicknessMin = 0.5f;
+        public const float WallThicknessMax = 15.0f;
         public const float BaseHeightMin = 2.0f;
         public const float BaseHeightMax = 20.0f;
         public const float TroughHeightMin = 0.0f;
-        public const float TroughHeightMax = 10.0f;
-        public const float TroughOffsetMin = 1.0f;
-        public const float TroughOffsetMax = 10.0f;
+        public const float TroughHeightMax = 20.0f;
+        public const float TroughOffsetMin = 0.5f;
+        public const float TroughOffsetMax = 15.0f;
     }
 
     public static class Keys
