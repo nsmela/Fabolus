@@ -1,4 +1,4 @@
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Fabolus.Wpf.Features.AppPreferences;
@@ -129,7 +129,7 @@ public sealed class AnchoredToggleRow : PreferenceRow {
 
     public bool Value {
         get => ReadEnabled();
-        set { WriteEnabled(value); OnPropertyChanged(); OnPropertyChanged(nameof(Value)); }
+        set { WriteEnabled(value); OnPropertyChanged(); }
     }
 
     public override void Refresh() {

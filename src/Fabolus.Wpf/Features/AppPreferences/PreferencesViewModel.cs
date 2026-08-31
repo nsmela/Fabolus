@@ -160,9 +160,9 @@ public partial class PreferencesViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Rows read their values straight off this view model, so anything that changes a property
-    /// from underneath them - restore defaults, an import, a dependent row being switched off -
-    /// has to tell them to look again.
+    /// Rows read their values from their own section every time they are asked, so anything that
+    /// changes one from underneath them - restore defaults, an import, a dependent row being
+    /// switched off - has to tell them to look again.
     /// </summary>
     private void RefreshRows()
     {

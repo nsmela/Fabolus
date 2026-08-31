@@ -37,8 +37,11 @@ public interface IPreferenceWriter {
 /// Storage, export and import all move one of these around, so adding a preference means
 /// teaching its own section to read and write itself - nothing here changes.
 ///
-/// Keys it does not recognise are kept and written back out. A newer build's settings survive
-/// a round trip through an older one instead of being silently dropped.
+/// Keys it does not recognise are kept and written back out, so a preferences file written by a
+/// newer build keeps its extra settings after an older one has saved over it. That applies to
+/// the stored file only: an exported profile carries what the sections write, and an import
+/// rebuilds from them, so neither end of a profile round trip preserves a key this build does
+/// not know.
 /// </summary>
 public sealed class PreferenceBag : IPreferenceReader, IPreferenceWriter {
     private static readonly JsonSerializerOptions WriteOptions = new() { WriteIndented = true };
