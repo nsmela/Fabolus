@@ -84,7 +84,7 @@ public class PreferencePageTests : IDisposable
 
     [Theory]
     [MemberData(nameof(PageKeys))]
-    public void EverySection_BuildsRowsWithLabels(string key)
+    public void EveryPage_BuildsRowsWithLabels(string key)
     {
         var page = PreferencePageCatalog.Default.Single(s => s.Key == key);
         var rows = RowsOf(_viewModel, page);
@@ -235,7 +235,7 @@ public class PreferencePageTests : IDisposable
     }
 
     [Fact]
-    public void SelectingASection_ExposesItsRows()
+    public void SelectingAPage_ExposesItsRows()
     {
         _viewModel.SelectedPage = _viewModel.Pages.Single(s => s.Key == "split");
 

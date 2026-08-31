@@ -206,7 +206,7 @@ public partial class PreferencesViewModel : ObservableObject
 
     partial void OnSearchTextChanged(string value) => RefreshPageList();
 
-    partial void OnSelectedSectionChanged(IPreferencePage? value)
+    partial void OnSelectedPageChanged(IPreferencePage? value)
     {
         OnPropertyChanged(nameof(Rows));
         RefreshRows();
