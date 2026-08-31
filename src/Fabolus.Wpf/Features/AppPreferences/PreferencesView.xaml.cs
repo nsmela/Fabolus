@@ -1,6 +1,6 @@
 using MahApps.Metro.Controls;
 
-namespace Fabolus.Wpf.Pages.Preferences;
+namespace Fabolus.Wpf.Features.AppPreferences;
 
 public partial class PreferencesView : MetroWindow {
     public PreferencesView(PreferencesViewModel viewModel) {

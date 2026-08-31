@@ -1,4 +1,4 @@
-<mah:MetroWindow x:Class="Fabolus.Wpf.Pages.Preferences.PreferencesView"
+﻿<mah:MetroWindow x:Class="Fabolus.Wpf.Features.AppPreferences.PreferencesView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -6,9 +6,7 @@
         xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
         xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert"
         xmlns:common="clr-namespace:Fabolus.Wpf.Common"
-        xmlns:local="clr-namespace:Fabolus.Wpf.Pages.Preferences"
-        xmlns:smooth="clr-namespace:Fabolus.Wpf.Features.Smoothing"
-        xmlns:moulds="clr-namespace:Fabolus.Core.Features.Moulds;assembly=Fabolus.Core"
+        xmlns:local="clr-namespace:Fabolus.Wpf.Features.AppPreferences"
         common:DataContextDisposal.AutoDispose="True"
         mc:Ignorable="d"
         Title="Preferences — Fabolus"
@@ -35,9 +33,8 @@
     </mah:MetroWindow.IconTemplate>
 
     <Window.Resources>
-        <conv:EnumToBooleanConverter x:Key="EnumMatch" />
-        <conv:EnumToVisibilityConverter x:Key="KeyToVis" />
-        <conv:StringToBrushConverter x:Key="HexToBrush" />
+        <conv:ResourceKeyConverter x:Key="ResourceKey" />
+        <local:PreferenceRowTemplateSelector x:Key="RowTemplates" />
 
         <!-- text helpers -->
         <Style x:Key="PanelTitle" TargetType="TextBlock">
@@ -78,33 +75,6 @@
             <Setter Property="Padding" Value="0,12" />
         </Style>
 
-        <!-- segmented control button -->
-        <Style x:Key="Segment" TargetType="RadioButton">
-            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
-            <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
-            <Setter Property="FontSize" Value="11.5" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="13,5" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="bd" CornerRadius="5" Background="Transparent" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="#22FFFFFF" />
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Accent}" />
-                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
         <Style x:Key="SegmentGroup" TargetType="Border">
             <Setter Property="Background" Value="#FFEDF1F3" />
             <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
@@ -183,10 +153,10 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <DataTemplate x:Key="SidebarItemTemplate" DataType="{x:Type local:PreferenceCategory}">
+        <DataTemplate x:Key="SidebarItemTemplate" DataType="{x:Type local:IPreferencePage}">
             <StackPanel Orientation="Horizontal">
                 <Path x:Name="ic" Width="16" Height="16" Stretch="Uniform"
-                      Data="{Binding Icon}" Stroke="{DynamicResource Brush.Text.Secondary}"
+                      Data="{Binding IconKey, Converter={StaticResource ResourceKey}}" Stroke="{DynamicResource Brush.Text.Secondary}"
                       StrokeThickness="1.5" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                 <TextBlock x:Name="tx" Text="{Binding Name}" Margin="11,0,0,0" VerticalAlignment="Center"
                            FontFamily="{DynamicResource Font.Sans}" FontSize="13"
@@ -201,26 +171,264 @@
             </DataTemplate.Triggers>
         </DataTemplate>
 
-        <!-- accent swatch -->
-        <Style x:Key="SwatchItem" TargetType="ListBoxItem">
-            <Setter Property="Margin" Value="0,0,10,0" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Grid Width="32" Height="32">
-                            <Ellipse x:Name="ring" Stroke="Transparent" StrokeThickness="2" />
-                            <Ellipse Width="22" Height="22" Fill="{Binding Converter={StaticResource HexToBrush}}" />
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource Brush.Text.Primary}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <!-- ============================================================
+             ROW TEMPLATES
+             One per row type. A section describes its rows; these draw them, so a new
+             preference is a line in that feature's section class and nothing here.
+             ============================================================ -->
+
+        <!-- shared: label, optional unit suffix, optional caption -->
+        <DataTemplate x:Key="RowLabelBlock">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource RowLabel}" Text="{Binding Label}" />
+                    <TextBlock Text="{Binding Unit}" Margin="5,0,0,0" VerticalAlignment="Center"
+                               FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
+                               Foreground="{Binding UnitBrushKey, Converter={StaticResource ResourceKey}}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Unit}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+                <TextBlock Text="{Binding Caption}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource RowCaption}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Caption}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- group heading -->
+        <DataTemplate DataType="{x:Type local:HeaderRow}">
+            <StackPanel IsEnabled="{Binding IsEnabled}">
+                <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,0" Text="{Binding Label}" />
+                <TextBlock Style="{StaticResource RowCaption}" Margin="0,0,0,4" Text="{Binding Caption}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- closing note -->
+        <DataTemplate DataType="{x:Type local:NoteRow}">
+            <TextBlock Style="{StaticResource RowCaption}" Margin="0,12,0,0"
+                       IsEnabled="{Binding IsEnabled}" Text="{Binding Caption}" />
+        </DataTemplate>
+
+        <!-- on / off -->
+        <DataTemplate DataType="{x:Type local:ToggleRow}">
+            <Border Style="{StaticResource Row}" IsEnabled="{Binding IsEnabled}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter Grid.Column="0" Margin="0,0,16,0" Content="{Binding}"
+                                      ContentTemplate="{StaticResource RowLabelBlock}" />
+                    <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding Value}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- number with a spinner -->
+        <DataTemplate DataType="{x:Type local:NumberRow}">
+            <Border Style="{StaticResource Row}" IsEnabled="{Binding IsEnabled}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter Grid.Column="0" Margin="0,0,16,0" Content="{Binding}"
+                                      ContentTemplate="{StaticResource RowLabelBlock}" />
+                    <mah:NumericUpDown Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                       Width="128"
+                                       Minimum="{Binding Minimum}" Maximum="{Binding Maximum}"
+                                       Interval="{Binding Interval}" StringFormat="{Binding StringFormat}"
+                                       Value="{Binding Value}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- segmented choice -->
+        <DataTemplate DataType="{x:Type local:SegmentedRow}">
+            <Border Style="{StaticResource Row}" IsEnabled="{Binding IsEnabled}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter Grid.Column="0" Margin="0,0,16,0" Content="{Binding}"
+                                      ContentTemplate="{StaticResource RowLabelBlock}" />
+                    <Border Grid.Column="1" Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
+                        <ListBox ItemsSource="{Binding Choices}"
+                                 SelectedValuePath="Value"
+                                 SelectedValue="{Binding Value}"
+                                 Background="Transparent" BorderThickness="0" Padding="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="0" />
+                                    <Setter Property="Margin" Value="0" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Cursor" Value="Hand" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ListBoxItem">
+                                                <Border x:Name="bd" CornerRadius="5" Background="Transparent" Padding="13,5">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="#22FFFFFF" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Accent}" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Label}"
+                                               FontFamily="{DynamicResource Font.Sans}" FontSize="11.5" FontWeight="SemiBold">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                                        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- drop-down choice -->
+        <DataTemplate DataType="{x:Type local:DropdownRow}">
+            <Border Style="{StaticResource Row}" IsEnabled="{Binding IsEnabled}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter Grid.Column="0" Margin="0,0,16,0" Content="{Binding}"
+                                      ContentTemplate="{StaticResource RowLabelBlock}" />
+                    <ComboBox Grid.Column="1" VerticalAlignment="Center" Width="{Binding PickerWidth}"
+                              ItemsSource="{Binding Choices}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding Value}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- drop-down paired with its own switch -->
+        <DataTemplate DataType="{x:Type local:AnchoredToggleRow}">
+            <Border Style="{StaticResource Row}" IsEnabled="{Binding IsEnabled}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter Grid.Column="0" Margin="0,0,16,0" Content="{Binding}"
+                                      ContentTemplate="{StaticResource RowLabelBlock}" />
+                    <ComboBox Grid.Column="1" Width="104" VerticalAlignment="Center" Margin="0,0,12,0"
+                              IsEnabled="{Binding Value}"
+                              ItemsSource="{Binding Choices}"
+                              DisplayMemberPath="Label"
+                              SelectedValuePath="Value"
+                              SelectedValue="{Binding Anchor}" />
+                    <mah:ToggleSwitch Grid.Column="2" VerticalAlignment="Center" IsOn="{Binding Value}" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- folder with a browse button -->
+        <DataTemplate DataType="{x:Type local:FolderRow}">
+            <StackPanel Margin="0,0,0,14" IsEnabled="{Binding IsEnabled}">
+                <TextBlock Style="{StaticResource FieldLabel}" Text="{Binding Label}" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Height="32" CornerRadius="6" Background="{DynamicResource Brush.Surface}"
+                            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">
+                        <TextBlock Text="{Binding Value}" VerticalAlignment="Center" Margin="10,0"
+                                   TextTrimming="CharacterEllipsis" FontFamily="{DynamicResource Font.Mono}"
+                                   FontSize="11.5" Foreground="{DynamicResource Brush.Text.Secondary}" />
+                    </Border>
+                    <Button Grid.Column="1" Style="{StaticResource BrowseButton}" Margin="8,0,0,0"
+                            Content="..." Command="{Binding Browse}" />
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- bespoke: the overhang pair, whose thumbs cannot cross -->
+        <DataTemplate x:Key="PreferenceRow.OverhangRange">
+            <Border Style="{StaticResource Row}" IsEnabled="{Binding IsEnabled}">
+                <StackPanel DataContext="{Binding Context}">
+                    <Grid Margin="0,0,0,10">
+                        <TextBlock Style="{StaticResource RowLabel}" Text="Overhang thresholds" HorizontalAlignment="Left" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="{Binding OverhangWarningAngle, StringFormat={}{0:0}&#176;}"
+                                       FontFamily="{DynamicResource Font.Mono}" FontSize="12.5" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource Brush.Warning}" />
+                            <TextBlock Text="&#8211;" FontFamily="{DynamicResource Font.Mono}" FontSize="12.5"
+                                       VerticalAlignment="Center" Margin="5,0"
+                                       Foreground="{DynamicResource Brush.Text.Muted}" />
+                            <TextBlock Text="{Binding OverhangCriticalAngle, StringFormat={}{0:0}&#176;}"
+                                       FontFamily="{DynamicResource Font.Mono}" FontSize="12.5" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource Brush.Danger}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <mah:RangeSlider Minimum="{Binding OverhangAngleMinimum}" Maximum="{Binding OverhangAngleMaximum}"
+                                     MinRange="{Binding OverhangMinimumGap}" MinRangeWidth="5"
+                                     LowerValue="{Binding OverhangWarningAngle, Mode=TwoWay}"
+                                     UpperValue="{Binding OverhangCriticalAngle, Mode=TwoWay}" />
+
+                    <Grid Margin="0,7,0,0">
+                        <TextBlock Text="40&#176;" HorizontalAlignment="Left"
+                                   FontFamily="{DynamicResource Font.Mono}" FontSize="10.5"
+                                   Foreground="{DynamicResource Brush.Text.Muted}" />
+                        <TextBlock Text="90&#176;" HorizontalAlignment="Right"
+                                   FontFamily="{DynamicResource Font.Mono}" FontSize="10.5"
+                                   Foreground="{DynamicResource Brush.Text.Muted}" />
+                    </Grid>
+
+                    <TextBlock Style="{StaticResource RowCaption}" Margin="0,10,0,0"
+                               Text="Surfaces past the first threshold shade yellow, past the second red." />
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
     </Window.Resources>
 
     <DockPanel LastChildFill="True">
@@ -308,8 +516,8 @@
                                Foreground="{DynamicResource Brush.Border.Strong}" />
 
                     <ListBox x:Name="CategoryList" Background="Transparent" BorderThickness="0" Margin="10,0,10,10"
-                             ItemsSource="{Binding FilteredCategories}"
-                             SelectedValuePath="Key" SelectedValue="{Binding SelectedCategoryKey}"
+                             ItemsSource="{Binding Pages}"
+                             SelectedItem="{Binding SelectedPage}"
                              ItemContainerStyle="{StaticResource SidebarItem}"
                              ItemTemplate="{StaticResource SidebarItemTemplate}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
@@ -318,578 +526,13 @@
 
             <!-- CONTENT PANE -->
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Background="{DynamicResource Brush.Card}">
-                <Grid Margin="24,20">
+                <StackPanel Margin="24,20">
+                    <TextBlock Style="{StaticResource PanelTitle}" Text="{Binding SelectedPage.Name}" />
+                    <TextBlock Style="{StaticResource PanelSubtitle}" Text="{Binding SelectedPage.Description}" />
 
-                    <!-- ========== GENERAL ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=general}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="General" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Default folders and export format." />
-
-                        <TextBlock Style="{StaticResource FieldLabel}" Text="Default import folder" />
-                        <Grid Margin="0,0,0,14">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Height="32" CornerRadius="6" Background="{DynamicResource Brush.Surface}"
-                                    BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">
-                                <TextBlock Text="{Binding ImportFilepath}" VerticalAlignment="Center" Margin="10,0"
-                                           TextTrimming="CharacterEllipsis" FontFamily="{DynamicResource Font.Mono}"
-                                           FontSize="11.5" Foreground="{DynamicResource Brush.Text.Secondary}" />
-                            </Border>
-                            <Button Grid.Column="1" Style="{StaticResource BrowseButton}" Margin="8,0,0,0"
-                                    Content="…" Command="{Binding SetImportFolderCommand}" />
-                        </Grid>
-
-                        <TextBlock Style="{StaticResource FieldLabel}" Text="Default export folder" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Height="32" CornerRadius="6" Background="{DynamicResource Brush.Surface}"
-                                    BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1">
-                                <TextBlock Text="{Binding ExportFilepath}" VerticalAlignment="Center" Margin="10,0"
-                                           TextTrimming="CharacterEllipsis" FontFamily="{DynamicResource Font.Mono}"
-                                           FontSize="11.5" Foreground="{DynamicResource Brush.Text.Secondary}" />
-                            </Border>
-                            <Button Grid.Column="1" Style="{StaticResource BrowseButton}" Margin="8,0,0,0"
-                                    Content="…" Command="{Binding SetExportFolderCommand}" />
-                        </Grid>
-
-                        <Border Style="{StaticResource Row}" Margin="0,14,0,0">
-                            <Grid>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Default file format" />
-                                <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
-                                    <StackPanel Orientation="Horizontal">
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="fmt" Content="STL"
-                                                     IsChecked="{Binding ExportFormat, Converter={StaticResource EnumMatch}, ConverterParameter=Stl}" />
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="fmt" Content="3MF"
-                                                     IsChecked="{Binding ExportFormat, Converter={StaticResource EnumMatch}, ConverterParameter=ThreeMF}" />
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ========== PRINT BED ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=bed}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Print Bed" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Build volume dimensions, in centimeters." />
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Width " />
-                                    <TextBlock Text="X" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Brush.Axis.X}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0" Interval="1"
-                                                   StringFormat="N1" Value="{Binding PrintbedWidth}" />
-                            </Grid>
-                        </Border>
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Depth " />
-                                    <TextBlock Text="Y" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Brush.Axis.Y}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0" Interval="1"
-                                                   StringFormat="N1" Value="{Binding PrintbedDepth}" />
-                            </Grid>
-                        </Border>
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Show bed grid in viewport" />
-                                <mah:ToggleSwitch HorizontalAlignment="Right" IsOn="{Binding ShowBedGrid}" />
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ========== ROTATION ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=rotation}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Rotation" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}"
-                                   Text="Overhang shading in the rotate view, in degrees from the build plate." />
-
-                        <Border Style="{StaticResource Row}">
-                            <StackPanel>
-                                <Grid Margin="0,0,0,10">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Overhang thresholds" HorizontalAlignment="Left" />
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <TextBlock Text="{Binding OverhangWarningAngle, StringFormat={}{0:0}°}"
-                                                   FontFamily="{DynamicResource Font.Mono}" FontSize="12.5" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource Brush.Warning}" />
-                                        <TextBlock Text="–" FontFamily="{DynamicResource Font.Mono}" FontSize="12.5"
-                                                   VerticalAlignment="Center" Margin="5,0"
-                                                   Foreground="{DynamicResource Brush.Text.Muted}" />
-                                        <TextBlock Text="{Binding OverhangCriticalAngle, StringFormat={}{0:0}°}"
-                                                   FontFamily="{DynamicResource Font.Mono}" FontSize="12.5" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="{DynamicResource Brush.Danger}" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <mah:RangeSlider Minimum="40" Maximum="90" MinRange="1" MinRangeWidth="5"
-                                                 LowerValue="{Binding OverhangWarningAngle, Mode=TwoWay}"
-                                                 UpperValue="{Binding OverhangCriticalAngle, Mode=TwoWay}" />
-
-                                <Grid Margin="0,7,0,0">
-                                    <TextBlock Text="40°" HorizontalAlignment="Left"
-                                               FontFamily="{DynamicResource Font.Mono}" FontSize="10.5"
-                                               Foreground="{DynamicResource Brush.Text.Muted}" />
-                                    <TextBlock Text="90°" HorizontalAlignment="Right"
-                                               FontFamily="{DynamicResource Font.Mono}" FontSize="10.5"
-                                               Foreground="{DynamicResource Brush.Text.Muted}" />
-                                </Grid>
-
-                                <TextBlock Style="{StaticResource RowCaption}" Margin="0,10,0,0"
-                                           Text="Surfaces past the first threshold shade yellow, past the second red." />
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ========== SMOOTHING ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=smoothing}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Smoothing" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}"
-                                   Text="Starting values for the smooth view. A mesh that has already been smoothed reopens with the settings it was smoothed at." />
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Intensity " />
-                                    <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0" Maximum="20" Interval="0.5"
-                                                   StringFormat="N1" Value="{Binding SmoothIntensity}" />
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Grid.Column="0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{StaticResource RowLabel}" Text="Inflation " />
-                                        <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                    </StackPanel>
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Zero skips the inflation pass entirely." />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
-                                                   Minimum="0" Maximum="2" Interval="0.1"
-                                                   StringFormat="N1" Value="{Binding SmoothInflation}" />
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Iterations" />
-                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="1" Maximum="12" Interval="1"
-                                                   StringFormat="N0" Value="{Binding SmoothIterations}" />
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Triangle ratio" />
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Triangle budget after smoothing, relative to the original mesh." />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
-                                                   Minimum="0.5" Maximum="10" Interval="0.5"
-                                                   StringFormat="N1" Value="{Binding SmoothRemeshRatio}" />
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Grid.Column="0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{StaticResource RowLabel}" Text="Smoothness " />
-                                        <TextBlock Text="mm voxels" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                    </StackPanel>
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Smaller voxels keep more detail and take longer to compute." />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
-                                                   Minimum="0.5" Maximum="10" Interval="0.5"
-                                                   StringFormat="N1" Value="{Binding SmoothResolution}" />
-                            </Grid>
-                        </Border>
-
-                        <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,6" Text="Display" />
-                        <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Left">
-                            <StackPanel Orientation="Horizontal">
-                                <RadioButton Style="{StaticResource Segment}" GroupName="smoothDisplay" Content="None"
-                                             IsChecked="{Binding SmoothDisplay, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static smooth:SmoothDisplayMode.None}}" />
-                                <RadioButton Style="{StaticResource Segment}" GroupName="smoothDisplay" Content="Cross Section"
-                                             IsChecked="{Binding SmoothDisplay, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static smooth:SmoothDisplayMode.CrossSection}}" />
-                                <RadioButton Style="{StaticResource Segment}" GroupName="smoothDisplay" Content="Heat Map"
-                                             IsChecked="{Binding SmoothDisplay, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static smooth:SmoothDisplayMode.Heatmap}}" />
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ========== CUT ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=cut}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Cut" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="The mesh cutting tool." />
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Cut view" />
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Adds the mesh cutting tool to the workflow." />
-                                </StackPanel>
-                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding EnableCutView}" />
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource Row}" IsEnabled="{Binding EnableCutView}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Show on" />
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Which meshes offer the cut tab." />
-                                </StackPanel>
-                                <ComboBox Grid.Column="1" Width="150" VerticalAlignment="Center"
-                                          ItemsSource="{Binding CutScopeOptions}"
-                                          DisplayMemberPath="Label"
-                                          SelectedValuePath="Value"
-                                          SelectedValue="{Binding CutScope}" />
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ========== SPLIT ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=split}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Split" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="The parting-line splitting tool." />
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Split view (for moulds)" />
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Adds the parting-line splitting tool to the workflow." />
-                                </StackPanel>
-                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding EnableSplitView}" />
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ========== AIR CHANNELS ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=channels}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Air Channels" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Automatic channel detection and defaults." />
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Generate air channels automatically" />
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Detect and place channels when a mesh is imported." />
-                                </StackPanel>
-                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding AutodetectChannels}" />
-                            </Grid>
-                        </Border>
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Default channel diameter " />
-                                    <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0" Interval="0.5"
-                                                   StringFormat="N1" Value="{Binding ChannelDiameter}" />
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ========== MOULD ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=mould}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Mould" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Starting values for a newly generated mould." />
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Shape" />
-                                <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
-                                    <StackPanel Orientation="Horizontal">
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="mouldShape" Content="Convex"
-                                                     IsChecked="{Binding MouldShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:MouldShapeType.Convex}}" />
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="mouldShape" Content="Concave"
-                                                     IsChecked="{Binding MouldShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:MouldShapeType.Concave}}" />
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="mouldShape" Content="Contoured"
-                                                     IsChecked="{Binding MouldShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:MouldShapeType.Contoured}}" />
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Wall thickness " />
-                                    <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="1" Maximum="10" Interval="0.5"
-                                                   StringFormat="N1" Value="{Binding MouldWallThickness}" />
-                            </Grid>
-                        </Border>
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Base height " />
-                                    <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                </StackPanel>
-                                <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0" Maximum="30" Interval="1"
-                                                   StringFormat="N0" Value="{Binding MouldBaseHeight}" />
-                            </Grid>
-                        </Border>
-
-                        <!-- A contoured shell hugs the bolus, so it has no flat top to recess a basin into -->
-                        <StackPanel IsEnabled="{Binding MouldSupportsTrough}">
-                            <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,0" Text="TROUGH" />
-                            <TextBlock Style="{StaticResource RowCaption}" Margin="0,0,0,4"
-                                       Text="The basin excess silicone pools in while the mould fills." />
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <StackPanel Grid.Column="0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource RowLabel}" Text="Depth " />
-                                            <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                        </StackPanel>
-                                        <TextBlock Style="{StaticResource RowCaption}" Text="0 leaves the top of the mould solid." />
-                                    </StackPanel>
-                                    <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
-                                                       Minimum="0" Maximum="20" Interval="0.5"
-                                                       StringFormat="N1" Value="{Binding MouldTroughHeight}" />
-                                </Grid>
-                            </Border>
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Shape" />
-                                    <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
-                                        <StackPanel Orientation="Horizontal">
-                                            <RadioButton Style="{StaticResource Segment}" GroupName="troughShape" Content="Footprint"
-                                                         IsChecked="{Binding MouldTroughShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:TroughShapeType.Footprint}}" />
-                                            <RadioButton Style="{StaticResource Segment}" GroupName="troughShape" Content="Channels"
-                                                         IsChecked="{Binding MouldTroughShape, Converter={StaticResource EnumMatch}, ConverterParameter={x:Static moulds:TroughShapeType.Channels}}" />
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </Border>
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <StackPanel Grid.Column="0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Style="{StaticResource RowLabel}" Text="Margin " />
-                                            <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                        </StackPanel>
-                                        <TextBlock Style="{StaticResource RowCaption}" Text="How far the trough stops short of the mould wall." />
-                                    </StackPanel>
-                                    <mah:NumericUpDown HorizontalAlignment="Right" VerticalAlignment="Center" Width="128"
-                                                       Minimum="0.5" Maximum="10" Interval="0.5"
-                                                       StringFormat="N1" Value="{Binding MouldTroughOffset}" />
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <!-- ========== DECALS ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=decals}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Decals" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Text engraved into or embossed onto the mesh." />
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Decal tool" />
-                                    <TextBlock Style="{StaticResource RowCaption}" Text="Adds the text decal step to the workflow." />
-                                </StackPanel>
-                                <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center" IsOn="{Binding EnableDecals}" />
-                            </Grid>
-                        </Border>
-
-                        <!-- everything below is meaningless while the tool is switched off -->
-                        <StackPanel IsEnabled="{Binding EnableDecals}">
-
-                            <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,0" Text="AUTOMATIC PLACEMENT" />
-                            <TextBlock Style="{StaticResource RowCaption}" Margin="0,0,0,4"
-                                       Text="Decals added for you when the decal step is opened on a mesh that has none yet." />
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource RowLabel}" Text="Place on" />
-                                        <TextBlock Style="{StaticResource RowCaption}" Text="Which mesh the automatic decals are applied to." />
-                                    </StackPanel>
-                                    <ComboBox Grid.Column="1" Width="176" VerticalAlignment="Center"
-                                              ItemsSource="{Binding ScopeOptions}"
-                                              DisplayMemberPath="Label"
-                                              SelectedValuePath="Value"
-                                              SelectedValue="{Binding DecalPlacementScope}" />
-                                </Grid>
-                            </Border>
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource RowLabel}" Text="File name" />
-                                        <TextBlock Style="{StaticResource RowCaption}" Text="Engraves the mesh's file name at this anchor." />
-                                    </StackPanel>
-                                    <ComboBox Grid.Column="1" Width="104" VerticalAlignment="Center" Margin="0,0,12,0"
-                                              IsEnabled="{Binding AutoPlaceFilename}"
-                                              ItemsSource="{Binding AnchorOptions}"
-                                              DisplayMemberPath="Label"
-                                              SelectedValuePath="Value"
-                                              SelectedValue="{Binding FilenameAnchor}" />
-                                    <mah:ToggleSwitch Grid.Column="2" VerticalAlignment="Center" IsOn="{Binding AutoPlaceFilename}" />
-                                </Grid>
-                            </Border>
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                        <TextBlock Style="{StaticResource RowLabel}" Text="Volume" />
-                                        <TextBlock Style="{StaticResource RowCaption}" Text="Engraves the base mesh volume in cc at this anchor." />
-                                    </StackPanel>
-                                    <ComboBox Grid.Column="1" Width="104" VerticalAlignment="Center" Margin="0,0,12,0"
-                                              IsEnabled="{Binding AutoPlaceVolume}"
-                                              ItemsSource="{Binding AnchorOptions}"
-                                              DisplayMemberPath="Label"
-                                              SelectedValuePath="Value"
-                                              SelectedValue="{Binding VolumeAnchor}" />
-                                    <mah:ToggleSwitch Grid.Column="2" VerticalAlignment="Center" IsOn="{Binding AutoPlaceVolume}" />
-                                </Grid>
-                            </Border>
-
-                            <TextBlock Style="{StaticResource FieldLabel}" Margin="0,18,0,0" Text="NEW DECAL DEFAULTS" />
-                            <TextBlock Style="{StaticResource RowCaption}" Margin="0,0,0,4"
-                                       Text="Starting values for every decal added in the decal view." />
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Operation" />
-                                    <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
-                                        <StackPanel Orientation="Horizontal">
-                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalOp" Content="Emboss"
-                                                         IsChecked="{Binding DecalOperation, Converter={StaticResource EnumMatch}, ConverterParameter=Emboss}" />
-                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalOp" Content="Engrave"
-                                                         IsChecked="{Binding DecalOperation, Converter={StaticResource EnumMatch}, ConverterParameter=Engrave}" />
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </Border>
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <TextBlock Style="{StaticResource RowLabel}" Text="Font" />
-                                    <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
-                                        <StackPanel Orientation="Horizontal">
-                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalFont" Content="Sans"
-                                                         IsChecked="{Binding DecalDefaultFont, Converter={StaticResource EnumMatch}, ConverterParameter=Sans}" />
-                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalFont" Content="Mono"
-                                                         IsChecked="{Binding DecalDefaultFont, Converter={StaticResource EnumMatch}, ConverterParameter=Mono}" />
-                                            <RadioButton Style="{StaticResource Segment}" GroupName="decalFont" Content="Bold"
-                                                         IsChecked="{Binding DecalDefaultFont, Converter={StaticResource EnumMatch}, ConverterParameter=Bold}" />
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </Border>
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{StaticResource RowLabel}" Text="Cap height " />
-                                        <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                    </StackPanel>
-                                    <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0.5" Interval="0.5"
-                                                       StringFormat="N1" Value="{Binding DecalCapHeight}" />
-                                </Grid>
-                            </Border>
-
-                            <Border Style="{StaticResource Row}">
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Style="{StaticResource RowLabel}" Text="Depth " />
-                                        <TextBlock Text="mm" FontFamily="{DynamicResource Font.Mono}" FontSize="11" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center" Margin="2,0,0,0" />
-                                    </StackPanel>
-                                    <mah:NumericUpDown HorizontalAlignment="Right" Width="128" Minimum="0.1" Interval="0.1"
-                                                       StringFormat="N1" Value="{Binding DecalDepth}" />
-                                </Grid>
-                            </Border>
-
-                            <TextBlock Style="{StaticResource RowCaption}" Margin="0,12,0,0"
-                                       Text="Cap height is a starting point only — a decal snapped to an anchor is still scaled to fit the room available there." />
-                        </StackPanel>
-                    </StackPanel>
-
-                    <!-- ========== APPEARANCE ========== -->
-                    <StackPanel Visibility="{Binding SelectedCategoryKey, Converter={StaticResource KeyToVis}, ConverterParameter=appearance}">
-                        <TextBlock Style="{StaticResource PanelTitle}" Text="Appearance" />
-                        <TextBlock Style="{StaticResource PanelSubtitle}" Text="Viewport appearance." />
-
-                        <Border Style="{StaticResource Row}">
-                            <Grid>
-                                <TextBlock Style="{StaticResource RowLabel}" Text="Viewport background" />
-                                <Border Style="{StaticResource SegmentGroup}" HorizontalAlignment="Right">
-                                    <StackPanel Orientation="Horizontal">
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="vp" Content="Graphite"
-                                                     IsChecked="{Binding ViewportBackground, Converter={StaticResource EnumMatch}, ConverterParameter=Graphite}" />
-                                        <RadioButton Style="{StaticResource Segment}" GroupName="vp" Content="Light steel"
-                                                     IsChecked="{Binding ViewportBackground, Converter={StaticResource EnumMatch}, ConverterParameter=LightSteel}" />
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-                        </Border>
-                    </StackPanel>
-
-                </Grid>
+                    <ItemsControl ItemsSource="{Binding Rows}"
+                                  ItemTemplateSelector="{StaticResource RowTemplates}" />
+                </StackPanel>
             </ScrollViewer>
         </Grid>
     </DockPanel>

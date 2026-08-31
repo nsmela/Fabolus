@@ -38,6 +38,5 @@
     <Geometry x:Key="Icon.Preferences.Channels">M4.3 2.5v11 M8 2.5v11 M11.7 2.5v11</Geometry>
     <Geometry x:Key="Icon.Preferences.Mould">M8 2.2 L13.5 5 L13.5 11 L8 13.8 L2.5 11 L2.5 5 Z M2.5 5 L8 7.8 L13.5 5 M8 7.8 L8 13.8</Geometry>
     <Geometry x:Key="Icon.Preferences.Decals">M3.5 2.5 L12.5 2.5 a1 1 0 0 1 1 1 L13.5 9.5 L9.5 13.5 L3.5 13.5 a1 1 0 0 1 -1 -1 L2.5 3.5 a1 1 0 0 1 1 -1 Z M9.5 9.5 L13.5 9.5 M9.5 9.5 L9.5 13.5 M5.5 6 L10.5 6 M8 6 L8 10</Geometry>
-    <Geometry x:Key="Icon.Preferences.Appearance">M8 2 a6 6 0 1 0 0 12 c1 0 1.4-.7 1.4-1.4 0-.9-.8-1.2-.8-2 0-.6.5-1 1.1-1 H12 a2.5 2.5 0 0 0 2.5-2.5 C14.5 4.4 11.6 2 8 2z</Geometry>
 
 </ResourceDictionary>

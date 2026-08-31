@@ -41,18 +41,9 @@ public class EmbossViewModelTests
     private static (DecalViewModel vm, IMessenger messenger, Mock<IGeometryEngine> engineMock) CreateViewModel()
     {
         var messenger = new StrongReferenceMessenger();
-        var preferences = new Dictionary<string, object>
-        {
-            [UISettings.PrintBedWidthLabel] = 250.0f,
-            [UISettings.PrintBedDepthLabel] = 250.0f,
-            [UISettings.ShowBedGridLabel] = true,
-        };
 
-        messenger.Register<Dictionary<string, object>, AppPreferenceRequestMessage>(preferences, (r, m) =>
-        {
-            if (r.TryGetValue(m.Key, out var val))
-                m.Reply(val);
-        });
+        // No preference store here: an unanswered section request falls back to that section's
+        // Default, which is what this test wants anyway.
 
         var engineMock = new Mock<IGeometryEngine>();
         var alertMock = new Mock<IAlertDialog>();

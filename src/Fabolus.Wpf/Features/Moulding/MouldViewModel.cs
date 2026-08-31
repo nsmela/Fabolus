@@ -238,6 +238,25 @@ public partial class MouldViewModel : ObservableObject, IViewState
     [ObservableProperty] private double _troughOffset = 2.5;
     [ObservableProperty] private TroughShapeType _selectedTroughShape = TroughShapeType.Footprint;
 
+    // ---- Slider bounds -------------------------------------------------
+    // Bound by the view rather than hardcoded in it, so the range a value can be given here is
+    // the same one its preference is validated against. The two used to be separate literals
+    // that had drifted apart, which let a user pick a default the tool would not accept - or
+    // set a value in the tool that no default could express.
+
+    public double WallThicknessMinimum => MouldPreferences.Ranges.WallThicknessMin;
+    public double WallThicknessMaximum => MouldPreferences.Ranges.WallThicknessMax;
+    public double BaseHeightMinimum => MouldPreferences.Ranges.BaseHeightMin;
+    public double BaseHeightMaximum => MouldPreferences.Ranges.BaseHeightMax;
+    public double TroughDepthMinimum => MouldPreferences.Ranges.TroughHeightMin;
+    public double TroughDepthMaximum => MouldPreferences.Ranges.TroughHeightMax;
+    public double TroughMarginMinimum => MouldPreferences.Ranges.TroughOffsetMin;
+    public double TroughMarginMaximum => MouldPreferences.Ranges.TroughOffsetMax;
+
+    // The air channels live on this view model too, but their diameter is a print-bed preference.
+    public double ChannelDiameterMinimum => PrintBedPreferences.Ranges.ChannelDiameterMin;
+    public double ChannelDiameterMaximum => PrintBedPreferences.Ranges.ChannelDiameterMax;
+
     // A contoured mould follows the bolus surface, so it has no flat top to recess into.
     public bool SupportsTrough => SelectedMouldType != MouldShapeType.Contoured;
     public bool HasTrough => SupportsTrough && TroughHeight > 0;
@@ -298,17 +317,19 @@ public partial class MouldViewModel : ObservableObject, IViewState
         _sceneManager.StrokeCompleted += OnStrokeCompleted;
 
         _syncingSelection = true;
-        ChannelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
-        AutodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
+        ApplyPrintBedPreferences(_messenger.GetSection(PrintBedPreferences.Default));
         _syncingSelection = false;
 
-        _messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) => {
-            if (m.Key == UISettings.ChannelDiameterLabel) {
-                ChannelDiameter = (float)_messenger.Send(new AppPreferenceRequestMessage(UISettings.ChannelDiameterLabel)).Response;
-            } else if (m.Key == UISettings.AutodetectChannelsLabel) {
-                AutodetectChannels = (bool)_messenger.Send(new AppPreferenceRequestMessage(UISettings.AutodetectChannelsLabel)).Response;
-            }
-        });
+        _messenger.Register<PreferenceSectionUpdateMessage<PrintBedPreferences>>(
+            this, (r, m) => ApplyPrintBedPreferences(m.Section));
+    }
+
+    // Air-channel defaults are stored alongside the print bed; the panel mirrors them so a
+    // change in preferences shows up here without reopening the view.
+    private void ApplyPrintBedPreferences(PrintBedPreferences bed)
+    {
+        ChannelDiameter = bed.ChannelDiameter;
+        AutodetectChannels = bed.AutodetectChannels;
     }
 
     private void OnStrokeUpdated(IReadOnlyList<Vector3> points)

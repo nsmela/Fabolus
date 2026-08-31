@@ -74,7 +74,7 @@
                         <TextBlock Text="{Binding WallThickness, StringFormat={}{0:F1} mm}"
                                     Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
                     </Grid>
-                    <Slider Minimum="1" Maximum="10" Style="{StaticResource Slider.Steel}"
+                    <Slider Minimum="{Binding WallThicknessMinimum}" Maximum="{Binding WallThicknessMaximum}" Style="{StaticResource Slider.Steel}"
                             Value="{Binding WallThickness, Mode=TwoWay}"
                             SmallChange="0.1" LargeChange="1" VerticalAlignment="Center" />
                 </StackPanel>
@@ -86,7 +86,7 @@
                         <TextBlock Text="{Binding BaseHeight, StringFormat={}{0:F0} mm}"
                                     Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
                     </Grid>
-                    <Slider Minimum="0" Maximum="30" Style="{StaticResource Slider.Steel}"
+                    <Slider Minimum="{Binding BaseHeightMinimum}" Maximum="{Binding BaseHeightMaximum}" Style="{StaticResource Slider.Steel}"
                             Value="{Binding BaseHeight, Mode=TwoWay}"
                             SmallChange="1" LargeChange="5" VerticalAlignment="Center" />
                 </StackPanel>
@@ -99,7 +99,7 @@
                         <TextBlock Text="{Binding TroughHeight, StringFormat={}{0:F1} mm}"
                                     Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
                     </Grid>
-                    <Slider Minimum="0" Maximum="20" Style="{StaticResource Slider.Steel}"
+                    <Slider Minimum="{Binding TroughDepthMinimum}" Maximum="{Binding TroughDepthMaximum}" Style="{StaticResource Slider.Steel}"
                             Value="{Binding TroughHeight, Mode=TwoWay}"
                             SmallChange="0.5" LargeChange="2" VerticalAlignment="Center" />
                     <TextBlock Text="0 leaves the top of the mould solid." Style="{StaticResource FieldHint}"
@@ -121,7 +121,7 @@
                         <TextBlock Text="{Binding TroughOffset, StringFormat={}{0:F1} mm}"
                                     Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
                     </Grid>
-                    <Slider Minimum="0.5" Maximum="10" Style="{StaticResource Slider.Steel}"
+                    <Slider Minimum="{Binding TroughMarginMinimum}" Maximum="{Binding TroughMarginMaximum}" Style="{StaticResource Slider.Steel}"
                             Value="{Binding TroughOffset, Mode=TwoWay}"
                             SmallChange="0.5" LargeChange="1" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding TroughOffsetHint}" Style="{StaticResource FieldHint}"

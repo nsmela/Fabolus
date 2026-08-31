@@ -76,7 +76,7 @@
                                Style="{StaticResource Text.Value}"
                                HorizontalAlignment="Right" />
                 </Grid>
-                <Slider Minimum="0.0" Maximum="20"
+                <Slider Minimum="{Binding IntensityMinimum}" Maximum="{Binding IntensityMaximum}"
                         Value="{Binding Intensity, Mode=TwoWay}"
                         IsSnapToTickEnabled="True" 
                         Ticks="0.5 1.0 2.0 3.0 4.0 5.0 7.5 10.0 15.0 20.0"
@@ -92,7 +92,7 @@
                                Style="{StaticResource Text.Value}"
                                HorizontalAlignment="Right" />
                 </Grid>
-                <Slider Minimum="0.0" Maximum="2.0"
+                <Slider Minimum="{Binding InflationMinimum}" Maximum="{Binding InflationMaximum}"
                         Value="{Binding Inflation, Mode=TwoWay}"
                         IsSnapToTickEnabled="True" TickFrequency="0.1"
                         SmallChange="0.1" LargeChange="0.2"
@@ -108,7 +108,7 @@
                                Style="{StaticResource Text.Value}"
                                HorizontalAlignment="Right" />
                 </Grid>
-                <Slider Minimum="1" Maximum="12"
+                <Slider Minimum="{Binding IterationsMinimum}" Maximum="{Binding IterationsMaximum}"
                         Value="{Binding Iterations, Mode=TwoWay}"
                         IsSnapToTickEnabled="True" TickFrequency="1"
                         SmallChange="1" LargeChange="2"
@@ -124,7 +124,7 @@
                                Style="{StaticResource Text.Value}"
                                HorizontalAlignment="Right" />
                 </Grid>
-                <Slider Minimum="0.5" Maximum="10.0"
+                <Slider Minimum="{Binding RemeshRatioMinimum}" Maximum="{Binding RemeshRatioMaximum}"
                         Value="{Binding RemeshRatio, Mode=TwoWay}"
                         Ticks="0.5 1.0 2.0 3.0 4.0 5.0"
                         IsSnapToTickEnabled="True"
@@ -140,7 +140,7 @@
                                Style="{StaticResource Text.Value}"
                                HorizontalAlignment="Right" />
                 </Grid>
-                <Slider Minimum="0.5" Maximum="10.0"
+                <Slider Minimum="{Binding ResolutionMinimum}" Maximum="{Binding ResolutionMaximum}"
                         Value="{Binding Resolution, Mode=TwoWay}"
                         SmallChange="0.5" LargeChange="1.0"
                         IsSnapToTickEnabled="True" TickFrequency="0.5"

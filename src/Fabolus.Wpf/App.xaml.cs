@@ -26,7 +26,9 @@ public partial class App : Application
                 services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
 
                 services.AddSingleton<IAlertDialog, AlertDialog>();
-                services.AddTransient<AppPreferencesStore>();
+                // Singleton: the store answers every PreferenceSectionRequestMessage, and a
+                // RequestMessage throws if a second instance replies to one it already answered.
+                services.AddSingleton<AppPreferencesStore>();
                 services.AddSingleton<IDialogueSystem, DialogueSystem>();
                 services.AddSingleton<IFileSystem, FileSystem>();
                 services.AddSingleton<IGeometryEngine, GeometryEngine>();
@@ -45,6 +47,10 @@ public partial class App : Application
 
         var outlineSource = AppHost.Services.GetRequiredService<Fabolus.Core.Features.Decal.IGlyphOutlineSource>();
         Fabolus.Core.Features.Decal.GlyphOutlineSourceProvider.Default = outlineSource;
+
+        // Nothing injects the store - it answers preference messages. Resolve it here so it is
+        // listening before the first view model asks for a section.
+        AppHost.Services.GetRequiredService<AppPreferencesStore>();
 
         var mainWindow = AppHost.Services.GetRequiredService<MainView>();
         mainWindow.Show();

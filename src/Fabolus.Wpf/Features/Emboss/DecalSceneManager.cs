@@ -34,7 +34,7 @@ public sealed class DecalSceneManager : ISceneManager
     private const float MinNormalLengthSquared = 1e-4f;
 
     private readonly IGeometryEngine _engine;
-    private Element3D? _grid;
+    private readonly PrintBedGrid _grid;
 
     public IMesh? TargetMesh { get; private set; }
     private Guid _targetMeshId = Guid.Empty;
@@ -87,27 +87,12 @@ public sealed class DecalSceneManager : ISceneManager
     {
         _engine = engine;
 
-        var width = (float)messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
-        var depth = (float)messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
-        var show = (bool)messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
-        _grid = SceneHelpers.GenerateGrid(width, depth, 10, show);
-
-        messenger.Register<AppPreferenceUpdateMessage>(this, (r, m) =>
+        _grid = new PrintBedGrid(messenger);
+        _grid.Replaced += (replacedId, grid) =>
         {
-            if (m.Key == UISettings.PrintBedWidthLabel || m.Key == UISettings.PrintBedDepthLabel || m.Key == UISettings.ShowBedGridLabel)
-            {
-                var w = (float)messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedWidthLabel)).Response;
-                var d = (float)messenger.Send(new AppPreferenceRequestMessage(UISettings.PrintBedDepthLabel)).Response;
-                var s = (bool)messenger.Send(new AppPreferenceRequestMessage(UISettings.ShowBedGridLabel)).Response;
-
-                if (_grid is not null)
-                {
-                    VisualRemovedById?.Invoke(_grid.GUID);
-                }
-                _grid = SceneHelpers.GenerateGrid(w, d, 10, s);
-                VisualAddedOrUpdated?.Invoke(_grid);
-            }
-        });
+            VisualRemovedById?.Invoke(replacedId);
+            VisualAddedOrUpdated?.Invoke(grid);
+        };
 
         _targetSkin = Skins.Surface.Gray;
         _mouldSkin = Skins.Surface.TranslucentGray;
@@ -536,7 +521,11 @@ public sealed class DecalSceneManager : ISceneManager
         }
     }
 
-    public void OnActivated() => VisualsCleared?.Invoke();
+    public void OnActivated()
+    {
+        VisualsCleared?.Invoke();
+        VisualAddedOrUpdated?.Invoke(_grid.Current);
+    }
 
     public void OnDeactivated() => ClearPreviewVisuals();
 

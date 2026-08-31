@@ -50,6 +50,23 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
     [ObservableProperty] private SmoothDisplayMode _displayMode = SmoothDisplayMode.None;
 
+    // ---- Slider bounds -------------------------------------------------
+    // Bound by the view rather than hardcoded in it, so the range a value can be given here is
+    // the same one its preference is validated against. The two used to be separate literals
+    // that had drifted apart, which let a user pick a default the tool would not accept - or
+    // set a value in the tool that no default could express.
+
+    public double IntensityMinimum => SmoothingPreferences.Ranges.IntensityMin;
+    public double IntensityMaximum => SmoothingPreferences.Ranges.IntensityMax;
+    public double InflationMinimum => SmoothingPreferences.Ranges.InflationMin;
+    public double InflationMaximum => SmoothingPreferences.Ranges.InflationMax;
+    public double IterationsMinimum => SmoothingPreferences.Ranges.IterationsMin;
+    public double IterationsMaximum => SmoothingPreferences.Ranges.IterationsMax;
+    public double RemeshRatioMinimum => SmoothingPreferences.Ranges.RemeshRatioMin;
+    public double RemeshRatioMaximum => SmoothingPreferences.Ranges.RemeshRatioMax;
+    public double ResolutionMinimum => SmoothingPreferences.Ranges.ResolutionMin;
+    public double ResolutionMaximum => SmoothingPreferences.Ranges.ResolutionMax;
+
     partial void OnShowHeatmapChanged(bool value) => UpdateViewport();
     partial void OnHeatmapSensitivityChanged(double value) => UpdateViewport();
     partial void OnShowGhostChanged(bool value) => UpdateViewport();
