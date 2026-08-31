@@ -1,4 +1,4 @@
-﻿using System.Windows.Input;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Fabolus.Wpf.Features.AppPreferences;

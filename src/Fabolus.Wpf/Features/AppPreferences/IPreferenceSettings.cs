@@ -17,9 +17,6 @@ public interface IPreferenceSettings { }
 public interface IPreferenceSettings<TSelf> : IPreferenceSettings
     where TSelf : class, IPreferenceSettings<TSelf> {
 
-    /// <summary>Stable identifier for this section.</summary>
-    static abstract string SectionKey { get; }
-
     /// <summary>The values a fresh install starts with, and the fallback for anything unreadable.</summary>
     static abstract TSelf Default { get; }
 

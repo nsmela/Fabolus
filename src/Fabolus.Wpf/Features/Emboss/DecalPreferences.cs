@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Features.Decal;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Decal;
@@ -19,8 +19,6 @@ public sealed record DecalPreferences(
     EmbossOperation Operation
 ) : IPreferenceSettings<DecalPreferences>
 {
-    public static string SectionKey => "decals";
-
     public static DecalPreferences Default { get; } = new(
         Enabled: true,
         Scope: DecalAutoPlaceScope.Mould,

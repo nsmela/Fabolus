@@ -1,4 +1,4 @@
-﻿using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.CutSplit;
 
@@ -11,8 +11,6 @@ public sealed record CutSplitPreferences(
     bool SplitViewEnabled
 ) : IPreferenceSettings<CutSplitPreferences>
 {
-    public static string SectionKey => "cutsplit";
-
     public static CutSplitPreferences Default { get; } = new(
         CutViewEnabled: false,
         CutScope: CutViewScope.Base,

@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 
 namespace Fabolus.Wpf.Features.AppPreferences;
 
@@ -12,8 +12,6 @@ public sealed record GeneralPreferences(
     ViewportBackground ViewportBackground
 ) : IPreferenceSettings<GeneralPreferences>
 {
-    public static string SectionKey => "general";
-
     public static GeneralPreferences Default { get; } = new(
         ImportFolder: Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments),
         ExportFolder: Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

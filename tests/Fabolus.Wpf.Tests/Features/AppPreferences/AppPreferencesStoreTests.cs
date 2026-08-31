@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Features.Moulds;

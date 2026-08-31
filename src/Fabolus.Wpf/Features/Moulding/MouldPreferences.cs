@@ -15,8 +15,6 @@ public sealed record MouldPreferences(
     TroughShapeType TroughShape
 ) : IPreferenceSettings<MouldPreferences>
 {
-    public static string SectionKey => "mould";
-
     public static MouldPreferences Default { get; } = new(
         Shape: MouldShapeType.Concave,
         WallThickness: 2.5f,

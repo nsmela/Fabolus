@@ -1,4 +1,4 @@
-﻿
+
 namespace Fabolus.Wpf.Features.AppPreferences;
 
 /// <summary>
@@ -12,8 +12,6 @@ public sealed record PrintBedPreferences(
     float ChannelDiameter
 ) : IPreferenceSettings<PrintBedPreferences>
 {
-    public static string SectionKey => "printbed";
-
     public static PrintBedPreferences Default { get; } = new(
         Width: 250.0f,
         Depth: 250.0f,

@@ -1,4 +1,4 @@
-﻿using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Rotatation;
 
@@ -10,8 +10,6 @@ public sealed record RotationPreferences(
     float OverhangCriticalAngle
 ) : IPreferenceSettings<RotationPreferences>
 {
-    public static string SectionKey => "rotation";
-
     public static RotationPreferences Default { get; } = new(
         OverhangWarningAngle: 45.0f,
         OverhangCriticalAngle: 65.0f

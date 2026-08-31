@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Features.Smoothing;
+using Fabolus.Core.Features.Smoothing;
 using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Smoothing;
@@ -15,8 +15,6 @@ public sealed record SmoothingPreferences(
     SmoothDisplayMode DisplayMode
 ) : IPreferenceSettings<SmoothingPreferences>
 {
-    public static string SectionKey => "smoothing";
-
     public static SmoothingPreferences Default { get; } = new(
         Iterations: 1,
         Intensity: 2.0f,
