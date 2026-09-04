@@ -1,78 +1,116 @@
 # Quickstart: 15-Minute Bolus Workflow
 
-This guide walks through the complete end-to-end workflow in Fabolus, from loading an exported DICOM/STL contour to generating a cast-ready sacrificial mould package.
+This guide walks through the standard 15-minute clinical CAD/CAM workflow in Fabolus, taking a raw DICOM/STL bolus structure exported from your Treatment Planning System (TPS) through to a print-ready sacrificial casting mould.
 
 ---
 
-## Step 1: Import the Bolus Mesh
-1. Launch **Fabolus**.
-2. Click the **meshes** tab in the top navigation bar.
-3. Click **Import Mesh** (or press `Ctrl+O`) and select your bolus file (`.stl`, `.3mf`, `.obj`).
-4. Once loaded, the mesh appears in the 3D viewport. The right-hand panel displays physical statistics:
-   - Volume ($cm^3$ or $mL$)
-   - Surface Area ($cm^2$)
-   - Dimensions ($W \times D \times H$ in $mm$)
-   - Watertightness and manifold status
+## Prerequisites & Pre-Flight Checklist
 
-> [!NOTE]
-> If the mesh contains open boundary edges or non-manifold edges, the **Topology Alert** will highlight them in red. Click **Repair Mesh** to execute an automatic repair.
+Before launching Fabolus, ensure your treatment planning export adheres to clinical standards:
+- [ ] **Export Format**: Binary `.stl` or uncompressed `.obj` exported directly from your TPS structure set.
+- [ ] **Coordinate System**: Verify that coordinates are in **millimeters** ($mm$).
+- [ ] **Anatomical Boundary**: Confirm the contour encompasses the entire prescribed bolus volume without artificial clipping against the CT field-of-view (FOV) border.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 2.1: Fabolus Main Window User Interface Tour. Annotated screenshot of the application layout: (1) Top Tab Bar (meshes, smooth, rotate, mould, export), (2) Left Parameter Panel, (3) 3D DirectX 11 SharpDX Viewport, (4) Top-Right Overlay Buttons (Wireframe, Screenshot, Preferences), (5) Right InfoPanel (volume, dimensions, topology alerts), (6) Bottom Status Bar. Dimensions: 1200x700px.] -->
+
+### Viewport Camera Controls
+- **Orbit / Rotate**: Hold **Right Mouse Button** (or Left Mouse Button in selection-free zones) and drag.
+- **Pan**: Hold **Middle Mouse Button** (or `Shift` + Right Mouse Button) and drag.
+- **Zoom**: Rotate the **Scroll Wheel**.
+- **Zoom Extents**: Press `Spacebar` or double-click Middle Mouse Button to center the active model.
 
 ---
 
-## Step 2: Apply Volume-Preserving Smoothing
+## Step 1: Import & Diagnostic Triage
+
+1. Launch **Fabolus**. The application initializes in the **meshes** view.
+2. Click **Import Mesh** (or drag and drop your STL file directly into the viewport).
+3. The model loads into the 3D scene and populates the **Mesh Items** list on the left.
+4. Review the **Physical Statistics Panel** on the right:
+   - **Bounding Envelope**: Check that dimensions ($W \times D \times H$) match expected clinical anatomy.
+   - **Volume**: Note the initial volume ($V_{\text{initial}}$ in $cm^3$ or $mL$).
+   - **Topology Indicators**: Ensure **Watertight** is `Yes` and **Manifold** is `Yes`.
+5. *If any topology flag is highlighted in Red*: Click **Repair Mesh** in the left drawer. Fabolus will execute automated hole-closing and non-manifold edge decoupling, generating a clean `(Repaired)` mesh.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 2.2: Mesh Import and Topology Inspection Step. Screenshot showing a loaded patient bolus ('chin_bolus.stl') in the 3D viewport, with the physical statistics drawer displaying volume, surface area, and manifold indicators. Dimensions: 1000x600px.] -->
+
+---
+
+## Step 2: Volume-Preserving Smoothing & QA
+
 1. Click the **smooth** tab in the top navigation bar.
-2. Adjust the smoothing controls:
-   - **Intensity ($mm$)**: Controls the erosion/dilation distance (default `1.0–1.5 mm`).
-   - **Iterations**: Number of morphological passes (default `1`).
-   - **Remesh Ratio**: Density multiplier for post-smoothing triangle decimation (default `1.0`).
-3. Click **Apply Smoothing**.
-4. Verify surface deviation:
-   - Toggle **Heatmap** to inspect the signed distance deviation between the raw CT surface and smoothed mesh.
-   - Toggle **Cutting Plane** and drag the 3D height manipulator to inspect the 2D cross-sectional thickness.
-   - Ensure the volume change reported in the **Info Panel** remains within your clinic's tolerance (typically $\pm 1\%$).
+2. Configure the morphological parameters:
+   - **Intensity**: Set between `1.0 mm` and `1.5 mm` (roughly matching your CT slice thickness).
+   - **Iterations**: Leave at `1` for standard smoothing.
+   - **Remesh Ratio**: Set to `1.0` (preserves triangle resolution) or `1.5` (denser, smoother curves).
+3. Click **Apply Smoothing**. The background computation completes, updating the 3D scene.
+4. **Clinical QA Verification**:
+   - Check the **Volume Change** percentage in the Info Panel. It should be strictly within clinical prescription tolerances (typically $\le \pm 1.0\%$).
+   - Toggle **Heatmap**: Green indicates zero deviation ($\pm 0.1\text{ mm}$); blue highlights where voxel valleys were filled; red highlights where staircase peaks were rounded.
+   - Toggle **Cutting Plane**: Use the vertical manipulator handle to slice through the bolus, directly verifying cross-sectional thickness.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 2.3: Smoothing and Heatmap Deviation Step. Screenshot showing the smoothed bolus with active signed distance heatmap gradient, with the 3D cutting plane activated showing internal wall contours. Dimensions: 1000x600px.] -->
 
 ---
 
-## Step 3: Optimize Print Orientation & Overhangs
+## Step 3: Print Orientation & Overhang Optimization
+
 1. Click the **rotate** tab in the top navigation bar.
-2. Observe the overhang gradient:
-   - **Green**: Support-free print angles.
-   - **Yellow**: Angles approaching the warning threshold (default 45°).
-   - **Red**: Severe overhangs exceeding the critical threshold (default 65°) requiring supports.
-3. Use the 3D rotation gizmo or axis angle sliders to orient the mesh so the inner skin-contact surface faces upward (support-free), minimizing print artifact scarring against the patient.
+2. The bolus is immediately colored with an overhang gradient relative to the build plate ($-\hat{z}$ direction):
+   - **Green**: Self-supporting surfaces ($0^\circ – 45^\circ$).
+   - **Yellow**: Angles approaching warning limit ($45^\circ – 65^\circ$).
+   - **Red**: Steep overhangs requiring dense supports ($> 65^\circ$).
+3. **The Clinical Goal**: Orient the mesh so that the **skin-contact surface faces UPWARDS**.
+4. Drag the 3D rotation gizmo rings or adjust the $X, Y, Z$ degree sliders until the critical patient-facing cavity is entirely green/yellow. Any required print supports will now attach exclusively to the sacrificial outer shell, ensuring a mirror-smooth silicone casting surface.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 2.4: 3D Rotation Gizmo and Overhang Gradient. Screenshot showing active rotation gizmo around the bolus with real-time green/yellow/red normal angle coloring. Dimensions: 1000x600px.] -->
 
 ---
 
-## Step 4: Configure the Sacrificial Mould
+## Step 4: Configure Sacrificial Mould Shell
+
 1. Click the **mould** tab in the top navigation bar.
-2. Select your desired mould geometry:
-   - **Convex Hull**: Robust rectangular block for flat/chest wall sites.
-   - **Concave Shadow**: Tight silhouette mould to reduce resin/filament usage.
-   - **Contoured**: Uniform shell offset for large complex anatomy.
-3. Set your clearance margins:
-   - **Offset XY**: Lateral clearance between bolus and mould wall (default `2.0 mm`).
-   - **Offset Bottom / Top**: Vertical mould base and lid thickness (default `2.0 mm`).
+2. Choose your mould geometry:
+   - **Convex Hull**: Clean rectangular footprint; easiest to print and clamp (best for chest wall, forehead, or chin).
+   - **Concave Shadow**: Tight silhouette offset; saves 30% print material (best for shoulder, clavicle, or asymmetric wraps).
+   - **Contoured**: Omnidirectional 3D shell offset (best for large cranial helmets).
+3. Adjust clearance offsets:
+   - **Offset XY**: Set lateral wall margin to `2.0 mm`.
+   - **Offset Bottom / Top**: Set base plate and top cap margin to `2.0 mm` or `3.0 mm`.
+4. A semi-transparent cyan mould shell displays in the viewport, confirming adequate enclosing margins.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 2.5: Mould Configuration and Channel Placement Step. Screenshot showing transparent preview mould surrounding the bolus, with an injection sprue at the base and multiple degassing vents placed at anatomical high points. Dimensions: 1000x600px.] -->
 
 ---
 
-## Step 5: Place Air Channels & Vents
-With the mould tab active, add injection and venting channels:
-1. **Injection Sprue (Straight)**:
-   - Select **Straight**.
-   - Hover the cursor over the lowest point of the bolus and left-click to drop a vertical sprue.
-2. **Degassing Vents (Angled / Painted)**:
-   - Select **Angled** for side evacuation ports. Click anatomical high points where air could be trapped during upward fluid rise.
-   - Select **Painted** to drag a continuous path along curved ridges (e.g. ear rim or nasal bridge).
-3. Inspect the live transparent preview in the 3D viewport. Click any channel marker to edit its tip diameter, tube diameter, or penetration depth.
+## Step 5: Place Injection Sprues & Air Channels
+
+While still in the **mould** view, place channels to facilitate bubble-free silicone injection:
+
+1. **Place the Bottom Injection Sprue**:
+   - Under Channel Type, select **Straight**.
+   - Set Tip Diameter to `2.0 mm`, Channel Diameter to `5.0 mm`.
+   - Hover your mouse over the **lowest anatomical point ($Z_{\min}$)** of the bolus and left-click. A vertical injection channel snaps into position.
+2. **Place Degassing Vents (Risers)**:
+   - For side slopes, select **Angled**. Hover and click each local anatomical crest; Fabolus automatically angles the tip along the surface normal and curves it smoothly upward.
+   - For curved anatomical ridges (e.g. ear rim or nose bridge), select **Painted**. Click and drag along the crest to sweep a continuous venting channel.
+3. Verify channel clearances in the transparent preview. Click any channel marker to fine-tune its diameter or delete it if misplaced.
 
 ---
 
-## Step 6: Generate the Mould & Export
-1. Click **Generate Mould**.
-   - Fabolus will construct the outer mould volume, subtract the bolus cavity via boolean CSG, and subtract all air channels.
-2. Once generated, inspect the transparent mould cavity in the viewport.
+## Step 6: Bake & Export
+
+1. Click **Generate Mould**. Fabolus executes the boolean CSG pipeline:
+   $$\text{Mould} = \text{MouldShell} \setminus \text{Bolus} \setminus \sum \text{Channels}$$
+2. The viewport renders the final, hollowed sacrificial mould with internal cavity and vent tunnels.
 3. Click the **export** tab in the top navigation bar.
-4. Choose your export format:
-   - **3MF Package (Recommended)**: Packages the print-ready mould, the original base mesh, and the serialized parametric recipe into a single file.
-   - **STL**: Standard polygon mesh ready for any 3D slicer (Bambu Studio, PrusaSlicer, Cura, Chitubox).
-5. Click **Export Package** to save your file.
+4. Review the **Baked Operations** list:
+   - Verified Smoothing intensity and iteration count.
+   - Applied rotation quaternion.
+   - Mould type and included air channels.
+5. Choose **3MF Package** (preserves base mesh and recipe) or **STL**.
+6. Set the output file path and click **Export Package**.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 2.6: Export View and 3MF Package Summary. Screenshot showing the export summary panel listing all baked operations, file format toggle, destination folder picker, and the finished printable mould in the viewport. Dimensions: 1000x600px.] -->
+
+Your sacrificial mould file is now ready for your 3D printer slicer!

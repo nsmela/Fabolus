@@ -2,55 +2,96 @@
 
 ## Architectural Philosophy: Clean / Hexagonal Design
 
-Fabolus v1 is structured following the principles of **Clean Architecture** (Ports and Adapters / Hexagonal Architecture). The core domain logic is decoupled entirely from graphics libraries, UI frameworks, and specific geometric kernel implementations.
+Fabolus v1 is structured following the principles of **Clean Architecture** (also known as Ports & Adapters or Hexagonal Architecture). The overarching rule governing this design is the **Dependency Inversion Principle**: business rules and domain logic never depend on external frameworks, UI toolkits, or specific geometric computation kernels.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 10.1: Hexagonal Architecture Diagram for Fabolus. Architectural schematic illustrating Core domain entities encircled by ports/interfaces, surrounded by adapters (Geometry.MeshLib, Fabolus.Wpf, TestHarness). Dimensions: 900x500px.] -->
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Fabolus.Wpf                          │
-│     Presentation Layer: MVVM, Controls, Themes, SharpDX     │
-└───────────────┬─────────────────────────────┬───────────────┘
-                │ references                  │ references
-                ▼                             ▼
-┌─────────────────────────────┐ ┌─────────────────────────────┐
-│        Fabolus.Core         │ │      Geometry.MeshLib       │
-│  Domain Entities, Workflows │ │  C++ Native Wrapper Adapter │
-│   Commands, Workspace Root  │ │   MeshLib, Clipper2 Interop │
-└───────────────▲─────────────┘ └─────────────▲───────────────┘
-                │                             │
-                └────────────── implements ───┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              Fabolus.Wpf                                │
+│        Presentation Adapter: MVVM, MahApps.Metro, HelixToolkit SharpDX  │
+└───────────────────┬─────────────────────────────────┬───────────────────┘
+                    │ references                      │ references
+                    ▼                                 ▼
+┌─────────────────────────────────┐   ┌───────────────────────────────────┐
+│          Fabolus.Core           │   │         Geometry.MeshLib          │
+│         The Pure Domain         │   │       Native Engine Adapter       │
+│  - Workspace Aggregate Root     │   │  - MeshInspector MeshLib (C++)    │
+│  - IMesh & MeshMetadata Value   │   │  - Clipper2 2D Polygons           │
+│  - IMeshCommand Replay Pipeline │   │  - Parallel Transport Frames      │
+│  - Ports (IGeometryEngine, etc.)│   │  - Safe Unmanaged Memory Wrapping │
+└───────────────────▲─────────────┘   └─────────────────▲─────────────────┘
+                    │                                   │
+                    └──────────── implements ───────────┘
 ```
 
 ---
 
-## Component Breakdown
+## Detailed Component Breakdown
 
 ### 1. `Fabolus.Core` (`net8.0`)
-- **Role**: Pure business logic and domain contracts.
-- **Dependencies**: None (pure C#, no UI, no DirectX, no P/Invoke).
-- **Key Responsibilities**:
-  - Domain abstractions: [`IMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IMesh.cs), [`MeshMetadata`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/MeshMetadata.cs), [`Workspace`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Workspace.cs).
-  - Feature workflows: [`SmoothMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Features/Smoothing/SmoothMesh.cs), [`TransformMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Features/Transforms/TransformMesh.cs), [`GenerateMould`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Features/Moulds/GenerateMould.cs), [`AirChannel`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Features/AirChannels/AirChannel.cs), [`ImportMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Features/MeshIO/ImportMesh.cs), [`ExportMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Features/MeshIO/ExportMesh.cs).
-  - Parametric pipeline: [`IMeshCommand`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/IMeshCommand.cs), [`CommandPriority`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/CommandPriority.cs), [`CommandReplay`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/CommandReplay.cs).
-  - Functional error handling: [`Result<T>`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Common/Result.cs) and [`Maybe<T>`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Common/Maybe.cs).
+- **Architectural Role**: The central, pure domain kernel.
+- **Dependencies**: None. Contains zero references to WPF, DirectX, Windows Forms, or native DLLs. Can run unmodified on Linux or macOS.
+- **Core Entities & Ports**:
+  - **The Aggregate Root**: [`Workspace`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Workspace.cs) manages collections of immutable meshes with strict structural integrity.
+  - **The Geometry Abstraction**: [`IMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IMesh.cs) defines pure managed vertex and triangle arrays.
+  - **The Metadata System**: [`MeshMetadata`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/MeshMetadata.cs) provides a type-safe property dictionary using strongly-typed [`MetadataKey<T>`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/MetadataKey.cs).
+  - **The Command Replay Pipeline**: [`IMeshCommand`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/IMeshCommand.cs) and [`CommandPriority`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/CommandPriority.cs) govern non-destructive operations.
+  - **Outward Ports**:
+    - [`IGeometryEngine`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryEngine.cs): Facade bundling all geometric operations.
+    - [`IBooleans`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IBooleans.cs), [`IGeometryModifiers`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryModifiers.cs), [`IGeometryGenerators`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryGenerators.cs), [`IGeometryEvaluators`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryEvaluators.cs), [`IGeometryTransforms`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryTransforms.cs), [`IGeometryIO`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryIO.cs).
+    - [`IFileSystem`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Common/Interfaces/IFileSystem.cs) and [`IDialogueSystem`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Common/Interfaces/IDialogueSystem.cs).
 
 ### 2. `Geometry.MeshLib` (`net8.0`)
-- **Role**: Native geometry engine adapter.
-- **Dependencies**: `MeshLib` (v3.1.2.192 native C++ NuGet package by MeshInspector), `Clipper2Lib` (polygon offsetting), `System.IO.Compression` (3MF packaging).
-- **Key Responsibilities**:
-  - Implements the [`IGeometryEngine`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryEngine.cs) interface bundle:
-    - [`IBooleans`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IBooleans.cs): Union, Subtract, Intersect.
-    - [`IGeometryModifiers`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryModifiers.cs): Offset, Double Offset, Resize/Decimate.
-    - [`IGeometryGenerators`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryGenerators.cs): 3D Tubes, Spheres, Extrusions, Shadows, Convex Hulls.
-    - [`IGeometryEvaluators`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryEvaluators.cs): Normals, Overhangs, Volume, Area, Topology Diagnostics.
-    - [`IGeometryTransforms`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryTransforms.cs): Rotations (quaternion/matrix), Translations.
-    - [`IGeometryIO`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IGeometryIO.cs): STL, 3MF, OBJ loaders/savers.
-  - Encapsulates unmanaged memory pointers (`MR.Mesh`) safely inside internal [`MRMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Geometry.MeshLib/MRMesh.cs) classes, preventing native leaks from penetrating the core domain.
+- **Architectural Role**: High-performance native adapter implementing the geometry ports.
+- **Dependencies**: `MeshLib` NuGet package (v3.1.2.192 native C++ binaries from MeshInspector), `Clipper2Lib` for planar offset clipping.
+- **Memory Safety Contract**:
+  - Implements the internal class [`MRMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Geometry.MeshLib/MRMesh.cs).
+  - Translates managed vertex buffers into C++ `MR.Mesh` objects, executes native algorithms, marshals the resulting vertices back to pure C# memory, and deterministically disposes of all unmanaged pointers via `using` scopes.
+  - Prevents C++ memory leaks from contaminating the long-running managed application.
 
-### 3. `Fabolus.Wpf` (`net8.0-windows7.0`, `win-x64`)
-- **Role**: Presentation and interaction layer.
+### 3. `Fabolus.Wpf` (`net8.0-windows7.0`, target `win-x64`)
+- **Architectural Role**: The presentation adapter providing an interactive desktop interface.
 - **Dependencies**: `CommunityToolkit.Mvvm`, `MahApps.Metro`, `HelixToolkit.Wpf.SharpDX`.
-- **Key Responsibilities**:
-  - User interface components and styling (`SteelCyan.xaml`, `Colours.xaml`, `Buttons.xaml`).
-  - ViewModels conforming to MVVM with observable state and command bindings.
-  - [`ISceneManager`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Wpf/Features/Viewport/ISceneManager.cs) implementations that translate domain state into DirectX 11 materials, gizmos, and manipulators without leaking UI controls into ViewModels.
-  - Messaging with `WeakReferenceMessenger` for decoupled event-driven updates.
+- **Key Modules**:
+  - **MVVM Pattern**: ViewModels maintain application state and dispatch domain workflows.
+  - **Scene Managers**: The [`ISceneManager`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Wpf/Features/Viewport/ISceneManager.cs) interface completely decouples ViewModels from HelixToolkit DirectX 11 visual elements (`MeshGeometryModel3D`, `DiffuseMaterialCore`).
+  - **Inter-Component Messaging**: Event-driven decoupling using `WeakReferenceMessenger`.
+
+---
+
+## Concurrency & Threading Architecture
+
+Geometric algorithms (e.g. morphological offsets on 300,000-triangle meshes or boolean cavity coring) are computationally intensive and cannot run on the UI thread without causing application freezing.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 10.2: Threading and Async Pipeline Sequence Diagram. Sequence diagram illustrating the interaction between ViewModel, Background Worker Task, Geometry Engine, and Viewport Dispatcher. Dimensions: 900x450px.] -->
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant VM as Feature ViewModel
+    participant Msg as IMessenger
+    participant UI as LoadingOverlay (UI)
+    participant Worker as Background Task.Run
+    participant Engine as GeometryEngine (Native)
+    participant Scene as SceneManager
+
+    User->>VM: Click "Generate Mould"
+    VM->>Msg: Send IsLoadingMessage(true)
+    Msg->>UI: Render animated spinner & disable buttons
+    VM->>Worker: await Task.Run(() => Feature.Execute(...))
+    activate Worker
+    Worker->>Engine: CSG Boolean Difference & Coring
+    Engine-->>Worker: Return Result<Workspace>
+    Worker-->>VM: Yield Result back to UI Dispatcher
+    deactivate Worker
+    VM->>Msg: Send IsLoadingMessage(false)
+    Msg->>UI: Hide spinner & re-enable buttons
+    VM->>Scene: UpdateScene(newMesh)
+    Scene->>User: Render updated DirectX 11 visuals
+```
+
+1. **Non-Blocking Dispatch**: Every heavy operation (`SmoothMesh`, `GenerateMould`, `RepairMesh`, `ExportMesh`) is offloaded via `await Task.Run(...)`.
+2. **Visual Feedback**: Before offloading, the ViewModel broadcasts an `IsLoadingMessage(true)` message, instructing the [`LoadingOverlay`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Wpf/Features/Main/Controls/LoadingOverlay.xaml) to display a smooth, indeterminate circular progress animation while temporarily disabling input triggers.
+3. **Dispatcher Marshaling**: Once the background worker completes, execution resumes on the WPF UI dispatcher to update observable properties and trigger viewport redrawing without cross-thread access exceptions.
