@@ -1,0 +1,2109 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Specialized CAD/CAM Application for Radiotherapy Bolus Preparation & Sacrificial Moulding">
+      
+      
+        <meta name="author" content="Nathan Smela">
+      
+      
+      
+        <link rel="prev" href="../../architecture/07-testing-strategy/">
+      
+      
+        <link rel="next" href="../configuration-and-preferences/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Clinical & Technical Glossary - Fabolus Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="cyan" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#clinical-technical-glossary" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Fabolus Documentation" class="md-header__button md-logo" aria-label="Fabolus Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Fabolus Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Clinical & Technical Glossary
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="cyan" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="cyan" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/nsmela/Fabolus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    nsmela/Fabolus
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../user-guide/01-clinical-overview/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/01-system-architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture & Developer Manual
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Fabolus Documentation" class="md-nav__button md-logo" aria-label="Fabolus Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Fabolus Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/nsmela/Fabolus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    nsmela/Fabolus
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/01-clinical-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    01. Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/02-quickstart-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    02. Quickstart Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/03-mesh-inspection-and-repair/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    03. Mesh Inspection & Repair
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/04-volume-preserving-smoothing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    04. Volume-Preserving Smoothing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/05-print-orientation-and-overhangs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    05. Print Orientation & Overhangs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/06-sacrificial-mould-design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    06. Sacrificial Mould Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/07-air-channels-and-degassing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    07. Air Channels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/08-mould-splitting-and-cuts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    08. Cut & Split
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/09-slicing-printing-and-casting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    09. Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture & Developer Manual
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture & Developer Manual
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/01-system-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    01. System Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/02-command-replay-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    02. Command-Replay Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/03-geometry-engine-and-meshlib/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    03. Geometry Engine & Native MeshLib
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/04-domain-model-and-workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    04. Domain Model & State Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/05-wpf-mvvm-and-scene-managers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    05. WPF MVVM & Scene Managers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/06-3mf-interchange-specification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    06. 3MF Interchange Specification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/07-testing-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    07. Testing Strategy & Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical & Technical Glossary
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clinical & Technical Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-radiation-oncology-dosimetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Radiation Oncology &amp; Dosimetry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Radiation Oncology &amp; Dosimetry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#air-gap-underdosage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Air Gap Underdosage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bolus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bolus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#depth-of-maximum-dose-d_max" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Depth of Maximum Dose (\(D_{\max}\))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dicom-rt-rtstruct-rtdose-rtplan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DICOM-RT (RTSTRUCT / RTDOSE / RTPLAN)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#electronic-disequilibrium-skin-sparing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Electronic Disequilibrium &amp; Skin Sparing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hounsfield-unit-hu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hounsfield Unit (HU)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#percentage-depth-dose-pdd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Percentage Depth Dose (PDD)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#treatment-planning-system-tps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Treatment Planning System (TPS)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-additive-manufacturing-casting-chemistry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Additive Manufacturing &amp; Casting Chemistry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Additive Manufacturing &amp; Casting Chemistry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#addition-cure-platinum-cured-silicone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Addition-Cure (Platinum-Cured) Silicone
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cure-inhibition-catalyst-poisoning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cure Inhibition (Catalyst Poisoning)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#degassing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Degassing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#draft-angle-alpha" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Draft Angle (\(\alpha\))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parting-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parting Line
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#polyvinyl-alcohol-pva-pvoh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Polyvinyl Alcohol (PVA / PVOH)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#riser-air-vent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Riser / Air Vent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shore-a-durometer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shore A Durometer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sprue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sprue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#undercut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undercut
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-computational-geometry-mesh-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Computational Geometry &amp; Mesh Topology
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Computational Geometry &amp; Mesh Topology">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#2-manifold-mesh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2-Manifold Mesh
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#constructive-solid-geometry-csg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructive Solid Geometry (CSG)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#euler-characteristic-chi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Euler Characteristic (\(\chi\))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#morphological-erosion-dilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Morphological Erosion &amp; Dilation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#over-erosion-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Over-Erosion Guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-transport-frame-bishop-frame" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Transport Frame (Bishop Frame)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signed-distance-field-sdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signed Distance Field (SDF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#watertight-closed-mesh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Watertight (Closed) Mesh
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-fabolus-pipeline-architectural-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Fabolus Pipeline &amp; Architectural Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Fabolus Pipeline &amp; Architectural Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basemesh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BaseMesh
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-history-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command History Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#result-maybe-pattern-railway-oriented-programming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result / Maybe Pattern (Railway-Oriented Programming)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration-and-preferences/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration & Preferences
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-radiation-oncology-dosimetry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Radiation Oncology &amp; Dosimetry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Radiation Oncology &amp; Dosimetry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#air-gap-underdosage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Air Gap Underdosage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bolus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bolus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#depth-of-maximum-dose-d_max" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Depth of Maximum Dose (\(D_{\max}\))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dicom-rt-rtstruct-rtdose-rtplan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DICOM-RT (RTSTRUCT / RTDOSE / RTPLAN)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#electronic-disequilibrium-skin-sparing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Electronic Disequilibrium &amp; Skin Sparing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hounsfield-unit-hu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hounsfield Unit (HU)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#percentage-depth-dose-pdd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Percentage Depth Dose (PDD)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#treatment-planning-system-tps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Treatment Planning System (TPS)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-additive-manufacturing-casting-chemistry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Additive Manufacturing &amp; Casting Chemistry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Additive Manufacturing &amp; Casting Chemistry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#addition-cure-platinum-cured-silicone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Addition-Cure (Platinum-Cured) Silicone
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cure-inhibition-catalyst-poisoning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cure Inhibition (Catalyst Poisoning)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#degassing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Degassing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#draft-angle-alpha" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Draft Angle (\(\alpha\))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parting-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parting Line
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#polyvinyl-alcohol-pva-pvoh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Polyvinyl Alcohol (PVA / PVOH)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#riser-air-vent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Riser / Air Vent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shore-a-durometer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shore A Durometer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sprue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sprue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#undercut" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Undercut
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-computational-geometry-mesh-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Computational Geometry &amp; Mesh Topology
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Computational Geometry &amp; Mesh Topology">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#2-manifold-mesh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2-Manifold Mesh
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#constructive-solid-geometry-csg" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constructive Solid Geometry (CSG)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#euler-characteristic-chi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Euler Characteristic (\(\chi\))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#morphological-erosion-dilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Morphological Erosion &amp; Dilation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#over-erosion-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Over-Erosion Guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-transport-frame-bishop-frame" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Transport Frame (Bishop Frame)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#signed-distance-field-sdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Signed Distance Field (SDF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#watertight-closed-mesh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Watertight (Closed) Mesh
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-fabolus-pipeline-architectural-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Fabolus Pipeline &amp; Architectural Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Fabolus Pipeline &amp; Architectural Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basemesh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BaseMesh
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-history-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command History Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#result-maybe-pattern-railway-oriented-programming" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result / Maybe Pattern (Railway-Oriented Programming)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/nsmela/Fabolus/edit/feat/docs/docs/reference/clinical-glossary.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="clinical-technical-glossary">Clinical &amp; Technical Glossary</h1>
+<p>This glossary provides authoritative definitions for medical physics, additive manufacturing, materials chemistry, and computational geometry concepts used throughout the <strong>Fabolus</strong> documentation and clinical workflow.</p>
+<hr />
+<h2 id="1-radiation-oncology-dosimetry">1. Radiation Oncology &amp; Dosimetry</h2>
+<h3 id="air-gap-underdosage">Air Gap Underdosage</h3>
+<p>The clinical phenomenon where microscopic or macroscopic separations between a bolus and the patient's skin allow high-energy photons or electrons to experience renewed electronic buildup in air. Because air has an electron density of <span class="arithmatex">\(\rho_e \approx 0.0012\text{ g/cm}^3\)</span> compared to tissue (<span class="arithmatex">\(\rho_e \approx 1.0\text{ g/cm}^3\)</span>), secondary electrons scatter out of the field, leading to a local underdosage of <span class="arithmatex">\(5\%\text{ to }18\%\)</span> at the epidermis. Customized Fabolus boluses eliminate air gaps by conforming directly to patient surface anatomy.</p>
+<h3 id="bolus">Bolus</h3>
+<p>A tissue-equivalent material (physical density <span class="arithmatex">\(\rho \approx 1.00\text{ to }1.05\text{ g/cm}^3\)</span>, effective atomic number <span class="arithmatex">\(\bar{Z} \approx 7.4\)</span>) placed directly on the patient's skin during external beam radiation therapy. Its primary purpose is to shift the depth of maximum dose (<span class="arithmatex">\(D_{\max}\)</span>) toward the surface to treat superficial lesions (e.g., squamous cell carcinoma, melanoma, scar line recurrences) while maintaining uniform dose delivery.</p>
+<h3 id="depth-of-maximum-dose-d_max">Depth of Maximum Dose (<span class="arithmatex">\(D_{\max}\)</span>)</h3>
+<p>The depth along the central beam axis at which absorbed radiation dose reaches <span class="arithmatex">\(100\%\)</span>. For megavoltage photon beams, <span class="arithmatex">\(D_{\max}\)</span> is governed by forward secondary electron scatter:
+- <strong>6 MV photons</strong>: <span class="arithmatex">\(D_{\max} \approx 1.5\text{ cm}\)</span>
+- <strong>10 MV photons</strong>: <span class="arithmatex">\(D_{\max} \approx 2.5\text{ cm}\)</span>
+- <strong>18 MV photons</strong>: <span class="arithmatex">\(D_{\max} \approx 3.5\text{ cm}\)</span>
+Applying a customized bolus of thickness <span class="arithmatex">\(t_b\)</span> shifts the effective depth such that <span class="arithmatex">\(D_{\max}\)</span> occurs within or directly adjacent to the skin surface.</p>
+<h3 id="dicom-rt-rtstruct-rtdose-rtplan">DICOM-RT (RTSTRUCT / RTDOSE / RTPLAN)</h3>
+<p>The international standard for radiotherapeutic medical imaging data:
+- <strong>RTSTRUCT</strong>: Vector contour sets defining anatomical organs-at-risk (OARs), target volumes (GTV, CTV, PTV), and external body contours.
+- <strong>RTDOSE</strong>: 3D dose matrices calculated by the TPS.
+- <strong>RTPLAN</strong>: Beam angles, collimator settings, multileaf collimator (MLC) leaf sequences, and monitor units (MU).</p>
+<h3 id="electronic-disequilibrium-skin-sparing">Electronic Disequilibrium &amp; Skin Sparing</h3>
+<p>At the entrance surface of a patient exposed to high-energy photons, high-velocity Compton electrons are projected primarily in the forward direction. Near the skin surface, more electrons leave each unit volume than enter it, producing <strong>electronic disequilibrium</strong>. The resulting entrance dose is relatively low (<span class="arithmatex">\(15\%\text{ to }30\%\)</span> for 6 MV photons), sparing the epidermis. When superficial tissues are malignant, a bolus restores electronic equilibrium at the skin surface.</p>
+<h3 id="hounsfield-unit-hu">Hounsfield Unit (HU)</h3>
+<p>A dimensionless unit used in computed tomography (CT) to express radiodensity relative to distilled water:
+$<span class="arithmatex">\(\text{HU} = 1000 \times \frac{\mu - \mu_{\text{water}}}{\mu_{\text{water}} - \mu_{\text{air}}}\)</span>$
+Standard clinical calibration benchmarks:
+- Air: <span class="arithmatex">\(-1000\text{ HU}\)</span>
+- Lung: <span class="arithmatex">\(-700\text{ to }-500\text{ HU}\)</span>
+- Water: <span class="arithmatex">\(0\text{ HU}\)</span>
+- Cured RTV Silicone: <span class="arithmatex">\(+50\text{ to }+120\text{ HU}\)</span>
+- Compact Bone: <span class="arithmatex">\(+1000\text{ to }+3000\text{ HU}\)</span></p>
+<h3 id="percentage-depth-dose-pdd">Percentage Depth Dose (PDD)</h3>
+<p>The ratio of absorbed dose at a given depth <span class="arithmatex">\(d\)</span> along the central axis to the absorbed dose at reference depth <span class="arithmatex">\(D_{\max}\)</span>, expressed as a percentage:
+$<span class="arithmatex">\(\text{PDD}(d) = \frac{D(d)}{D_{\max}} \times 100\%\)</span>$</p>
+<h3 id="treatment-planning-system-tps">Treatment Planning System (TPS)</h3>
+<p>Specialized clinical radiation oncology software (e.g., Varian Eclipse, Elekta Monaco, RaySearch RayStation) used to calculate 3D radiation dose distributions using collapsed cone convolution, pencil beam, or Monte Carlo transport algorithms.</p>
+<hr />
+<h2 id="2-additive-manufacturing-casting-chemistry">2. Additive Manufacturing &amp; Casting Chemistry</h2>
+<!-- IMAGE_PLACEHOLDER: [Figure 17.1: Visual Glossary of Bolus Anatomy and 3D Terminology. Labeled 3D diagram illustrating the anatomical contact surface, bolus solid body, sacrificial mould shell, sprue inlet, riser vents, parting line, and draft angle with callouts explaining each concept.] -->
+
+<h3 id="addition-cure-platinum-cured-silicone">Addition-Cure (Platinum-Cured) Silicone</h3>
+<p>A two-component liquid silicone rubber formulation that cures at room temperature (RTV-2) via a platinum-catalyzed hydrosilylation reaction between vinyl-functional polysiloxanes and silicon-hydride crosslinkers. Characterized by negligible cure shrinkage (<span class="arithmatex">\(&lt;0.1\%\)</span>), excellent skin compatibility, and zero toxic byproducts.</p>
+<h3 id="cure-inhibition-catalyst-poisoning">Cure Inhibition (Catalyst Poisoning)</h3>
+<p>A chemical failure mode where organotin compounds, amines, sulfur, nitrogen oxides, or condensation-cure residues deactivate the chloroplatinic acid catalyst in platinum-cured silicones. The silicone remains permanently tacky or liquid at the contact interface. Sacrificial PVA or virgin PLA/PETG avoids cure inhibition.</p>
+<h3 id="degassing">Degassing</h3>
+<p>The procedure of placing mixed Part A and Part B silicone resin inside a vacuum chamber at <span class="arithmatex">\(-29\text{ inHg}\)</span> (<span class="arithmatex">\(-0.98\text{ bar}\)</span>) for 3 to 5 minutes to force micro air bubbles to expand, coalesce, and burst prior to injection.</p>
+<h3 id="draft-angle-alpha">Draft Angle (<span class="arithmatex">\(\alpha\)</span>)</h3>
+<p>The taper angle applied to the vertical walls of a rigid mould cavity to facilitate separation of the cured cast part:
+$<span class="arithmatex">\(\tan\alpha = \frac{\Delta x}{h}\)</span>$
+For rigid two-part moulds, <span class="arithmatex">\(\alpha \ge 2^\circ\text{ to }5^\circ\)</span> is standard. For water-soluble sacrificial moulds (PVA), draft angles can be <span class="arithmatex">\(0^\circ\)</span> because the mould is dissolved rather than pulled.</p>
+<h3 id="parting-line">Parting Line</h3>
+<p>The boundary curve along a mould assembly where two or more interlocking mould segments meet. Parting lines must be placed along geometric horizons to eliminate undercuts and prevent silicone flashing into critical dose regions.</p>
+<h3 id="polyvinyl-alcohol-pva-pvoh">Polyvinyl Alcohol (PVA / PVOH)</h3>
+<p>A synthetic water-soluble biopolymer used as an FDM 3D printing filament. PVA dissolves completely in warm tap water (<span class="arithmatex">\(45^\circ\text{C}\)</span>), allowing zero-draft, single-piece sacrificial moulds with complex anatomical undercuts to be cleanly removed without tearing fragile silicone features.</p>
+<h3 id="riser-air-vent">Riser / Air Vent</h3>
+<p>A narrow auxiliary channel (<span class="arithmatex">\(\approx 1.5\text{ to }2.0\text{ mm}\)</span> internal diameter) located at the highest gravitational peaks of a mould cavity. Risers allow entrapped air to vent freely as liquid silicone enters from the lowest sprue inlet.</p>
+<h3 id="shore-a-durometer">Shore A Durometer</h3>
+<p>A standardized measurement scale (ASTM D2240) for elastomeric hardness:
+- <strong>Shore 00-10 to 00-30</strong>: Gel-like silicone (cushions, extreme soft tissue).
+- <strong>Shore 10A to 20A</strong>: Standard clinical bolus firmness (pliable, conforms to facial contours without compressing tissue).
+- <strong>Shore 30A to 50A</strong>: Semi-rigid bolus (extremities, chest wall).</p>
+<h3 id="sprue">Sprue</h3>
+<p>The main injection port (typically <span class="arithmatex">\(4.0\text{ to }6.0\text{ mm}\)</span> internal diameter with a female Luer-lock or barbed taper) designed into the lowest gravitational point of the sacrificial mould to accept liquid silicone from a dispensing syringe.</p>
+<h3 id="undercut">Undercut</h3>
+<p>A recess, overhang, or protrusion on a 3D part that prevents it from being withdrawn linearly from a single-axis rigid mould without mechanical lock or physical tearing.</p>
+<hr />
+<h2 id="3-computational-geometry-mesh-topology">3. Computational Geometry &amp; Mesh Topology</h2>
+<h3 id="2-manifold-mesh">2-Manifold Mesh</h3>
+<p>A triangular surface mesh <span class="arithmatex">\(\mathcal{M} = (V, E, F)\)</span> where every point on the surface has a local neighborhood topologically homeomorphic to an open 2D disk. Concretely:
+1. Every edge <span class="arithmatex">\(e \in E\)</span> is shared by exactly two triangular faces (or exactly one on an open boundary).
+2. The triangles incident to every vertex <span class="arithmatex">\(v \in V\)</span> form a single continuous fan or open cycle.
+3. No self-intersections or intersecting internal faces exist.</p>
+<h3 id="constructive-solid-geometry-csg">Constructive Solid Geometry (CSG)</h3>
+<p>A 3D solid modeling technique that combines independent closed volumetric meshes via Boolean algebraic set operations:
+- <strong>Union</strong>: <span class="arithmatex">\(A \cup B\)</span>
+- <strong>Difference / Subtraction</strong>: <span class="arithmatex">\(A \setminus B\)</span>
+- <strong>Intersection</strong>: <span class="arithmatex">\(A \cap B\)</span></p>
+<h3 id="euler-characteristic-chi">Euler Characteristic (<span class="arithmatex">\(\chi\)</span>)</h3>
+<p>A topological invariant defining the structural integrity of a polyhedral mesh:
+$<span class="arithmatex">\(\chi = V - E + F = 2 - 2g - b\)</span>$
+Where <span class="arithmatex">\(V\)</span> is vertices, <span class="arithmatex">\(E\)</span> is edges, <span class="arithmatex">\(F\)</span> is faces, <span class="arithmatex">\(g\)</span> is genus (number of through-holes or handles), and <span class="arithmatex">\(b\)</span> is boundary loops. For a closed, watertight sphere-like mesh (<span class="arithmatex">\(g=0, b=0\)</span>):
+$<span class="arithmatex">\(\chi = V - E + F = 2\)</span>$</p>
+<h3 id="morphological-erosion-dilation">Morphological Erosion &amp; Dilation</h3>
+<p>Non-linear morphological operators applied to meshes:
+- <strong>Dilation (<span class="arithmatex">\(\oplus B_r\)</span>)</strong>: Expands the surface outward along surface normals by radius <span class="arithmatex">\(r\)</span>, smoothing out sharp crevices and filling cavities.
+- <strong>Erosion (<span class="arithmatex">\(\ominus B_r\)</span>)</strong>: Shrinks the boundary inward along inverted normals by radius <span class="arithmatex">\(r\)</span>, removing tiny protrusions.
+The composition <span class="arithmatex">\((\mathcal{M} \oplus B_r) \ominus B_r\)</span> forms a morphological closing, eliminating air gaps while maintaining true clinical volume.</p>
+<h3 id="over-erosion-guard">Over-Erosion Guard</h3>
+<p>A safety invariant in Fabolus that monitors intermediate volume during smoothing and trimming operations. If the current mesh volume <span class="arithmatex">\(V_{\text{curr}}\)</span> deviates from the initial clinical volume <span class="arithmatex">\(V_{\text{init}}\)</span> by more than a predefined tolerance:
+$<span class="arithmatex">\(\Delta V = \frac{|V_{\text{curr}} - V_{\text{init}}|}{V_{\text{init}}} &gt; \tau_{\text{volume}} \quad (\tau_{\text{volume}} \approx 1\%)\)</span>$
+the algorithm halts or clamps the offset distance, preventing clinical under-dosage.</p>
+<h3 id="parallel-transport-frame-bishop-frame">Parallel Transport Frame (Bishop Frame)</h3>
+<p>A continuous, rotation-minimizing orthonormal coordinate system <span class="arithmatex">\(\{ \vec{T}(s), \vec{N}_1(s), \vec{N}_2(s) \}\)</span> constructed along a 3D space curve <span class="arithmatex">\(\vec{C}(s)\)</span>. Unlike standard Frenet-Serret frames, Bishop frames do not suffer from vanishing normal vectors or infinite torsion at inflection points (<span class="arithmatex">\(\kappa(s) = 0\)</span>), ensuring smooth, non-twisting 3D air channels and sprue tubes.</p>
+<h3 id="signed-distance-field-sdf">Signed Distance Field (SDF)</h3>
+<p>An implicit scalar field <span class="arithmatex">\(f: \mathbb{R}^3 \to \mathbb{R}\)</span> defined over a volumetric voxel grid, where <span class="arithmatex">\(f(\vec{x})\)</span> denotes the shortest Euclidean distance from point <span class="arithmatex">\(\vec{x}\)</span> to the mesh surface <span class="arithmatex">\(\partial\mathcal{M}\)</span>:
+$<span class="arithmatex">\(f(\vec{x}) = \begin{cases} -d(\vec{x}, \partial\mathcal{M}) &amp; \text{if } \vec{x} \text{ is inside } \mathcal{M} \\ 0 &amp; \text{if } \vec{x} \in \partial\mathcal{M} \\ +d(\vec{x}, \partial\mathcal{M}) &amp; \text{if } \vec{x} \text{ is outside } \mathcal{M} \end{cases}\)</span>$
+SDF representations allow robust level-set offsets and CSG booleans that are completely immune to mesh self-intersections.</p>
+<h3 id="watertight-closed-mesh">Watertight (Closed) Mesh</h3>
+<p>A 2-manifold triangle mesh with zero boundary edges (<span class="arithmatex">\(b=0\)</span>). A watertight mesh divides 3D Euclidean space into a strictly bounded interior and an unbounded exterior, allowing unambiguous physical volume calculation and robust slicing.</p>
+<hr />
+<h2 id="4-fabolus-pipeline-architectural-concepts">4. Fabolus Pipeline &amp; Architectural Concepts</h2>
+<h3 id="basemesh">BaseMesh</h3>
+<p>The unmodified triangle mesh imported into Fabolus from an external source (such as an STL exported from a clinical TPS). It is stored in metadata (<code>CoreKeys.BaseMesh</code>) and serves as the immutable root against which the command pipeline is replayed.</p>
+<h3 id="command-history-pipeline">Command History Pipeline</h3>
+<p>An ordered, non-destructive list of <code>IMeshCommand</code> records stored in a mesh's metadata (<code>CoreKeys.Commands</code>). Each command carries a static <code>Priority</code> from <code>CommandPriority</code>: <code>Transform = 10</code> (rotate, translate, smoothing), <code>TextEmboss = 15</code>, <code>Mould = 20</code>, and <code>MouldTextEmboss = 25</code>. Recording a command clears any existing commands with a strictly greater priority (they depended on geometry the new command changed); commands sharing a priority do not clear each other. Replaying the list against the <code>BaseMesh</code> reconstructs the current mesh.</p>
+<h3 id="result-maybe-pattern-railway-oriented-programming">Result / Maybe Pattern (Railway-Oriented Programming)</h3>
+<p>A functional architecture pattern where operations return <code>Result&lt;T&gt;</code> (encapsulating success value or a typed failure diagnostic) or <code>Maybe&lt;T&gt;</code> (encapsulating an optional reference without null pointers), ensuring that clinical geometry computations never crash silently or leak corrupted states.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
