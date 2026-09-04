@@ -1,0 +1,87 @@
+site_name: Fabolus Documentation
+site_description: Specialized CAD/CAM Application for Radiotherapy Bolus Preparation & Sacrificial Moulding
+site_author: Nathan Smela
+repo_name: nsmela/Fabolus
+repo_url: https://github.com/nsmela/Fabolus
+edit_uri: edit/feat/docs/docs/
+
+exclude_docs: |
+  README.md
+
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: cyan
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Clinical & User Guide:
+    - 01. Clinical Overview & Bolus Physics: user-guide/01-clinical-overview.md
+    - 02. Quickstart Workflow: user-guide/02-quickstart-workflow.md
+    - 03. Mesh Inspection & Repair: user-guide/03-mesh-inspection-and-repair.md
+    - 04. Volume-Preserving Smoothing: user-guide/04-volume-preserving-smoothing.md
+    - 05. Print Orientation & Overhangs: user-guide/05-print-orientation-and-overhangs.md
+    - 06. Sacrificial Mould Design: user-guide/06-sacrificial-mould-design.md
+    - 07. Air Channels & Degassing: user-guide/07-air-channels-and-degassing.md
+    - 08. Mould Splitting & Demoulding: user-guide/08-mould-splitting-and-cuts.md
+    - 09. Slicing, Printing & Casting: user-guide/09-slicing-printing-and-casting.md
+  - Architecture & Developer Manual:
+    - 01. System Architecture: architecture/01-system-architecture.md
+    - 02. Command-Replay Pipeline: architecture/02-command-replay-pipeline.md
+    - 03. Geometry Engine & Native MeshLib: architecture/03-geometry-engine-and-meshlib.md
+    - 04. Domain Model & State Management: architecture/04-domain-model-and-workspace.md
+    - 05. WPF MVVM & Scene Managers: architecture/05-wpf-mvvm-and-scene-managers.md
+    - 06. 3MF Interchange Specification: architecture/06-3mf-interchange-specification.md
+    - 07. Testing Strategy & Benchmarks: architecture/07-testing-strategy.md
+  - Reference:
+    - Clinical & Technical Glossary: reference/clinical-glossary.md
+    - Configuration & Preferences: reference/configuration-and-preferences.md
