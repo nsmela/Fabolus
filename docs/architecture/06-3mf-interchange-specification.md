@@ -117,7 +117,7 @@ To allow the project to be re-opened and re-edited without degrading geometry, t
 
 Fabolus's packaging strategy adheres strictly to the core 3MF Consortium specifications:
 - **How Slicers See the File**: 3D slicers only slice items explicitly referenced in the `<build>` block (`<item objectid="1" />`). Because Object 2 is marked `type="other"` and has no entry in `<build>`, slicers completely ignore it. You can drag a Fabolus `.3mf` directly into Bambu Studio or PrusaSlicer and slice the mould immediately.
-- **How Fabolus Re-Imports the File**: When opened in Fabolus, [`GeometryIO.Import3MF`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Geometry.MeshLib/GeometryIO.cs#L125) reads `fab:Commands`, looks for `fab:role="basemesh"`, restores the pristine base geometry into `BaseMesh`, and populates the parametric command pipeline.
+- **How Fabolus Re-Imports the File**: When opened in Fabolus, [`GeometryIO.Import`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/GeometryIO.cs#L305) reads `fab:Commands`, looks for `fab:role="basemesh"` (or `type="other"`), restores the base geometry into `BaseMesh`, and populates the command pipeline.
 
 <!-- IMAGE_PLACEHOLDER: [Figure 15.2: Round-Trip Project Restoration Flow. Diagram illustrating saving to 3MF and re-importing in a fresh Fabolus session with 100% parametric history preserved. Dimensions: 850x400px.] -->
 

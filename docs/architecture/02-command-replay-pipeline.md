@@ -24,7 +24,7 @@ A mesh $\mathcal{M}$ in Fabolus is defined as a pure, pristine base geometry $\m
 
 $$\mathcal{M} = \left( \mathcal{C}_k \circ \mathcal{C}_{k-1} \circ \dots \circ \mathcal{C}_1 \right)(\mathcal{M}_{\text{base}})$$
 
-When an operator imports an STL from a TPS, Fabolus freezes that original geometry as the immutable [`BaseMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/MeshMetadata.cs#L176). All downstream modifications—smoothing, orientation, mould generation, and channel placement—are captured as immutable data records.
+When an operator imports an STL from a TPS, Fabolus freezes that original geometry as the immutable [`BaseMesh`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/MeshMetadata.cs#L176). All downstream modifications—smoothing, orientation, mould generation, and channel placement—are captured as immutable data records.
 
 <!-- IMAGE_PLACEHOLDER: [Figure 11.2: Memory Footprint: Destructive Cloning vs. Parametric Command Replay. Chart comparing RAM consumption across 20 iterative parameter adjustments: 1.2 GB for deep-cloning vs. 45 MB for Command Replay. Dimensions: 800x400px.] -->
 
@@ -32,7 +32,7 @@ When an operator imports an STL from a TPS, Fabolus freezes that original geomet
 
 ## The `IMeshCommand` Contract
 
-Every feature operation in `Fabolus.Core` implements [`IMeshCommand`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/IMeshCommand.cs):
+Every feature operation in `Fabolus.Core` implements [`IMeshCommand`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/IMeshCommand.cs):
 
 ```csharp
 public interface IMeshCommand
@@ -47,7 +47,7 @@ public interface IMeshCommand
 
 ---
 
-## Pipeline Priority Stages ([`CommandPriority`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/CommandPriority.cs))
+## Pipeline Priority Stages ([`CommandPriority`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/CommandPriority.cs))
 
 Commands are organized into discrete dependency tiers, deliberately spaced to accommodate future features without renumbering:
 
@@ -56,13 +56,19 @@ public static class CommandPriority {
     /// <summary>Rotate, Translate, Smoothing - siblings, none depends on the others.</summary>
     public const int Transform = 10;
 
+    /// <summary>Text embossing / engraving on base or transformed mesh.</summary>
+    public const int TextEmboss = 15;
+
     /// <summary>Depends on whatever geometry the Transform-stage commands produced.</summary>
     public const int Mould = 20;
+
+    /// <summary>Text embossing / engraving on generated mould mesh.</summary>
+    public const int MouldTextEmboss = 25;
 }
 ```
 
 ### 1. Replacement, Not Stacking
-When a command is recorded via [`MeshMetadata.WithCommand`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/MeshMetadata.cs#L142), Fabolus inspects the active command history:
+When a command is recorded via [`MeshMetadata.WithCommand`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/MeshMetadata.cs#L142), Fabolus inspects the active command history:
 - If a command of the **same runtime type** already exists (e.g. replacing a prior `SmoothSettings`), the old command is replaced in-place.
 - Multiple adjustments to smoothing or rotation never stack or compound; they maintain a single, canonical parameter record.
 
@@ -76,7 +82,7 @@ $$\forall \mathcal{C}_i \in \text{Commands} : \operatorname{Priority}(\mathcal{C
 
 ---
 
-## Execution Mechanics ([`CommandReplay.cs`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/CommandReplay.cs))
+## Execution Mechanics ([`CommandReplay.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/CommandReplay.cs))
 
 Replaying commands against the base mesh is managed deterministically:
 

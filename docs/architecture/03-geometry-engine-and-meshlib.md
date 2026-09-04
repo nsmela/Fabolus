@@ -15,7 +15,7 @@ MeshLib is linked through official .NET Interop bindings and wrapped entirely wi
 In .NET, mixing unmanaged native C++ pointers with the Garbage Collector (GC) introduces risks of memory corruption, double-frees, or severe memory leaks. Fabolus enforces strict safety contracts:
 
 ### 1. The `MRMesh` Encapsulation Boundary
-The domain layer (`Fabolus.Core`) only ever interacts with the managed interface [`IMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/IMesh.cs):
+The domain layer (`Fabolus.Core`) only ever interacts with the managed interface [`IMesh`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/IMesh.cs):
 
 ```csharp
 public interface IMesh
@@ -30,7 +30,7 @@ public interface IMesh
 }
 ```
 
-The concrete class [`MRMesh`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Geometry.MeshLib/MRMesh.cs) is marked `internal sealed`. Native pointers (`MR.Mesh*`) never leak across project references.
+The concrete class [`MRMesh`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/MRMesh.cs) is marked `internal sealed`. Native pointers (`MR.Mesh*`) never leak across project references.
 
 ### 2. Deterministic Disposal with `using` Scopes
 Whenever a geometric algorithm is invoked, managed vertex and triangle arrays are marshaled into native C++ structures, computed, and converted back into managed arrays. All unmanaged representations implement `IDisposable` and are enclosed in `using` scopes:
@@ -63,20 +63,20 @@ When the method scope exits, C++ destructors immediately free native heap memory
 
 ## Algorithmic Subsystems Deep Dive
 
-### 1. Robust Constructive Solid Geometry (CSG Booleans) ([`Booleans.cs`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Geometry.MeshLib/Booleans.cs))
+### 1. Robust Constructive Solid Geometry (CSG Booleans) ([`Booleans.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/Booleans.cs))
 - **Difference (`Subtract`)**: Used for cavity coring and vent drilling.
 - **Union (`Union`)**: Merging components into contiguous watertight bodies.
 - **Intersection (`Intersect`)**: Volume overlap evaluation and planar half-space cutting.
 - MeshLib's boolean kernel employs exact arithmetic predicates and adaptive octree spatial partitioning to resolve coplanar facets and near-coincident boundaries without non-manifold crashes.
 
-### 2. Morphological Offsetting ([`GeometryModifiers.cs`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Geometry.MeshLib/GeometryModifiers.cs))
+### 2. Morphological Offsetting ([`GeometryModifiers.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/GeometryModifiers.cs))
 - Implements continuous Signed Distance Field (SDF) offsetting:
   - Outward Offset: $\mathcal{M} \oplus d$
   - Inward Offset: $\mathcal{M} \ominus d$
   - Double Offset: $(\mathcal{M} \oplus d) \ominus d$
 - By rasterizing the boundary into an adaptive voxel field, narrow grooves (voxel stepping) collapse, while continuous outer bounds are preserved.
 
-### 3. Swept 3D Tubes via Parallel Transport (Bishop Frame) ([`GeometryGenerators.cs`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Geometry.MeshLib/GeometryGenerators.cs#L18))
+### 3. Swept 3D Tubes via Parallel Transport (Bishop Frame) ([`GeometryGenerators.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/GeometryGenerators.cs#L18))
 When sweeping a 3D cylinder or cone along an arbitrary 3D curve (such as an Angled air channel), classic Frenet-Serret framing produces catastrophic gimbal twists at inflection points where curvature approaches zero ($\kappa \to 0$).
 
 <!-- IMAGE_PLACEHOLDER: [Figure 12.2: Parallel Transport Frame vs Frenet-Serret Frame. Mathematical diagram illustrating gimbal twist in Frenet frames along inflections vs stable Bishop frame transport maintaining smooth radial orientation. Dimensions: 800x400px.] -->

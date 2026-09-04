@@ -1,6 +1,11 @@
 # Configuration & Preferences Reference
 
-Fabolus provides a centralized, strongly-typed preferences subsystem in `Fabolus.Wpf.Features.AppPreferences`. Settings are stored locally on the user's workstation in JSON format and synchronized across ViewModels, ViewStates, and DirectX 3D renderers via `IAppPreferencesStore` and the CommunityToolkit `WeakReferenceMessenger`.
+Fabolus stores user preferences in `Fabolus.Wpf.Features.AppPreferences`. Settings are persisted locally as JSON and shared with the ViewModels that need them through the CommunityToolkit `WeakReferenceMessenger` (a request/reply message per settings section), rather than through a shared singleton reference.
+
+Preferences are organised into **sections**, each a small immutable record implementing `IPreferenceSettings<TSelf>` that knows how to read itself from, and write itself to, a flat `PreferenceBag`. On v1 there are two sections:
+
+- **`GeneralPreferences`** — import/export folders, export format, viewport background.
+- **`PrintBedPreferences`** — print bed size, bed grid, and air-channel defaults.
 
 ---
 
@@ -8,53 +13,52 @@ Fabolus provides a centralized, strongly-typed preferences subsystem in `Fabolus
 
 ```mermaid
 flowchart LR
-    subgraph UI ["Preferences View"]
-        PV[PreferencesDialog] --> PVM[PreferencesViewModel]
+    subgraph UI ["Preferences Window"]
+        PV[PreferencesView] --> PVM[PreferencesViewModel]
     end
 
-    subgraph CoreStore ["Storage Subsystem"]
-        PVM -->|Save| APS[AppPreferencesStore]
+    subgraph CoreStore ["Storage"]
+        PVM -->|PreferenceSectionUpdateMessage&lt;T&gt;| APS[AppPreferencesStore]
         APS -->|Serialize| JSON[("%LOCALAPPDATA%\Fabolus\preferences.json")]
-        JSON -->|Deserialize on Startup| APS
+        JSON -->|Load on startup| APS
     end
 
-    subgraph MessengerBus ["Messenger Event Bus"]
-        APS -->|Publish| MSG[AppPreferencesChangedMessage]
+    subgraph Consumers ["Requesting ViewModels"]
+        VM1[SmoothingViewModel]
+        VM2[RotateViewModel]
+        VM3[MouldViewModel]
+        VM4[ExportViewModel]
+        VM5[EmbossViewModel]
     end
 
-    subgraph Subscribers ["Subscribed ViewStates & ViewModels"]
-        MSG --> VM1[PrintBedSceneManager]
-        MSG --> VM2[AirChannelsViewModel]
-        MSG --> VM3[ViewportViewModel]
-        MSG --> VM4[ShellViewModel]
-    end
+    VM1 & VM2 & VM3 & VM4 & VM5 -->|PreferenceSectionRequestMessage&lt;T&gt;| APS
 ```
 
+A consumer asks for a section with `PreferenceSectionRequestMessage<T>` (there is a `messenger.GetPreference<T>(fallback)` extension that supplies a fallback if nothing answers). The preferences window sends a `PreferenceSectionUpdateMessage<T>` when the user saves; `AppPreferencesStore` applies it and writes the file.
+
 ### Storage Location & File Format
-Preferences are stored on the local machine at:
+
+Preferences are stored at `PreferenceStorageLocation.DefaultPath`:
+
 ```text
 %LOCALAPPDATA%\Fabolus\preferences.json
 ```
+
 typically resolving to `C:\Users\<Username>\AppData\Local\Fabolus\preferences.json`.
 
-If the file does not exist (such as on first launch) or contains corrupted JSON, `AppPreferencesStore` automatically falls back to factory defaults without throwing unhandled exceptions.
+The file is a flat JSON object keyed by each setting's storage key. Enums are written as their **name** (e.g. `"Stl"`, `"Graphite"`), not as integers. A value that is missing, the wrong type, or out of range falls back to that setting's shipped default — it is **not** clamped to the nearest bound. Keys the current build does not recognise are preserved and written back out, so a file written by a newer build keeps its extra settings after an older build saves over it.
 
 ```json
 {
-  "ImportFolder": "C:\\Users\\MedicalPhysicist\\Documents\\DICOM_Exports",
-  "ExportFolder": "C:\\Users\\MedicalPhysicist\\Documents\\3D_Print_Jobs",
-  "ExportFormat": 1,
-  "PrintbedWidth": 256.0,
-  "PrintbedDepth": 256.0,
-  "PrintbedHeight": 256.0,
-  "ShowBedGrid": true,
-  "AutodetectChannels": true,
-  "ChannelDiameter": 4.0,
-  "AccentColor": "#FF0CA3B4",
-  "ViewportBackground": 0,
-  "Units": 0,
-  "EnableCut": false,
-  "EnableSplit": false
+  "default_import_folder": "C:\\Users\\MedicalPhysicist\\Documents",
+  "default_export_folder": "C:\\Users\\MedicalPhysicist\\AppData\\Local",
+  "default_export_format": "Stl",
+  "viewport_background": "Graphite",
+  "print_bed_width": 250,
+  "print_bed_depth": 250,
+  "show_bed_grid": true,
+  "autodetect_channels": true,
+  "channel_diameter": 4
 }
 ```
 
@@ -62,56 +66,48 @@ If the file does not exist (such as on first launch) or contains corrupted JSON,
 
 ## 2. Preference Keys Reference
 
-All keys are defined as static constants in [`PreferenceKeys.cs`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Wpf/Features/AppPreferences/AppPreferences.cs#L69):
+### `GeneralPreferences` ([`GeneralPreferences.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/AppPreferences/GeneralPreferences.cs))
 
-| Key Name | Data Type | Default Value | Clinical & Operational Description |
+| Storage Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `ImportFolder` | `string` | `CommonDocuments` | Default directory opened when launching the file import dialog (`Ctrl+O`). |
-| `ExportFolder` | `string` | `LocalApplicationData` | Default destination folder for exported `.3mf` archives and `.stl` mould meshes. |
-| `ExportFormat` | `ExportFormat` enum | `Stl` (`0`) | Default export format (`Stl` or `ThreeMf`). Clinical default is `ThreeMf` for full parametric metadata. |
-| `PrintbedWidth` | `float` | `250.0 mm` | Bounding width ($X$) of the virtual 3D printer build plate rendered in the 3D viewport. |
-| `PrintbedDepth` | `float` | `250.0 mm` | Bounding depth ($Y$) of the virtual 3D printer build plate rendered in the 3D viewport. |
-| `PrintbedHeight` | `float` | `300.0 mm` | Maximum build height ($Z$) bounding envelope of the virtual printer volume. |
-| `ShowBedGrid` | `bool` | `true` | Toggles the visibility of the $10\text{ mm}$ grid lines on the virtual print bed plane. |
-| `AutodetectChannels` | `bool` | `true` | When `true`, clicking a surface point automatically casts a ray along the surface normal $\vec{n}$ to place air vents. |
-| `ChannelDiameter` | `float` | `4.0 mm` | Initial default bore diameter for newly placed straight and angled degassing channels. |
-| `AccentColor` | `string` | `#FF0CA3B4` | Primary brand accent hex color used for buttons, active tabs, and gizmo highlights. |
-| `ViewportBackground`| `ViewportBackground` enum | `Graphite` (`0`) | 3D scene backdrop preset: `Graphite` (neutral dark), `DarkSlate` (high contrast), `StudioLight` (print QA). |
-| `Units` | `MeasurementUnit` enum | `Millimeters` (`0`) | Measurement system: `Millimeters` ($0$) or `Inches` ($1$). Radiation therapy default is strictly `Millimeters`. |
-| `EnableCut` | `bool` | `false` | **Feature Flag**: Enables experimental interactive planar cutting tools in the viewport. |
-| `EnableSplit` | `bool` | `false` | **Feature Flag**: Enables the Split View tab in the main navigation shell for multi-part mould disassembly. |
+| `default_import_folder` | `string` | `CommonDocuments` folder | Default directory opened by the file import dialog. Falls back to the default if the stored folder no longer exists. |
+| `default_export_folder` | `string` | `LocalApplicationData` folder | Default destination for exported meshes. Falls back to the default if the stored folder no longer exists. |
+| `default_export_format` | `ExportFormat` enum | `Stl` | Default export format. Values: `Stl`, `ThreeMF`. |
+| `viewport_background` | `ViewportBackground` enum | `Graphite` | 3D viewport backdrop. Values: `Graphite`, `LightSteel`. |
 
----
+### `PrintBedPreferences` ([`PrintBedPreferences.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/AppPreferences/PrintBedPreferences.cs))
 
-## 3. Printer Presets & Bed Sizing
-
-<!-- IMAGE_PLACEHOLDER: [Figure 18.1: Preferences Window Tour. Screenshot of the Preferences dialog displaying the General, Print Bed, Air Channels, Appearance, and Experimental tabs, highlighting printer build plate configuration and feature flags.] -->
-
-To ensure that mould assemblies fit comfortably within your department's additive manufacturing hardware, configure `PrintbedWidth`, `PrintbedDepth`, and `PrintbedHeight` according to your specific printer:
-
-| Printer Model | Build Width ($X$) | Build Depth ($Y$) | Build Height ($Z$) | Recommended Filament Material |
+| Storage Key | Type | Default | Range | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **Bambu Lab X1-Carbon / P1S** | `256 mm` | `256 mm` | `256 mm` | Water-Soluble PVA, Tough PLA |
-| **Prusa MK4 / MK3S+** | `250 mm` | `210 mm` | `220 mm` | Water-Soluble BVOH, PETG |
-| **Prusa XL (Single/Multi-Head)** | `360 mm` | `360 mm` | `360 mm` | PVA / PLA Multi-Material |
-| **UltiMaker S5 / S7** | `330 mm` | `240 mm` | `300 mm` | UltiMaker PVA, Breakaway |
-| **Elegoo Neptune 4 Max** | `420 mm` | `420 mm` | `480 mm` | Large-format Pelvis/Torso moulds |
+| `print_bed_width` | `float` | `250.0` | `50`–`1000` | Width ($X$) of the virtual print bed drawn in the viewport. |
+| `print_bed_depth` | `float` | `250.0` | `50`–`1000` | Depth ($Y$) of the virtual print bed drawn in the viewport. |
+| `show_bed_grid` | `bool` | `true` | — | Toggles the print-bed grid overlay. |
+| `autodetect_channels` | `bool` | `true` | — | When `true`, placing a channel casts along the surface to auto-detect its position. |
+| `channel_diameter` | `float` | `4.0` | `1`–`20` | Default bore diameter for newly placed air channels. |
 
-> [!TIP]
-> Always set your Fabolus print bed dimensions approximately $5\text{ mm}$ smaller than the manufacturer's nominal physical volume (e.g., $251\text{ mm}$ instead of $256\text{ mm}$ on Bambu Lab) to account for slicer exclusion zones, purge towers, and bed-clip clearance.
+> The print bed stores width and depth only; there is no stored bed-height preference on v1.
 
 ---
 
-## 4. Feature Flags & Experimental Tools
+## 3. Printer Bed Sizing
 
-Fabolus employs feature flags to safely isolate complex geometric operations that are undergoing clinical validation or active development:
+<!-- IMAGE_PLACEHOLDER: [Figure 18.1: Preferences window. Screenshot of the Preferences dialog showing the general and print-bed sections.] -->
 
-### `EnableCut`
-- **Purpose**: Activates the interactive clipping and slicing gizmo in the 3D viewport.
-- **Underlying Engine**: Calls `CutMeshFeature` within `Fabolus.Core.Services` to slice watertight geometry along an arbitrary mathematical plane $\Pi: \vec{n} \cdot \vec{x} + d = 0$.
-- **Clinical Safety Note**: Disabled by default in production clinical environments until two-part mould interlocking keys have completed physical registration audits.
+Set `print_bed_width` and `print_bed_depth` to match your printer's build plate so mould assemblies are shown within the printable area. Common build-plate sizes (manufacturer figures, for reference only):
 
-### `EnableSplit`
-- **Purpose**: Controls the visibility of the "Split" step in the primary navigation header of `MainWindow.xaml`.
-- **Underlying Engine**: Manages the lifecycle of `SplitViewModel` and `SplitSceneManager`. When enabled, allows physicists to split monolithic sacrificial moulds into two or more rigid shell halves for non-soluble demoulding.
+| Printer Model | Build Width ($X$) | Build Depth ($Y$) | Build Height ($Z$) |
+| :--- | :--- | :--- | :--- |
+| Bambu Lab X1-Carbon / P1S | `256 mm` | `256 mm` | `256 mm` |
+| Prusa MK4 / MK3S+ | `250 mm` | `210 mm` | `220 mm` |
+| Prusa XL | `360 mm` | `360 mm` | `360 mm` |
+| UltiMaker S5 / S7 | `330 mm` | `240 mm` | `300 mm` |
+| Elegoo Neptune 4 Max | `420 mm` | `420 mm` | `480 mm` |
 
+---
+
+## 4. Export Format
+
+`default_export_format` selects the format used when exporting a mesh:
+
+- **`Stl`** — geometry only.
+- **`ThreeMF`** — Fabolus's extended 3MF, which additionally embeds the command history and base mesh so a project can be re-opened and re-edited. See [3MF Interchange Specification](../architecture/06-3mf-interchange-specification.md).

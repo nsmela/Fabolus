@@ -16,43 +16,43 @@ The test harness is divided into two dedicated test assemblies:
 
 ```
 tests/
-├── Fabolus.Core.Tests/                  <── Pure Domain & Native Engine Benchmarks (xUnit)
-│   ├── Core/                           <── Workspace, Result, Metadata, CommandReplay
-│   ├── Features/                       <── Smoothing, Transforms, Moulds, AirChannels, IO
-│   ├── MeshLib/                        <── Booleans, Modifiers, Generators, Evaluators
-│   ├── Fixtures/                       <── GeometryEngineFixture, Primitive Factories
-│   └── files/                          <── Clinical STL Benchmark Dataset
+├── Fabolus.Core.Tests/                  <── Pure Domain & Native Engine Tests (xUnit)
+│   ├── Fixtures/                        <── GeometryEngineFixture, TestFileSystem
+│   └── ...                              <── Workspace, Metadata, Features, MeshLib tests
 │
-└── Fabolus.Wpf.Tests/                   <── Presentation Layer & ViewModel Tests
-    └── Features/
-        └── Main/                       <── MainViewModelTests, Messenger Verification
+├── Fabolus.Wpf.Tests/                   <── Presentation Layer & ViewModel Tests
+│   └── Features/
+│       └── Main/                        <── MainViewModelTests
+│
+└── files/                               <── Shared STL test assets (resolved by GeometryEngineFixture)
 ```
 
 ---
 
-## The Clinical STL Benchmark Suite (`tests/files/`)
+## The Shared STL Test Assets (`tests/files/`)
 
-All geometry tests leverage an included suite of real patient boluses exported from clinical Treatment Planning Systems:
+Geometry tests load real bolus meshes from the shared `tests/files/` folder via `GeometryEngineFixture.LoadStl(...)`. The folder currently contains:
 
-<!-- IMAGE_PLACEHOLDER: [Figure 16.2: Clinical Benchmark STL Suite. High-resolution 3D renders of the 6 benchmark models in tests/files (ear_bolus, nose_bolus, chin_bolus, scalp_bolus, larynx_bolus, test bolus 107mL) highlighting varied anatomical topologies. Dimensions: 1000x450px.] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 16.2: STL test assets. 3D renders of the bolus models in tests/files highlighting varied anatomical topologies. Dimensions: 1000x450px.] -->
 
-| Benchmark File | Anatomical Site | Geometric Complexity & Challenge | Verified Invariant |
-| :--- | :--- | :--- | :--- |
-| **`ear_bolus.stl`** | Auricular / Outer Ear | Re-entrant folds, high local curvature along helix rim. | Volume preservation during erosion-dilation smoothing. |
-| **`nose_bolus.stl`** | Nasal Bridge & Ala | Steep bilateral walls; acute angle intersections. | Angled air channel generation without surface clipping. |
-| **`chin_bolus.stl`** | Mental Depression | Concave submental transition zone. | Shadow concave silhouette mould boundary offset. |
-| **`scalp_bolus.stl`** | Cranial Shell | Large surface area, thin $5\text{ mm}$ uniform cross-section. | Contoured 3D shell offset performance and memory efficiency. |
-| **`larynx_bolus.stl`** | Anterior Neck | Severe CT slice-stepping artifacts along tracheal axis. | Automated watertight repair and slice bridging. |
-| **`test bolus 107mL.stl`** | Calibrated Physical Phantom | Precisely calibrated $107.0\text{ mL}$ volumetric gold standard. | Divergence theorem volume evaluation matches $107.0 \pm 0.5\text{ mL}$. |
+| File | Anatomical Site |
+| :--- | :--- |
+| `ear_bolus.stl`, `ear_bolus_smoothed.stl` | Auricular / outer ear (raw and smoothed) |
+| `nose_bolus.stl` | Nasal bridge & ala |
+| `chin_bolus.stl` | Chin / submental |
+| `eye_bolus.stl` | Periorbital |
+| `scalp_bolus.stl`, `scalp_mould.stl` | Cranial shell (bolus and generated mould) |
+| `larynx_bolus.stl`, `larynx small.stl` | Anterior neck |
+| `mould_test.stl` | Mould-generation fixture |
 
 ---
 
 ## The `GeometryEngineFixture` Shared Harness
 
-Native C++ MeshLib instances must be initialized and linked cleanly during test runs. Fabolus uses an xUnit class fixture ([`GeometryEngineFixture`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/tests/Fabolus.Core.Tests/Fixtures/GeometryEngineFixture.cs)):
+The native MeshLib-backed engine is shared across tests via an xUnit collection fixture ([`GeometryEngineFixture`](https://github.com/nsmela/Fabolus/blob/v1/tests/Fabolus.Core.Tests/Fixtures/GeometryEngineFixture.cs)), applied through `[Collection("GeometryEngine collection")]`:
 
 ```csharp
-public class GeometryEngineFixture : IDisposable
+public class GeometryEngineFixture
 {
     public IGeometryEngine Engine { get; }
 
@@ -61,20 +61,16 @@ public class GeometryEngineFixture : IDisposable
         Engine = new GeometryEngine(new TestFileSystem());
     }
 
-    public IMesh CreateUnitCube(float size = 10.0f) { ... }
-    public IMesh CreateCylinder(float radius = 5.0f, float height = 20.0f) { ... }
-    public IMesh LoadClinicalBolus(string fileName) { ... }
+    public IMesh LoadStl(string name);       // loads a mesh from tests/files/
+    public string GetAssetPath(string name); // resolves an asset path, searching upward for /files
+    public IMesh UnitCube();                 // synthetic unit-cube primitive
 }
 ```
 
-### Key Architectural Invariants Verified:
-1. **Volume Conservation Invariant**:
-   Smoothing tests verify that for any clinical bolus $\mathcal{M}$, the volume delta satisfies:
-   $$\frac{|V_{\text{smoothed}} - V_{\text{initial}}|}{V_{\text{initial}}} \le 0.01 \quad (1.0\%)$$
-2. **Boolean Watertightness Invariant**:
-   Mould tests verify that after subtracting the bolus cavity and coring multiple air channels, the resulting mould has **0 open boundary edges** and **0 non-manifold edges**.
-3. **Command-Replay Invariant**:
-   Verifies that applying commands $\mathcal{C}_1, \mathcal{C}_2$, clearing $\mathcal{C}_2$, and re-applying $\mathcal{C}_2'$ produces identical vertex topology to applying $\mathcal{C}_1, \mathcal{C}_2'$ directly to a fresh base mesh.
+### Examples of Invariants Under Test:
+1. **Watertightness**: Boolean and air-channel tests assert `Topology().IsWatertight` on their results (e.g. `Union_ReturnsCombinedWatertightMesh`, `StraightAirChannel_Generate_FullMode_ReturnsWatertightTube`), and repair/import tests assert a repaired or imported mesh is watertight.
+2. **Command replay & base-mesh lifetime**: `CommandReplayTests` verify that `GetMeshAtStage` returns the expected mesh instance for a given priority and that `Apply` consumes a copy of the base, so the workspace mesh survives repeated replays.
+3. **Non-destructive transforms & smoothing**: transform tests assert translation moves bounds by the exact offset; smoothing tests assert smoothing applies in place, does not stack when applied twice, and preserves an earlier translation in the final geometry.
 
 ---
 
@@ -90,7 +86,4 @@ dotnet test tests/Fabolus.Core.Tests
 dotnet test tests/Fabolus.Wpf.Tests
 ```
 
-### Benchmark Metrics
-- **Total Tests**: **101 tests** in `Fabolus.Core.Tests`.
-- **Pass Rate**: **100% (0 failures, 0 skipped)**.
-- **Execution Time**: ~**16 to 19 seconds** for the entire suite (including CSG booleans and 3D level-set offsets over 300,000-triangle meshes).
+The `Fabolus.Core.Tests` suite exercises the native MeshLib-backed engine directly, so its run time is dominated by real CSG boolean and level-set offset operations rather than by mocked returns. Use `dotnet test` (optionally with `--logger "console;verbosity=detailed"`) to see the current test count and results.

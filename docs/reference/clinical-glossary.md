@@ -135,16 +135,10 @@ A 2-manifold triangle mesh with zero boundary edges ($b=0$). A watertight mesh d
 ## 4. Fabolus Pipeline & Architectural Concepts
 
 ### BaseMesh
-The unmodified, raw triangle mesh imported into Fabolus from an external source (such as an STL or OBJ exported from a clinical TPS). It serves as the immutable root of the command pipeline.
-
-### PreparedMesh
-The intermediate mesh generated after cleaning, manifold repair, and morphological smoothing (Stage 100-200). It defines the exact therapeutic bolus volume intended for clinical delivery.
-
-### MouldMesh
-The solid outer sacrificial envelope (Stage 300) constructed around the bolus volume by dilating the outer shell and flattening or capping the anatomical bed.
+The unmodified triangle mesh imported into Fabolus from an external source (such as an STL exported from a clinical TPS). It is stored in metadata (`CoreKeys.BaseMesh`) and serves as the immutable root against which the command pipeline is replayed.
 
 ### Command History Pipeline
-A linear, non-destructive sequence of `IMeshCommand` records ordered by priority stage (`Import=100`, `Smoothing=200`, `Mould=300`, `Channels=400`, `Split=500`). Modifying an upstream parameter invalidates only downstream stages, preserving computation and allowing full parametric re-evaluation.
+An ordered, non-destructive list of `IMeshCommand` records stored in a mesh's metadata (`CoreKeys.Commands`). Each command carries a static `Priority` from `CommandPriority`: `Transform = 10` (rotate, translate, smoothing), `TextEmboss = 15`, `Mould = 20`, and `MouldTextEmboss = 25`. Recording a command clears any existing commands with a strictly greater priority (they depended on geometry the new command changed); commands sharing a priority do not clear each other. Replaying the list against the `BaseMesh` reconstructs the current mesh.
 
 ### Result / Maybe Pattern (Railway-Oriented Programming)
 A functional architecture pattern where operations return `Result<T>` (encapsulating success value or a typed failure diagnostic) or `Maybe<T>` (encapsulating an optional reference without null pointers), ensuring that clinical geometry computations never crash silently or leak corrupted states.

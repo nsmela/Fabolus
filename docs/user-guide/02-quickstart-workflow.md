@@ -72,7 +72,7 @@ Before launching Fabolus, ensure your treatment planning export adheres to clini
 1. Click the **mould** tab in the top navigation bar.
 2. Choose your mould shape:
    - **Convex Hull**: Sturdy box shape; easiest to print and stand on a table (best for chest, forehead, or chin).
-   - **Concave Shadow**: Follows the outline closely; saves 30% print time (best for shoulders and curved wraps).
+   - **Concave Shadow**: Follows the mesh's projected outline more closely than a convex hull, using less material (best for shoulders and curved wraps).
    - **Contoured**: Skin-tight shell (best for large head helmets).
 3. Check wall thickness:
    - **Offset XY**: Side wall thickness (default `2.0 mm`).

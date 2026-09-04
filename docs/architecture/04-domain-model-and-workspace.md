@@ -32,7 +32,7 @@
 
 ---
 
-## The `Workspace` Aggregate Root ([`Workspace.cs`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Workspace.cs))
+## The `Workspace` Aggregate Root ([`Workspace.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Workspace.cs))
 
 The central aggregate root of the domain is `Workspace`.
 
@@ -52,24 +52,24 @@ Because instances are immutable, a background worker thread calculating a boolea
 In computational geometry, passing million-polygon meshes around carelessly causes rapid memory fragmentation. `Workspace` enforces a strict memory ownership contract:
 - **Meshes Passed In** (`AddMesh`, `UpdateMesh`) are **consumed**. The caller surrenders ownership to the workspace.
 - **BaseMesh Seeding**: The moment a mesh enters the workspace via `AddMesh`, if it lacks a `BaseMesh`, the workspace automatically establishes its initial state as the pristine base anchor for the command-replay pipeline.
-- **Read-Only Inspection**: ViewModels and UI panels should **never fetch heavy geometry** just to read a name or check volume. Instead, they access [`Workspace.MeshMetadataList`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Workspace.cs#L23) or [`GetActiveMeshMetadata()`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Workspace.cs#L157). `MeshMetadata` is a pure managed value object with zero unmanaged memory overhead.
+- **Read-Only Inspection**: ViewModels and UI panels should **never fetch heavy geometry** just to read a name or check volume. Instead, they access [`Workspace.MeshMetadataList`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Workspace.cs#L23) or [`GetActiveMeshMetadata()`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Workspace.cs#L157). `MeshMetadata` is a pure managed value object with zero unmanaged memory overhead.
 
 ---
 
 ## The `MeshMetadata` Value Object & Type-Safe Keys
 
-Rather than using loosely typed string-to-object dictionaries, Fabolus uses strongly-typed [`MetadataKey<T>`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Geometry/Metadata/MetadataKey.cs) descriptors:
+Rather than using loosely typed string-to-object dictionaries, Fabolus uses strongly-typed [`MetadataKey<T>`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/MetadataKey.cs) descriptors:
 
 ```csharp
-public sealed record MetadataKey<T>(string Name);
-
 public static class CoreKeys {
-    public static readonly MetadataKey<Guid> Id = new("Core.Id");
-    public static readonly MetadataKey<string> Name = new("Core.Name");
-    public static readonly MetadataKey<Guid> DerivedFrom = new("Core.DerivedFrom");
-    public static readonly MetadataKey<string> CreatedBy = new("Core.CreatedBy");
-    public static readonly MetadataKey<IMesh> BaseMesh = new("Core.BaseMesh");
-    public static readonly MetadataKey<IReadOnlyList<IMeshCommand>> Commands = new("Core.Commands");
+    public static readonly MetadataKey<Guid> Id = new("Id");
+    public static readonly MetadataKey<string> Name = new("Name");
+    public static readonly MetadataKey<Guid> DerivedFrom = new("Derived From");
+    public static readonly MetadataKey<string> CreatedBy = new("Created By");
+    public static readonly MetadataKey<IReadOnlyList<IMeshCommand>> Commands = new("Commands");
+
+    // Stores the immutable base geometry the command list replays against.
+    internal static readonly MetadataKey<IMesh> BaseMesh = new("Base Mesh");
 }
 ```
 
@@ -93,8 +93,8 @@ Fabolus adopts **Railway-Oriented Programming (ROP)**. Domain errors (such as at
 
 <!-- IMAGE_PLACEHOLDER: [Figure 13.2: Railroad-Oriented Programming Flow. Flowchart illustrating Result<T> failure short-circuiting across feature workflows without throwing exceptions. Dimensions: 800x350px.] -->
 
-### 1. The `Result<T>` Monad ([`Result.cs`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Common/Result.cs))
-Methods that can fail return `Result<T>`, which encapsulates either a successful value or a strongly-typed [`Error`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Common/Result.cs#L101):
+### 1. The `Result<T>` Monad ([`Result.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Result.cs))
+Methods that can fail return `Result<T>`, which encapsulates either a successful value or a strongly-typed [`Error`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Result.cs#L101):
 
 ```csharp
 public Result<Workspace> Execute(Workspace workspace, SmoothSettings settings)
@@ -107,7 +107,7 @@ public Result<Workspace> Execute(Workspace workspace, SmoothSettings settings)
 }
 ```
 
-### 2. The `Maybe<T>` Option Monad ([`Maybe.cs`](file:///c:/Users/nsmel/Documents/Programming/Fabolus/src/Fabolus.Core/Common/Maybe.cs))
+### 2. The `Maybe<T>` Option Monad ([`Maybe.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Maybe.cs))
 Null references are completely eliminated from the domain layer. Any optional value (such as a parent mesh reference or smoothing settings) returns `Maybe<T>`:
 
 ```csharp
