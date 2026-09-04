@@ -1,72 +1,54 @@
 # Volume-Preserving Smoothing
 
-## Why Preserving Thickness is Critical
-
-In radiation therapy, your doctor prescribes a very specific bolus thickness—most commonly **5 mm**, **7 mm**, or **10 mm**. The computer calculates the exact radiation dose based on this number:
-- **If the bolus gets too thin**: The skin cancer receives less radiation than intended.
-- **If the bolus gets too thick**: The beam is blocked too much, which underdoses deeper tissues.
-
-Most 3D graphics software uses simple "vertex averaging" to smooth bumpy models. But on thin boluses, this shrinks the shape like a melting ice cube—often losing **15% to 25% of the total volume**!
-
-Fabolus was designed specifically for oncology to solve this problem. It rounds off CT slice steps while keeping **over 99% of your prescribed thickness and volume**.
+A bolus mesh exported from a TPS is built from stacked CT slices, so its surface has stair-stepping ridges. Fabolus smooths those out while keeping the mesh close to its original volume, which matters because the bolus thickness is clinically prescribed.
 
 ---
 
-## How Fabolus Smooths Without Shrinking
+## How it works
 
-Instead of moving points around and shrinking edges, Fabolus uses a balanced two-step approach:
+Rather than averaging vertex positions (which shrinks the mesh), Fabolus smooths with a two-step offset:
 
 ```
-Step 1: Expand Outward (+d)          Step 2: Contract Inward (-d)
-Bridge the jagged CT steps           Return to the patient's true skin shape
+Step 1: offset outward (+d)          Step 2: offset inward (-d)
+fills the gaps between CT steps       returns broad areas to their original position
         ┌──┐                                 ╭──╮
    ┌────┘  └────┐                      ╭─────╯  ╰─────╮
-   │ Raw Steps  │                      │ Smooth Solid │
+   │ Raw steps  │                      │ Smoothed     │
    └────────────┘                      ╰──────────────╯
 ```
 
-1. **Step 1: Gentle Expansion**: The surface is puffed outward by a small distance (`Intensity`). This fills in the sharp valleys between CT slices.
-2. **Step 2: Equal Contraction**: The surface is pulled back inward by the exact same distance. Flat and broad areas return to their original coordinates, while the jagged slice corners are left smoothly rounded.
-3. **Safety Guard**: If an intensity setting is accidentally set too high, Fabolus stops before the shape can collapse, keeping your model safe.
+Expanding then contracting by the same distance leaves flat and broad regions where they were, while the sharp slice corners are rounded off. This is a morphological offset (a double offset), computed by the geometry engine.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 4.1: The Smoothing Control Drawer. Screenshot showing parameter sliders (Intensity, Iterations, Inflation, Remesh Ratio, Resolution) alongside the Apply Smoothing action button and clinical volume delta indicator. Dimensions: 400x600px.] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 4.1: The smoothing controls panel with the Apply Smoothing button.] -->
 
 ---
 
-## Smoothing Controls & Rules of Thumb
+## Smoothing controls
 
-| Setting | Default | Recommended Setting | What It Does & Simple Rule of Thumb |
+The **smooth** tab exposes these parameters (defaults shown are the values Fabolus starts with):
+
+| Control | Default | Range | What it does |
 | :--- | :--- | :--- | :--- |
-| **Intensity** | `1.5 mm` | Match your CT slice thickness (`1.0 – 2.0 mm`) | **How strong the smoothing is**. Set this close to your original CT scan slice thickness (e.g., if your CT slices are 1.25 mm apart, set Intensity to 1.2 mm – 1.5 mm). |
-| **Iterations** | `1` | `1` (use `2` only for very coarse CT scans) | **Number of smoothing passes**. 1 pass is almost always ideal. 2 passes is only needed for rough 3 mm CT slices. |
-| **Inflation** | `0.2 mm` | `0.1 – 0.3 mm` | **Volume fine-tuning**. A tiny microscopic puff to replace the volume lost when shaving down 90-degree corners. |
-| **Remesh Ratio** | `1.0` | `1.0` (standard) or `1.5` (extra smooth) | **Surface smoothness**. 1.0 keeps the file lightweight and quick to 3D print; 1.5 creates ultra-smooth surfaces for delicate facial curves. |
-| **Resolution** | `1.0 mm` | `1.0 mm` | **Detail level**. 1.0 mm works best for general clinical boluses. |
+| **Intensity** | `2.0` | `0`–`20` | Offset distance used for the outward/inward passes. |
+| **Iterations** | `1` | `0`–`10` | Number of smoothing passes. |
+| **Inflation** | `0.1` | `0`–`1` | Small additional outward offset applied after smoothing. |
+| **Remesh Ratio** | `2.0` | `1`–`10` | Target triangle count relative to the base mesh when remeshing. |
+| **Resolution** | `1.0` | `0.5`–`4` | Voxel size used by the offset operation. |
+
+Defaults and ranges come from `SmoothingPreferences`; the tab seeds these from your saved preferences each time it opens.
+
+Click **Apply Smoothing** to run it. Smoothing is recorded as a command in the mesh's history, so re-applying it replaces the previous smoothing rather than stacking on top of it.
 
 ---
 
-## Three Easy Ways to Quality-Check Your Bolus
+## Reviewing the result
 
-Before turning your bolus into a mould, use Fabolus's built-in QA tools to confirm that the thickness and shape are accurate:
+The **smooth** tab provides display modes and overlays to check the smoothed mesh:
 
-<!-- IMAGE_PLACEHOLDER: [Figure 4.2: Signed Distance Heatmap Visualization. 3D render of a nasal bolus with color-mapped surface deviation from -1.5 mm (red) to +1.5 mm (blue), highlighting preserved volume along the dorsal bridge. Dimensions: 1000x550px.] -->
+- **Heat Map** — colours the surface by how far each point moved relative to the pre-smoothing mesh.
+- **Cross Section** — slices through the mesh so you can inspect wall thickness.
+- **Ghost / comparison** — overlays the pre-smoothing shape (with an adjustable comparison factor) so you can see where the surface changed.
 
-### 1. Check the Color Heatmap
-Click **Heatmap** to see how much the surface moved compared to the original CT scan:
-- **Green**: Perfect match! The surface changed by less than $\pm 0.1\text{ mm}$.
-- **Blue**: Grooves that were filled in to smooth out the staircase steps.
-- **Red**: Sharp bumps that were rounded down.
-- *Check*: The patient-contact side should be almost solid green, confirming that it will fit the patient's skin with zero air gaps.
+<!-- IMAGE_PLACEHOLDER: [Figure 4.2: Heat-map display of a smoothed bolus.] -->
 
-<!-- IMAGE_PLACEHOLDER: [Figure 4.3: Ghost Overlay Comparison. Semi-transparent phantom overlay comparing original voxelized CT perimeter against smoothed solid, demonstrating boundary adherence along the inner skin contact face. Dimensions: 900x500px.] -->
-
-### 2. Ghost Mode
-Toggle **Ghost Mode** to display a translucent outline of the original raw CT shape directly over your smoothed model. This gives you immediate visual confirmation that critical anatomical edges (like around the eye or nose) did not shift.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 4.4: 3D Cutting Plane and Cross-Sectional Contour View. Slicing view showing inner and outer bolus contours with interactive 3D manipulator and thickness dimension callouts. Dimensions: 1000x550px.] -->
-
-### 3. Cross-Section Cutting Plane
-- Click **Cutting Plane** to turn on an interactive slicing tool.
-- Drag the slider or 3D handle up and down to cut through the bolus like an X-ray.
-- Look directly at the cross-section slice to verify that the wall thickness matches your prescription across the entire treatment area.
-
+<!-- IMAGE_PLACEHOLDER: [Figure 4.3: Cross-section display showing the inner and outer contours of the smoothed mesh.] -->

@@ -1,109 +1,73 @@
-# Quickstart: 15-Minute Bolus Workflow
+# Quickstart Workflow
 
-This guide walks through the standard 15-minute clinical CAD/CAM workflow in Fabolus, taking a raw DICOM/STL bolus structure exported from your Treatment Planning System (TPS) through to a print-ready sacrificial casting mould.
-
----
-
-## Prerequisites & Pre-Flight Checklist
-
-Before launching Fabolus, ensure your treatment planning export adheres to clinical standards:
-- [ ] **Export Format**: Binary `.stl` or uncompressed `.obj` exported directly from your TPS structure set.
-- [ ] **Coordinate System**: Verify that coordinates are in **millimeters** ($mm$).
-- [ ] **Anatomical Boundary**: Confirm the contour encompasses the entire prescribed bolus volume without artificial clipping against the CT field-of-view (FOV) border.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 2.1: Fabolus Main Window User Interface Tour. Annotated screenshot of the application layout: (1) Top Tab Bar (meshes, smooth, rotate, mould, export), (2) Left Parameter Panel, (3) 3D DirectX 11 SharpDX Viewport, (4) Top-Right Overlay Buttons (Wireframe, Screenshot, Preferences), (5) Right InfoPanel (volume, dimensions, topology alerts), (6) Bottom Status Bar. Dimensions: 1200x700px.] -->
-
-### Viewport Camera Controls
-- **Orbit / Rotate**: Hold **Right Mouse Button** (or Left Mouse Button in selection-free zones) and drag.
-- **Pan**: Hold **Middle Mouse Button** (or `Shift` + Right Mouse Button) and drag.
-- **Zoom**: Rotate the **Scroll Wheel**.
-- **Zoom Extents**: Press `Spacebar` or double-click Middle Mouse Button to center the active model.
+This walks through the Fabolus workflow end to end: from a bolus mesh exported from a Treatment Planning System (TPS) to an exported, print-ready mould file. Printing and casting happen in other tools and are out of scope here.
 
 ---
 
-## Step 1: Import & Health Check
+## Before you start
 
-1. Launch **Fabolus**. The application opens to the **meshes** view.
-2. Click **Import Mesh** (or drag and drop your STL file directly into the window).
-3. The model appears in the 3D viewport and is listed under **Mesh Items** on the left.
-4. Check the **Info Panel** on the right:
-   - **Dimensions**: Check that size ($W \times D \times H$) matches the patient's anatomy in millimeters.
-   - **Volume**: Note your starting volume ($cm^3$ or $mL$) to calculate how much silicone to mix later.
-   - **Status Badges**: Make sure **Watertight** and **Manifold** are both **Green (`Yes`)**.
-5. *If any badge is Red*: Click **Repair Mesh** in the left panel. Fabolus will automatically fix holes and errors, creating a clean `(Repaired)` model.
+Fabolus imports mesh files (e.g. `.stl`). It reads the geometry as-is, so the exported mesh should be in millimetres and should cover the intended bolus region.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 2.2: Mesh Import and Topology Inspection Step. Screenshot showing a loaded patient bolus ('chin_bolus.stl') in the 3D viewport, with the physical statistics drawer displaying volume, surface area, and manifold indicators. Dimensions: 1000x600px.] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 2.1: Fabolus main window — step navigation header (meshes, smooth, rotate, decals, mould, export, cut / split), left parameter panel, 3D viewport, and right info panel.] -->
+
+### Viewport camera controls
+- **Orbit / rotate**: hold the right mouse button and drag.
+- **Pan**: hold the middle mouse button (or `Shift` + right mouse button) and drag.
+- **Zoom**: scroll wheel.
 
 ---
 
-## Step 2: Smooth the CT Slices
+## Step 1: Import & inspect
 
-1. Click the **smooth** tab in the top navigation bar.
-2. Set your smoothing controls:
-   - **Intensity**: Set between `1.0 mm` and `1.5 mm` (roughly matching your CT slice thickness).
-   - **Iterations**: Leave at `1`.
-   - **Remesh Ratio**: Leave at `1.0` (or `1.5` for delicate facial curves).
-3. Click **Apply Smoothing**.
-4. **Quick QA Check**:
-   - Check the **Volume Change** in the Info Panel. It should be less than **$\pm 1.0\%$**.
-   - Toggle **Heatmap**: Green means the shape didn't shrink; blue filled the grooves; red smoothed the bumps.
-   - Toggle **Cutting Plane**: Drag the slicing handle to inspect wall thickness across the bolus.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 2.3: Smoothing and Heatmap Deviation Step. Screenshot showing the smoothed bolus with active signed distance heatmap gradient, with the 3D cutting plane activated showing internal wall contours. Dimensions: 1000x600px.] -->
+1. Launch Fabolus. It opens on the **meshes** view.
+2. Click **Import** (or drag an STL file into the window).
+3. The mesh appears in the viewport and is listed on the left.
+4. Read the **Info Panel** on the right. It reports mesh statistics (triangles, surface area, volume, dimensions) and topology status (Manifold, WaterTight, Orphaned Vertices, Degenerate Triangles, Is Self-Intersecting), each shown green or red.
+5. If topology shows problems, select the mesh and click **Repair Mesh**. Repair updates the selected mesh in place and re-checks its topology and statistics. See [Mesh Inspection & Repair](03-mesh-inspection-and-repair.md).
 
 ---
 
-## Step 3: Rotate & Check Overhangs
+## Step 2: Smooth
 
-1. Click the **rotate** tab in the top navigation bar.
-2. The bolus is colored with a traffic light gradient:
-   - **Green**: Safe to print without supports ($0^\circ – 45^\circ$).
-   - **Yellow**: Moderate slope ($45^\circ – 65^\circ$).
-   - **Red**: Steep overhang; will droop without supports ($> 65^\circ$).
-3. **The Golden Rule**: Rotate the bolus until the **skin-contact side faces UPWARDS**.
-4. Drag the 3D rotation rings until the patient-facing side is green and yellow. Any supports will now print harmlessly on the outside of the disposable mould.
+1. Click the **smooth** tab.
+2. Adjust the smoothing controls (Intensity, Iterations, Inflation, Remesh Ratio, Resolution) and click **Apply Smoothing**.
+3. Use the display options to review the result: **Heat Map** shows how far the surface moved, **Cross Section** slices through the mesh, and the ghost/comparison options overlay the pre-smoothing shape.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 2.4: 3D Rotation Gizmo and Overhang Gradient. Screenshot showing active rotation gizmo around the bolus with real-time green/yellow/red normal angle coloring. Dimensions: 1000x600px.] -->
+See [Volume-Preserving Smoothing](04-volume-preserving-smoothing.md).
 
 ---
 
-## Step 4: Choose Your Mould Shape
+## Step 3: Orient & check overhangs
 
-1. Click the **mould** tab in the top navigation bar.
-2. Choose your mould shape:
-   - **Convex Hull**: Sturdy box shape; easiest to print and stand on a table (best for chest, forehead, or chin).
-   - **Concave Shadow**: Follows the mesh's projected outline more closely than a convex hull, using less material (best for shoulders and curved wraps).
-   - **Contoured**: Skin-tight shell (best for large head helmets).
-3. Check wall thickness:
-   - **Offset XY**: Side wall thickness (default `2.0 mm`).
-   - **Offset Bottom / Top**: Floor and ceiling thickness (default `2.0 mm` or `3.0 mm`).
-4. A transparent cyan mould shell appears around your bolus in the viewport.
+1. Click the **rotate** tab. The mesh is coloured by surface angle using the current warning/critical thresholds (defaults 45° and 65°, both adjustable).
+2. Rotate with the X/Y/Z rings, or type angles into the X/Y/Z fields; **Reset** returns to the original orientation.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 2.5: Mould Configuration and Channel Placement Step. Screenshot showing transparent preview mould surrounding the bolus, with an injection sprue at the base and multiple degassing vents placed at anatomical high points. Dimensions: 1000x600px.] -->
+See [Print Orientation & Overhangs](05-print-orientation-and-overhangs.md).
 
 ---
 
-## Step 5: Add Injection Port & Air Vents
+## Step 4: Generate the mould
 
-While in the **mould** view, place channels so silicone can enter and air can escape:
+1. Click the **mould** tab.
+2. Choose a mould shape — **Convex**, **Concave**, or **Contoured** — and set the wall offsets (Offset XY, and for Convex/Concave, Offset Bottom / Offset Top; all default `2.0 mm`).
+3. A semi-transparent preview shows the mould around the bolus.
 
-1. **Add the Bottom Injection Port**:
-   - Under Channel Type, select **Straight**.
-   - Hover your mouse over the **lowest point** of the bolus and click to place the port.
-2. **Add Degassing Air Vents**:
-   - For side slopes, select **Angled**. Click each anatomical peak; the vent automatically points outward and curves upward.
-   - For curved edges (like an ear rim), select **Painted** and drag your mouse along the ridge.
-3. Check that all vents exit through the top of the cyan preview mould.
+See [Sacrificial Mould Design](06-sacrificial-mould-design.md).
 
 ---
 
-## Step 6: Generate Mould & Export
+## Step 5: Add air channels
 
-1. Click **Generate Mould**. Fabolus carves out the hollow bolus cavity and drills all your vent tunnels.
-2. Click the **export** tab in the top navigation bar.
-3. Choose **3MF Package** (saves the entire project so you can re-open and edit later) or **STL**.
-4. Select your destination folder and click **Export Package**.
+While in the **mould** tab, add channels so silicone can enter and air can escape. Choose a channel type — **Straight**, **Angled**, or **Painted** — and click (or drag, for Painted) on the mesh to place it.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 2.6: Export View and 3MF Package Summary. Screenshot showing the export summary panel listing all baked operations, file format toggle, destination folder picker, and the finished printable mould in the viewport. Dimensions: 1000x600px.] -->
+See [Air Channels & Degassing](07-air-channels-and-degassing.md).
 
-Your mould is ready to load into your 3D printer slicer!
+---
+
+## Step 6: Generate & export
+
+1. Click **Generate Mould**. Fabolus subtracts the bolus cavity and the placed channels from the mould shell. **Clear Mould** removes the generated mould and returns to the bolus.
+2. Click the **export** tab.
+3. Choose a file format — **STL** or **3MF** (3MF also stores the command history and base mesh) — pick a destination, and export.
+
+The exported file is then taken into your slicer and printer, and cast, outside Fabolus.
