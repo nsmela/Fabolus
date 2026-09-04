@@ -1,84 +1,88 @@
 # Slicing, 3D Printing & Silicone Casting
 
-This manual provides clinical-grade, laboratory-tested protocols for slicing sacrificial moulds, 3D printing with water-soluble and rigid polymers, and casting bubble-free, patient-specific silicone boluses.
+This guide gives you practical, step-by-step instructions for 3D printing your mould, mixing bubble-free medical silicone, and demoulding a finished patient bolus.
 
 ---
 
-## 1. 3D Printing Polymers & Chemical Compatibility
+## 1. Choosing Your 3D Printing Plastic
 
 <!-- IMAGE_PLACEHOLDER: [Figure 9.1: Slicer Settings for Sacrificial PVA Moulds. Screenshot of Bambu Studio / PrusaSlicer showing 3 perimeters, gyroid infill, and seam placement aligned to external corners. Dimensions: 1000x600px.] -->
 
-| Polymer | Recommended Clinical Application | Pros | Cons | Slicer Configuration |
+| Plastic Type | Best Use Case | Advantages | Disadvantages | Slicer Settings |
 | :--- | :--- | :--- | :--- | :--- |
-| **PVA / PVOH** (Polyvinyl Alcohol) | **Water-Soluble Monolithic Moulds** (Standard for complex ear, nose, face boluses) | Dissolves 100% in warm water; zero demoulding strain on delicate silicone; no parting seams or flash lines. | Sensitive to ambient humidity; requires dry box printing; higher material cost (~$60–$90/kg). | Layer: `0.20 mm`, Walls: `3 perimeters`, Infill: `10% Gyroid` (channels water inside for rapid dissolution), Temp: `205°C` nozzle / `55°C` bed. |
-| **Standard PLA** (Polylactic Acid) | **Crush-and-Peel Moulds** or **2-Part Split Moulds** | Inexpensive (~$18/kg); rigid; prints with zero warping; universally available. | Insoluble; monolithic moulds must be peeled manually with flush cutters; potential micro-scratches. | Layer: `0.20 mm`, Walls: `2 perimeters` (thin shell for easy crushing), Infill: `0% (Hollow)`. |
-| **PETG** | **Reusable 2-Part Clamped Moulds** (QA test phantoms) | Extreme chemical inertness; silicone will not adhere even without release agents; washable. | Highly ductile; cannot be crushed or peeled; strictly requires 2-part split design. | Layer: `0.20 mm`, Walls: `4 perimeters`, Infill: `15% Grid`, Temp: `240°C` nozzle / `75°C` bed. |
+| **PVA (Water-Soluble)** | **Recommended for all complex boluses** (ears, noses, facial contours) | Dissolves 100% in warm water; leaves zero seams or scratches on silicone; zero pulling required. | Absorbs moisture from room air (keep in a sealed dry box); costs ~$60/kg. | Layer: `0.20 mm`, Walls: `3`, Infill: `10% Gyroid` (lets water flow inside to dissolve fast). |
+| **Standard PLA** | **Simple flat boluses** or **2-part split moulds** | Inexpensive (~$18/kg); easy to print on any desktop 3D printer. | Does not dissolve; must be peeled away or split into 2 halves. | Layer: `0.20 mm`, Walls: `2` (thin walls for easy peeling), Infill: `0% (Hollow)`. |
+| **PETG** | **Reusable moulds for test phantoms** | Extremely durable and washable; silicone won't stick to it. | Very tough; cannot be peeled or broken; must be designed as a 2-part split mould. | Layer: `0.20 mm`, Walls: `4`, Infill: `15% Grid`. |
 
 ---
 
-## 2. Advanced Slicer Configuration for Leak-Proof Moulds
+## 2. Slicer Tips for Leak-Proof Moulds
 
-Liquid silicone under syringe injection pressure will weep through microscopic gaps between 3D print layer beads. Follow these strict slicer parameters in Bambu Studio, PrusaSlicer, or Cura:
+Liquid silicone under pressure will try to seep between 3D printed layers. Use these simple settings in your slicer (Bambu Studio, PrusaSlicer, or Cura) to make sure your mould doesn't leak:
 
-1. **Perimeter Count (Wall Loops)**: Set to **minimum 3 perimeters** (approx. $1.2 – 1.5\text{ mm}$ wall thickness). Never use a single perimeter; pinhole voids between extrusion tracks will leak silicone.
-2. **Extrusion Multiplier (Flow Rate)**: Calibrate flow to **$1.02 – 1.04$ ($102\% – 104\%$)** for the inner cavity perimeters. Slight over-extrusion fuses adjacent beads into a hydraulically sealed, non-porous face.
-3. **Top and Bottom Solid Shells**: Minimum **4 solid bottom layers** and **4 solid top layers** ($0.8 – 1.0\text{ mm}$).
-4. **Seam Alignment**: Set to **Rear** or **Random**. Avoid placing the Z-seam along internal cavity corners to prevent vertical ridge transfer onto the silicone contact surface.
-5. **Print Speed**: Slow down outer wall speeds to **$30 – 40\text{ mm/s}$**. Slower speeds dramatically increase inter-layer thermal bonding strength.
+1. **Wall Loops (Perimeters)**: Set to **3 or 4 walls**. Never use a single wall, or tiny pinholes might leak silicone.
+2. **Flow Rate (Extrusion Multiplier)**: Bump flow up slightly to **$102\% – 104\%$** for inner walls. This squishes the plastic beads tightly together to make them watertight.
+3. **Top and Bottom Layers**: Use at least **4 solid top** and **4 solid bottom** layers.
+4. **Print Speed**: Slow down your outer walls to **$30 – 40\text{ mm/s}$**. Slower printing melts the plastic layers together much more solidly.
 
 ---
 
-## 3. Medical Silicone Chemistry & Cure Inhibition Warning
+## 3. Important Safety Warning: Silicone Cure Inhibition
 
 > [!CAUTION]
-> **CRITICAL CLINICAL ALERT: Platinum Cure Inhibition**
+> **CRITICAL RULE: Never Wear Latex Gloves!**
 > 
-> Most medical-grade silicone elastomers (e.g. Smooth-On Dragon Skin, Ecoflex) use a **platinum-catalyzed addition cure** mechanism. The platinum catalyst is poisoned by minute traces of contaminants, leaving the silicone permanently sticky, unpolymerized, and toxic against patient skin.
+> Most medical-grade silicones (like Smooth-On Dragon Skin or Ecoflex) use a **platinum-cure** formulation. Even the tinest trace of sulfur or contaminants will permanently ruin the chemical reaction, leaving the silicone sticky, gooey, and unusable.
 > 
-> **STRICT PROTOCOLS:**
-> - **NEVER wear latex gloves**. Natural latex contains sulfur compounds that instantly inhibit platinum cure. **Wear ONLY powder-free NITRILE gloves**.
-> - **Avoid UV-curing photopolymer resins**. Liquid SLA/DLP resins contain amines and photoinitiators that poison silicone. If using an SLA mould, it must be post-cured at 60°C and coated with Inhibit X.
-> - **Use clean polypropylene (PP) or polyethylene (PE) mixing cups**. Never use paper cups coated in wax.
+> **Must-Follow Rules:**
+> - :x: **NEVER wear latex gloves**. Sulfur in latex ruins silicone instantly.
+> - :white_check_mark: **ALWAYS wear powder-free NITRILE gloves**.
+> - :x: **Avoid paper cups coated in wax**. Use clean plastic (polypropylene) mixing cups.
+> - :x: **Avoid standard UV resin 3D prints**. The chemicals in UV resin poison silicone unless specially sealed.
 
 ---
 
-## 4. Degassing & Injection Protocol
+## 4. Mixing, Degassing & Injecting Silicone
 
 <!-- IMAGE_PLACEHOLDER: [Figure 9.2: Vacuum Degassing Chamber Setup. Photo of liquid silicone in a vacuum degassing chamber at -29 inHg showing the frothing expansion phase vs. collapsed bubble-free phase. Dimensions: 800x450px.] -->
 
-### Phase A: Proportioning & Vacuum Degassing
-1. Calculate the required silicone volume:
-   $$V_{\text{prep}} = V_{\text{bolus}} \times 1.20$$
-   *(The extra 20% accounts for syringe dead space, injection sprues, and vent risers).*
-2. Using an analytical gram balance, weigh Part A and Part B (1:1 ratio by weight) into a clean polypropylene beaker.
-3. Stir deliberately for 3 minutes using a flat-edged spatula, scraping the bottom and sides.
-4. Place the beaker into a vacuum degassing chamber. Pull vacuum to **$-29\text{ inHg}$ ($~1\text{ bar}$)**.
-5. The mixture will froth and rise to 4–5 times its original volume. Hold until the froth crest collapses completely, then maintain deep vacuum for an additional 90 seconds.
-6. Slowly vent the chamber to atmospheric pressure. The liquid is now 100% bubble-free.
+### Step 1: Measure and Mix
+1. Check your bolus volume in Fabolus (e.g. $80\text{ mL}$).
+2. **Mix 20% extra** to account for the syringe and vent tubes ($80\text{ mL} \times 1.20 = 96\text{ mL}$).
+3. Weigh equal parts of Part A and Part B (1:1 ratio by weight) into a clean plastic cup.
+4. Stir thoroughly for 3 minutes, scraping the sides and bottom of the cup.
+
+### Step 2: Vacuum Degas (Remove All Bubbles)
+When you stir silicone, you whip thousands of tiny air bubbles into the mix. Removing them takes just 3 minutes in a vacuum chamber:
+1. Place your mixing cup into a vacuum chamber and turn on the pump until the gauge reads **$-29\text{ inHg}$**.
+2. The liquid will froth up like boiling foam (it will rise 4 to 5 times its height).
+3. Watch through the lid. Once the foam rises and collapses back down, wait another 60 to 90 seconds.
+4. Turn off the pump and release the valve. Your silicone is now 100% crystal-clear and bubble-free!
 
 <!-- IMAGE_PLACEHOLDER: [Figure 9.3: Syringe Bottom-Up Injection and Dissolution. Photos showing (A) Luer-lock syringe injecting viscous silicone into bottom sprue until vents overflow, (B) Water bath dissolution of PVA mould, (C) Final pristine silicone bolus. Dimensions: 1000x400px.] -->
 
-### Phase B: Bottom-Up Syringe Injection
-1. Draw the degassed silicone into a 60 mL or 100 mL Luer-lock catheter syringe.
-2. Dock the syringe tip firmly into the lowest injection sprue at the base of the printed mould.
-3. Depress the syringe plunger slowly and steadily.
-4. Watch through the translucent mould walls as the liquid silicone rises uniformly from bottom to top, displacing air ahead of the liquid front.
-5. Continue injecting until solid, bubble-free silicone emerges cleanly from every top-mounted vent chimney.
-6. Cap or pinch the injection sprue with a plastic clamp. Let the assembly cure at room temperature ($21^\circ\text{C} – 23^\circ\text{C}$) for the manufacturer-specified cure time (typically 4–5 hours for Dragon Skin 10 NV; 16 hours for Dragon Skin 30).
+### Step 3: Injecting from the Bottom
+1. Pour the degassed silicone into a large ($60\text{ mL}$ or $100\text{ mL}$) plastic catheter syringe.
+2. Push the syringe tip firmly into the **bottom injection port** of your 3D printed mould.
+3. Slowly push the plunger. Watch the silicone rise inside the mould, pushing all air out ahead of it.
+4. Keep pushing until solid, bubble-free silicone overflows out of every top vent.
+5. Clamp or cap the bottom port with a binder clip.
+6. Leave the mould undisturbed at room temperature to cure (typically 4 hours for Dragon Skin 10 NV).
 
 ---
 
-## 5. Demoulding & Clinical Quality Assurance (QA)
+## 5. Demoulding & Quality Check (QA)
 
-### Dissolution of PVA Sacrificial Moulds:
-1. Immerse the cured mould in a warm water bath ($40^\circ\text{C} – 45^\circ\text{C}$).
-2. An aquarium circulation pump or heated ultrasonic cleaning tank accelerates dissolution from 8 hours down to **2 to 3 hours**.
-3. As the PVA turns into a soft gelatinous slurry, peel away any thick remnants and wash the silicone bolus under warm running tap water.
+### Dissolving a PVA Mould:
+1. Submerge the cured mould in a container of warm tap water ($40^\circ\text{C} – 45^\circ\text{C}$).
+2. *Tip*: An aquarium bubbler or small water pump makes the plastic dissolve in **2 to 3 hours** instead of overnight.
+3. As the plastic turns into a soft gel, rinse the silicone bolus clean under running warm water.
 
-### Final QA Verification:
-- **Sprue Trimming**: Use fine curved iris scissors to flush-trim all injection sprue and vent nubs.
-- **Physical Weight Verification**: Weigh the finished silicone bolus on a calibrated laboratory scale:
-  $$M_{\text{measured}} \approx V_{\text{planned}} \times \rho_{\text{silicone}} \quad (\pm 2\%)$$
-  *(Dragon Skin density $\rho \approx 1.07\text{ g/cm}^3$; Ecoflex $\rho \approx 1.04\text{ g/cm}^3$).*
-- **CT QA Verification**: Scan the bolus on the simulation CT scanner. Verify that Hounsfield Units are uniform ($-20\text{ to }+20\text{ HU}$) and that zero internal air voids are visible on axial slices.
-- **Sanitization**: Wash with medical antibacterial soap, wipe with 70% Isopropyl Alcohol (IPA), and dust lightly with pharmaceutical cornstarch to eliminate surface tackiness before patient fitting.
+### Final Inspection:
+1. **Trim Vents**: Snip off the small injection and vent nubs with small curved scissors.
+2. **Quick Weight Check**: Weigh the bolus on a kitchen or lab gram scale:
+   $$\text{Expected Weight (grams)} \approx \text{Planned Volume (mL)} \times 1.07$$
+   (The weight should match within $\pm 2\%$).
+3. **CT Scan QA**: Run the bolus through a quick CT scan to verify that there are zero internal air bubbles and uniform soft-tissue density ($0\text{ to }+20\text{ HU}$).
+4. **Patient Prep**: Wash with mild soap, wipe with alcohol, and dust lightly with medical cornstarch to make the silicone silky smooth and non-sticky for the patient.
+
