@@ -58,14 +58,23 @@ Detailed technical specifications for software engineers extending or maintainin
 ## High-Level Clinical Workflow
 
 ```mermaid
-flowchart LR
-    A["CT Scan / TPS Contour (STL)"] --> B["Fabolus: Inspect & Repair"]
-    B --> C["Fabolus: Volume-Preserving Smoothing"]
-    C --> D["Fabolus: Orient & Overhang Check"]
-    D --> E["Fabolus: Sacrificial Mould & Vents"]
-    E --> F["Export 3MF / STL"]
-    F --> G["3D Print Mould (PVA / PLA)"]
-    G --> H["Inject Medical Silicone"]
-    H --> I["Cure & Dissolve / Demould"]
-    I --> J["Patient-Fitted Silicone Bolus"]
+flowchart TD
+    subgraph P1 ["Phase 1: Treatment Planning & Import"]
+        A["1. CT Simulation & Contouring in TPS"] --> B["2. Export Bolus Contour (STL / OBJ)"]
+    end
+
+    subgraph P2 ["Phase 2: Fabolus 3D CAD Processing"]
+        C["3. Inspect & One-Click Mesh Repair"] --> D["4. Volume-Preserving Smoothing"]
+        D --> E["5. Optimize Print Orientation & Overhangs"]
+        E --> F["6. Generate Sacrificial Mould & Air Vents"]
+    end
+
+    subgraph P3 ["Phase 3: Fabrication & Clinical Delivery"]
+        G["7. Export 3MF Package / STL"] --> H["8. 3D Print Mould (Water-Soluble PVA)"]
+        H --> I["9. Vacuum Degas & Inject Silicone"]
+        I --> J["10. Dissolve Mould in Water & Fit to Patient"]
+    end
+
+    B --> C
+    F --> G
 ```
