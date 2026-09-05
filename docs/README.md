@@ -72,8 +72,8 @@ flowchart TD
     end
 
     subgraph P3 ["Phase 3: Fabrication & Clinical Delivery"]
-        I["9. 3D Print Mould (Water-Soluble PVA / PLA)"] --> J["10. Vacuum Degas & Inject Silicone"]
-        J --> K["11. Dissolve Mould in Water & Fit to Patient"]
+        I["9. 3D Print Mould"] --> J["10. Vacuum Degas & Inject Silicone"]
+        J --> K["11. Remove & Review Silicone"]
     end
 
     B --> C
