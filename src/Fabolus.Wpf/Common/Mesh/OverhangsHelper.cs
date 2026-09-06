@@ -1,9 +1,5 @@
 ﻿using HelixToolkit.Wpf.SharpDX;
 using SharpDX;
-using System.Windows.Media.Media3D;
-using Vector2Collection = HelixToolkit.Wpf.SharpDX.Vector2Collection;
-using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
-
 
 namespace Fabolus.Wpf.Common.Mesh;
 public static class OverhangsHelper {
@@ -33,19 +29,6 @@ public static class OverhangsHelper {
             ColorStripeX = colors,
             ColorStripeY = colors
         };
-    }
-
-    public static Vector2Collection GetTextureCoordinates(MeshGeometry3D mesh, Vector3 refAxis) {
-        var axis = new Vector3D(refAxis.X, refAxis.Y, refAxis.Z);
-        var normals = new Vector3DCollection();
-        mesh.Normals.ForEach(n => normals.Add(new Vector3D(n.X, n.Y, n.Z)));
-
-        var result = MeshSkins.GetTextureCoords(new System.Windows.Media.Media3D.MeshGeometry3D { Normals = normals }, axis);
-        var textureCoordinates = new Vector2Collection();
-        foreach(var coord in result) {
-            textureCoordinates.Add(new Vector2((float)coord.X, (float)coord.Y));
-        }
-        return textureCoordinates;
     }
 
     private static IEnumerable<Color4> GetGradients(Color4 start, Color4 end, int steps) {

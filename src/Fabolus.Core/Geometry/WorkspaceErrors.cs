@@ -30,7 +30,4 @@ public static class WorkspaceErrors
 
     public static Error MeshNotFound(string name) =>
         new("Workspace.MeshNotFound", $"Mesh '{name}' not found.");
-
-    public static Error CannotSetActive(Guid meshId) =>
-        new("Workspace.MeshNotFound", $"Cannot set active: mesh '{meshId}' not found.");
 }

@@ -94,12 +94,6 @@ public sealed class GenerateDecals
         return ValidateAndReturn(engine, booleanResult.Value);
     }
 
-    /// <summary>
-    /// Asynchronously applies a single text decal to the target mesh.
-    /// </summary>
-    public Task<Result<IMesh>> ExecuteSingleAsync(IGeometryEngine engine, IMesh target, TextDecal decal, List<string>? warnings = null) =>
-        Task.Run(() => ExecuteSingle(engine, target, decal, warnings));
-
     private static Result<IMesh> ValidateAndReturn(IGeometryEngine engine, IMesh mesh)
     {
         var topologyResult = engine.Evaluators.ValidateTopology(mesh);

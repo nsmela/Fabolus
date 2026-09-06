@@ -281,9 +281,3 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         await UpdateWorkspaceAsync(result.Value);
     }
 }
-
-public enum ViewModes {
-    None,
-    DistanceHeatMap,
-    Contouring
-}

@@ -26,10 +26,8 @@
             <!-- Converters -->
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <conv:EnumToBooleanConverter x:Key="EnumToBooleanConverter"/>
-            <conv:EnumToVisibilityConverter x:Key="EnumToVisibilityConverter"/>
             <conv:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
             <conv:GreaterThanZeroConverter x:Key="GreaterThanZeroConverter"/>
-            <conv:GreaterThanZeroToVisibilityConverter x:Key="GreaterThanZeroToVisibilityConverter"/>
 
         </ResourceDictionary>
     </Application.Resources>

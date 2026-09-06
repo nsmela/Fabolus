@@ -166,17 +166,6 @@ public sealed class Workspace
     }
 
     /// <summary>
-    /// Gets the metadata of a mesh by ID - a value object, safe to hold.
-    /// </summary>
-    public Result<MeshMetadata> GetMeshMetadata(Guid meshId)
-    {
-        if (_meshes.TryGetValue(meshId, out var mesh))
-            return Result.Success(mesh.Metadata);
-
-        return WorkspaceErrors.MeshNotFound(meshId);
-    }
-
-    /// <summary>
     /// Checks if a mesh exists.
     /// </summary>
     public bool ContainsMesh(Guid meshId) => _meshes.ContainsKey(meshId);
