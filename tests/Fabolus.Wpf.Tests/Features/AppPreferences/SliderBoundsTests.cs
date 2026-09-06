@@ -72,7 +72,8 @@ public class SliderBoundsTests {
             .ToList();
 
         Assert.True(hardcoded.Count == 0,
-            $"{view}: a preference-backed slider must bind its limits, or the two can drift apart again."
+            $"{view} ({viewModel.Name}): a preference-backed slider must bind its limits, "
+            + "or the two can drift apart again."
             + Environment.NewLine + string.Join(Environment.NewLine, hardcoded));
     }
 

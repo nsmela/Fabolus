@@ -78,9 +78,13 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         Workspace = workspace;
 
         Guid id = Workspace.ActiveMeshId;
-        Guid _selectedId = SelectedMesh?.Id ?? Guid.Empty;
-        _selectedMesh = null; // to prevent triggering a workspace update again
 
+        // Deliberately the field, not the property: the setter publishes a selection change,
+        // which would send us straight back round this method. SetActiveMesh below assigns
+        // SelectedMesh properly once MeshItems has been rebuilt.
+#pragma warning disable MVVMTK0034
+        _selectedMesh = null;
+#pragma warning restore MVVMTK0034
 
         MeshItems = Workspace.MeshMetadataList
             .Select(metadata => new MeshItem(
