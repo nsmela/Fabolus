@@ -614,18 +614,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     /// that no longer parses, so every field falls back to the shipped default rather than throwing
     /// and taking the whole view down with it.
     /// </summary>
-    private DecalPreferences LoadPreferences()
-    {
-        try
-        {
-            return _messenger.Send(new PreferenceSectionRequestMessage<DecalPreferences>()).Response
-                ?? DecalPreferences.Default;
-        }
-        catch
-        {
-            return DecalPreferences.Default;
-        }
-    }
+    private DecalPreferences LoadPreferences() => _messenger.GetSection(DecalPreferences.Default);
 
     /// <summary>
     /// The meshes automatic decals are placed on, in the order they should be created.

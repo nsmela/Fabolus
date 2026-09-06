@@ -480,32 +480,14 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     private MouldDefinition BuildPreferredMouldDefinition()
     {
-        MouldPreferences prefs;
-        try
-        {
-            prefs = _messenger.Send(new PreferenceSectionRequestMessage<MouldPreferences>()).Response
-                ?? MouldPreferences.Default;
-        }
-        catch
-        {
-            prefs = MouldPreferences.Default;
-        }
-
-        return prefs.Clamped().ToMouldDefinition();
+        return _messenger.GetSection(MouldPreferences.Default).Clamped().ToMouldDefinition();
     }
 
     private MouldDefinition BuildMouldDefinition()
     {
-        MouldDefinition definition = SelectedMouldType switch
-        {
-            MouldShapeType.Convex => new ConvexMouldDefinition(WallThickness, BaseHeight, BaseHeight),
-            MouldShapeType.Contoured => new ContouredMouldDefinition(WallThickness),
-            _ => new ConcaveMouldDefinition(WallThickness, BaseHeight, BaseHeight)
-        };
-
         // The trough settings ride along even on a contoured mould (which ignores them), so
         // switching shape and back doesn't lose what the user had dialled in.
-        return definition with
+        return MouldDefinition.OfShape(SelectedMouldType, WallThickness, BaseHeight) with
         {
             AirChannels = Channels,
             TroughHeight = TroughHeight,

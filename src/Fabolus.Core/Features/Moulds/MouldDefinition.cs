@@ -47,6 +47,20 @@ public abstract record MouldDefinition : IMeshCommand
     /// target mesh, then subtract each air channel. Does not take ownership of
     /// <paramref name="mesh"/>; intermediates created along the way are disposed here.
     /// </summary>
+    /// <summary>
+    /// The shell for a shape, with its walls and base set. Trough settings and air channels are
+    /// applied by the caller with a `with` expression, since not every caller has both.
+    ///
+    /// Anything not a shape this build knows falls back to concave, which is the shipped default.
+    /// </summary>
+    public static MouldDefinition OfShape(MouldShapeType shape, double wallThickness, double baseHeight) =>
+        shape switch
+        {
+            MouldShapeType.Convex => new ConvexMouldDefinition(wallThickness, baseHeight, baseHeight),
+            MouldShapeType.Contoured => new ContouredMouldDefinition(wallThickness),
+            _ => new ConcaveMouldDefinition(wallThickness, baseHeight, baseHeight)
+        };
+
     public string Describe()
     {
         var shape = this switch

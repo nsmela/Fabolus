@@ -97,18 +97,6 @@ public partial class PreferencesViewModel : ObservableObject
     public double OverhangAngleMaximum => RotationPreferences.Ranges.OverhangAngleMax;
     public double OverhangMinimumGap => RotationPreferences.Ranges.OverhangMinGap;
 
-    /// <summary>Which meshes the cut view is offered on.</summary>
-    public IReadOnlyList<CutScopeOption> CutScopeOptions { get; } =
-        Enum.GetValues<CutViewScope>().Select(v => new CutScopeOption(v, v.ToLabel())).ToList();
-
-    /// <summary>Anchor choices offered by the two auto-place pickers.</summary>
-    public IReadOnlyList<AnchorOption> AnchorOptions { get; } =
-        Enum.GetValues<DecalAnchor>().Select(a => new AnchorOption(a, a.ToLabel())).ToList();
-
-    /// <summary>Scope choices offered by the auto-place scope picker.</summary>
-    public IReadOnlyList<ScopeOption> ScopeOptions { get; } =
-        Enum.GetValues<DecalAutoPlaceScope>().Select(s => new ScopeOption(s, s.ToLabel())).ToList();
-
     /// <param name="pages">
     /// The pages to show. Defaults to the shipped catalogue; overridden by tests.
     /// </param>
@@ -338,12 +326,3 @@ public partial class PreferencesViewModel : ObservableObject
             vm.Get<T>().Write(target);
     }
 }
-
-/// <summary>One entry in the auto-place anchor picker.</summary>
-public sealed record AnchorOption(DecalAnchor Value, string Label);
-
-/// <summary>One entry in the cut-view scope picker.</summary>
-public sealed record CutScopeOption(CutViewScope Value, string Label);
-
-/// <summary>One entry in the auto-place scope picker.</summary>
-public sealed record ScopeOption(DecalAutoPlaceScope Value, string Label);
