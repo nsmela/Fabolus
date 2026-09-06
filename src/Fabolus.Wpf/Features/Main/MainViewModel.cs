@@ -303,7 +303,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task SwitchToEmbossViewAsync()
+    public async Task SwitchToDecalViewAsync()
     {
         if (CurrentView is DecalViewModel) return;
 

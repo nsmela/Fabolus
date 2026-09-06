@@ -59,7 +59,7 @@ public class SliderBoundsTests {
         { "Moulding/MouldControl.xaml",    typeof(MouldViewModel),
           ["WallThickness", "BaseHeight", "TroughHeight", "TroughOffset"] },
         { "Moulding/ChannelsControl.xaml", typeof(MouldViewModel),   ["ChannelDiameter"] },
-        { "Emboss/EmbossView.xaml",        typeof(DecalViewModel),   ["CapHeight", "Depth"] },
+        { "Decal/DecalView.xaml",          typeof(DecalViewModel),   ["CapHeight", "Depth"] },
     };
 
     [Theory]
