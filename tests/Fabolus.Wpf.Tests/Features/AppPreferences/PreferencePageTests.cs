@@ -237,10 +237,10 @@ public class PreferencePageTests : IDisposable
     [Fact]
     public void SelectingAPage_ExposesItsRows()
     {
-        _viewModel.SelectedPage = _viewModel.Pages.Single(s => s.Key == "split");
+        _viewModel.SelectedPage = _viewModel.Pages.Single(s => s.Key == "cut");
 
-        Assert.Single(_viewModel.Rows);
-        Assert.Equal("Split view (for moulds)", _viewModel.Rows[0].Label);
+        Assert.Equal(2, _viewModel.Rows.Count);
+        Assert.Equal("Cut view", _viewModel.Rows[0].Label);
     }
 
     [Fact]

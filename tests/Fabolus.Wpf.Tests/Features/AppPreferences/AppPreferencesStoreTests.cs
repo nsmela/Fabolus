@@ -69,7 +69,7 @@ public class AppPreferencesStoreTests : IDisposable
         var messenger = new StrongReferenceMessenger();
         var store = new AppPreferencesStore(messenger, _path);
 
-        store.Set(new CutSplitPreferences(true, CutViewScope.Mould, true));
+        store.Set(new CutSplitPreferences(true, CutViewScope.Mould));
 
         var answered = messenger.Send(new PreferenceSectionRequestMessage<CutSplitPreferences>()).Response;
 
@@ -84,7 +84,7 @@ public class AppPreferencesStoreTests : IDisposable
         var store = new AppPreferencesStore(messenger, _path);
 
         messenger.Send(new PreferenceSectionUpdateMessage<CutSplitPreferences>(
-            new CutSplitPreferences(true, CutViewScope.Both, false)));
+            new CutSplitPreferences(true, CutViewScope.Both)));
 
         var reopened = new AppPreferencesStore(new StrongReferenceMessenger(), _path);
 
@@ -217,7 +217,7 @@ public class PreferenceBagTests
                 default_export_folder="C:\Users\someone\Downloads" print_bed_width="250"
                 print_bed_depth="250" show_bed_grid="true" autodetect_channels="true"
                 channel_diameter="5.5" viewport_background="Graphite" measurement_units="Millimeters"
-                app_theme="Dark" split_view_enabled="true" cut_view_enabled="false" />
+                app_theme="Dark" cut_view_enabled="false" />
         </configuration>
         """;
 
@@ -230,7 +230,6 @@ public class PreferenceBagTests
         Assert.Equal(5.5f, printBed.ChannelDiameter);
         Assert.Equal(250f, printBed.Width);
         Assert.True(printBed.ShowGrid);
-        Assert.True(cutSplit.SplitViewEnabled);
         Assert.False(cutSplit.CutViewEnabled);
 
         // measurement_units and app_theme were dropped by an earlier build; carrying them
@@ -262,13 +261,13 @@ public class PreferenceBagTests
         // Exactly what LegacyExeConfig hands over: attribute names and their text.
         var bag = PreferenceBag.FromDefaults();
         bag.SetFromText("channel_diameter", "5.5");
-        bag.SetFromText("split_view_enabled", "true");
+        bag.SetFromText("cut_view_enabled", "true");
         bag.SetFromText("mould_shape", "Convex");
         bag.SetFromText("print_bed_width", "300");
 
         Assert.Equal(5.5f, PrintBedPreferences.Read(bag).ChannelDiameter);
         Assert.Equal(300f, PrintBedPreferences.Read(bag).Width);
-        Assert.True(CutSplitPreferences.Read(bag).SplitViewEnabled);
+        Assert.True(CutSplitPreferences.Read(bag).CutViewEnabled);
         Assert.Equal(MouldShapeType.Convex, MouldPreferences.Read(bag).Shape);
     }
 }

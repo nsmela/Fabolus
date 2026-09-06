@@ -44,7 +44,7 @@ public class PreferenceProfileTests : IDisposable
             b => new GeneralPreferences(
                 Path.GetTempPath(), Path.GetTempPath(), ExportFormat.ThreeMF, ViewportBackground.Graphite).Write(b),
             b => new PrintBedPreferences(300.0f, 300.0f, false, false, 6.0f).Write(b),
-            b => new CutSplitPreferences(true, CutViewScope.Mould, true).Write(b),
+            b => new CutSplitPreferences(true, CutViewScope.Mould).Write(b),
             b => new MouldPreferences(
                 MouldShapeType.Convex, 3.5f, 8.0f, 2.0f, 3.0f, TroughShapeType.Channels).Write(b),
             b => new DecalPreferences(
