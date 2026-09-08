@@ -11,8 +11,4 @@ public sealed record OverhangSettings(
     OverhangDirection Direction,
     ColourGradient Gradient,
     float MinAngleDegrees = 0f,
-    float MaxAngleDegrees = 90f) {
-    /// <summary>Settings for traditional 3D printing: overhang direction = down, default gradient.</summary>
-    public static OverhangSettings ForPrinting() =>
-        new(OverhangDirection.PrintingDefault, ColourGradient.Overhang);
-}
+    float MaxAngleDegrees = 90f);

@@ -16,17 +16,6 @@ public class EnumToBooleanConverter : IValueConverter {
     }
 }
 
-public class EnumToVisibilityConverter : IValueConverter {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) {
-        if (value is null || parameter is null) return Visibility.Collapsed;
-        return value.ToString() == parameter.ToString() ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) {
-        throw new NotImplementedException();
-    }
-}
-
 public class InverseBooleanToVisibilityConverter : IValueConverter {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) {
         if (value is bool b)
@@ -46,16 +35,6 @@ public class GreaterThanZeroConverter : IValueConverter {
         if (value is int i) return i > 0;
         if (value is long l) return l > 0;
         return false;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
-}
-
-public class GreaterThanZeroToVisibilityConverter : IValueConverter {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) {
-        if (value is int i) return i > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (value is long l) return l > 0 ? Visibility.Visible : Visibility.Collapsed;
-        return Visibility.Collapsed;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();

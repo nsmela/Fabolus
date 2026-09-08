@@ -71,14 +71,7 @@ public sealed record MouldPreferences(
 
     public MouldDefinition ToMouldDefinition()
     {
-        MouldDefinition definition = Shape switch
-        {
-            MouldShapeType.Convex => new ConvexMouldDefinition(WallThickness, BaseHeight, BaseHeight),
-            MouldShapeType.Contoured => new ContouredMouldDefinition(WallThickness),
-            _ => new ConcaveMouldDefinition(WallThickness, BaseHeight, BaseHeight)
-        };
-
-        return definition with
+        return MouldDefinition.OfShape(Shape, WallThickness, BaseHeight) with
         {
             TroughHeight = TroughHeight,
             TroughOffset = TroughOffset,

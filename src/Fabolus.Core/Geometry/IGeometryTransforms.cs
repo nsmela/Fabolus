@@ -3,13 +3,6 @@ using System.Numerics;
 
 namespace Fabolus.Core.Geometry;
 
-public enum RotationAxis
-{
-    X,
-    Y,
-    Z
-}
-
 /// <summary>
 /// Interface for geometric transformation operations.
 /// </summary>

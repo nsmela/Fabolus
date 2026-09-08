@@ -119,16 +119,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     /// is dropped entirely, since neither half of it describes a usable gradient on its own.
     /// </summary>
     private void LoadOverhangPreferences() {
-        RotationPreferences prefs;
-        try {
-            prefs = _messenger.Send(new PreferenceSectionRequestMessage<RotationPreferences>()).Response
-                ?? RotationPreferences.Default;
-        }
-        catch {
-            prefs = RotationPreferences.Default;
-        }
-
-        prefs = prefs.Clamped();
+        var prefs = _messenger.GetSection(RotationPreferences.Default).Clamped();
         CriticalAngle = prefs.OverhangCriticalAngle;
         WarningAngle = prefs.OverhangWarningAngle;
     }

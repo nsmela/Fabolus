@@ -3,11 +3,11 @@ using System.Windows.Controls;
 namespace Fabolus.Wpf.Features.Decal;
 
 /// <summary>
-/// Interaction logic for EmbossView.xaml
+/// Interaction logic for DecalView.xaml
 /// </summary>
-public partial class EmbossView : UserControl
+public partial class DecalView : UserControl
 {
-    public EmbossView()
+    public DecalView()
     {
         InitializeComponent();
     }

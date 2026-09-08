@@ -115,15 +115,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     /// Falls back to default when the store cannot be reached - which is the case for the
     /// design-time constructor.
     /// </summary>
-    private SmoothingPreferences LoadPreferences() {
-        try {
-            return _messenger.Send(new PreferenceSectionRequestMessage<SmoothingPreferences>()).Response
-                ?? SmoothingPreferences.Default;
-        }
-        catch {
-            return SmoothingPreferences.Default;
-        }
-    }
+    private SmoothingPreferences LoadPreferences() => _messenger.GetSection(SmoothingPreferences.Default);
 
     public Task<Workspace> DeactivateAsync() {
         ReleaseCachedMeshes();
@@ -280,10 +272,4 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         await UpdateWorkspaceAsync(result.Value);
     }
-}
-
-public enum ViewModes {
-    None,
-    DistanceHeatMap,
-    Contouring
 }

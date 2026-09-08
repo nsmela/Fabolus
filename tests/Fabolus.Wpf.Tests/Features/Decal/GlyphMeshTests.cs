@@ -8,7 +8,7 @@ using GeometryMeshLib;
 using Moq;
 using Xunit;
 
-namespace Fabolus.Wpf.Tests.Features.Emboss;
+namespace Fabolus.Wpf.Tests.Features.Decal;
 
 public class GlyphMeshTests
 {

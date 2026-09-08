@@ -12,7 +12,7 @@ using Fabolus.Wpf.Features.Decal;
 using Moq;
 using Xunit;
 
-namespace Fabolus.Wpf.Tests.Features.Emboss;
+namespace Fabolus.Wpf.Tests.Features.Decal;
 
 public sealed class TestOutlineSource : IGlyphOutlineSource
 {
@@ -36,7 +36,7 @@ public sealed class TestOutlineSource : IGlyphOutlineSource
     }
 }
 
-public class EmbossViewModelTests
+public class DecalViewModelTests
 {
     private static (DecalViewModel vm, IMessenger messenger, Mock<IGeometryEngine> engineMock) CreateViewModel()
     {
