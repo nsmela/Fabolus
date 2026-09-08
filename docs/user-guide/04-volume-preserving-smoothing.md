@@ -1,6 +1,8 @@
 # Volume-Preserving Smoothing
 
-A bolus mesh exported from a TPS is built from stacked CT slices, so its surface has stair-stepping ridges. Fabolus smooths those out while keeping the mesh close to its original volume, which matters because the bolus thickness is clinically prescribed.
+When 2D image contours from a CT scan are converted into a 3D mesh, the surface ends up with sharp features and stair-stepping ridges. 
+
+Standard 3D smoothing (such as vertex averaging) rounds off those bumps, but it also shrinks the model—making walls thinner than planned. In radiation therapy, this is critical because the bolus thickness is specifically prescribed. Fabolus smooths out the sharp features while strictly preserving the original thickness and volume.
 
 ---
 

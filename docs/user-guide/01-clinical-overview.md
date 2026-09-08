@@ -25,11 +25,3 @@ Each of these has its own page in this guide.
 ## What Fabolus does not do
 
 Fabolus is not a slicer, a printer driver, or a casting tool, and it does not perform dose calculations. Slicing, 3D printing, silicone casting, and dosimetric verification happen in other software and on lab equipment; this guide describes only the geometry Fabolus produces and the file it hands off.
-
----
-
-## Why volume-preserving smoothing
-
-When 2D image contours from a CT scan are converted into a 3D mesh, the surface ends up with sharp features and stair-stepping ridges. 
-
-Standard 3D smoothing rounds off those bumps, but it also shrinks the model—making walls thinner than planned. Fabolus smooths out the sharp features while strictly preserving the original thickness and volume. See [Volume-Preserving Smoothing](04-volume-preserving-smoothing.md).
