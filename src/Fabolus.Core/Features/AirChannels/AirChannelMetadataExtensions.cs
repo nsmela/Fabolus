@@ -11,4 +11,7 @@ public static class AirChannelMetadataExtensions
 {
     public static Maybe<IReadOnlyList<IAirChannel>> AirChannels(this MeshMetadata metadata) =>
         metadata.GetProperty(AirChannelKeys.AirChannels);
+
+    public static MeshMetadata WithAirChannels(this MeshMetadata metadata, IEnumerable<IAirChannel> channels) =>
+        metadata.WithProperty(AirChannelKeys.AirChannels, channels.ToList());
 }

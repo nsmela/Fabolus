@@ -9,4 +9,7 @@ public static class MeshSmoothingExtensions {
         var settings = metadata.Commands.OfType<SmoothSettings>().FirstOrDefault();
         return settings is null ? Maybe<SmoothSettings>.None() : Maybe<SmoothSettings>.Some(settings);
     }
+
+    public static MeshMetadata WithSmoothing(this MeshMetadata metadata, SmoothSettings settings) =>
+        metadata.WithCommand(settings);
 }

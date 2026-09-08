@@ -27,3 +27,22 @@ public sealed class CutPreferencePage : IPreferencePage {
         }.EnabledWhen(() => vm.Get<CutSplitPreferences>().CutViewEnabled),
     ];
 }
+
+/// <summary>The parting-line splitting tool.</summary>
+public sealed class SplitPreferencePage : IPreferencePage {
+    public string Key => "split";
+    public string Name => "Split";
+    public string Description => "The parting-line splitting tool.";
+    public string Keywords => "split parting line view toggle";
+    public string IconKey => "Icon.Preferences.Split";
+    public int Order => 130;
+
+    public IReadOnlyList<PreferenceRow> BuildRows(PreferencesViewModel vm) => [
+        new ToggleRow {
+            Label = "Split view (for moulds)",
+            Caption = "Adds the parting-line splitting tool to the workflow.",
+            Read = () => vm.Get<CutSplitPreferences>().SplitViewEnabled,
+            Write = value => vm.Update<CutSplitPreferences>(settings => settings with { SplitViewEnabled = value }),
+        },
+    ];
+}

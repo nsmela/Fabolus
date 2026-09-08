@@ -51,6 +51,9 @@ public partial class MainViewModel : ObservableObject
         _ => "Hide wireframe"
     };
 
+    // display views
+    [ObservableProperty] private bool _showSplitView;
+
     // Whether the cut / split tab button is offered at all. Both halves come from preferences
     // now: an on/off switch, and which meshes it applies to. Withholding it on a generated
     // mould used to be hardcoded here; it is the default of that scope preference instead.

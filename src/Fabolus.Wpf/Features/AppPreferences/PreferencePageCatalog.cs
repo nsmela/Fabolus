@@ -22,6 +22,7 @@ public static class PreferencePageCatalog {
         new RotationPreferencePage(),
         new SmoothingPreferencePage(),
         new CutPreferencePage(),
+        new SplitPreferencePage(),
         new AirChannelPreferencePage(),
         new MouldPreferencePage(),
         new DecalPreferencePage(),
