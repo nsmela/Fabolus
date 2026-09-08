@@ -1,6 +1,6 @@
-# Quickstart Workflow
+# Example Workflow (Quickstart)
 
-This walks through the Fabolus workflow end to end: from a bolus mesh exported from a Treatment Planning System (TPS) to an exported, print-ready mould file. Printing and casting happen in other tools and are out of scope here.
+This is an example workflow that utilizes Fabolus end to end: taking a bolus mesh exported from a Treatment Planning System (TPS) through to an exported, print-ready mould file. Physical 3D printing and casting happen in external software and lab equipment and are out of scope here.
 
 ---
 
