@@ -63,6 +63,10 @@ Each status is shown in green for good, or red if an issue is detected:
 
 ## Mesh Repair
 
+When a mesh file is imported, Fabolus checks if it contains multiple components. If so, it is automatically broken into multiple meshes in the workspace so each component can be inspected, repaired, or processed independently.
+
+To repair a mesh:
+
 1. Select the mesh in the list on the left.
 2. Click **Repair Mesh**.
 3. Fabolus repairs the mesh (there is also an option to fix self-intersections), then re-evaluates its topology and statistics.
