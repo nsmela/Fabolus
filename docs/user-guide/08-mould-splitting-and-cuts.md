@@ -1,8 +1,9 @@
-# Cut & Split
+# Cut & Split (Experimental)
+
+> [!NOTE]
+> **Experimental Feature**: Cut & Split is currently experimental. It is gated behind preferences (`cut_view_enabled` and `split_view_enabled`, both disabled by default) and must be enabled in Preferences to display in the tool navigation. See [Configuration & Preferences](../reference/configuration-and-preferences.md).
 
 The **cut / split** view divides a mesh along a plane into two halves. It is useful when a mould will be printed in a rigid plastic and needs to come apart to release the cast part; with a dissolvable mould it is not needed.
-
-> The cut and split views are gated by preferences (`cut_view_enabled` and `split_view_enabled`, both off by default). Enable them in Preferences to show the view. See [Configuration & Preferences](../reference/configuration-and-preferences.md).
 
 ---
 

@@ -27,7 +27,7 @@ These guides cover the Fabolus workflow, from importing a bolus mesh exported fr
 | **[05. Print Orientation & Overhangs](user-guide/05-print-orientation-and-overhangs.md)** | Rotating the mesh and the overhang gradient with adjustable warning/critical angles. |
 | **[06. Air Channels](user-guide/06-air-channels-and-degassing.md)** | Straight, Angled, and Painted channels, their parameters, and how they are placed. |
 | **[07. Sacrificial Mould Design](user-guide/07-sacrificial-mould-design.md)** | Mould shapes (Convex, Concave, Contoured), wall/base/trough settings, and Generate/Clear Mould. |
-| **[08. Cut & Split](user-guide/08-mould-splitting-and-cuts.md)** | Cutting a mesh along a plane into named halves (split for moulds is not yet implemented). |
+| **[08. Cut & Split (Experimental)](user-guide/08-mould-splitting-and-cuts.md)** | Cutting a mesh along a plane into named halves (experimental; mould split not yet implemented). |
 | **[09. Export](user-guide/09-slicing-printing-and-casting.md)** | Exporting as STL or extended 3MF, and what a 3MF package contains. |
 
 ---
