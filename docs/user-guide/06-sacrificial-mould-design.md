@@ -20,13 +20,16 @@ Choose one of three shapes (default `Concave`):
 
 | Control | Default | Range | What it does |
 | :--- | :--- | :--- | :--- |
-| **Wall Thickness** | `2.5` | `0.5`–`15` | Thickness of the mould's outer walls. |
-| **Base Height** | `5.0` | `2`–`20` | Height of the solid base below the cavity. |
-| **Trough Height** | `0.0` | `0`–`20` | Depth of a reservoir recessed into the top face (`0` = none). |
-| **Trough Offset** | `2.5` | `0.5`–`15` | Margin used when shaping the trough. |
+| **Wall Thickness** | `2.5 mm` | `0.5`–`15 mm` | Thickness of the mould's outer walls. Should be at least as thick as your printer's shell thickness (typically shell lines × line thickness). |
+| **Base Height** | `5.0 mm` | `2`–`20 mm` | Height of the solid base below the cavity. |
+| **Trough Depth** | `0.0 mm` | `0`–`20 mm` | Depth of a reservoir recessed into the top face (`0` = none). |
+| **Trough Offset** | `2.5 mm` | `0.5`–`15 mm` | Margin used when shaping the trough. |
 | **Trough Shape** | `Footprint` | — | `Footprint` (basin across the top, inset from the wall) or `Channels` (basin only where the channels surface). |
 
 Defaults and ranges come from `MouldPreferences`; the tab seeds these from your saved preferences.
+
+> [!TIP]
+> **Sizing Wall Thickness**: The wall thickness should be at least as thick as your 3D printer's shell thickness—usually calculated as the number of shell lines (perimeters) multiplied by the line thickness (extrusion width). A solid shell ensures watertight mould walls and avoids leakage during silicone casting.
 
 As you change the shape or settings, a semi-transparent preview shows the mould around the bolus so you can confirm coverage before generating.
 
