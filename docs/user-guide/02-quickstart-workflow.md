@@ -70,7 +70,7 @@ Air channels must be added before generating the mould so silicone can enter and
 
 <!-- IMAGE_PLACEHOLDER: [Figure 2.3: Placing air channels on the mesh within the mould preview.] -->
 
-See [Air Channels](07-air-channels-and-degassing.md).
+See [Air Channels](06-air-channels-and-degassing.md).
 
 ---
 
@@ -81,7 +81,7 @@ See [Air Channels](07-air-channels-and-degassing.md).
 
 <!-- IMAGE_PLACEHOLDER: [Figure 2.4: Generated sacrificial mould showing cavity and channel openings.] -->
 
-See [Sacrificial Mould Design](06-sacrificial-mould-design.md).
+See [Sacrificial Mould Design](07-sacrificial-mould-design.md).
 
 ---
 

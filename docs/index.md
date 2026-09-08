@@ -49,8 +49,8 @@ flowchart TD
 3. **[03. Mesh Inspection & Repair](user-guide/03-mesh-inspection-and-repair.md)**
 4. **[04. Volume-Preserving Smoothing](user-guide/04-volume-preserving-smoothing.md)**
 5. **[05. Print Orientation & Overhangs](user-guide/05-print-orientation-and-overhangs.md)**
-6. **[06. Sacrificial Mould Design](user-guide/06-sacrificial-mould-design.md)**
-7. **[07. Air Channels](user-guide/07-air-channels-and-degassing.md)**
+6. **[06. Air Channels](user-guide/06-air-channels-and-degassing.md)**
+7. **[07. Sacrificial Mould Design](user-guide/07-sacrificial-mould-design.md)**
 8. **[08. Cut & Split](user-guide/08-mould-splitting-and-cuts.md)**
 9. **[09. Export](user-guide/09-slicing-printing-and-casting.md)**
 

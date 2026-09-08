@@ -12,7 +12,7 @@ Choose one of three shapes (default `Concave`):
 - **Concave** — footprint follows the bolus's top-down silhouette, trimming empty corners.
 - **Contoured** — an offset shell that follows the bolus contour.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 6.1: Convex, Concave, and Contoured moulds generated around the same bolus.] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 7.1: Convex, Concave, and Contoured moulds generated around the same bolus.] -->
 
 ---
 
@@ -33,7 +33,7 @@ Defaults and ranges come from `MouldPreferences`; the tab seeds these from your 
 
 As you change the shape or settings, a semi-transparent preview shows the mould around the bolus so you can confirm coverage before generating.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 6.2: Semi-transparent mould preview around a bolus in the viewport.] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 7.2: Semi-transparent mould preview around a bolus in the viewport.] -->
 
 ---
 
@@ -44,4 +44,4 @@ As you change the shape or settings, a semi-transparent preview shows the mould 
 
 The mould is recorded as a command in the mesh's history (priority after the transform stage), so changing an earlier step such as rotation invalidates a previously generated mould.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 6.3: Cross-section of a generated mould showing the bolus cavity and channel openings.] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 7.3: Cross-section of a generated mould showing the bolus cavity and channel openings.] -->
