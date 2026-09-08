@@ -1,29 +1,66 @@
 # System Architecture
 
-## Architectural Philosophy: Clean / Hexagonal Design
+## Architectural Philosophy: Vertical Slice Architecture & Functional Core
 
-Fabolus v1 is structured following the principles of **Clean Architecture** (also known as Ports & Adapters or Hexagonal Architecture). The overarching rule governing this design is the **Dependency Inversion Principle**: business rules and domain logic never depend on external frameworks, UI toolkits, or specific geometric computation kernels.
+Fabolus v1 is organized using **Vertical Slice Architecture**, combined with a **functional approach centered on immutable domain models**.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 10.1: Hexagonal Architecture Diagram for Fabolus. Architectural schematic illustrating Core domain entities encircled by ports/interfaces, surrounded by adapters (Geometry.MeshLib, Fabolus.Wpf, TestHarness). Dimensions: 900x500px.] -->
+Rather than splitting code across traditional horizontal technical layers (such as separate data, business, and presentation layers that cut across the whole project), Fabolus is partitioned into **feature-centric vertical slices**. Each slice encapsulates a complete, end-to-end user workflow:
+
+- **Feature Slices**: `MeshIO` (Import & Repair), `Smoothing`, `Transforms` (Orientation), `Emboss` (Decals), `Moulding`, `AirChannels`, `CutSplit`, and `Export`.
+- **Cohesive Feature Modules**: In `Fabolus.Core`, each feature houses its own domain commands and workflow orchestrators (e.g. `SmoothMesh`, `GenerateMould`, `RepairMesh`). In `Fabolus.Wpf`, each feature houses its dedicated View, ViewModel, SceneManager, and preference controls.
+- **Low Coupling**: Features communicate through minimal shared abstractions—the `Workspace` aggregate root and loosely coupled messaging via `WeakReferenceMessenger`—allowing features to evolve independently without ripple effects.
+
+<!-- IMAGE_PLACEHOLDER: [Figure 10.1: Vertical Slice Architecture Diagram for Fabolus. Diagram showing vertical feature slices (MeshIO, Smoothing, Orientation, Decals, Moulding, Cut/Split, Export) cutting across presentation (WPF), domain logic (Fabolus.Core), and the native geometry engine (Geometry.MeshLib).] -->
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                              Fabolus.Wpf                                │
-│        Presentation Adapter: MVVM, MahApps.Metro, HelixToolkit SharpDX  │
-└───────────────────┬─────────────────────────────────┬───────────────────┘
-                    │ references                      │ references
-                    ▼                                 ▼
-┌─────────────────────────────────┐   ┌───────────────────────────────────┐
-│          Fabolus.Core           │   │         Geometry.MeshLib          │
-│         The Pure Domain         │   │       Native Engine Adapter       │
-│  - Workspace Aggregate Root     │   │  - MeshInspector MeshLib (C++)    │
-│  - IMesh & MeshMetadata Value   │   │  - Clipper2 2D Polygons           │
-│  - IMeshCommand Replay Pipeline │   │  - Parallel Transport Frames      │
-│  - Ports (IGeometryEngine, etc.)│   │  - Safe Unmanaged Memory Wrapping │
-└───────────────────▲─────────────┘   └─────────────────▲─────────────────┘
-                    │                                   │
-                    └──────────── implements ───────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                           Fabolus.Wpf (Presentation)                                           │
+│  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌─────────────────┐  │
+│  │ Mesh Manager  │ │   Smoothing   │ │  Orientation  │ │    Decals     │ │    Moulding   │ │   Cut & Split   │  │
+│  │ View/VM/Scene │ │ View/VM/Scene │ │ View/VM/Scene │ │ View/VM/Scene │ │ View/VM/Scene │ │  View/VM/Scene  │  │
+│  └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ └────────┬────────┘  │
+└──────────┼─────────────────┼─────────────────┼─────────────────┼─────────────────┼──────────────────┼───────────┘
+           │                 │                 │                 │                 │                  │
+┌──────────┼─────────────────┼─────────────────┼─────────────────┼─────────────────┼──────────────────┼───────────┐
+│          ▼                 ▼                 ▼                 ▼                 ▼                  ▼           │
+│  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌─────────────────┐  │
+│  │ MeshIO Feature│ │Smooth Feature │ │Transform Feat │ │ Decal Feature │ │ Mould Feature │ │Cut/Split Feature│  │
+│  │ Import/Repair │ │  SmoothMesh   │ │ Rotate/Scale  │ │TextDecal/Wrap │ │ Generate/Clear│ │   Mesh Slices   │  │
+│  └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ └───────┬───────┘ └────────┬────────┘  │
+│          │                 │                 │                 │                 │                  │           │
+│          └─────────────────┴────────────┬────┴─────────────────┴─────────────────┴──────────────────┘           │
+│                                         ▼                                                                       │
+│                Immutable Functional Core: Workspace, IMesh, MeshMetadata, IMeshCommand, Result<T>               │
+│                                         │                                                                       │
+│                                  IGeometryEngine (Facade Interface)                                             │
+└─────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────┘
+                                          │ implements
+                                          ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       Geometry.MeshLib (Native Adapter)                                         │
+│                MeshInspector MeshLib (C++), Clipper2Lib, Memory Safety Boundaries & Buffer Marshaling           │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## The Functional Approach: Immutability & Determinism
+
+Fabolus treats 3D meshes, metadata, and workspace state as **immutable values** managed through pure, side-effect-free transformations and the functional `Result<T>` pattern.
+
+### Why Immutability is Essential in Fabolus
+
+1. **Clinical Safety & Auditability**:
+   In radiation oncology, a patient-specific bolus is a prescribed medical device. Immutability guarantees that once a mesh state is computed, it cannot be silently modified by background processes, stale pointers, or UI side-effects. Every clinical state is an explicit, audit-safe value.
+
+2. **Non-Destructive Pipeline & Cascading Invalidation**:
+   Traditional CAD packages mutate vertex buffers destructively in place, making multi-step undo difficult and prone to numerical drift. In Fabolus, the original imported geometry is stored as an immutable `BaseMesh`. Operations like smoothing, orientation, decals, and mould cavities are immutable command records (`IMeshCommand`) evaluated on demand in priority order (`CommandPriority`). When an earlier stage is edited (e.g. changing rotation), downstream steps are cleanly invalidated and recomputed from the ground truth without accumulated distortion.
+
+3. **Thread Safety for High-Performance Concurrency**:
+   Mesh processing (such as morphological double offsets or CSG boolean subtractions on 500,000-triangle meshes) is computationally intensive. Because `Workspace`, `IMesh`, and commands are immutable, they can be freely passed across thread boundaries via `Task.Run` without complex locking, synchronization primitives, or data race hazards.
+
+4. **Transactional State Rollback**:
+   Every feature method returns a functional `Result<Workspace>` rather than throwing exceptions or leaving dirty state. If a geometric algorithm fails (e.g., non-manifold geometry produces an error during a boolean cut), the application discards the failure `Result` and keeps the previous valid immutable `Workspace` completely intact.
 
 ---
 

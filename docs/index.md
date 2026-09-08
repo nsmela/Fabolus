@@ -9,7 +9,7 @@ Welcome to the **Fabolus** project documentation. Fabolus is an open-source, spe
 ## Documentation Tracks
 
 - **[User Guide](user-guide/01-clinical-overview.md)**: What Fabolus does, step by step — import and inspection, smoothing, orientation, mould design, air channels, cut/split, and export.
-- **[Architecture & Developer Manual](architecture/01-system-architecture.md)**: Clean architecture, native C++ MeshLib integration, the command-replay pipeline, domain abstractions, and WPF DirectX viewport scene management.
+- **[Architecture & Developer Manual](architecture/01-system-architecture.md)**: Vertical Slice Architecture, functional immutability, native C++ MeshLib integration, the command-replay pipeline, domain abstractions, and WPF DirectX viewport scene management.
 - **[Reference](reference/clinical-glossary.md)**: Radiotherapy and geometric terminology, configuration keys, and preferences.
 
 ---

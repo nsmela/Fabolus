@@ -38,7 +38,7 @@ Detailed technical specifications for software engineers extending or maintainin
 
 | Document | Description |
 | :--- | :--- |
-| **[01. System Architecture](architecture/01-system-architecture.md)** | Clean/Hexagonal Architecture: `Fabolus.Core` (domain), `Geometry.MeshLib` (native adapter), `Fabolus.Wpf` (presentation). |
+| **[01. System Architecture](architecture/01-system-architecture.md)** | Vertical Slice Architecture: `Fabolus.Core` (domain & functional core), `Geometry.MeshLib` (native adapter), `Fabolus.Wpf` (presentation feature slices). |
 | **[02. Command-Replay Pipeline](architecture/02-command-replay-pipeline.md)** | The immutable `IMeshCommand` pipeline, `CommandPriority`, cascading invalidation, and non-destructive replay against `BaseMesh`. |
 | **[03. Geometry Engine & Native MeshLib](architecture/03-geometry-engine-and-meshlib.md)** | Integration with MeshInspector C++ `MeshLib`, unmanaged memory lifecycle, polygon offsetting via `Clipper2Lib`, and 3D swept tubes. |
 | **[04. Domain Model & State Management](architecture/04-domain-model-and-workspace.md)** | The `Workspace` aggregate root, `IMesh` contract, `MeshMetadata` type-safe key-value system, and functional error handling (`Result<T>`). |
