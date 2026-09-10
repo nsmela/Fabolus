@@ -3,7 +3,6 @@ using System.Numerics;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
-using GeometryMeshLib;
 using Xunit;
 
 namespace Fabolus.Tests.MeshLib;
@@ -12,12 +11,12 @@ namespace Fabolus.Tests.MeshLib;
 public class GeometryGeneratorsTests
 {
     private readonly GeometryEngineFixture _fixture;
-    private readonly GeometryEngine _engine;
+    private readonly IGeometryEngine _engine;
 
     public GeometryGeneratorsTests(GeometryEngineFixture fixture)
     {
         _fixture = fixture;
-        _engine = (GeometryEngine)_fixture.Engine;
+        _engine = _fixture.Engine;
     }
 
     [Fact]
@@ -78,16 +77,16 @@ public class GeometryGeneratorsTests
         var validRadii = new[] { 5.0f, 5.0f };
 
         var invalidPathResult = _fixture.Engine.Generators.GenerateTube(new TubeParameters { Path = new[] { Vector3.Zero }, Radii = new[] { 5.0f } });
-        invalidPathResult.Error.Code.Should().Be(GeometryErrors.InvalidPath.Code);
+        invalidPathResult.Error.Code.Should().Be(GeometryMeshLib.GeometryErrors.InvalidPath.Code);
 
         var mismatchResult = _fixture.Engine.Generators.GenerateTube(new TubeParameters { Path = validPath, Radii = new[] { 5.0f } });
-        mismatchResult.Error.Code.Should().Be(GeometryErrors.InvalidRadii.Code);
+        mismatchResult.Error.Code.Should().Be(GeometryMeshLib.GeometryErrors.InvalidRadii.Code);
 
         var negativeRadiusResult = _fixture.Engine.Generators.GenerateTube(new TubeParameters { Path = validPath, Radii = new[] { -5.0f, 5.0f } });
-        negativeRadiusResult.Error.Code.Should().Be(GeometryErrors.InvalidRadius.Code);
+        negativeRadiusResult.Error.Code.Should().Be(GeometryMeshLib.GeometryErrors.InvalidRadius.Code);
 
         var invalidSegmentsResult = _fixture.Engine.Generators.GenerateTube(new TubeParameters { Path = validPath, Radii = validRadii, Segments = 2 });
-        invalidSegmentsResult.Error.Code.Should().Be(GeometryErrors.InvalidSegments.Code);
+        invalidSegmentsResult.Error.Code.Should().Be(GeometryMeshLib.GeometryErrors.InvalidSegments.Code);
     }
 
     [Fact]

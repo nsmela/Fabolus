@@ -1,6 +1,5 @@
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
-using GeometryMeshLib;
 using System;
 using System.IO;
 using Xunit;
@@ -9,11 +8,29 @@ namespace Fabolus.Tests.Fixtures;
 
 public class GeometryEngineFixture
 {
+    /// <summary>
+    /// Selects which <see cref="IGeometryEngine"/> the whole suite runs against, so the same
+    /// tests can be pointed at either backend while Manifold is being brought to parity with
+    /// MeshLib. Set it to "manifold" to exercise Geometry.Manifold; anything else (or unset)
+    /// keeps the MeshLib engine, which stays the default.
+    /// </summary>
+    public const string EngineVariable = "FABOLUS_GEOMETRY_ENGINE";
+
     public IGeometryEngine Engine { get; }
-    
+
+    /// <summary>The engine this run is exercising, as named by <see cref="EngineVariable"/>.</summary>
+    public string EngineName { get; }
+
     public GeometryEngineFixture()
     {
-        Engine = new GeometryEngine(new TestFileSystem());
+        var fileSystem = new TestFileSystem();
+        EngineName = (Environment.GetEnvironmentVariable(EngineVariable) ?? "meshlib").Trim().ToLowerInvariant();
+
+        Engine = EngineName switch
+        {
+            "manifold" => new GeometryManifold.GeometryEngine(fileSystem),
+            _ => new GeometryMeshLib.GeometryEngine(fileSystem),
+        };
     }
 
     public IMesh LoadStl(string name)

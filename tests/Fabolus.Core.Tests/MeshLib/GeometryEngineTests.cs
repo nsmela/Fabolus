@@ -1,6 +1,5 @@
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
-using GeometryMeshLib;
 using Xunit;
 
 namespace Fabolus.Tests.MeshLib;
@@ -43,7 +42,7 @@ public class GeometryEngineTests
     public void ValidateTopology_OnClosedSphere_ReturnsWatertightAndManifold()
     {
         var sphere = _fixture.LoadStl("sphere.stl");
-        var engine = (GeometryEngine)_fixture.Engine; // Cast required if not on interface
+        var engine = _fixture.Engine;
 
         var result = engine.Evaluators.ValidateTopology(sphere);
 
@@ -60,7 +59,7 @@ public class GeometryEngineTests
     public void GetStatistics_OnSphere_ReturnsValidStatistics()
     {
         var sphere = _fixture.LoadStl("sphere.stl");
-        var engine = (GeometryEngine)_fixture.Engine;
+        var engine = _fixture.Engine;
 
         var result = engine.Evaluators.GetStatistics(sphere);
 
@@ -78,7 +77,7 @@ public class GeometryEngineTests
     public void GetRenderData_ReturnsCorrectSizedArrays()
     {
         var sphere = _fixture.LoadStl("sphere.stl");
-        var engine = (GeometryEngine)_fixture.Engine;
+        var engine = _fixture.Engine;
 
         var result = engine.Evaluators.GetRenderData(sphere);
 
@@ -99,7 +98,7 @@ public class GeometryEngineTests
     public void CalculateDeviationColors_WithCurrentEqualsOriginal_ReturnsNearWhite()
     {
         var sphere = _fixture.LoadStl("sphere.stl");
-        var engine = (GeometryEngine)_fixture.Engine;
+        var engine = _fixture.Engine;
 
         var result = engine.Evaluators.CalculateDeviationColors(sphere, sphere);
 

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Fabolus.Core\Fabolus.Core.csproj" />
     <ProjectReference Include="..\..\src\Geometry.MeshLib\Geometry.MeshLib.csproj" />
+    <ProjectReference Include="..\..\src\Geometry.Manifold\Geometry.Manifold.csproj" />
   </ItemGroup>
 
   <ItemGroup>

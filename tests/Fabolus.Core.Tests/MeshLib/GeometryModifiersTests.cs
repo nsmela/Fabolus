@@ -1,6 +1,6 @@
+using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
-using GeometryMeshLib;
 using System.Numerics;
 using Xunit;
 
@@ -10,12 +10,12 @@ namespace Fabolus.Tests.MeshLib;
 public class GeometryModifiersTests
 {
     private readonly GeometryEngineFixture _fixture;
-    private readonly GeometryEngine _engine;
+    private readonly IGeometryEngine _engine;
 
     public GeometryModifiersTests(GeometryEngineFixture fixture)
     {
         _fixture = fixture;
-        _engine = (GeometryEngine)_fixture.Engine;
+        _engine = _fixture.Engine;
     }
 
     [Fact]

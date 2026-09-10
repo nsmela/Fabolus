@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus.Wpf.Tests", "tests\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Geometry.MeshLib", "src\Geometry.MeshLib\Geometry.MeshLib.csproj", "{F56CDE92-88CC-4D24-B867-BD488C877D48}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Geometry.Manifold", "src\Geometry.Manifold\Geometry.Manifold.csproj", "{3791957B-1B3B-4CBE-B81F-A0BC4CA11837}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -65,6 +67,10 @@ Global
 		{F56CDE92-88CC-4D24-B867-BD488C877D48}.Debug|x64.Build.0 = Debug|x64
 		{F56CDE92-88CC-4D24-B867-BD488C877D48}.Release|x64.ActiveCfg = Release|x64
 		{F56CDE92-88CC-4D24-B867-BD488C877D48}.Release|x64.Build.0 = Release|x64
+		{3791957B-1B3B-4CBE-B81F-A0BC4CA11837}.Debug|x64.ActiveCfg = Debug|x64
+		{3791957B-1B3B-4CBE-B81F-A0BC4CA11837}.Debug|x64.Build.0 = Debug|x64
+		{3791957B-1B3B-4CBE-B81F-A0BC4CA11837}.Release|x64.ActiveCfg = Release|x64
+		{3791957B-1B3B-4CBE-B81F-A0BC4CA11837}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -75,6 +81,7 @@ Global
 		{7B9BD794-A3B6-48B6-AFCA-1F5C18AF237E} = {4A098B28-0A50-4C47-B04A-4B6FD9E93902}
 		{FE3A2D5F-0E94-41A6-9172-98263A7322F8} = {4A098B28-0A50-4C47-B04A-4B6FD9E93902}
 		{F56CDE92-88CC-4D24-B867-BD488C877D48} = {4C284DE2-9423-45B8-9D8B-D4B1EF4DDB6E}
+		{3791957B-1B3B-4CBE-B81F-A0BC4CA11837} = {4C284DE2-9423-45B8-9D8B-D4B1EF4DDB6E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {991C515F-7E69-4CCA-8E45-6635FC152BD0}
