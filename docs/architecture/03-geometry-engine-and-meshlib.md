@@ -1,21 +1,21 @@
 # Geometry Engine & Native MeshLib
 
-## The Native Computational Core
+## The 3D Calculation Engine
 
-Fabolus delegates compute-intensive polygonal and volumetric operations to **MeshLib** (v3.1.2.192), a state-of-the-art computational geometry library engineered in C++ by MeshInspector.
+Fabolus delegates heavy 3D calculations to **MeshLib**, a fast and robust computational geometry library written in C++ by MeshInspector.
 
-MeshLib is linked through official .NET Interop bindings and wrapped entirely within the `Geometry.MeshLib` project.
+MeshLib is connected to Fabolus through official .NET interop bindings and wrapped entirely within the `Geometry.MeshLib` project. This design isolates all native C++ code in one place, keeping the rest of the application written in clean, safe C#.
 
 <!-- IMAGE_PLACEHOLDER: [Figure 12.1: Managed C# to Native C++ Marshaling Lifecycle. Memory layout diagram contrasting managed heap arrays with native unmanaged C++ heap structs and deterministic disposal boundaries. Dimensions: 900x450px.] -->
 
 ---
 
-## Memory Safety & Unmanaged Lifecycle Management
+## Safe Memory Management
 
-In .NET, mixing unmanaged native C++ pointers with the Garbage Collector (GC) introduces risks of memory corruption, double-frees, or severe memory leaks. Fabolus enforces strict safety contracts:
+Running fast native C++ code inside a C# (.NET) application can easily cause memory leaks or crashes if not handled carefully. Fabolus prevents this using two strict rules:
 
-### 1. The `MRMesh` Encapsulation Boundary
-The domain layer (`Fabolus.Core`) only ever interacts with the managed interface [`IMesh`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/IMesh.cs):
+### 1. Clear Separation Between C# and C++
+The main application (`Fabolus.Core` and `Fabolus.Wpf`) only ever works with standard, managed C# meshes ([`IMesh`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/IMesh.cs)):
 
 ```csharp
 public interface IMesh
@@ -30,16 +30,19 @@ public interface IMesh
 }
 ```
 
-The concrete class [`MRMesh`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/MRMesh.cs) is marked `internal sealed`. Native pointers (`MR.Mesh*`) never leak across project references.
+The underlying C++ wrapper class (`MRMesh`) is strictly internal. Raw C++ memory pointers are never exposed to the rest of the program.
 
-### 2. Deterministic Disposal with `using` Scopes
-Whenever a geometric algorithm is invoked, managed vertex and triangle arrays are marshaled into native C++ structures, computed, and converted back into managed arrays. All unmanaged representations implement `IDisposable` and are enclosed in `using` scopes:
+### 2. Immediate Memory Cleanup
+When an operation runs, Fabolus temporarily copies the 3D data into C++, performs the calculation, and copies the resulting shape back into C#.
+
+All C++ resources implement `IDisposable` and are enclosed in `using` statements. As soon as the calculation finishes, the temporary C++ memory is immediately freed:
 
 ```csharp
 public Result<IMesh> Offset(IMesh input, float offsetDistance, float cellSize = 0.0f)
 {
     try
     {
+        // 1. Temporarily pass mesh to C++
         using var model = input.ToMRMesh();
         using var mp = new MR.MeshPart(model);
         using var parms = new MR.OffsetParameters()
@@ -47,7 +50,10 @@ public Result<IMesh> Offset(IMesh input, float offsetDistance, float cellSize = 
             voxelSize = cellSize > 0 ? cellSize : MR.suggestVoxelSize(mp, 1e6f),
         };
 
+        // 2. Run fast native algorithm
         using var result = MR.offsetMesh(mp, offsetDistance, parms);
+
+        // 3. Return clean C# mesh; C++ objects are disposed automatically
         return Result.Success(result.ToIMesh(newMetadata));
     }
     catch (Exception ex)
@@ -57,43 +63,37 @@ public Result<IMesh> Offset(IMesh input, float offsetDistance, float cellSize = 
 }
 ```
 
-When the method scope exits, C++ destructors immediately free native heap memory.
+This guarantees high calculation speeds while completely preventing memory leaks, even during long design sessions with large files.
 
 ---
 
-## Algorithmic Subsystems Deep Dive
+## Key 3D Algorithms
 
-### 1. Robust Constructive Solid Geometry (CSG Booleans) ([`Booleans.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/Booleans.cs))
-- **Difference (`Subtract`)**: Used for cavity coring and vent drilling.
-- **Union (`Union`)**: Merging components into contiguous watertight bodies.
-- **Intersection (`Intersect`)**: Volume overlap evaluation and planar half-space cutting.
-- MeshLib's boolean kernel employs exact arithmetic predicates and adaptive octree spatial partitioning to resolve coplanar facets and near-coincident boundaries without non-manifold crashes.
+### 1. Solid 3D Operations (CSG Booleans) ([`Booleans.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/Booleans.cs))
+Boolean operations combine or subtract 3D shapes:
+- **Subtract**: Carves the bolus cavity and air channel tunnels out of the solid mould block.
+- **Union**: Merges separate 3D bodies into a single continuous, watertight solid.
+- **Intersect**: Evaluates overlapping areas or trims meshes along a cutting plane.
 
-### 2. Morphological Offsetting ([`GeometryModifiers.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/GeometryModifiers.cs))
-- Implements continuous Signed Distance Field (SDF) offsetting:
-  - Outward Offset: $\mathcal{M} \oplus d$
-  - Inward Offset: $\mathcal{M} \ominus d$
-  - Double Offset: $(\mathcal{M} \oplus d) \ominus d$
-- By rasterizing the boundary into an adaptive voxel field, narrow grooves (voxel stepping) collapse, while continuous outer bounds are preserved.
+MeshLib's boolean engine handles complex medical meshes reliably, avoiding the crashes and surface inversion common in basic CAD tools.
 
-### 3. Swept 3D Tubes via Parallel Transport (Bishop Frame) ([`GeometryGenerators.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/GeometryGenerators.cs#L18))
-When sweeping a 3D cylinder or cone along an arbitrary 3D curve (such as an Angled air channel), classic Frenet-Serret framing produces catastrophic gimbal twists at inflection points where curvature approaches zero ($\kappa \to 0$).
+### 2. Volume-Preserving Smoothing ([`GeometryModifiers.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/GeometryModifiers.cs))
+Instead of simple surface blurring (which shrinks the model and thins bolus walls), Fabolus uses a **two-step offset**:
+1. **Inflate**: Expands the surface outward by a set distance, filling the sharp stair-stepping gaps between CT slices.
+2. **Deflate**: Contracts the surface back inward by the exact same distance.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 12.2: Parallel Transport Frame vs Frenet-Serret Frame. Mathematical diagram illustrating gimbal twist in Frenet frames along inflections vs stable Bishop frame transport maintaining smooth radial orientation. Dimensions: 800x400px.] -->
+This removes sharp ridges and corners while returning flat and broad regions to their planned thickness, ensuring the prescribed radiation dose is delivered accurately.
 
-Fabolus implements a **Parallel Transport (Bishop) Frame**:
-1. At path point $\mathbf{p}_0$, compute an initial orthogonal basis $(\mathbf{U}_0, \mathbf{W}_0)$ perpendicular to tangent $\mathbf{T}_0$.
-2. For each subsequent point $\mathbf{p}_i$:
-   - Compute tangent vector: $\mathbf{T}_i = \frac{\mathbf{p}_{i+1} - \mathbf{p}_i}{\|\mathbf{p}_{i+1} - \mathbf{p}_i\|}$
-   - Compute rotation axis: $\mathbf{a} = \mathbf{T}_{i-1} \times \mathbf{T}_i$
-   - Compute rotation angle: $\theta = \arccos(\mathbf{T}_{i-1} \cdot \mathbf{T}_i)$
-   - Form the rotation quaternion:
-     $$\mathbf{q} = \operatorname{Quaternion}\left(\frac{\mathbf{a}}{\|\mathbf{a}\|}, \; \theta\right)$$
-   - Transport the basis vectors: $\mathbf{U}_i = \mathbf{q} \mathbf{U}_{i-1} \mathbf{q}^{-1}$, $\mathbf{W}_i = \mathbf{q} \mathbf{W}_{i-1} \mathbf{q}^{-1}$.
-3. Generate ring vertices at radius $R_i$ around $(\mathbf{U}_i, \mathbf{W}_i)$ and stitch quad-strip triangles between adjacent rings.
+### 3. Smooth Curved Air Channels ([`GeometryGenerators.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/GeometryGenerators.cs#L18))
+When generating curved or angled air channels, Fabolus sweeps circular rings along the channel's 3D path and connects them with triangle strips:
+- Standard curve-following techniques often twist or pinch when a curve turns or flattens out.
+- Fabolus uses a stable orientation technique (known as a **Parallel Transport** or **Bishop frame**) to keep each circular cross-section aligned smoothly with the path.
+- This produces clean, un-twisted cylindrical tubes that ensure silicone can enter and air can escape without obstruction.
 
-### 4. 2D Silhouette Offsetting via Clipper2
-To generate convex hull and shadow projections for sacrificial moulds:
-- Vertices are projected onto the $XY$ plane.
-- The 2D boundary polygon is offset by `OffsetXY` using `Clipper2Lib` with smooth circular arc joins (`JoinType.Round`).
-- The expanded 2D contours are extruded vertically with ear-clipping polygon triangulation for the bottom and top end-caps.
+<!-- IMAGE_PLACEHOLDER: [Figure 12.2: Parallel Transport Frame vs Standard Framing. Visual comparison showing how stable frame transport prevents twisting along curved 3D channel paths. Dimensions: 800x400px.] -->
+
+### 4. 2D Mould Footprints via Clipper2
+To create mould shells (Convex, Concave, or Contoured):
+- Fabolus projects the bottom outline of the bolus downward onto a flat 2D plane.
+- The 2D outline is expanded outward by the specified wall thickness using the **Clipper2** polygon library, with smooth rounded corners.
+- The expanded 2D shape is then extruded vertically to create the mould walls, capped with flat top and bottom faces.
