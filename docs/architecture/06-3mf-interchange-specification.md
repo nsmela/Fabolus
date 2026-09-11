@@ -127,7 +127,7 @@ Fabolus's packaging strategy adheres strictly to the core 3MF Consortium specifi
 
 | Capability | Standard ASCII STL | Standard Binary STL | Generic 3MF | Fabolus Extended 3MF |
 | :--- | :--- | :--- | :--- | :--- |
-| **Units Defined** | No (unitless) | No (unitless) | Yes (Explicit $mm$) | **Yes (Explicit $mm$)** |
+| **Units Defined** | No (unitless) | No (unitless) | Yes (Explicit mm) | **Yes (Explicit mm)** |
 | **File Compression** | None (huge file sizes) | Moderate (~80 bytes/tri) | High (ZIP compressed) | **High (~85% smaller than STL)** |
 | **Multi-Body Support** | No | No | Yes | **Yes (Mould + Cavity + Channels)** |
 | **Watertight Manifold Check** | No | No | Implicit | **Enforced** |

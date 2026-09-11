@@ -1,10 +1,10 @@
 # Domain Model & State Management
 
-## Domain-Driven Design (DDD) in Fabolus
+## Predictable Domain Design
 
-`Fabolus.Core` is built upon strict Domain-Driven Design (DDD) principles. The domain model enforces business invariants, guarantees topological consistency, and eliminates shared mutable state across asynchronous threads.
+`Fabolus.Core` is built with a focus on clinical safety, predictable data flow, and **immutability** (data that cannot be changed once created). Rather than modifying existing 3D models in place, every operation produces a clean new state. This prevents data corruption, ensures safe multi-threading (so intensive 3D calculations do not freeze or disrupt the user interface), and maintains a reliable history of every patient model.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 13.1: Domain Entity-Relationship Diagram. UML class diagram illustrating Workspace aggregate root, IMesh interface, MeshMetadata value record, MetadataKey strongly typed descriptors, and Result monads. Dimensions: 900x500px.] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 13.1: Domain Architecture Diagram. Component diagram illustrating Workspace container, IMesh interface, MeshMetadata value record, MetadataKey strongly typed descriptors, and Result error containers. Dimensions: 900x500px.] -->
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -32,12 +32,12 @@
 
 ---
 
-## The `Workspace` Aggregate Root ([`Workspace.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Workspace.cs))
+## The `Workspace` Container ([`Workspace.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Workspace.cs))
 
-The central aggregate root of the domain is `Workspace`.
+`Workspace` is the top-level container holding the entire active project session. It tracks all loaded meshes, which mesh is currently selected, and the sequence of modifications applied to each shape.
 
-### 1. Immutability & Structural Sharing
-`Workspace` is an **immutable record**. Methods do not mutate internal dictionary state; instead, they return a new `Result<Workspace>` representing the updated state:
+### 1. Safe Multi-Threading & Immutability
+`Workspace` is an **immutable record**. Methods do not modify internal lists; instead, they return a new `Result<Workspace>` representing the updated state:
 
 ```csharp
 public Result<Workspace> AddMesh(IMesh mesh, bool setActive = true)
@@ -46,19 +46,19 @@ public Result<Workspace> UpdateMesh(IMesh updatedMesh)
 public Result<Workspace> SetActiveMesh(Guid? meshId)
 ```
 
-Because instances are immutable, a background worker thread calculating a boolean mould can safely read from its captured `Workspace` instance without locking, while the UI thread renders or navigates another view.
+Because workspace objects never change in place, background worker threads (such as those generating moulds or calculating booleans) can safely read the workspace without lock contention, while the user interface continues rendering smoothly.
 
-### 2. Ownership & Memory Contracts
-In computational geometry, passing million-polygon meshes around carelessly causes rapid memory fragmentation. `Workspace` enforces a strict memory ownership contract:
-- **Meshes Passed In** (`AddMesh`, `UpdateMesh`) are **consumed**. The caller surrenders ownership to the workspace.
-- **BaseMesh Seeding**: The moment a mesh enters the workspace via `AddMesh`, if it lacks a `BaseMesh`, the workspace automatically establishes its initial state as the pristine base anchor for the command-replay pipeline.
-- **Read-Only Inspection**: ViewModels and UI panels should **never fetch heavy geometry** just to read a name or check volume. Instead, they access [`Workspace.MeshMetadataList`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Workspace.cs#L23) or [`GetActiveMeshMetadata()`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Workspace.cs#L157). `MeshMetadata` is a pure managed value object with zero unmanaged memory overhead.
+### 2. Mesh Ownership & Memory Safety
+3D medical meshes contain millions of vertices and triangles. Passing them around carelessly can cause memory exhaustion. `Workspace` manages mesh memory carefully:
+- **Consuming Inputs**: When a mesh is added (`AddMesh`) or updated (`UpdateMesh`), the workspace takes full ownership of that data.
+- **Base Mesh Seeding**: The first time a mesh enters the workspace, Fabolus automatically preserves an untouched copy of its geometry as the anchor for future recalculations.
+- **Lightweight Inspection**: User interface panels and ViewModels do not need to fetch heavy 3D geometry just to check a mesh's name, dimensions, or volume. Instead, they read `MeshMetadata`—a lightweight list of properties with virtually zero memory overhead.
 
 ---
 
-## The `MeshMetadata` Value Object & Type-Safe Keys
+## The `MeshMetadata` System & Type-Safe Keys
 
-Rather than using loosely typed string-to-object dictionaries, Fabolus uses strongly-typed [`MetadataKey<T>`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/MetadataKey.cs) descriptors:
+Rather than storing settings and properties in loose text dictionaries, Fabolus uses strongly-typed [`MetadataKey<T>`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/MetadataKey.cs) descriptors:
 
 ```csharp
 public static class CoreKeys {
@@ -68,13 +68,13 @@ public static class CoreKeys {
     public static readonly MetadataKey<string> CreatedBy = new("Created By");
     public static readonly MetadataKey<IReadOnlyList<IMeshCommand>> Commands = new("Commands");
 
-    // Stores the immutable base geometry the command list replays against.
+    // Stores the untouched base geometry the command list replays against.
     internal static readonly MetadataKey<IMesh> BaseMesh = new("Base Mesh");
 }
 ```
 
-### High-Performance Batch Mutations
-Modifying immutable dictionaries one property at a time produces multiple intermediate allocations. To maximize performance, `MeshMetadata` supports single-allocation batch updates:
+### High-Performance Batch Updates
+Updating immutable data property-by-property can cause extra memory allocations. To keep performance high, `MeshMetadata` allows multiple properties to be updated simultaneously in a single step:
 
 ```csharp
 var updatedMetadata = activeMesh.Metadata.WithProperties(m => m
@@ -83,18 +83,20 @@ var updatedMetadata = activeMesh.Metadata.WithProperties(m => m
     .Set(MeshIOKeys.Topology, topologyValidation));
 ```
 
-This allocates a temporary builder, applies all mutations, and freezes it back into an immutable record with a single allocation.
+This applies all changes at once and returns the updated metadata record in a single allocation.
 
 ---
 
-## Functional Error Handling: `Result<T>` and `Maybe<T>`
+## Predictable Error Handling: `Result<T>` and `Maybe<T>`
 
-Fabolus adopts **Railway-Oriented Programming (ROP)**. Domain errors (such as attempting to calculate volume on an open shell or dividing a mesh with an invalid normal) are normal, anticipated clinical occurrences, not runtime crashes.
+In clinical radiation therapy software, geometric edge cases—such as an imported mesh having holes, or a cut plane that misses the model entirely—are everyday occurrences, not system crashes.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 13.2: Railroad-Oriented Programming Flow. Flowchart illustrating Result<T> failure short-circuiting across feature workflows without throwing exceptions. Dimensions: 800x350px.] -->
+Instead of throwing unhandled exceptions or returning `null` (which can cause sudden crashes), Fabolus wraps operations in two predictable types:
 
-### 1. The `Result<T>` Monad ([`Result.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Result.cs))
-Methods that can fail return `Result<T>`, which encapsulates either a successful value or a strongly-typed [`Error`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Result.cs#L101):
+<!-- IMAGE_PLACEHOLDER: [Figure 13.2: Predictable Result<T> Error Handling Flow. Flowchart illustrating Result<T> success and failure pathways across feature workflows without unexpected runtime crashes. Dimensions: 800x350px.] -->
+
+### 1. The `Result<T>` Container ([`Result.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Result.cs))
+Methods that can fail return `Result<T>`, which clearly indicates either `Success` (with the resulting mesh or value) or `Failure` (with a specific, user-friendly error message):
 
 ```csharp
 public Result<Workspace> Execute(Workspace workspace, SmoothSettings settings)
@@ -107,12 +109,12 @@ public Result<Workspace> Execute(Workspace workspace, SmoothSettings settings)
 }
 ```
 
-### 2. The `Maybe<T>` Option Monad ([`Maybe.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Maybe.cs))
-Null references are completely eliminated from the domain layer. Any optional value (such as a parent mesh reference or smoothing settings) returns `Maybe<T>`:
+### 2. The `Maybe<T>` Optional Value ([`Maybe.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Maybe.cs))
+`null` references are completely eliminated from the core layer. Any value that might not be present (such as whether a bolus has custom smoothing settings attached) is wrapped in `Maybe<T>`, ensuring code checks for the value before using it:
 
 ```csharp
 Maybe<SmoothSettings> smoothing = metadata.GetSmoothing();
 if (smoothing.HasValue) {
     Console.WriteLine($"Smoothing Intensity: {smoothing.Value.Intensity} mm");
 }
-```
+``````
