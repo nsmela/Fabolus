@@ -17,4 +17,19 @@
     <ProjectReference Include="..\Fabolus.Core\Fabolus.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      Copied flat, beside the assembly, which is where ManifoldNative's resolver looks first.
+      Declared once: a second glob over runtimes\** would match the same files again and copy
+      1.25 MB of binaries twice into every output directory.
+    -->
+    <None Include="runtimes\win-x64\native\*.dll" Link="%(FileName)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <!--
+      Manifold is Apache-2.0, and clause 4(a) requires that recipients of the binaries get a
+      copy of the licence. Copying it beside them is what makes that true of anything built on
+      this project, not just of this repository.
+    -->
+    <None Include="runtimes\LICENSE.manifold.txt" Link="LICENSE.manifold.txt" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
 </Project>

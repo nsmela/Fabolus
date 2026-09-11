@@ -77,16 +77,18 @@ a curved surface independently, so a sliver triangle spanning a whole wrapped la
 the geometry beside it. Plain ear clipping produced exactly that; picking the roundest ear and
 then flipping to Delaunay is what fixes it.
 
-**No native binaries ship with this project.** `ManifoldNative` probes for `manifoldc` beside the
-assembly, beside the host, and in the NuGet `runtimes/<rid>/native` layout, and reports
-`Manifold.Unavailable` rather than throwing when it finds nothing. Building the app needs
-`manifoldc.dll` (Manifold 3.x, win-x64) dropped into the output; a Linux or macOS build needs the
-corresponding `.so`/`.dylib`. Built from source with:
+**The win-x64 natives are vendored; nothing else is.** `runtimes/win-x64/native/` holds
+`manifoldc.dll` and `manifold.dll`, and the project copies them flat into every build output -
+including, transitively, the app's and the test project's. `ManifoldNative` probes beside the
+assembly, beside the host, and in the `runtimes/<rid>/native` layout, and reports
+`Manifold.Unavailable` rather than throwing when it finds nothing. A Linux or macOS build has to
+supply its own `.so`/`.dylib`; see `runtimes/README.md` for the build recipe.
 
-```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DMANIFOLD_CBIND=ON -DMANIFOLD_PAR=ON -DBUILD_SHARED_LIBS=ON
-cmake --build build -j
-```
+Those two DLLs came from `nsmela/meshcsg` byte for byte, and their build provenance is not
+established - they carry no version resource. What *is* established is that their C API is
+exactly Manifold 3.5.1's: the exported symbol sets match a 3.5.1 build from source precisely,
+293 entry points with no difference either way. `runtimes/README.md` records the checksums, what
+is still unknown, and why that matters under IEC 62304.
 
 **`Fabolus.Core` still references MeshLib.** The package reference is in `Fabolus.Core.csproj`
 even though no `MR.` type is used there, so this project pulls MeshLib in transitively. Dropping
