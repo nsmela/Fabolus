@@ -9,6 +9,10 @@ For decades, additive manufacturing in clinical healthcare has been held back by
 
 To establish a modern, reproducible digital thread, Fabolus adopts the **3D Manufacturing Format (3MF)** as its native project and exchange container. 
 
+The Fabolus `.3mf` file serves a dual purpose in a single package:
+- **Direct Slicing & Printing**: Any standard 3D slicer (such as Bambu Studio, PrusaSlicer, OrcaSlicer, or Cura) can open the `.3mf` file directly to slice and 3D print the final result (e.g., the finished sacrificial mould or smoothed bolus). The 3D printing technician does not need Fabolus or any special plugins.
+- **Includes the Original Bolus (Hidden from Slicers)**: The pristine, untouched original bolus contour imported from the treatment planning system is safely packaged inside the file as a background resource. 3D slicers completely ignore this base mesh because only the final printable model is declared in the 3MF build list. When the file is re-opened in Fabolus, however, the software detects the original mesh and full command history, allowing clinicians to review or adjust parameters non-destructively at any time.
+
 A `.3mf` file is a compressed Open Packaging Convention (OPC) ZIP archive containing structured XML documents:
 
 ```
