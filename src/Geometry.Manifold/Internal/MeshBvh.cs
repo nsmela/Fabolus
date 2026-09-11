@@ -13,11 +13,21 @@ internal sealed class MeshBvh
     /// <summary>Leaves hold at most this many triangles; below it the traversal costs more than the scan.</summary>
     private const int LeafSize = 8;
 
+    /// <summary>Vertices this close together are the same vertex, for edge and corner adjacency.</summary>
+    private const float WeldTolerance = 1e-5f;
+
     private readonly Vector3[] _vertices;
     private readonly int[] _triangles;
     private readonly int[] _triangleIndices;
     private readonly Node[] _nodes;
     private readonly int _nodeCount;
+
+    // Built on first signed-distance query; see EnsurePseudoNormals.
+    private readonly object _pseudoNormalLock = new();
+    private volatile Vector3[]? _faceNormals;
+    private int[]? _canonical;
+    private Vector3[]? _vertexPseudoNormals;
+    private Dictionary<(int, int), Vector3>? _edgePseudoNormals;
 
     /// <summary>
     /// Traversal scratch space. Every query below is a stack-driven descent, and allocating a
@@ -189,11 +199,19 @@ internal sealed class MeshBvh
     /// <summary>
     /// Nearest point on the surface to <paramref name="point"/>, and the triangle carrying it.
     /// </summary>
-    public bool ClosestPoint(Vector3 point, out Vector3 closest, out int triangle, out float distance)
+    public bool ClosestPoint(Vector3 point, out Vector3 closest, out int triangle, out float distance) =>
+        ClosestPoint(point, out closest, out triangle, out distance, out _);
+
+    /// <summary>
+    /// Nearest point on the surface, the triangle carrying it, and which part of that triangle it
+    /// landed on - which is what the signed-distance sign has to be taken against.
+    /// </summary>
+    private bool ClosestPoint(Vector3 point, out Vector3 closest, out int triangle, out float distance, out Feature feature)
     {
         closest = point;
         triangle = -1;
         distance = float.MaxValue;
+        feature = Feature.Face;
         if (IsEmpty) return false;
 
         float bestSquared = float.MaxValue;
@@ -216,13 +234,14 @@ internal sealed class MeshBvh
                 {
                     int candidate = _triangleIndices[i];
                     GetTriangle(candidate, out var a, out var b, out var c);
-                    var projected = ClosestPointOnTriangle(point, a, b, c);
+                    var projected = ClosestPointOnTriangle(point, a, b, c, out var candidateFeature);
                     float squared = (projected - point).LengthSquared();
                     if (squared < bestSquared)
                     {
                         bestSquared = squared;
                         closest = projected;
                         triangle = candidate;
+                        feature = candidateFeature;
                     }
                 }
                 continue;
@@ -240,19 +259,172 @@ internal sealed class MeshBvh
     /// Distance to the surface, negative inside the solid.
     /// </summary>
     /// <remarks>
-    /// The sign comes from which side of the nearest triangle the point falls on, not from a
-    /// crossing-parity ray cast. Parity is more robust around sharp creases, but it costs a full
-    /// traversal per query on top of the closest-point search, and the level-set offset asks for
-    /// hundreds of thousands of these - the pseudo-normal test is what keeps offsetting usable.
+    /// The sign is taken against the angle-weighted pseudonormal of whichever feature of the
+    /// nearest triangle the closest point actually landed on - its interior, one of its edges, or
+    /// one of its corners (Baerentzen and Aanaes, 2005). Testing against the triangle's own face
+    /// normal instead is only correct when the closest point is in the face interior, and most of
+    /// the volume around a creased or concave part is nearest to an edge or a corner. There the
+    /// face normal belongs to whichever of the adjacent triangles happened to win the
+    /// closest-point search, so the sign flips essentially at random; the isosurface built on
+    /// that field comes back shredded into islands, which is what a bolus offset looked like
+    /// before this.
+    ///
+    /// Parity from a crossing ray is also correct, but it costs a whole second traversal per
+    /// query, and the level-set offset asks for hundreds of thousands of them.
     /// </remarks>
     public float SignedDistance(Vector3 point)
     {
-        if (!ClosestPoint(point, out var closest, out int triangle, out float distance)) return float.MaxValue;
+        if (!ClosestPoint(point, out var closest, out int triangle, out float distance, out var feature))
+        {
+            return float.MaxValue;
+        }
 
-        var normal = TriangleNormal(triangle);
+        var normal = PseudoNormal(triangle, feature);
         if (normal == Vector3.Zero) return distance;
 
         return Vector3.Dot(point - closest, normal) < 0f ? -distance : distance;
+    }
+
+    /// <summary>Which part of a triangle a closest point landed on.</summary>
+    private enum Feature
+    {
+        Face,
+        VertexA,
+        VertexB,
+        VertexC,
+        EdgeAB,
+        EdgeBC,
+        EdgeCA,
+    }
+
+    /// <summary>
+    /// The outward normal to test a point's side against, for the feature it is nearest to. A face
+    /// uses its own normal; an edge sums the two triangles sharing it; a vertex sums the triangles
+    /// around it weighted by the angle each spans there, which is what makes the sign continuous
+    /// as the closest point crosses from one feature to the next.
+    /// </summary>
+    private Vector3 PseudoNormal(int triangle, Feature feature)
+    {
+        EnsurePseudoNormals();
+
+        if (feature == Feature.Face) return _faceNormals![triangle];
+
+        int a = _canonical![_triangles[triangle * 3]];
+        int b = _canonical[_triangles[triangle * 3 + 1]];
+        int c = _canonical[_triangles[triangle * 3 + 2]];
+
+        switch (feature)
+        {
+            case Feature.VertexA: return Normalise(_vertexPseudoNormals![a]);
+            case Feature.VertexB: return Normalise(_vertexPseudoNormals![b]);
+            case Feature.VertexC: return Normalise(_vertexPseudoNormals![c]);
+            case Feature.EdgeAB: return EdgeNormal(a, b, triangle);
+            case Feature.EdgeBC: return EdgeNormal(b, c, triangle);
+            case Feature.EdgeCA: return EdgeNormal(c, a, triangle);
+            default: return _faceNormals![triangle];
+        }
+    }
+
+    private Vector3 EdgeNormal(int first, int second, int triangle)
+    {
+        var key = first < second ? (first, second) : (second, first);
+
+        // An edge with no recorded partner is a boundary edge; the one face it has is all there
+        // is to go on.
+        return _edgePseudoNormals!.TryGetValue(key, out var normal)
+            ? Normalise(normal)
+            : _faceNormals![triangle];
+    }
+
+    private static Vector3 Normalise(Vector3 v)
+    {
+        float length = v.Length();
+        return length > 1e-20f ? v / length : Vector3.Zero;
+    }
+
+    /// <summary>
+    /// Builds the pseudonormal tables on first use. Only the signed-distance path needs them, and
+    /// most BVHs in this engine are built for raycasting alone.
+    /// </summary>
+    private void EnsurePseudoNormals()
+    {
+        if (_faceNormals is not null) return;
+
+        lock (_pseudoNormalLock)
+        {
+            if (_faceNormals is not null) return;
+
+            int triangleCount = _triangles.Length / 3;
+
+            // Vertex and edge adjacency only mean anything on an indexed mesh, and a mesh read
+            // from an STL has no index buffer at all - every triangle carries its own three
+            // corners. Canonical ids stand in for the weld without disturbing the positions the
+            // BVH was built over.
+            var canonical = new int[_vertices.Length];
+            var lookup = new Dictionary<(long, long, long), int>(_vertices.Length);
+            for (int i = 0; i < _vertices.Length; i++)
+            {
+                var v = _vertices[i];
+                var key = (
+                    (long)MathF.Round(v.X / WeldTolerance),
+                    (long)MathF.Round(v.Y / WeldTolerance),
+                    (long)MathF.Round(v.Z / WeldTolerance));
+
+                if (!lookup.TryGetValue(key, out int id))
+                {
+                    id = lookup.Count;
+                    lookup[key] = id;
+                }
+                canonical[i] = id;
+            }
+
+            var faceNormals = new Vector3[triangleCount];
+            var vertexNormals = new Vector3[lookup.Count];
+            var edgeNormals = new Dictionary<(int, int), Vector3>(triangleCount * 3 / 2);
+
+            for (int t = 0; t < triangleCount; t++)
+            {
+                GetTriangle(t, out var pa, out var pb, out var pc);
+
+                var cross = Vector3.Cross(pb - pa, pc - pa);
+                var normal = Normalise(cross);
+                faceNormals[t] = normal;
+                if (normal == Vector3.Zero) continue;
+
+                int a = canonical[_triangles[t * 3]];
+                int b = canonical[_triangles[t * 3 + 1]];
+                int c = canonical[_triangles[t * 3 + 2]];
+
+                // Weighting by the angle the triangle spans at each corner is what makes the
+                // vertex normal independent of how finely the surface around it is tessellated.
+                vertexNormals[a] += normal * Angle(pb - pa, pc - pa);
+                vertexNormals[b] += normal * Angle(pa - pb, pc - pb);
+                vertexNormals[c] += normal * Angle(pa - pc, pb - pc);
+
+                AddEdgeNormal(edgeNormals, a, b, normal);
+                AddEdgeNormal(edgeNormals, b, c, normal);
+                AddEdgeNormal(edgeNormals, c, a, normal);
+            }
+
+            _canonical = canonical;
+            _vertexPseudoNormals = vertexNormals;
+            _edgePseudoNormals = edgeNormals;
+            _faceNormals = faceNormals; // Published last: it is what the null check above reads.
+        }
+    }
+
+    private static void AddEdgeNormal(Dictionary<(int, int), Vector3> edges, int a, int b, Vector3 normal)
+    {
+        var key = a < b ? (a, b) : (b, a);
+        edges[key] = edges.TryGetValue(key, out var existing) ? existing + normal : normal;
+    }
+
+    private static float Angle(Vector3 first, Vector3 second)
+    {
+        float lengths = first.Length() * second.Length();
+        if (lengths < 1e-20f) return 0f;
+
+        return MathF.Acos(Math.Clamp(Vector3.Dot(first, second) / lengths, -1f, 1f));
     }
 
     /// <summary>
@@ -396,39 +568,54 @@ internal sealed class MeshBvh
         return t > eps;
     }
 
-    private static Vector3 ClosestPointOnTriangle(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
+    private static Vector3 ClosestPointOnTriangle(Vector3 p, Vector3 a, Vector3 b, Vector3 c, out Feature feature)
     {
         // Ericson, Real-Time Collision Detection: walk the Voronoi regions of the triangle's
-        // vertices and edges before falling through to the face interior.
+        // vertices and edges before falling through to the face interior. Each region is also
+        // exactly the feature the pseudonormal has to come from, so it is reported alongside.
         var ab = b - a;
         var ac = c - a;
         var ap = p - a;
 
         float d1 = Vector3.Dot(ab, ap);
         float d2 = Vector3.Dot(ac, ap);
-        if (d1 <= 0f && d2 <= 0f) return a;
+        if (d1 <= 0f && d2 <= 0f)
+        {
+            feature = Feature.VertexA;
+            return a;
+        }
 
         var bp = p - b;
         float d3 = Vector3.Dot(ab, bp);
         float d4 = Vector3.Dot(ac, bp);
-        if (d3 >= 0f && d4 <= d3) return b;
+        if (d3 >= 0f && d4 <= d3)
+        {
+            feature = Feature.VertexB;
+            return b;
+        }
 
         float vc = d1 * d4 - d3 * d2;
         if (vc <= 0f && d1 >= 0f && d3 <= 0f)
         {
             float denominator = d1 - d3;
+            feature = Feature.EdgeAB;
             return a + (MathF.Abs(denominator) > 1e-20f ? d1 / denominator : 0f) * ab;
         }
 
         var cp = p - c;
         float d5 = Vector3.Dot(ab, cp);
         float d6 = Vector3.Dot(ac, cp);
-        if (d6 >= 0f && d5 <= d6) return c;
+        if (d6 >= 0f && d5 <= d6)
+        {
+            feature = Feature.VertexC;
+            return c;
+        }
 
         float vb = d5 * d2 - d1 * d6;
         if (vb <= 0f && d2 >= 0f && d6 <= 0f)
         {
             float denominator = d2 - d6;
+            feature = Feature.EdgeCA;
             return a + (MathF.Abs(denominator) > 1e-20f ? d2 / denominator : 0f) * ac;
         }
 
@@ -437,12 +624,18 @@ internal sealed class MeshBvh
         {
             float denominator = d4 - d3 + d5 - d6;
             float w = MathF.Abs(denominator) > 1e-20f ? (d4 - d3) / denominator : 0f;
+            feature = Feature.EdgeBC;
             return b + w * (c - b);
         }
 
         float total = va + vb + vc;
-        if (MathF.Abs(total) < 1e-20f) return a;
+        if (MathF.Abs(total) < 1e-20f)
+        {
+            feature = Feature.VertexA;
+            return a;
+        }
 
+        feature = Feature.Face;
         return a + ab * (vb / total) + ac * (vc / total);
     }
 }
