@@ -93,6 +93,109 @@ The [`ViewportControl`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wp
 2. It wraps the geometry in an `Element3D` and fires `VisualAddedOrUpdated`, which `ViewportControl` adds to or updates in the scene.
 3. The ViewModel itself holds no `Element3D` references and can be unit-tested without a graphical window.
 
+### Practical Example: Linking `SmoothingViewModel` and `SmoothingSceneManager`
+
+To see this decoupling in action, consider how smoothing operations and cross-sections are displayed in the 3D viewport:
+
+#### 1. The ViewModel Owns the Scene Manager and Sends Domain Data
+The ViewModel ([`SmoothingViewModel.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Smoothing/SmoothingViewModel.cs)) implements `IViewState`. It manages user inputs (such as smoothing intensity or display mode) and passes pure domain meshes (`IMesh`) to its scene manager, without needing to know anything about DirectX 3D visual elements:
+
+```csharp
+public partial class SmoothingViewModel : ObservableObject, IViewState 
+{
+    private readonly SmoothingSceneManager _sceneManager;
+    private IMesh? _stagedMesh;
+
+    // Expose the scene manager to satisfy the IViewState contract
+    public ISceneManager SceneManager => _sceneManager;
+
+    public SmoothingViewModel(IGeometryEngine engine, IMessenger messenger)
+    {
+        // Instantiates its dedicated scene manager
+        _sceneManager = new SmoothingSceneManager(engine, messenger);
+    }
+
+    private void RenderViewport()
+    {
+        if (_stagedMesh is null) return;
+
+        // Prepare domain meshes (pure geometry, zero DirectX dependencies)
+        IMesh? unsmoothedMesh = _unsmoothedTwin;
+        double[]? heatmapColors = ComputeHeatmapColors();
+
+        // Hand domain meshes to the Scene Manager for display
+        _sceneManager.UpdateMesh(_stagedMesh, unsmoothedMesh, heatmapColors);
+    }
+}
+```
+
+#### 2. The Scene Manager Builds 3D Visuals and Fires Events
+The Scene Manager ([`SmoothingSceneManager.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Smoothing/SmoothingSceneManager.cs)) receives the domain meshes, converts them into graphical geometry, configures DirectX materials, and raises events:
+
+```csharp
+public class SmoothingSceneManager : ISceneManager
+{
+    public event Action<Element3D>? VisualAddedOrUpdated;
+    public event Action<Guid>? VisualRemovedById;
+
+    private Guid _activeVisualId = Guid.Empty;
+
+    public void UpdateMesh(IMesh mesh, IMesh? unsmoothedMesh = null, double[]? heatmapColors = null)
+    {
+        // 1. Remove the previous visual from the 3D scene
+        VisualRemovedById?.Invoke(_activeVisualId);
+
+        // 2. Convert domain mesh to HelixToolkit DirectX geometry
+        MeshGeometry3D geometry = mesh.ToHelixMesh(_engine, heatmapColors).Value;
+
+        // 3. Create the 3D visual element and assign materials
+        var model = new MeshGeometryModel3D
+        {
+            Geometry = geometry,
+            Material = _displayMode == SmoothDisplayMode.Heatmap 
+                ? new VertColorMaterial() 
+                : Skins.Surface.Emerald,
+            CullMode = SharpDX.Direct3D11.CullMode.Back,
+        };
+        _activeVisualId = model.GUID;
+
+        // 4. Notify the ViewportControl to display the new visual
+        VisualAddedOrUpdated?.Invoke(model);
+    }
+}
+```
+
+#### 3. The Viewport Binds to the Active Scene Manager
+In [`MainView.xaml`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Main/MainView.xaml), the shared 3D viewport binds directly to whichever ViewModel is currently active:
+
+```xml
+<viewport:ViewportControl 
+    Grid.Row="1"
+    SceneManager="{Binding SceneManager}" />
+```
+
+When `MainViewModel` switches tabs, `ViewportControl` automatically swaps event subscriptions:
+1. Unsubscribes from the previous scene manager's events and calls `oldManager.OnDeactivated()`.
+2. Subscribes to the incoming scene manager's events (`VisualAddedOrUpdated`, `VisualRemovedById`, `VisualsCleared`) and calls `newManager.OnActivated()`.
+3. When `VisualAddedOrUpdated` fires, `ViewportControl` adds the new `Element3D` to the HelixToolkit rendering pipeline.
+
+#### 4. Forwarding Interactive Viewport Input
+When operators interact directly with 3D elements in the viewport (such as dragging a cutting plane gizmo or picking channel coordinates), `ViewportControl` forwards mouse and keyboard events to the active `ISceneManager`:
+
+```csharp
+// Inside ViewportControl.xaml.cs
+private void OnMouseDown(object sender, MouseButtonEventArgs e)
+{
+    if (SceneManager is not null)
+    {
+        var hits = MainViewport.FindHits(e.GetPosition(MainViewport));
+        SceneManager.OnMouseDown(new MouseDown3DEventArgs(hits, e));
+    }
+}
+```
+
+If the interaction changes clinical state (such as adjusting a cross-section height or placing an air vent), the Scene Manager notifies the ViewModel via a callback, keeping presentation and domain logic cleanly separated.
+
 ---
 
 ## Inter-Component Event Messaging (`IMessenger`)
