@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace GeometryManifold.Internal.Native;
@@ -55,74 +54,10 @@ internal static unsafe class ManifoldNative
 
     static ManifoldNative()
     {
-        NativeLibrary.SetDllImportResolver(typeof(ManifoldNative).Assembly, Resolve);
+        NativeLibraryResolver.Register(LibraryName, ProbePaths);
     }
 
-    private static IntPtr Resolve(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
-    {
-        if (libraryName != LibraryName) return IntPtr.Zero;
-
-        foreach (var path in ProbePaths())
-        {
-            if (File.Exists(path) && NativeLibrary.TryLoad(path, out var handle))
-            {
-                return handle;
-            }
-        }
-
-        return IntPtr.Zero;
-    }
-
-    /// <summary>
-    /// Every location the native library might sit in, most specific first. The assembly's own
-    /// directory and the host's base directory are not the same thing - deployed into a plug-in
-    /// folder the natives travel with the assembly - so both are searched.
-    /// </summary>
-    private static IEnumerable<string> ProbePaths()
-    {
-        foreach (var root in Roots())
-        {
-            yield return Path.Combine(root, "manifoldc.dll");
-            yield return Path.Combine(root, "libmanifoldc.so");
-            yield return Path.Combine(root, "manifoldc.so");
-            yield return Path.Combine(root, "libmanifoldc.dylib");
-
-            foreach (var rid in new[] { "win-x64", "win-arm64" })
-            {
-                yield return Path.Combine(root, "runtimes", rid, "native", "manifoldc.dll");
-            }
-
-            foreach (var rid in new[] { "linux-x64", "linux-arm64" })
-            {
-                yield return Path.Combine(root, "runtimes", rid, "native", "libmanifoldc.so");
-            }
-
-            foreach (var rid in new[] { "osx-arm64", "osx-x64" })
-            {
-                yield return Path.Combine(root, "runtimes", rid, "native", "libmanifoldc.dylib");
-            }
-        }
-    }
-
-    private static IEnumerable<string> Roots()
-    {
-        // Assembly.Location is empty in a single-file publish, hence the guard.
-        var assemblyDirectory = Path.GetDirectoryName(typeof(ManifoldNative).Assembly.Location);
-        if (!string.IsNullOrEmpty(assemblyDirectory))
-        {
-            yield return assemblyDirectory;
-        }
-
-        var baseDirectory = AppContext.BaseDirectory;
-        if (!string.IsNullOrEmpty(baseDirectory) &&
-            !string.Equals(
-                baseDirectory.TrimEnd(Path.DirectorySeparatorChar),
-                assemblyDirectory?.TrimEnd(Path.DirectorySeparatorChar),
-                StringComparison.OrdinalIgnoreCase))
-        {
-            yield return baseDirectory;
-        }
-    }
+    private static IEnumerable<string> ProbePaths() => NativeLibraryResolver.ProbePaths(LibraryName);
 
     /// <summary>Signed distance callback for the level-set mesher. Positive inside the solid.</summary>
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]

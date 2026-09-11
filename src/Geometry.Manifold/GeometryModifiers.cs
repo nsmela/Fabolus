@@ -103,8 +103,7 @@ internal sealed class GeometryModifiers : IGeometryModifiers
     /// </summary>
     private Result<IMesh> OffsetOnce(IMesh input, float offsetDistance, float cellSize)
     {
-        var bvh = new MeshBvh(input.Vertices, input.Triangles);
-        if (bvh.IsEmpty) return GeometryErrors.InvalidMesh;
+        if (input.TriangleCount == 0) return GeometryErrors.InvalidMesh;
 
         var min = new Vector3(float.MaxValue);
         var max = new Vector3(float.MinValue);
@@ -129,6 +128,24 @@ internal sealed class GeometryModifiers : IGeometryModifiers
         {
             edgeLength *= (float)Math.Cbrt(requestedVoxels / MaxOffsetVoxels);
         }
+
+        // The native shim runs the whole offset, callback included, in one call. Going through
+        // the managed field instead costs a P/Invoke transition per sample, and this asks for
+        // hundreds of thousands of them - the transitions, not the distances, are the expense.
+        if (NativeDistanceField.IsAvailable)
+        {
+            var signMode = NativeDistanceField.ChooseSignMode(input);
+            var native = NativeDistanceField.Offset(
+                input, offsetDistance, min, max, edgeLength, signMode, input.Metadata);
+
+            if (native.IsSuccess) return native;
+
+            // Fall through to the managed path: the shim reports an absent Manifold or a
+            // degenerate field as a value, and the managed field may still cope.
+        }
+
+        var bvh = new MeshBvh(input.Vertices, input.Triangles);
+        if (bvh.IsEmpty) return GeometryErrors.InvalidMesh;
 
         return ManifoldKernel.LevelSet(
             bvh.SignedDistance, min, max, edgeLength, offsetDistance, input.Metadata);

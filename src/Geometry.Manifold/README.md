@@ -39,12 +39,12 @@ managed code that fills those gaps.
 | --- | --- |
 | Union / Subtract / Intersect | Manifold booleans. Exact, and always manifold — no error string to check afterwards. |
 | Extrude polygon | `manifold_extrude`, which triangulates the caps and closes the solid itself. |
-| Offset / OffsetDouble | `manifold_level_set` over a signed distance field sampled from `MeshBvh`. |
+| Offset / OffsetDouble | `manifold_level_set` over a signed distance field - from the `native/` libigl shim where it is present, from `MeshBvh` otherwise. |
 | Repair self-intersections | A self-union, which re-cuts every crossing surface. |
 | Translate / Scale / Rotate | Plain arithmetic on the vertex array — a transform cannot break topology, and routing it through a native handle would reject the open meshes the pipeline legitimately carries. |
 | Statistics, normals, topology | Computed directly from the vertex and triangle arrays. |
 | Import / Export | `Internal/MeshFiles.cs`: STL (binary and ASCII), OBJ, OFF, PLY, plus a 3MF reader and writer carrying the command history and base mesh. |
-| Raycast, closest point, signed distance | `Internal/MeshBvh.cs`. |
+| Raycast, closest point, signed distance | `Internal/MeshBvh.cs`, or the libigl shim for batched distance queries. |
 | Decimation (`Resize`) | `Internal/MeshDecimator.cs`, quadric edge collapse. |
 | Planar triangulation | `Internal/PolygonTriangulator.cs`, ear clipping plus Delaunay flips. |
 | Self-intersection count | `Internal/TriangleIntersection.cs`, Möller's triangle-triangle test over a BVH broad phase. |
@@ -76,6 +76,13 @@ stop producing them. Anything new that hands geometry to the kernel should keep 
 a curved surface independently, so a sliver triangle spanning a whole wrapped label cuts through
 the geometry beside it. Plain ear clipping produced exactly that; picking the roundest ear and
 then flipping to Delaunay is what fixes it.
+
+**The distance field can be native.** `native/` builds `fabolus_geometry`, a small libigl-backed
+library that runs a whole offset - level-set callback included - behind one call, instead of
+paying a P/Invoke transition per sample. It is optional: without it the managed `MeshBvh` path
+computes the same field, and the suite passes either way. With it the Manifold suite runs in 23s
+rather than 1m33s, and the distances agree to within float rounding. See `native/README.md`,
+which also records why neither of libigl's own `signed_distance` helpers is used directly.
 
 **The win-x64 natives are vendored; nothing else is.** `runtimes/win-x64/native/` holds
 `manifoldc.dll` and `manifold.dll`, and the project copies them flat into every build output -

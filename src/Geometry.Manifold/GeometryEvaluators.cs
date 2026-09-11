@@ -2,6 +2,7 @@ using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using GeometryManifold.Internal;
+using GeometryManifold.Internal.Native;
 using System.Numerics;
 
 namespace GeometryManifold;
@@ -194,15 +195,25 @@ internal sealed class GeometryEvaluators : IGeometryEvaluators
     {
         if (current is null || original is null) return MeshErrors.NullSource;
 
-        var bvh = new MeshBvh(original.Vertices, original.Triangles);
         var gradient = Fabolus.Core.Features.Overhangs.ColourGradient.SmoothingDeviation;
 
         double scale = Math.Max(maxDeviation, 0.001);
         var colors = new double[current.VertexCount * 3];
 
+        // One call for every vertex where the shim is available; it answers the batch in
+        // parallel. Falling back is a per-vertex managed walk, which is the same answer at a
+        // fraction of the throughput.
+        var distances = NativeDistanceField.IsAvailable
+            ? NativeDistanceField.QueryAll(original, current.Vertices, NativeDistanceField.ChooseSignMode(original))
+            : null;
+
+        MeshBvh? bvh = distances is null ? new MeshBvh(original.Vertices, original.Triangles) : null;
+
         for (int i = 0; i < current.Vertices.Length; i++)
         {
-            double distance = bvh.SignedDistance(current.Vertices[i]);
+            double distance = distances is not null
+                ? distances[i]
+                : bvh!.SignedDistance(current.Vertices[i]);
 
             // Map [-scale, scale] onto the gradient, so an unchanged surface lands mid-ramp.
             double t = Math.Clamp((distance + scale) / (2.0 * scale), 0.0, 1.0);
