@@ -2,13 +2,8 @@ using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using GeometryManifold.Internal;
+using GeometryManifold.Internal.Native;
 using System.Numerics;
-using MNManifold = ManifoldNET.Manifold;
-using MNMeshGL = ManifoldNET.MeshGL;
-using MNManifoldError = ManifoldNET.ManifoldError;
-using MNBoolOperation = ManifoldNET.BoolOperationType;
-using MNBoundingBox = ManifoldNET.BoundingBox;
-using MNVector3 = ManifoldNET.Vector3;
 
 namespace GeometryManifold;
 
@@ -135,24 +130,8 @@ internal sealed class GeometryModifiers : IGeometryModifiers
             edgeLength *= (float)Math.Cbrt(requestedVoxels / MaxOffsetVoxels);
         }
 
-        // Manifold keeps the region where the field is above the level, so the field is negated:
-        // positive inside the solid, and the level -offsetDistance sits that far out from it.
-        var boundingBox = new MNBoundingBox(
-            new MNVector3(min.X, min.Y, min.Z),
-            new MNVector3(max.X, max.Y, max.Z));
-
-        MNMeshGL.SdfDelegate sdf = (x, y, z) => -bvh.SignedDistance(new Vector3(x, y, z));
-
-        using var levelSet = MNMeshGL.LevelSet(sdf, boundingBox, edgeLength, -offsetDistance, false);
-        using var manifold = MNManifold.Create(levelSet);
-
-        if (manifold.Status != MNManifoldError.NoError)
-            return ManifoldErrors.FromStatus(manifold.Status);
-
-        if (manifold.TriangleNumber == 0)
-            return ManifoldErrors.EmptyResult;
-
-        return Result.Success(manifold.ToIMesh(input.Metadata));
+        return ManifoldKernel.LevelSet(
+            bvh.SignedDistance, min, max, edgeLength, offsetDistance, input.Metadata);
     }
 
     public Result<IMesh> Resize(IMesh mesh, int targetTriangleCount)
@@ -207,20 +186,15 @@ internal sealed class GeometryModifiers : IGeometryModifiers
                  .Set(CoreKeys.CreatedBy, "RepairSelfIntersections"));
 
             // Manifold resolves self-intersections as a side effect of any boolean: unioning a
-            // solid with itself re-cuts every crossing surface and returns a clean solid. If the
-            // mesh will not load as a manifold at all there is nothing to resolve, so the geometry
-            // is handed back untouched rather than failing the pipeline.
-            var manifold = input.ToManifold();
-            if (manifold.IsFailure)
-            {
-                return Result.Success<IMesh>(new ManifoldMesh(
-                    (Vector3[])input.Vertices.Clone(), (int[])input.Triangles.Clone(), metadata));
-            }
+            // solid with itself re-cuts every crossing surface and returns a clean one. If the
+            // mesh will not load as a manifold at all there is nothing to resolve, so the
+            // geometry is handed back untouched rather than failing the pipeline.
+            var resolved = ManifoldKernel.Union(input, input, metadata);
 
-            using var solid = manifold.Value;
-            using var resolved = MNManifold.BooleanOperation(solid, solid, MNBoolOperation.Add);
-
-            return Result.Success(resolved.ToIMesh(metadata));
+            return resolved.IsFailure
+                ? Result.Success<IMesh>(new ManifoldMesh(
+                    (Vector3[])input.Vertices.Clone(), (int[])input.Triangles.Clone(), metadata))
+                : Result.Success(resolved.Value.Mesh);
         }
         catch (Exception ex)
         {

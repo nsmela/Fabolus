@@ -4,11 +4,7 @@ using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using GeometryManifold.Internal;
-using MNManifold = ManifoldNET.Manifold;
-using MNManifoldError = ManifoldNET.ManifoldError;
-using MNVector2 = ManifoldNET.Vector2;
-using MNSimplePolygon = ManifoldNET.SimplePolygon;
-using MNPolygons = ManifoldNET.Polygons;
+using GeometryManifold.Internal.Native;
 
 namespace GeometryManifold;
 
@@ -207,54 +203,44 @@ internal sealed class Polygons : IPolygonOperations
             return new Error("Geometry.TriangulationFailed", "The extrusion's top must sit above its bottom.");
 
         // Manifold turns a polygon into a solid in one call, triangulating the caps itself and
-        // guaranteeing the result is closed - which is the whole reason the mould pipeline used to
-        // hand-roll caps and side walls off MeshLib's planar triangulator.
-        var contours = new List<IReadOnlyList<Vector2>> { polygon.OuterBoundary };
-        contours.AddRange(polygon.Holes);
-
-        var simplePolygons = new List<MNSimplePolygon>(contours.Count);
-        foreach (var contour in contours)
+        // closing the walls - which is the whole reason the mould pipeline used to hand-roll caps
+        // and side walls off MeshLib's planar triangulator.
+        var contours = new List<IReadOnlyList<Vector2>>(1 + polygon.Holes.Count);
+        contours.Add(Orient(polygon.OuterBoundary, clockwise: false));
+        foreach (var hole in polygon.Holes)
         {
-            if (contour.Count < 3) continue;
-
-            // Manifold reads winding to tell an outline from a hole, and callers here disagree on
-            // which way round they wind their outlines, so each contour is oriented explicitly.
-            var points = contour.ToList();
-            bool isHole = !ReferenceEquals(contour, polygon.OuterBoundary);
-            float area = PolygonTriangulator.SignedArea(points);
-            if ((isHole && area > 0) || (!isHole && area < 0)) points.Reverse();
-
-            simplePolygons.Add(new MNSimplePolygon(
-                points.Select(p => new MNVector2(p.X, p.Y)).ToArray()));
+            if (hole.Count >= 3) contours.Add(Orient(hole, clockwise: true));
         }
 
-        if (simplePolygons.Count == 0)
-            return new Error("Geometry.TriangulationFailed", "Failed to triangulate buffered path.");
+        var metadata = new MeshMetadata().WithProperties(m =>
+            m.Set(CoreKeys.Id, Guid.NewGuid())
+             .Set(CoreKeys.Name, "Extruded Mould")
+             .Set(CoreKeys.CreatedBy, "ExtrudePolygon"));
 
-        try
-        {
-            using var polygons = new MNPolygons(simplePolygons.ToArray());
-            using var extruded = MNManifold.Extrude(polygons, zMax - zMin, 0, 0f, 1f, 1f);
+        var extruded = ManifoldKernel.Extrude(contours, zMax - zMin, zMin, metadata);
 
-            if (extruded.Status != MNManifoldError.NoError)
-                return ManifoldErrors.FromStatus(extruded.Status);
-            if (extruded.TriangleNumber == 0)
-                return new Error("Geometry.TriangulationFailed", "Failed to triangulate buffered path.");
+        // The callers here disagree about the failure they expect, and every one of them
+        // predates Manifold; keeping the MeshLib-era code means nothing downstream has to change.
+        return extruded.IsFailure
+            ? new Error("Geometry.TriangulationFailed", extruded.Error.Description)
+            : extruded;
+    }
 
-            // Extrude always starts at z = 0; shift it onto the requested range.
-            using var placed = extruded.Translate(0f, 0f, zMin);
+    /// <summary>
+    /// Winds a contour the way Manifold reads it: counter-clockwise for an outline, clockwise for
+    /// a hole. The callers here do not agree on which way round they hand their outlines over -
+    /// GetMeshShadow and GetConvexHull return opposite windings - so it is settled explicitly
+    /// rather than assumed.
+    /// </summary>
+    private static IReadOnlyList<Vector2> Orient(IReadOnlyList<Vector2> contour, bool clockwise)
+    {
+        float area = PolygonTriangulator.SignedArea(contour);
+        bool isClockwise = area < 0;
+        if (isClockwise == clockwise) return contour;
 
-            var metadata = new MeshMetadata().WithProperties(m =>
-                m.Set(CoreKeys.Id, Guid.NewGuid())
-                 .Set(CoreKeys.Name, "Extruded Mould")
-                 .Set(CoreKeys.CreatedBy, "ExtrudePolygon"));
-
-            return Result.Success(placed.ToIMesh(metadata));
-        }
-        catch (Exception ex)
-        {
-            return new Error("Geometry.TriangulationFailed", ex.Message);
-        }
+        var reversed = contour.ToList();
+        reversed.Reverse();
+        return reversed;
     }
 
     /// <summary>

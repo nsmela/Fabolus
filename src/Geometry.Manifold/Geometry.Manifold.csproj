@@ -7,11 +7,11 @@
     <Nullable>enable</Nullable>
     <RootNamespace>GeometryManifold</RootNamespace>
     <AssemblyName>Geometry.Manifold</AssemblyName>
-  </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="ManifoldNET" Version="1.0.7-alpha" />
-  </ItemGroup>
+    <!-- The native Manifold binding is hand-written P/Invoke over pointers into buffers the
+         library fills, so the marshalling code is unsafe by nature. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Fabolus.Core\Fabolus.Core.csproj" />

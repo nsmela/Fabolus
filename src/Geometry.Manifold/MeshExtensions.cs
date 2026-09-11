@@ -1,23 +1,18 @@
 using System.Numerics;
-using Fabolus.Core.Common;
 using Fabolus.Core.Geometry;
-using Fabolus.Core.Geometry.Metadata;
-using MNManifold = ManifoldNET.Manifold;
-using MNMeshGL = ManifoldNET.MeshGL;
-using MNManifoldError = ManifoldNET.ManifoldError;
 
 namespace GeometryManifold;
 
 /// <summary>
-/// Conversion between the engine's plain <see cref="IMesh"/> data and Manifold's native
-/// <see cref="MNManifold"/> handles.
+/// Vertex housekeeping shared across the engine: welding coincident vertices and dropping the
+/// ones nothing references.
 /// </summary>
 /// <remarks>
-/// Manifold refuses anything that is not a closed two-manifold, and it decides that purely from
-/// shared vertex indices - two triangles only meet along an edge if they name the same vertex
-/// index. STL has no index buffer at all and its importer emits three fresh vertices per triangle,
-/// so every mesh is welded on the way in; without that even a perfect cube comes back
-/// <see cref="MNManifoldError.NotManifold"/>.
+/// The native side does its own welding - Manifold's merge is what the boolean kernel leans on -
+/// but the managed operations need the same thing without going near a native handle. Topology
+/// validation, statistics and import all measure a mesh that has to be indexed first: an STL has
+/// no index buffer at all, so straight off disk every edge looks like a boundary and every mesh
+/// would read as open.
 /// </remarks>
 internal static class MeshExtensions
 {
@@ -27,75 +22,6 @@ internal static class MeshExtensions
     /// enough to close the float rounding an STL round-trip introduces.
     /// </summary>
     private const float WeldTolerance = 1e-5f;
-
-    /// <summary>
-    /// Converts to a native Manifold. Fails rather than returning an empty manifold when the input
-    /// is not a solid, so callers report why instead of silently losing the geometry.
-    /// </summary>
-    public static Result<MNManifold> ToManifold(this IMesh mesh)
-    {
-        if (mesh is null) return GeometryErrors.NullMesh;
-
-        var (vertices, triangles) = Weld(mesh.Vertices, mesh.Triangles);
-        if (triangles.Length == 0) return GeometryErrors.InvalidMesh;
-
-        var vertProperties = new float[vertices.Length * 3];
-        for (int i = 0; i < vertices.Length; i++)
-        {
-            vertProperties[i * 3] = vertices[i].X;
-            vertProperties[i * 3 + 1] = vertices[i].Y;
-            vertProperties[i * 3 + 2] = vertices[i].Z;
-        }
-
-        var triVerts = new uint[triangles.Length];
-        for (int i = 0; i < triangles.Length; i++)
-        {
-            triVerts[i] = (uint)triangles[i];
-        }
-
-        var meshGL = new MNMeshGL(vertProperties, triVerts, 3, null);
-        var manifold = MNManifold.Create(meshGL);
-
-        var status = manifold.Status;
-        if (status != MNManifoldError.NoError)
-        {
-            manifold.Dispose();
-            meshGL.Dispose();
-            return ManifoldErrors.FromStatus(status);
-        }
-
-        meshGL.Dispose();
-        return Result.Success(manifold);
-    }
-
-    /// <summary>
-    /// Reads a native Manifold back into plain arrays. Manifold always hands back a compacted,
-    /// indexed mesh, so unlike the MeshLib path there are no invalid slots to skip.
-    /// </summary>
-    public static IMesh ToIMesh(this MNManifold manifold, MeshMetadata metadata)
-    {
-        using var meshGL = manifold.MeshGL;
-
-        int numProp = (int)meshGL.PropertiesNumber;
-        var vertProperties = meshGL.VerticesProperties;
-        var triVerts = meshGL.TriangleVertices;
-
-        int vertexCount = numProp > 0 ? vertProperties.Length / numProp : 0;
-        var vertices = new Vector3[vertexCount];
-        for (int i = 0; i < vertexCount; i++)
-        {
-            int offset = i * numProp;
-            vertices[i] = new Vector3(vertProperties[offset], vertProperties[offset + 1], vertProperties[offset + 2]);
-        }
-
-        var triangles = new int[triVerts.Length];
-        for (int i = 0; i < triVerts.Length; i++)
-        {
-            triangles[i] = (int)triVerts[i];
-        }
-
-        return new ManifoldMesh(vertices, triangles, metadata);
-    }
 
     /// <summary>
     /// Merges vertices that occupy the same point and drops the triangles that collapse as a
@@ -173,27 +99,4 @@ internal static class MeshExtensions
 
         return (kept.ToArray(), newTriangles);
     }
-}
-
-/// <summary>
-/// Maps Manifold's construction failures onto the engine's error vocabulary.
-/// </summary>
-internal static class ManifoldErrors
-{
-    public static Error FromStatus(MNManifoldError status) => status switch
-    {
-        MNManifoldError.NotManifold => new Error(
-            "Manifold.NotManifold",
-            "The mesh is not a closed solid: it has boundary or non-manifold edges."),
-        MNManifoldError.NonFiniteVertex => new Error(
-            "Manifold.NonFiniteVertex",
-            "The mesh contains a vertex with a non-finite coordinate."),
-        MNManifoldError.VertexIndexOutOfBounds => new Error(
-            "Manifold.VertexIndexOutOfBounds",
-            "A triangle references a vertex that does not exist."),
-        _ => new Error("Manifold.InvalidMesh", $"Manifold rejected the mesh: {status}."),
-    };
-
-    public static readonly Error EmptyResult =
-        new("Manifold.EmptyResult", "The operation produced an empty manifold.");
 }
