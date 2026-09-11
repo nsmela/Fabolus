@@ -78,6 +78,9 @@ internal static class MeshDecimator
 
         var trianglesPerVertex = BuildVertexTriangles(triangles, positions.Length);
 
+        // Hoisted so the link-condition check below does not allocate a delegate per collapse.
+        Func<int, int> find = Find;
+
         int live = triangleCount;
         while (live > targetTriangleCount && queue.Count > 0)
         {
@@ -87,7 +90,15 @@ internal static class MeshDecimator
             int rootB = Find(b);
             if (rootA == rootB) continue; // Already collapsed together.
 
+            if (!SatisfiesLinkCondition(triangles, alive, trianglesPerVertex, find, rootA, rootB)) continue;
+
             var target = OptimalPosition(quadrics[rootA] + quadrics[rootB], positions[rootA], positions[rootB]);
+
+            if (FoldsOver(triangles, alive, trianglesPerVertex, positions, find, rootA, rootB, target) ||
+                FoldsOver(triangles, alive, trianglesPerVertex, positions, find, rootB, rootA, target))
+            {
+                continue;
+            }
 
             // Collapse b into a, then retire every triangle that has lost two distinct corners.
             merged[rootB] = rootA;
@@ -107,9 +118,12 @@ internal static class MeshDecimator
                 }
             }
 
-            // The merged vertex inherits b's incident triangles so later collapses see them.
+            // The merged vertex inherits b's incident triangles so later collapses see them,
+            // less the ones that just died - otherwise every later scan of this vertex pays for
+            // triangles that no longer exist.
             trianglesPerVertex[rootA].AddRange(trianglesPerVertex[rootB]);
             trianglesPerVertex[rootB].Clear();
+            trianglesPerVertex[rootA].RemoveAll(t => !alive[t]);
 
             // Re-price the edges around the new vertex; stale entries are filtered on dequeue by
             // the root check above.
@@ -145,6 +159,128 @@ internal static class MeshDecimator
 
         var resultVertices = positions.Select(p => new Vector3((float)p.X, (float)p.Y, (float)p.Z)).ToArray();
         return MeshExtensions.Compact(resultVertices, resultTriangles.ToArray());
+    }
+
+    /// <summary>
+    /// True when collapsing the edge cannot break the surface's topology.
+    /// </summary>
+    /// <remarks>
+    /// The link condition: the two endpoints may share only the vertices opposite the edge
+    /// itself - two of them on an interior edge, one on a boundary edge. Any other shared
+    /// neighbour means the collapse folds two separate parts of the surface onto each other and
+    /// leaves an edge with three or more faces on it.
+    ///
+    /// Skipping the check is not a cosmetic loss. A decimated mesh that comes out non-manifold
+    /// poisons everything downstream: Manifold refuses it outright, and the level-set offset
+    /// built on its signed distance field returns noise - a 10mm sphere came back with 118,000
+    /// triangles, and the boolean that followed aborted the process from native code.
+    /// </remarks>
+    private static bool SatisfiesLinkCondition(
+        int[] triangles,
+        bool[] alive,
+        List<int>[] trianglesPerVertex,
+        Func<int, int> find,
+        int rootA,
+        int rootB)
+    {
+        var neighboursA = Neighbours(triangles, alive, trianglesPerVertex, find, rootA);
+        var neighboursB = Neighbours(triangles, alive, trianglesPerVertex, find, rootB);
+
+        int shared = neighboursA.Count(v => neighboursB.Contains(v));
+
+        // Count the live faces actually carrying this edge.
+        int sharedFaces = 0;
+        foreach (int t in trianglesPerVertex[rootA])
+        {
+            if (!alive[t]) continue;
+
+            bool hasA = false;
+            bool hasB = false;
+            for (int i = 0; i < 3; i++)
+            {
+                int v = find(triangles[t * 3 + i]);
+                if (v == rootA) hasA = true;
+                else if (v == rootB) hasB = true;
+            }
+            if (hasA && hasB) sharedFaces++;
+        }
+
+        return sharedFaces > 0 && shared == sharedFaces;
+    }
+
+    /// <summary>
+    /// True when moving <paramref name="root"/> to <paramref name="target"/> would turn any of its
+    /// surviving triangles inside out.
+    /// </summary>
+    /// <remarks>
+    /// The quadric says nothing about orientation: the position that minimises squared distance to
+    /// the surrounding planes can sit on the far side of a neighbouring triangle, flipping it.
+    /// One flipped triangle is a surface passing through its own neighbours, and the mesh comes
+    /// out watertight and manifold but riddled with self-intersections - which the boolean kernel
+    /// then has to resolve, or refuse.
+    /// </remarks>
+    private static bool FoldsOver(
+        int[] triangles,
+        bool[] alive,
+        List<int>[] trianglesPerVertex,
+        Vector3d[] positions,
+        Func<int, int> find,
+        int root,
+        int collapsingInto,
+        Vector3d target)
+    {
+        foreach (int t in trianglesPerVertex[root])
+        {
+            if (!alive[t]) continue;
+
+            int v0 = find(triangles[t * 3]);
+            int v1 = find(triangles[t * 3 + 1]);
+            int v2 = find(triangles[t * 3 + 2]);
+
+            // Triangles on the collapsing edge disappear, so their orientation is moot.
+            if (v0 == collapsingInto || v1 == collapsingInto || v2 == collapsingInto) continue;
+
+            var before = Normal(positions[v0], positions[v1], positions[v2]);
+            if (before is null) continue; // Already degenerate: nothing to preserve.
+
+            var after = Normal(
+                v0 == root ? target : positions[v0],
+                v1 == root ? target : positions[v1],
+                v2 == root ? target : positions[v2]);
+
+            // A collapse that degenerates a surviving triangle is as bad as one that flips it.
+            if (after is null) return true;
+            if (Vector3d.Dot(before.Value, after.Value) <= 0) return true;
+        }
+
+        return false;
+    }
+
+    private static Vector3d? Normal(Vector3d a, Vector3d b, Vector3d c)
+    {
+        var normal = Vector3d.Cross(b - a, c - a);
+        double length = normal.Length();
+        return length < 1e-14 ? null : normal / length;
+    }
+
+    private static HashSet<int> Neighbours(
+        int[] triangles,
+        bool[] alive,
+        List<int>[] trianglesPerVertex,
+        Func<int, int> find,
+        int root)
+    {
+        var neighbours = new HashSet<int>();
+        foreach (int t in trianglesPerVertex[root])
+        {
+            if (!alive[t]) continue;
+            for (int i = 0; i < 3; i++)
+            {
+                int v = find(triangles[t * 3 + i]);
+                if (v != root) neighbours.Add(v);
+            }
+        }
+        return neighbours;
     }
 
     private static List<int>[] BuildVertexTriangles(int[] triangles, int vertexCount)

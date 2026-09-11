@@ -303,7 +303,10 @@ internal sealed class MeshBvh
     {
         if (IsEmpty) return;
 
-        var stack = RentStack(_nodeCount + 2);
+        // Its own stack, not the pooled one: this is the only traversal that hands control back
+        // to a caller mid-descent, and a callback that queried the tree again would walk over
+        // the shared buffer underneath it.
+        var stack = new int[_nodeCount + 2];
         int top = 0;
         stack[top++] = 0;
 
