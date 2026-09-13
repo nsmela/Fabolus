@@ -1,0 +1,26 @@
+/* Enhanced legibility for diagrams and workflows */
+.mermaid {
+    text-align: center;
+    margin: 1.8rem auto;
+}
+
+.mermaid svg {
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+/* Ensure text labels in mermaid nodes are sharp and legible */
+.mermaid .nodeLabel,
+.mermaid .label,
+.mermaid .cluster-label {
+    font-size: 15px !important;
+    font-weight: 500 !important;
+}
+
+/* Give nodes comfortable padding and clear borders */
+.mermaid .node rect,
+.mermaid .node polygon {
+    rx: 6px;
+    ry: 6px;
+    stroke-width: 2px !important;
+}
