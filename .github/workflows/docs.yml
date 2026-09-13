@@ -1,0 +1,56 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+      - master
+      - v1
+      - feat/docs
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Git Credentials
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - name: Cache MkDocs dependencies
+        uses: actions/cache@v4
+        with:
+          key: mkdocs-material-${{ hashFiles('mkdocs.yml') }}
+          path: .cache
+          restore-keys: |
+            mkdocs-material-
+
+      - name: Install dependencies
+        run: pip install mkdocs-material
+
+      - name: Validate documentation build
+        if: github.event_name == 'pull_request'
+        run: mkdocs build --strict
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
+        run: mkdocs gh-deploy --force --strict

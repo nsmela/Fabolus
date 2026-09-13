@@ -270,3 +270,6 @@ artifacts/
 
 # Claude Code local session state and worktrees
 .claude/
+
+# MkDocs
+site/
