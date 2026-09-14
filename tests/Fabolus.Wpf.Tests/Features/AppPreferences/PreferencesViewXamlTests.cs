@@ -25,7 +25,6 @@ public class PreferencesViewXamlTests {
         "pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml",
         "pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml",
         "pack://application:,,,/MahApps.Metro;component/Styles/Themes/Light.Blue.xaml",
-        "pack://application:,,,/Fabolus;component/Themes/AxisRotationSliderTheme.xaml",
         "pack://application:,,,/Fabolus;component/Themes/Buttons.xaml",
         "pack://application:,,,/Fabolus;component/Themes/Colours.xaml",
         "pack://application:,,,/Fabolus;component/Themes/Controls.xaml",
