@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 	  <Platforms>x64</Platforms>
+    <GeometryEngineRoot Condition="'$(GeometryEngineRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\GeometryEngine\</GeometryEngineRoot>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,10 +30,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Clipper2" Version="1.5.4" />
-    <PackageReference Include="geometry3Sharp" Version="1.0.324" />
-    <PackageReference Include="MeshLib" Version="3.1.2.192" />
-    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
+    <!--
+      Every geometry operation - booleans, offsets, decimation, spatial queries, polygon work and
+      mesh files - comes from GeometryEngine, a sibling checkout of this repository. Override
+      GeometryEngineRoot to build against a checkout elsewhere.
+
+      Core is referenced explicitly because GeometryEngine marks its own reference to it private -
+      Core ships inside the GeometryEngine package rather than as a package of its own - and a
+      private reference does not flow on to projects referencing GeometryEngine.
+    -->
+    <ProjectReference Include="$(GeometryEngineRoot)src\GeometryEngine\GeometryEngine.csproj" />
+    <ProjectReference Include="$(GeometryEngineRoot)src\GeometryEngine.Core\GeometryEngine.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

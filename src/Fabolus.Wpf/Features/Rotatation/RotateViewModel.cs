@@ -8,7 +8,7 @@ using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Viewport;
-using GeometryMeshLib;
+using Fabolus.Core.Geometry.Engine;
 using System.Numerics;
 using System.Windows.Media.Media3D;
 
@@ -77,7 +77,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         _transformsFeature = new TransformMesh(_engine);
     }
 
-    public RotateViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryEngine(new FileSystem())) { }
+    public RotateViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryEngineAdapter(new FileSystem())) { }
 
     public async Task ActivateAsync(Workspace workspace) {
         LoadOverhangPreferences();

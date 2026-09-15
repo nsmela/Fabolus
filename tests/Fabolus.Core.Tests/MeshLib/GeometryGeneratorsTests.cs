@@ -3,7 +3,7 @@ using System.Numerics;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
-using GeometryMeshLib;
+using Fabolus.Core.Geometry.Engine;
 using Xunit;
 
 namespace Fabolus.Tests.MeshLib;
@@ -12,12 +12,12 @@ namespace Fabolus.Tests.MeshLib;
 public class GeometryGeneratorsTests
 {
     private readonly GeometryEngineFixture _fixture;
-    private readonly GeometryEngine _engine;
+    private readonly IGeometryEngine _engine;
 
     public GeometryGeneratorsTests(GeometryEngineFixture fixture)
     {
         _fixture = fixture;
-        _engine = (GeometryEngine)_fixture.Engine;
+        _engine = _fixture.Engine;
     }
 
     [Fact]
@@ -35,7 +35,8 @@ public class GeometryGeneratorsTests
 
         stats.MinX.Should().BeApproximately(center.X - radius, 1e-1);
         stats.MaxX.Should().BeApproximately(center.X + radius, 1e-1);
-        sphere.VertexCount.Should().Be(slices * (slices - 1) + 2);
+        // A UV sphere of half as many rings as slices, closed by one vertex at each pole.
+        sphere.VertexCount.Should().Be(slices * (slices / 2 - 1) + 2);
     }
 
     [Theory]
@@ -78,16 +79,16 @@ public class GeometryGeneratorsTests
         var validRadii = new[] { 5.0f, 5.0f };
 
         var invalidPathResult = _fixture.Engine.Generators.GenerateTube(new TubeParameters { Path = new[] { Vector3.Zero }, Radii = new[] { 5.0f } });
-        invalidPathResult.Error.Code.Should().Be(GeometryErrors.InvalidPath.Code);
+        invalidPathResult.Error.Code.Should().Be(EngineErrors.InvalidPath.Code);
 
         var mismatchResult = _fixture.Engine.Generators.GenerateTube(new TubeParameters { Path = validPath, Radii = new[] { 5.0f } });
-        mismatchResult.Error.Code.Should().Be(GeometryErrors.InvalidRadii.Code);
+        mismatchResult.Error.Code.Should().Be(EngineErrors.InvalidRadii.Code);
 
         var negativeRadiusResult = _fixture.Engine.Generators.GenerateTube(new TubeParameters { Path = validPath, Radii = new[] { -5.0f, 5.0f } });
-        negativeRadiusResult.Error.Code.Should().Be(GeometryErrors.InvalidRadius.Code);
+        negativeRadiusResult.Error.Code.Should().Be(EngineErrors.InvalidRadius.Code);
 
         var invalidSegmentsResult = _fixture.Engine.Generators.GenerateTube(new TubeParameters { Path = validPath, Radii = validRadii, Segments = 2 });
-        invalidSegmentsResult.Error.Code.Should().Be(GeometryErrors.InvalidSegments.Code);
+        invalidSegmentsResult.Error.Code.Should().Be(EngineErrors.InvalidSegments.Code);
     }
 
     [Fact]

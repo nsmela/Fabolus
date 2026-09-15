@@ -293,7 +293,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     public ISceneManager SceneManager => _sceneManager;
 
-    public MouldViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryMeshLib.GeometryEngine(new FileSystem())) { }
+    public MouldViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new Fabolus.Core.Geometry.Engine.GeometryEngineAdapter(new FileSystem())) { }
     public MouldViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine)
     {
         _messenger = messenger;

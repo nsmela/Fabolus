@@ -4,7 +4,7 @@ using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Features.Decal;
-using GeometryMeshLib;
+using Fabolus.Core.Geometry.Engine;
 using Moq;
 using Xunit;
 
@@ -44,7 +44,7 @@ public class GlyphMeshTests
     {
         RunInSta(() =>
         {
-            var engine = new GeometryEngine(new Mock<IFileSystem>().Object);
+            var engine = new GeometryEngineAdapter(new Mock<IFileSystem>().Object);
             var outlineSource = new WpfGlyphOutlineSource();
 
             foreach (char c in characters)
@@ -90,7 +90,7 @@ public class GlyphMeshTests
     {
         RunInSta(() =>
         {
-            var engine = new GeometryEngine(new Mock<IFileSystem>().Object);
+            var engine = new GeometryEngineAdapter(new Mock<IFileSystem>().Object);
             var outlineSource = new WpfGlyphOutlineSource();
 
             var outlineResult = outlineSource.GetOutlines("FABOLUS", DecalFont.Sans, capHeight: 6.0f, tracking: 0.4f);

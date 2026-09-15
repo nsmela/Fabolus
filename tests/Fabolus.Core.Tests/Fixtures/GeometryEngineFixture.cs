@@ -1,6 +1,6 @@
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
-using GeometryMeshLib;
+using Fabolus.Core.Geometry.Engine;
 using System;
 using System.IO;
 using Xunit;
@@ -13,7 +13,7 @@ public class GeometryEngineFixture
     
     public GeometryEngineFixture()
     {
-        Engine = new GeometryEngine(new TestFileSystem());
+        Engine = new GeometryEngineAdapter(new TestFileSystem());
     }
 
     public IMesh LoadStl(string name)

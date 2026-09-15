@@ -5,7 +5,7 @@ using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
-using GeometryMeshLib;
+using Fabolus.Core.Geometry.Engine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -31,7 +31,7 @@ public partial class App : Application
                 services.AddSingleton<AppPreferencesStore>();
                 services.AddSingleton<IDialogueSystem, DialogueSystem>();
                 services.AddSingleton<IFileSystem, FileSystem>();
-                services.AddSingleton<IGeometryEngine, GeometryEngine>();
+                services.AddSingleton<IGeometryEngine, GeometryEngineAdapter>();
                 services.AddSingleton<Fabolus.Core.Features.Decal.IGlyphOutlineSource, Features.Decal.WpfGlyphOutlineSource>();
 
                 services.AddSingleton<MainViewModel>();

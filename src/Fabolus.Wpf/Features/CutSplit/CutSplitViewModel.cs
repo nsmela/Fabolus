@@ -71,7 +71,7 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         };
     }
 
-    public CutSplitViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryMeshLib.GeometryEngine(new FileSystem()), new DialogueSystem(WeakReferenceMessenger.Default)) { }
+    public CutSplitViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new Fabolus.Core.Geometry.Engine.GeometryEngineAdapter(new FileSystem()), new DialogueSystem(WeakReferenceMessenger.Default)) { }
 
     public ISceneManager SceneManager => _sceneManager;
 

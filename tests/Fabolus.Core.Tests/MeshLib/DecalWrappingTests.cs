@@ -5,7 +5,7 @@ using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
-using GeometryMeshLib;
+using Fabolus.Core.Geometry.Engine;
 using Xunit;
 
 namespace Fabolus.Tests.MeshLib;
@@ -14,12 +14,12 @@ namespace Fabolus.Tests.MeshLib;
 public class DecalWrappingTests
 {
     private readonly GeometryEngineFixture _fixture;
-    private readonly GeometryEngine _engine;
+    private readonly IGeometryEngine _engine;
 
     public DecalWrappingTests(GeometryEngineFixture fixture)
     {
         _fixture = fixture;
-        _engine = (GeometryEngine)_fixture.Engine;
+        _engine = _fixture.Engine;
     }
 
     [Fact]

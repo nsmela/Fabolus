@@ -9,7 +9,6 @@ using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Features.Main;
 using SharpDX.DirectWrite;
 using Fabolus.Core.Features.MeshIO;
-using static MR;
 
 namespace Fabolus.Wpf.Features.MeshManager;
 

@@ -83,7 +83,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         _smoothFeature = new SmoothMesh(engine);
     }
 
-    public SmoothingViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryMeshLib.GeometryEngine(new FileSystem())) { }
+    public SmoothingViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new Fabolus.Core.Geometry.Engine.GeometryEngineAdapter(new FileSystem())) { }
 
     public ISceneManager SceneManager => _sceneManager;
 
