@@ -100,6 +100,22 @@ public interface IGeometryGenerators
     Result<IReadOnlyList<Vector3>> ResampleOpenPath(IReadOnlyList<Vector3> path, float targetSpacing, int smoothingIterations = 2);
 
     /// <summary>
+    /// Prepares a surface for the decal work that follows, and holds it ready.
+    ///
+    /// Optional: <see cref="BuildTextPrism"/> and <see cref="ProjectTextPrism"/> prepare the
+    /// surface themselves when they first meet it. Preparing it is the expensive part of a decal
+    /// on a large mesh, though, so calling this when the decal view opens moves that cost off the
+    /// user's first drag, which is the one they feel.
+    /// </summary>
+    Result PrepareDecalSurface(IMesh targetMesh);
+
+    /// <summary>
+    /// <see cref="PrepareDecalSurface"/> off the calling thread, for a view that wants to open
+    /// without waiting for it.
+    /// </summary>
+    Task<Result> PrepareDecalSurfaceAsync(IMesh targetMesh) => Task.Run(() => PrepareDecalSurface(targetMesh));
+
+    /// <summary>
     /// Builds an extruded 3D solid mesh from 2D polygon outlines in the tangent frame, optionally contouring to a target mesh surface.
     /// </summary>
     Result<IMesh> BuildTextPrism(IReadOnlyList<Polygon2D> outlines, Features.Decal.DecalFrame frame, float depth, float sink, float overshoot, float maxEdgeLength = 0f, IMesh? targetMesh = null);

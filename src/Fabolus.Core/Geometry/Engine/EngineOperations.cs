@@ -146,6 +146,56 @@ internal sealed class EngineModifiers(GE.IGeometryEngine engine) : IGeometryModi
 
 internal sealed class EngineGenerators(GE.IGeometryEngine engine) : IGeometryGenerators
 {
+    /// <summary>
+    /// The surface a decal was last built against, prepared for querying.
+    ///
+    /// Preparing one costs far more than building a decal does, and the decal view builds prism
+    /// after prism against a surface that does not change - a label being dragged across a model,
+    /// a preset being hovered, several labels on one mesh. Holding the last one turns every call
+    /// after the first into the query it should have been. The converted mesh rides along inside
+    /// it, so that conversion stops being repeated too.
+    ///
+    /// Meshes here are immutable, so the reference identifies the surface. A superseded index is
+    /// dropped rather than disposed: a build on another thread may still be reading it, and what
+    /// it holds is managed memory that the collector reclaims once nothing is.
+    /// </summary>
+    private readonly object _surfaceLock = new();
+    private IMesh? _surfaceMesh;
+    private GE.ISpatialIndex? _surfaceIndex;
+
+    private Result<GE.ISpatialIndex> SurfaceIndexFor(IMesh mesh)
+    {
+        lock (_surfaceLock)
+        {
+            if (ReferenceEquals(_surfaceMesh, mesh) && _surfaceIndex is not null)
+            {
+                return Result.Success(_surfaceIndex);
+            }
+        }
+
+        var converted = mesh.ToEngine();
+        if (converted.IsFailure) return converted.Error;
+
+        var built = engine.Spatial.BuildIndex(converted.Value);
+        if (built.IsFailure) return EngineErrors.Failed("Spatial", built.Error);
+
+        lock (_surfaceLock)
+        {
+            _surfaceMesh = mesh;
+            _surfaceIndex = built.Value;
+            return Result.Success(built.Value);
+        }
+    }
+
+    public Result PrepareDecalSurface(IMesh targetMesh)
+    {
+        if (targetMesh is null) return MeshErrors.NullSource;
+        if (targetMesh.TriangleCount == 0) return Result.Success();
+
+        var index = SurfaceIndexFor(targetMesh);
+        return index.IsFailure ? index.Error : Result.Success();
+    }
+
     public Result<IMesh> GenerateTube(TubeParameters parameters)
     {
         var spec = new GE.TubeSpec(
@@ -211,8 +261,13 @@ internal sealed class EngineGenerators(GE.IGeometryEngine engine) : IGeometryGen
     {
         if (outlines is null || outlines.Count == 0) return DecalErrors.EmptyOutlines;
 
-        var surface = targetMesh is null || targetMesh.TriangleCount == 0 ? null : targetMesh.ToEngine();
-        if (surface is { IsFailure: true }) return surface.Error;
+        GEC.Maybe<GE.ISpatialIndex> surface = GEC.Maybe<GE.ISpatialIndex>.None();
+        if (targetMesh is not null && targetMesh.TriangleCount > 0)
+        {
+            var index = SurfaceIndexFor(targetMesh);
+            if (index.IsFailure) return index.Error;
+            surface = GEC.Maybe<GE.ISpatialIndex>.Some(index.Value);
+        }
 
         var spec = new GE.DecalPrismSpec(
             [.. outlines.Select(o => o.ToEngine())],
@@ -221,7 +276,7 @@ internal sealed class EngineGenerators(GE.IGeometryEngine engine) : IGeometryGen
             sink,
             overshoot,
             maxEdgeLength,
-            surface is null ? GEC.Maybe<GE.IMesh>.None() : GEC.Maybe<GE.IMesh>.Some(surface.Value));
+            SurfaceIndex: surface);
 
         var prism = engine.Decals.BuildPrism(spec);
         if (prism.IsFailure)
@@ -236,7 +291,7 @@ internal sealed class EngineGenerators(GE.IGeometryEngine engine) : IGeometryGen
     {
         if (targetMesh is null || prismMesh is null) return Result.Success(prismMesh!);
 
-        var surface = targetMesh.ToEngine();
+        var surface = SurfaceIndexFor(targetMesh);
         if (surface.IsFailure) return surface.Error;
         var prism = prismMesh.ToEngine();
         if (prism.IsFailure) return prism.Error;

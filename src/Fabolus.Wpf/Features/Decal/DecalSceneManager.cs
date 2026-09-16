@@ -112,6 +112,12 @@ public sealed class DecalSceneManager : ISceneManager
             VisualRemovedById?.Invoke(_targetMeshId);
 
         TargetMesh = mesh;
+
+        // Preparing the surface for querying is the expensive part of building a decal on a large
+        // mesh, and it only has to happen once per mesh. Start it now, off the UI thread, so the
+        // first label the user drags is as quick as every one after it rather than stalling.
+        _ = _engine.Generators.PrepareDecalSurfaceAsync(mesh);
+
         var helixMeshResult = mesh.ToHelixMesh(_engine);
         if (helixMeshResult.IsFailure)
             return helixMeshResult;
