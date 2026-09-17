@@ -51,7 +51,7 @@
       version in step with the one GeometryEngine resolves - it is the same assembly on both
       sides of the adapter, which is what lets a Result cross that boundary without translation.
     -->
-    <PackageReference Include="BasicResults" Version="1.0.0" />
+    <PackageReference Include="BasicResults" Version="1.0.1" />
   </ItemGroup>
 
   <ItemGroup>
