@@ -43,10 +43,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GeometryEngine", "..\Geomet
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GeometryEngine.Core", "..\GeometryEngine\src\GeometryEngine.Core\GeometryEngine.Core.csproj", "{0A51E185-E2AD-41BD-9499-9BC727963356}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BasicResults", "BasicResults", "{C5945FB1-EE0E-40F1-9CB3-C334CB240050}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BasicResults", "..\BasicResults\src\BasicResults\BasicResults.csproj", "{5BDFE246-CB01-46FD-995A-CF22AC59A48C}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -77,10 +73,6 @@ Global
 		{0A51E185-E2AD-41BD-9499-9BC727963356}.Debug|x64.Build.0 = Debug|Any CPU
 		{0A51E185-E2AD-41BD-9499-9BC727963356}.Release|x64.ActiveCfg = Release|Any CPU
 		{0A51E185-E2AD-41BD-9499-9BC727963356}.Release|x64.Build.0 = Release|Any CPU
-		{5BDFE246-CB01-46FD-995A-CF22AC59A48C}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{5BDFE246-CB01-46FD-995A-CF22AC59A48C}.Debug|x64.Build.0 = Debug|Any CPU
-		{5BDFE246-CB01-46FD-995A-CF22AC59A48C}.Release|x64.ActiveCfg = Release|Any CPU
-		{5BDFE246-CB01-46FD-995A-CF22AC59A48C}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -92,7 +84,6 @@ Global
 		{FE3A2D5F-0E94-41A6-9172-98263A7322F8} = {4A098B28-0A50-4C47-B04A-4B6FD9E93902}
 		{FD425BE3-E915-48CF-A9F9-E76D018B10C6} = {8CC79B77-57B8-9EDF-C918-C78087D38EF5}
 		{0A51E185-E2AD-41BD-9499-9BC727963356} = {8CC79B77-57B8-9EDF-C918-C78087D38EF5}
-		{5BDFE246-CB01-46FD-995A-CF22AC59A48C} = {C5945FB1-EE0E-40F1-9CB3-C334CB240050}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {991C515F-7E69-4CCA-8E45-6635FC152BD0}

@@ -7,7 +7,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
 	  <Platforms>x64</Platforms>
     <GeometryEngineRoot Condition="'$(GeometryEngineRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\GeometryEngine\</GeometryEngineRoot>
-    <BasicResultsRoot Condition="'$(BasicResultsRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\BasicResults\</BasicResultsRoot>
   </PropertyGroup>
 
   <ItemGroup>
@@ -46,14 +45,13 @@
 
   <ItemGroup>
     <!--
-      Result, Error and Maybe - https://github.com/nsmela/BasicResults - also a sibling checkout,
-      for the same reason as GeometryEngine. Referenced explicitly rather than taken transitively
-      through GeometryEngine, which marks its own reference private; and this is the same
-      assembly GeometryEngine returns its results in, so a Result crossing that boundary is now
-      one type rather than two that had to be translated. Override BasicResultsRoot to build
-      against a checkout elsewhere.
+      Result, Error and Maybe. A package, unlike GeometryEngine, because this one is published.
+      Declared here rather than left to flow in through GeometryEngine: this project's own API
+      is written in these types, so the dependency is its own, not an inherited detail. Keep the
+      version in step with the one GeometryEngine resolves - it is the same assembly on both
+      sides of the adapter, which is what lets a Result cross that boundary without translation.
     -->
-    <ProjectReference Include="$(BasicResultsRoot)src\BasicResults\BasicResults.csproj" />
+    <PackageReference Include="BasicResults" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>
