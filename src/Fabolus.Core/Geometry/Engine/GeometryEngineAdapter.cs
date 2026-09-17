@@ -1,5 +1,5 @@
 using System.Numerics;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Common.Interfaces;
 using GE = GeometryEngine.Core.Geometry;
 
@@ -94,6 +94,6 @@ public static class EngineErrors
     public static Error AccessDenied(string path, string detail) => new("IO.AccessDenied", $"Access denied to '{path}': {detail}");
 
     /// <summary>Operation failures, keeping the library's own code and description.</summary>
-    public static Error Failed(string operation, GeometryEngine.Core.Common.Error error) =>
+    public static Error Failed(string operation, Error error) =>
         new($"Geometry.{operation}Failed", $"{error.Code}: {error.Description}");
 }

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using System.Windows;
 using System.Windows.Media;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 

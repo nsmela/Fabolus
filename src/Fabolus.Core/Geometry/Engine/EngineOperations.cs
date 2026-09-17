@@ -1,11 +1,10 @@
 using System.Collections.Immutable;
 using System.Numerics;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Overhangs;
 using Fabolus.Core.Geometry.Metadata;
 using GE = GeometryEngine.Core.Geometry;
-using GEC = GeometryEngine.Core.Common;
 using GEP = GeometryEngine.Core.Geometry.Primitives;
 
 namespace Fabolus.Core.Geometry.Engine;
@@ -20,7 +19,7 @@ internal sealed class EngineBooleans(GE.IGeometryEngine engine) : IBooleans
     public Result<IMesh> Intersect(IMesh meshA, IMesh meshB) => Run(meshA, meshB, "Intersection", engine.Booleans.Intersect);
 
     private static Result<IMesh> Run(
-        IMesh meshA, IMesh meshB, string operation, Func<GE.IMesh, GE.IMesh, GEC.Result<GE.IMesh>> boolean)
+        IMesh meshA, IMesh meshB, string operation, Func<GE.IMesh, GE.IMesh, Result<GE.IMesh>> boolean)
     {
         var a = meshA.ToEngine();
         if (a.IsFailure) return a.Error;
@@ -79,7 +78,7 @@ internal sealed class EngineTransforms(GE.IGeometryEngine engine) : IGeometryTra
         return Apply(source, source.Metadata, mesh => engine.Transforms.Rotate(mesh, axis.Value, angle));
     }
 
-    private static Result<IMesh> Apply(IMesh source, MeshMetadata metadata, Func<GE.IMesh, GEC.Result<GE.IMesh>> transform)
+    private static Result<IMesh> Apply(IMesh source, MeshMetadata metadata, Func<GE.IMesh, Result<GE.IMesh>> transform)
     {
         // The library refuses to transform nothing; Fabolus has always handed an empty mesh back.
         if (source.IsEmpty) return Result.Success(Copy(source, metadata));
@@ -132,7 +131,7 @@ internal sealed class EngineModifiers(GE.IGeometryEngine engine) : IGeometryModi
             m.Set(CoreKeys.Name, $"Repaired SI ({input.Metadata.Name})")
              .Set(CoreKeys.CreatedBy, "RepairSelfIntersections")));
 
-    private static Result<IMesh> Run(IMesh input, string operation, Func<GE.IMesh, GEC.Result<GE.IMesh>> modify, MeshMetadata metadata)
+    private static Result<IMesh> Run(IMesh input, string operation, Func<GE.IMesh, Result<GE.IMesh>> modify, MeshMetadata metadata)
     {
         var mesh = input.ToEngine();
         if (mesh.IsFailure) return mesh.Error;
@@ -235,7 +234,7 @@ internal sealed class EngineGenerators(GE.IGeometryEngine engine) : IGeometryGen
             parameters.Radius,
             Depth: parameters.ZMin,
             TopHeight: parameters.ZMax,
-            Surface: surface is null ? GEC.Maybe<GE.IMesh>.None() : GEC.Maybe<GE.IMesh>.Some(surface.Value));
+            Surface: surface is null ? Maybe<GE.IMesh>.None() : Maybe<GE.IMesh>.Some(surface.Value));
 
         var draped = engine.Generators.GenerateDrapedPath(spec);
         if (draped.IsFailure) return GeneratorError(draped.Error);
@@ -261,12 +260,12 @@ internal sealed class EngineGenerators(GE.IGeometryEngine engine) : IGeometryGen
     {
         if (outlines is null || outlines.Count == 0) return DecalErrors.EmptyOutlines;
 
-        GEC.Maybe<GE.ISpatialIndex> surface = GEC.Maybe<GE.ISpatialIndex>.None();
+        Maybe<GE.ISpatialIndex> surface = Maybe<GE.ISpatialIndex>.None();
         if (targetMesh is not null && targetMesh.TriangleCount > 0)
         {
             var index = SurfaceIndexFor(targetMesh);
             if (index.IsFailure) return index.Error;
-            surface = GEC.Maybe<GE.ISpatialIndex>.Some(index.Value);
+            surface = Maybe<GE.ISpatialIndex>.Some(index.Value);
         }
 
         var spec = new GE.DecalPrismSpec(
@@ -308,7 +307,7 @@ internal sealed class EngineGenerators(GE.IGeometryEngine engine) : IGeometryGen
     private static GE.SurfaceFrame ToEngine(DecalFrame frame) =>
         new(frame.Origin.ToEngine(), frame.U.ToEngine(), frame.V.ToEngine(), frame.N.ToEngine());
 
-    private static Error GeneratorError(GEC.Error error) => error.Code switch
+    private static Error GeneratorError(Error error) => error.Code switch
     {
         "Generators.PathTooShort" or "Generators.DegeneratePath" or "Generators.NonFinitePath" => EngineErrors.InvalidPath,
         "Generators.RadiiMismatch" => EngineErrors.InvalidRadii,
@@ -316,7 +315,10 @@ internal sealed class EngineGenerators(GE.IGeometryEngine engine) : IGeometryGen
         "Generators.TooFewSegments" => EngineErrors.InvalidSegments,
         "Generators.TriangulationFailed" => EngineErrors.TriangulationFailed(error.Description),
         "Polygons.OffsetFailed" => EngineErrors.OffsetFailed(error.Description),
-        _ => error.ToFabolus(),
+
+        // Anything unmapped travels as it arrived: the engine's own code and description are
+        // more use to a caller than a Fabolus error that says only that something failed.
+        _ => error,
     };
 }
 
@@ -571,7 +573,7 @@ internal sealed class EnginePolygons(GE.IGeometryEngine engine) : IPolygonOperat
 
     public Polygon2D MirrorX(Polygon2D polygon) => engine.Polygons.MirrorX(polygon.ToEngine()).ToFabolus();
 
-    private static Result<Polygon2D> Project(IMesh mesh, Func<GE.IMesh, GEC.Result<GE.PlanarPolygon>> projection)
+    private static Result<Polygon2D> Project(IMesh mesh, Func<GE.IMesh, Result<GE.PlanarPolygon>> projection)
     {
         if (mesh is null) return EngineErrors.InvalidMesh;
 

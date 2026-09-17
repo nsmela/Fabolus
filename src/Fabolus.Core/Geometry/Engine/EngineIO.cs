@@ -1,11 +1,10 @@
 using System.Collections.Immutable;
 using System.Text.Json;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry.Metadata;
 using GE = GeometryEngine.Core.Geometry;
-using GEC = GeometryEngine.Core.Common;
 
 namespace Fabolus.Core.Geometry.Engine;
 
@@ -86,16 +85,16 @@ internal sealed class EngineIO(IFileSystem fileSystem, GE.IGeometryEngine engine
         var converted = mesh.ToEngine();
         if (converted.IsFailure) return converted.Error;
 
-        GEC.Result<byte[]> bytes;
+        Result<byte[]> bytes;
         if (format.Value == GE.MeshFileFormat.ThreeMf)
         {
             var reference = mesh.Metadata.GetBaseMesh();
-            var referenceMesh = GEC.Maybe<GE.IMesh>.None();
+            var referenceMesh = Maybe<GE.IMesh>.None();
             if (reference.HasValue)
             {
                 var convertedReference = reference.Value.ToEngine();
                 if (convertedReference.IsFailure) return convertedReference.Error;
-                referenceMesh = GEC.Maybe<GE.IMesh>.Some(convertedReference.Value);
+                referenceMesh = Maybe<GE.IMesh>.Some(convertedReference.Value);
             }
 
             var metadata = ImmutableDictionary<string, string>.Empty.Add(CommandsKey, WriteCommands(mesh.Metadata));

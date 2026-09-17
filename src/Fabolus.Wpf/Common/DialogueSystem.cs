@@ -1,5 +1,5 @@
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Wpf.Features.AppPreferences;
 using Microsoft.Win32;

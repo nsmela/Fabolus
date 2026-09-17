@@ -95,7 +95,9 @@ Instead of throwing unhandled exceptions or returning `null` (which can cause su
 
 <!-- IMAGE_PLACEHOLDER: [Figure 13.2: Predictable Result<T> Error Handling Flow. Flowchart illustrating Result<T> success and failure pathways across feature workflows without unexpected runtime crashes. Dimensions: 800x350px.] -->
 
-### 1. The `Result<T>` Container ([`Result.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Result.cs))
+Both types come from [BasicResults](https://github.com/nsmela/BasicResults), a small standalone library shared with GeometryEngine so that a `Result` crossing the boundary between them is one type rather than two that have to be translated.
+
+### 1. The `Result<T>` Container ([`Result.cs`](https://github.com/nsmela/BasicResults/blob/main/src/BasicResults/Result.cs))
 Methods that can fail return `Result<T>`, which clearly indicates either `Success` (with the resulting mesh or value) or `Failure` (with a specific, user-friendly error message):
 
 ```csharp
@@ -109,7 +111,7 @@ public Result<Workspace> Execute(Workspace workspace, SmoothSettings settings)
 }
 ```
 
-### 2. The `Maybe<T>` Optional Value ([`Maybe.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Common/Maybe.cs))
+### 2. The `Maybe<T>` Optional Value ([`Maybe.cs`](https://github.com/nsmela/BasicResults/blob/main/src/BasicResults/Maybe.cs))
 `null` references are completely eliminated from the core layer. Any value that might not be present (such as whether a bolus has custom smoothing settings attached) is wrapped in `Maybe<T>`, ensuring code checks for the value before using it:
 
 ```csharp

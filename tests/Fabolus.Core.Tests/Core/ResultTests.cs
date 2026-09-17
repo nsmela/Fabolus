@@ -1,4 +1,4 @@
-using Fabolus.Core.Common;
+using BasicResults;
 using FluentAssertions;
 using System;
 using Xunit;

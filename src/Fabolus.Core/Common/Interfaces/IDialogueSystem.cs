@@ -1,4 +1,6 @@
 
+using BasicResults;
+
 namespace Fabolus.Core.Common.Interfaces;
 
 /// <summary>

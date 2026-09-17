@@ -1,6 +1,6 @@
 using System.Numerics;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;

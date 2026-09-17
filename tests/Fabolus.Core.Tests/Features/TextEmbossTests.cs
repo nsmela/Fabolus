@@ -1,5 +1,5 @@
 using System.Numerics;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;

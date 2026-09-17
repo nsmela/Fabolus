@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 using System.Numerics;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Geometry.Metadata;
 using GE = GeometryEngine.Core.Geometry;
 using GEP = GeometryEngine.Core.Geometry.Primitives;
@@ -54,7 +54,7 @@ internal static class EngineConversions
             ImmutableArray.Create(mesh.Triangles),
             GE.MeshMetadata.Named(SafeName(mesh.Metadata)));
 
-        return created.IsSuccess ? Result.Success(created.Value) : created.Error.ToFabolus();
+        return created.IsSuccess ? Result.Success(created.Value) : created.Error;
     }
 
     public static IMesh ToFabolus(this GE.IMesh mesh, MeshMetadata metadata)
@@ -68,8 +68,6 @@ internal static class EngineConversions
 
         return new EngineMesh(vertices, mesh.Triangles.ToArray(), metadata);
     }
-
-    public static Error ToFabolus(this GeometryEngine.Core.Common.Error error) => new(error.Code, error.Description);
 
     public static GEP.Vec3 ToEngine(this Vector3 v) => new(v.X, v.Y, v.Z);
 

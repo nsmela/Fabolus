@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.AppPreferences;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Features.AirChannels;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;

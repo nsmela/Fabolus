@@ -1,4 +1,4 @@
-using Fabolus.Core.Common;
+using BasicResults;
 using System.Numerics;
 
 namespace Fabolus.Core.Geometry;

@@ -1,5 +1,5 @@
 ﻿using System.Numerics;
-using Fabolus.Core.Common;
+using BasicResults;
 
 namespace Fabolus.Core.Features.Overhangs;
 

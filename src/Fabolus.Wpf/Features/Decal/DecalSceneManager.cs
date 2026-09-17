@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
