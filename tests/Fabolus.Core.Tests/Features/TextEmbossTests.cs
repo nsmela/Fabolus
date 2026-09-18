@@ -58,11 +58,11 @@ public class TextEmbossTests
 
         frame.Origin.Should().Be(anchor);
         frame.N.Should().Be(Vector3.UnitZ);
-        Vector3.Dot(frame.U, frame.N).Should().BeApproximately(0f, 1e-5f);
-        Vector3.Dot(frame.V, frame.N).Should().BeApproximately(0f, 1e-5f);
-        Vector3.Dot(frame.U, frame.V).Should().BeApproximately(0f, 1e-5f);
-        frame.U.Length().Should().BeApproximately(1f, 1e-5f);
-        frame.V.Length().Should().BeApproximately(1f, 1e-5f);
+        frame.U.Dot(frame.N).Should().BeApproximately(0f, 1e-5f);
+        frame.V.Dot(frame.N).Should().BeApproximately(0f, 1e-5f);
+        frame.U.Dot(frame.V).Should().BeApproximately(0f, 1e-5f);
+        frame.U.Length.Should().BeApproximately(1f, 1e-5f);
+        frame.V.Length.Should().BeApproximately(1f, 1e-5f);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class TextEmbossTests
         var frame0 = DecalFrame.FromHit(anchor, normal, rotationDeg: 0f);
         var frame90 = DecalFrame.FromHit(anchor, normal, rotationDeg: 90f);
 
-        Vector3.Dot(frame0.V, frame90.U).Should().BeApproximately(1f, 1e-4f);
+        frame0.V.Dot(frame90.U).Should().BeApproximately(1f, 1e-4f);
     }
 
     [Fact]

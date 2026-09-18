@@ -1,4 +1,4 @@
-﻿using BasicResults;
+using BasicResults;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 
@@ -10,17 +10,17 @@ public static class MeshIOKeys {
 }
 
 public static class MeshIOMetadataExtensions {
-    public static Maybe<MeshStatistics> MeshStats(this MeshMetadata metadata) =>
-        metadata.GetProperty(MeshIOKeys.Stats);
+    public static Maybe<MeshStatistics> MeshStats(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) =>
+        metadataBase.AsFabolus().GetProperty(MeshIOKeys.Stats);
 
-    public static Maybe<TopologyValidation> Topology(this MeshMetadata metadata) =>
-        metadata.GetProperty(MeshIOKeys.Topology);
+    public static Maybe<TopologyValidation> Topology(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) =>
+        metadataBase.AsFabolus().GetProperty(MeshIOKeys.Topology);
 
-    public static MeshMetadata WithMeshStats(this MeshMetadata metadata, MeshStatistics stats) =>
-        metadata.WithProperty(MeshIOKeys.Stats, stats);
+    public static MeshMetadata WithMeshStats(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase, MeshStatistics stats) =>
+        metadataBase.AsFabolus().WithProperty(MeshIOKeys.Stats, stats);
 
-    public static MeshMetadata WithTopology(this MeshMetadata metadata, TopologyValidation topology) =>
-        metadata.WithProperty(MeshIOKeys.Topology, topology);
+    public static MeshMetadata WithTopology(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase, TopologyValidation topology) =>
+        metadataBase.AsFabolus().WithProperty(MeshIOKeys.Topology, topology);
 
 
 }

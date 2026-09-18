@@ -30,7 +30,7 @@ public sealed class TransformMesh {
         var mesh = getMeshResult.Value;
 
         var vector = new Vector3(deltaX, deltaY, deltaZ);
-        var translateResult = mesh.Metadata.Translation();
+        var translateResult = mesh.Metadata.AsFabolus().Translation();
         if (translateResult.HasValue) {
             vector += translateResult.Value; // add vectors to stack
         }
@@ -39,8 +39,8 @@ public sealed class TransformMesh {
         // the moment it enters the workspace - and carries forward automatically below since
         // updatedMetadata is built from mesh.Metadata, which already has it. The copy is
         // consumed by the replay.
-        var baseMesh = mesh.Metadata.GetBaseMesh().Value;
-        var updatedMetadata = mesh.Metadata.WithCommand(new TranslateCommand(vector));
+        var baseMesh = mesh.Metadata.AsFabolus().GetBaseMesh().Value;
+        var updatedMetadata = mesh.Metadata.AsFabolus().WithCommand(new TranslateCommand(vector));
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
@@ -70,9 +70,10 @@ public sealed class TransformMesh {
 
         var mesh = getMeshResult.Value;
 
-        var quaternion = Quaternion.CreateFromAxisAngle(axis, angleRadians);
+        var numAxis = new System.Numerics.Vector3((float)axis.X, (float)axis.Y, (float)axis.Z);
+        var quaternion = Quaternion.CreateFromAxisAngle(numAxis, angleRadians);
 
-        var rotationResult = mesh.Metadata.Rotation();
+        var rotationResult = mesh.Metadata.AsFabolus().Rotation();
         if (rotationResult.HasValue) {
             quaternion = quaternion * rotationResult.Value;
         }
@@ -81,8 +82,8 @@ public sealed class TransformMesh {
         // the moment it enters the workspace - and carries forward automatically below since
         // updatedMetadata is built from mesh.Metadata, which already has it. The copy is
         // consumed by the replay.
-        var baseMesh = mesh.Metadata.GetBaseMesh().Value;
-        var updatedMetadata = mesh.Metadata.WithCommand(new RotateCommand(quaternion));
+        var baseMesh = mesh.Metadata.AsFabolus().GetBaseMesh().Value;
+        var updatedMetadata = mesh.Metadata.AsFabolus().WithCommand(new RotateCommand(quaternion));
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
@@ -113,13 +114,13 @@ public sealed class TransformMesh {
 
         var mesh = getMeshResult.Value;
 
-        var rotationResult = mesh.Metadata.Rotation();
+        var rotationResult = mesh.Metadata.AsFabolus().Rotation();
         if (rotationResult.HasNoValue) {
             return workspace; // no rotation to remove
         }
 
-        var baseMesh = mesh.Metadata.GetBaseMesh().Value;
-        var revertedMetadata = mesh.Metadata.WithoutCommand<RotateCommand>();
+        var baseMesh = mesh.Metadata.AsFabolus().GetBaseMesh().Value;
+        var revertedMetadata = mesh.Metadata.AsFabolus().WithoutCommand<RotateCommand>();
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;

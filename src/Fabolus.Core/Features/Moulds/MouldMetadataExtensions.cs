@@ -14,17 +14,17 @@ public static class MouldMetadataExtensions
 {
     // Presence of a MouldDefinition in Commands is the signal that this mesh is a mould,
     // not a mesh being edited - matches today's "Mould = generated result" semantics.
-    public static Maybe<MouldDefinition> MouldDefinition(this MeshMetadata metadata) {
-        var definition = metadata.Commands.OfType<MouldDefinition>().FirstOrDefault();
+    public static Maybe<MouldDefinition> MouldDefinition(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) {
+        var definition = metadataBase.AsFabolus().Commands.OfType<MouldDefinition>().FirstOrDefault();
         return definition is null ? Maybe<MouldDefinition>.None() : Maybe<MouldDefinition>.Some(definition);
     }
 
-    public static MeshMetadata WithMouldDefinition(this MeshMetadata metadata, MouldDefinition definition) =>
-        metadata.WithCommand(definition);
+    public static MeshMetadata WithMouldDefinition(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase, MouldDefinition definition) =>
+        metadataBase.AsFabolus().WithCommand(definition);
 
-    public static Maybe<MouldDefinition> PendingMouldDefinition(this MeshMetadata metadata) =>
-        metadata.GetProperty(MouldKeys.PendingMould);
+    public static Maybe<MouldDefinition> PendingMouldDefinition(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) =>
+        metadataBase.AsFabolus().GetProperty(MouldKeys.PendingMould);
 
-    public static MeshMetadata WithPendingMouldDefinition(this MeshMetadata metadata, MouldDefinition definition) =>
-        metadata.WithProperty(MouldKeys.PendingMould, definition);
+    public static MeshMetadata WithPendingMouldDefinition(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase, MouldDefinition definition) =>
+        metadataBase.AsFabolus().WithProperty(MouldKeys.PendingMould, definition);
 }

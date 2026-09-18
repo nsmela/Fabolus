@@ -20,7 +20,7 @@ public sealed class Workspace
     /// Metadata of all meshes currently loaded, for listing/display. Safe to hold - no
     /// geometry crosses this boundary. Use <see cref="GetMesh"/> when geometry is needed.
     /// </summary>
-    public IReadOnlyList<MeshMetadata> MeshMetadataList => _meshes.Values.Select(m => m.Metadata).ToList();
+    public IReadOnlyList<MeshMetadata> MeshMetadataList => _meshes.Values.Select(m => m.Metadata.AsFabolus()).ToList();
 
     /// <summary>
     /// ID of the currently active (selected) mesh.
@@ -62,15 +62,15 @@ public sealed class Workspace
         if (mesh is null)
             return WorkspaceErrors.NullMesh;
 
-        var meshId = mesh.Metadata.Id;
+        var meshId = mesh.Metadata.AsFabolus().Id;
         if (meshId == Guid.Empty)
             return WorkspaceErrors.InvalidId;
 
         if (_meshes.ContainsKey(meshId))
-            return WorkspaceErrors.DuplicateMesh(mesh.Metadata.Name);
+            return WorkspaceErrors.DuplicateMesh(mesh.Metadata.AsFabolus().Name);
 
-        if (!mesh.Metadata.HasBaseMesh)
-            mesh = mesh.WithMetadata(mesh.Metadata.WithBaseMesh(mesh));
+        if (!mesh.Metadata.AsFabolus().HasBaseMesh)
+            mesh = mesh.WithMetadata(mesh.Metadata.AsFabolus().WithBaseMesh(mesh));
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes) { [meshId] = mesh };
 
@@ -103,9 +103,9 @@ public sealed class Workspace
         if (updatedMesh is null)
             return WorkspaceErrors.NullMesh;
 
-        var meshId = updatedMesh.Metadata.Id;
+        var meshId = updatedMesh.Metadata.AsFabolus().Id;
         if (!_meshes.ContainsKey(meshId))
-            return WorkspaceErrors.MeshNotFound(updatedMesh.Metadata.Name);
+            return WorkspaceErrors.MeshNotFound(updatedMesh.Metadata.AsFabolus().Name);
 
         var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
         newMeshes[meshId] = updatedMesh;
@@ -162,7 +162,7 @@ public sealed class Workspace
         if (!_meshes.TryGetValue(ActiveMeshId, out var mesh))
             return WorkspaceErrors.ActiveMeshNotFound;
 
-        return Result.Success(mesh.Metadata);
+        return Result.Success(mesh.Metadata.AsFabolus());
     }
 
     /// <summary>

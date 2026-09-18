@@ -24,12 +24,12 @@ public sealed class ClearMould {
 
         var activeMesh = getMeshResult.Value;
 
-        var mouldResult = activeMesh.Metadata.MouldDefinition();
+        var mouldResult = activeMesh.Metadata.AsFabolus().MouldDefinition();
         if (mouldResult.HasNoValue) return workspace;
 
         // The copy is consumed by the replay.
-        var baseMesh = activeMesh.Metadata.GetBaseMesh().Value;
-        var revertedMetadata = activeMesh.Metadata.WithoutCommand<MouldDefinition>();
+        var baseMesh = activeMesh.Metadata.AsFabolus().GetBaseMesh().Value;
+        var revertedMetadata = activeMesh.Metadata.AsFabolus().WithoutCommand<MouldDefinition>();
 
         var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;

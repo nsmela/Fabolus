@@ -165,7 +165,7 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
                 }
             }
 
-            if (points.Count > 1 && Vector2.DistanceSquared(points[0], points[^1]) < PointClosureDistanceSquared)
+            if (points.Count > 1 && points[0].DistanceSquared(points[^1]) < PointClosureDistanceSquared)
                 points.RemoveAt(points.Count - 1);
 
             if (points.Count >= 3)
@@ -274,11 +274,10 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
                     }
                 }
 
-                polygons.Add(new Polygon2D
-                {
-                    OuterBoundary = outer,
-                    Holes = holes
-                });
+                polygons.Add(new Polygon2D(
+                    [.. outer], 
+                    [.. holes.Select(h => System.Collections.Immutable.ImmutableArray.CreateRange(h))]
+                ));
             }
         }
 
@@ -287,14 +286,14 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
 
     private static float ComputeSignedArea(List<Vector2> ring)
     {
-        float area = 0f;
+        double area = 0.0;
         for (int i = 0; i < ring.Count; i++)
         {
             var p1 = ring[i];
             var p2 = ring[(i + 1) % ring.Count];
             area += (p1.X * p2.Y - p2.X * p1.Y);
         }
-        return area * 0.5f;
+        return (float)(area * 0.5);
     }
 
     private static bool IsPointInsidePolygon(Vector2 point, List<Vector2> ring)

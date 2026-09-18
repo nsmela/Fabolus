@@ -45,9 +45,9 @@ public class MeshIOTests
 
         // Ensure centered
         var stats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
-        (stats.MinX + stats.MaxX).Should().BeApproximately(0, 0.01);
-        (stats.MinY + stats.MaxY).Should().BeApproximately(0, 0.01);
-        (stats.MinZ + stats.MaxZ).Should().BeApproximately(0, 0.01);
+        (stats.BoundsMin.X + stats.BoundsMax.X).Should().BeApproximately(0, 0.01);
+        (stats.BoundsMin.Y + stats.BoundsMax.Y).Should().BeApproximately(0, 0.01);
+        (stats.BoundsMin.Z + stats.BoundsMax.Z).Should().BeApproximately(0, 0.01);
     }
 
     /// <summary>

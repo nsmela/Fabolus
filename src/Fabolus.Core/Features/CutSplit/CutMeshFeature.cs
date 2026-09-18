@@ -29,22 +29,22 @@ public sealed class CutMeshFeature
         if (statsResult.IsFailure) return statsResult.Error;
         
         var stats = statsResult.Value;
-        float dx = (float)(stats.MaxX - stats.MinX);
-        float dy = (float)(stats.MaxY - stats.MinY);
-        float dz = (float)(stats.MaxZ - stats.MinZ);
+        float dx = (float)(stats.BoundsMax.X - stats.BoundsMin.X);
+        float dy = (float)(stats.BoundsMax.Y - stats.BoundsMin.Y);
+        float dz = (float)(stats.BoundsMax.Z - stats.BoundsMin.Z);
         float maxDim = Math.Max(dx, Math.Max(dy, dz)) * 2f;
         if (maxDim < 100f) maxDim = 100f;
 
         float d = maxDim / 2f;
-        double[] vertices = {
-            -d, -d, 0,
-             d, -d, 0,
-             d,  d, 0,
-            -d,  d, 0,
-            -d, -d, maxDim,
-             d, -d, maxDim,
-             d,  d, maxDim,
-            -d,  d, maxDim
+        Vector3[] vertices = {
+            new Vector3(-d, -d, 0),
+             new Vector3(d, -d, 0),
+             new Vector3(d, d, 0),
+            new Vector3(-d, d, 0),
+            new Vector3(-d, -d, maxDim),
+             new Vector3(d, -d, maxDim),
+             new Vector3(d, d, maxDim),
+            new Vector3(-d, d, maxDim)
         };
 
         int[] triangles = {
@@ -68,19 +68,19 @@ public sealed class CutMeshFeature
             3, 4, 7
         };
 
-        var cubeResult = _engine.CreateMesh(vertices.AsSpan(), triangles.AsSpan());
+        var cubeResult = _engine.CreateMesh([.. vertices], [.. triangles], new MeshMetadata("CutCube", "System"));
         if (cubeResult.IsFailure) return cubeResult.Error;
         var cubeMesh = cubeResult.Value;
         
         var zAxis = Vector3.UnitZ;
-        var normal = Vector3.Normalize(planeNormal);
-        var axis = Vector3.Cross(zAxis, normal);
-        float dot = Vector3.Dot(zAxis, normal);
+        var normal = planeNormal.Normalize();
+        var axis = zAxis.Cross(normal);
+        double dot = zAxis.Dot(normal);
         
-        Quaternion q;
-        if (dot < -0.9999f) q = Quaternion.CreateFromAxisAngle(Vector3.UnitX, (float)Math.PI);
-        else if (dot > 0.9999f) q = Quaternion.Identity;
-        else q = Quaternion.Normalize(new Quaternion(axis, 1 + dot));
+        System.Numerics.Quaternion q;
+        if (dot < -0.9999) q = System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitX, (float)Math.PI);
+        else if (dot > 0.9999) q = System.Numerics.Quaternion.Identity;
+        else q = System.Numerics.Quaternion.Normalize(new System.Numerics.Quaternion((float)axis.X, (float)axis.Y, (float)axis.Z, (float)(1 + dot)));
         
         var rotatedCubeResult = _engine.Transforms.Rotate(cubeMesh, q);
         if (rotatedCubeResult.IsFailure) return rotatedCubeResult.Error;
@@ -99,18 +99,18 @@ public sealed class CutMeshFeature
         var bottom = bottomResult.Value;
 
         // Add metadata, stats, and topology to the resulting meshes
-        var topMetadata = top.Metadata.WithProperties(m => 
+        var topMetadata = top.Metadata.AsFabolus().WithProperties(m => 
             m.Set(CoreKeys.Id, Guid.NewGuid())
-             .Set(CoreKeys.Name, $"{mesh.Metadata.Name} (Top)")
+             .Set(CoreKeys.Name, $"{mesh.Metadata.AsFabolus().Name} (Top)")
              .Set(CoreKeys.CreatedBy, "CutSplit"));
         var topStatsResult = _engine.Evaluators.GetStatistics(top);
         if (topStatsResult.IsSuccess) topMetadata = topMetadata.WithMeshStats(topStatsResult.Value);
         var topTopologyResult = _engine.Evaluators.ValidateTopology(top);
         if (topTopologyResult.IsSuccess) topMetadata = topMetadata.WithTopology(topTopologyResult.Value);
 
-        var bottomMetadata = bottom.Metadata.WithProperties(m => 
+        var bottomMetadata = bottom.Metadata.AsFabolus().WithProperties(m => 
             m.Set(CoreKeys.Id, Guid.NewGuid())
-             .Set(CoreKeys.Name, $"{mesh.Metadata.Name} (Bottom)")
+             .Set(CoreKeys.Name, $"{mesh.Metadata.AsFabolus().Name} (Bottom)")
              .Set(CoreKeys.CreatedBy, "CutSplit"));
         var bottomStatsResult = _engine.Evaluators.GetStatistics(bottom);
         if (bottomStatsResult.IsSuccess) bottomMetadata = bottomMetadata.WithMeshStats(bottomStatsResult.Value);

@@ -181,7 +181,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         var position = existing.Position;
         var direction = existing.Direction;
-        var totalLength = ComputeTotalLength(position.Z);
+        var totalLength = ComputeTotalLength((float)position.Z);
 
         IAirChannel domainModel = ChannelType switch
         {
@@ -293,7 +293,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     public ISceneManager SceneManager => _sceneManager;
 
-    public MouldViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new Fabolus.Core.Geometry.Engine.GeometryEngineAdapter(new FileSystem())) { }
+    public MouldViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), GeometryEngine.BspGeometryEngine.Create()) { }
     public MouldViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine)
     {
         _messenger = messenger;
@@ -336,7 +336,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         // Copy the list - the scene manager keeps mutating its accumulator.
         var path = points.ToList();
-        var preview = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength(path[0].Z), TipDepth);
+        var preview = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength((float)path[0].Z), TipDepth);
         _sceneManager.UpdatePreviewChannel(preview);
     }
 
@@ -346,10 +346,10 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         // Decimated raw input is still jittery; store the resampled/smoothed path so
         // persistence and every later regeneration work from the clean stroke.
-        var resampleResult = _engine.Generators.ResampleOpenPath(points, targetSpacing: 2.0f);
+        var resampleResult = _engine.Generators.ResampleOpenPath([.. points], spacing: 2.0f);
         var path = resampleResult.IsSuccess ? resampleResult.Value : points;
 
-        var domainModel = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength(path[0].Z), TipDepth);
+        var domainModel = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength((float)path[0].Z), TipDepth);
         AddChannel(new AirChannelModel(Guid.NewGuid(), AirChannelType.Painted, TipDiameter, ChannelDiameter, TipLength, domainModel));
     }
 
@@ -523,10 +523,10 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     private IAirChannel Relengthen(IAirChannel channel) => channel switch
     {
-        StraightAirChannel s => s with { TotalLength = ComputeTotalLength(s.StartPoint.Z) },
-        AngledAirChannel a => a with { TotalLength = ComputeTotalLength(a.StartPoint.Z) },
+        StraightAirChannel s => s with { TotalLength = ComputeTotalLength((float)s.StartPoint.Z) },
+        AngledAirChannel a => a with { TotalLength = ComputeTotalLength((float)a.StartPoint.Z) },
         // A painted channel is extruded from the height its stroke started at.
-        PaintedAirChannel { Path.Count: > 0 } p => p with { TotalLength = ComputeTotalLength(p.Path[0].Z) },
+        PaintedAirChannel { Path.Count: > 0 } p => p with { TotalLength = ComputeTotalLength((float)p.Path[0].Z) },
         _ => channel
     };
 
@@ -555,7 +555,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
         var topOffset = SelectedMouldType == MouldShapeType.Contoured ? WallThickness : BaseHeight;
         // A trough raises the top of the mould by its depth, and the channel still has to
         // vent above the rim rather than into the pool.
-        var mouldTopZ = _targetStats.MaxZ + topOffset + (HasTrough ? TroughHeight : 0.0);
+        var mouldTopZ = _targetStats.BoundsMax.Z + topOffset + (HasTrough ? TroughHeight : 0.0);
         var totalLength = (float)(mouldTopZ + MouldClearance) - startZ;
 
         // Never let the total length come out shorter than the cone/tip itself.
@@ -566,7 +566,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         var point = _lastHoverPoint;
         var normal = _lastHoverNormal;
-        var totalLength = ComputeTotalLength(point.Z);
+        var totalLength = ComputeTotalLength((float)point.Z);
 
         IAirChannel preview = ChannelType switch
         {
@@ -582,7 +582,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // into a paint stroke, committed via OnStrokeCompleted.
     private void OnChannelPlaced(Vector3 point, Vector3 normal)
     {
-        var totalLength = ComputeTotalLength(point.Z);
+        var totalLength = ComputeTotalLength((float)point.Z);
 
         IAirChannel domainModel = ChannelType switch
         {

@@ -69,9 +69,9 @@ public class GeometryEngineTests
         var stats = result.Value;
         stats.Volume.Should().BeGreaterThan(0);
         stats.SurfaceArea.Should().BeGreaterThan(0);
-        stats.MaxX.Should().BeGreaterThan(stats.MinX);
-        stats.MaxY.Should().BeGreaterThan(stats.MinY);
-        stats.MaxZ.Should().BeGreaterThan(stats.MinZ);
+        stats.BoundsMax.X.Should().BeGreaterThan(stats.BoundsMin.X);
+        stats.BoundsMax.Y.Should().BeGreaterThan(stats.BoundsMin.Y);
+        stats.BoundsMax.Z.Should().BeGreaterThan(stats.BoundsMin.Z);
         stats.EdgeCount.Should().BeGreaterThan(0);
     }
 

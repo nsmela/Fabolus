@@ -21,7 +21,7 @@ public record AirChannelModel(
     public Vector3 Direction => DomainModel switch
     {
         AngledAirChannel a => a.Normal,
-        PaintedAirChannel p => p.Path.Count > 1 ? Vector3.Normalize(p.Path[1] - p.Path[0]) : Vector3.UnitZ,
+        PaintedAirChannel p => p.Path.Count > 1 ? p.Path[1] - p.Path[0].Normalize() : Vector3.UnitZ,
         _ => Vector3.UnitZ
     };
 }

@@ -1,4 +1,4 @@
-﻿using BasicResults;
+using BasicResults;
 
 namespace Fabolus.Core.Features.Overhangs;
 

@@ -49,12 +49,12 @@ public class TransformMeshTests
 
         var stats = _fixture.Engine.Evaluators.GetStatistics(translatedMesh).Value;
 
-        (stats.MinX - originalStats.MinX).Should().BeApproximately(10, 0.01);
-        (stats.MinY - originalStats.MinY).Should().BeApproximately(20, 0.01);
-        (stats.MinZ - originalStats.MinZ).Should().BeApproximately(30, 0.01);
+        (stats.BoundsMin.X - originalStats.BoundsMin.X).Should().BeApproximately(10, 0.01);
+        (stats.BoundsMin.Y - originalStats.BoundsMin.Y).Should().BeApproximately(20, 0.01);
+        (stats.BoundsMin.Z - originalStats.BoundsMin.Z).Should().BeApproximately(30, 0.01);
 
         // The metadata's cached Stats must track the move too - UI elements are sized from it.
-        translatedMesh.Metadata.MeshStats().Value.MinX.Should().BeApproximately(stats.MinX, 0.01);
+        translatedMesh.Metadata.MeshStats().Value.BoundsMin.X.Should().BeApproximately(stats.BoundsMin.X, 0.01);
     }
 
     [Fact]
@@ -73,9 +73,9 @@ public class TransformMeshTests
         var rotatedMesh = workspace.GetActiveMesh().Value;
         var stats = rotatedMesh.Metadata.MeshStats().Value;
 
-        (stats.MaxX - stats.MinX).Should().BeApproximately(System.Math.Sqrt(2), 0.01);
-        (stats.MaxY - stats.MinY).Should().BeApproximately(System.Math.Sqrt(2), 0.01);
-        (stats.MaxZ - stats.MinZ).Should().BeApproximately(1.0, 0.01);
+        (stats.BoundsMax.X - stats.BoundsMin.X).Should().BeApproximately(System.Math.Sqrt(2), 0.01);
+        (stats.BoundsMax.Y - stats.BoundsMin.Y).Should().BeApproximately(System.Math.Sqrt(2), 0.01);
+        (stats.BoundsMax.Z - stats.BoundsMin.Z).Should().BeApproximately(1.0, 0.01);
     }
 
     [Fact]

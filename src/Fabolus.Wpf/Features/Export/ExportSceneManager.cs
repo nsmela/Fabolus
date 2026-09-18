@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Messaging;
+using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;

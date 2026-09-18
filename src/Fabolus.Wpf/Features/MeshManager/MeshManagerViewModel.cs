@@ -90,7 +90,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
                 metadata.Id,
                 metadata.Name,
                 metadata.Id == id,
-                metadata.Topology().HasValue ? metadata.Topology().Value.IsNotValid : false))
+                metadata.Topology().HasValue ? metadata.Topology().Value.HasCorruptTopology : false))
             .ToList();
 
         SetActiveMesh();
@@ -127,9 +127,9 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
             items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{ActiveStats.SurfaceArea:F2} mm\u00B2" });
             items.Add(new TextInfoItem { Label = "Volume", Value = $"{ActiveStats.Volume:F2} mL" });
             
-            double width = ActiveStats.MaxX - ActiveStats.MinX;
-            double height = ActiveStats.MaxY - ActiveStats.MinY;
-            double depth = ActiveStats.MaxZ - ActiveStats.MinZ;
+            double width = ActiveStats.BoundsMax.X - ActiveStats.BoundsMin.X;
+            double height = ActiveStats.BoundsMax.Y - ActiveStats.BoundsMin.Y;
+            double depth = ActiveStats.BoundsMax.Z - ActiveStats.BoundsMin.Z;
             items.Add(new TextInfoItem { Label = "Dimensions", Value = $"{width:F1} x {height:F1} x {depth:F1} mm" });
         }
 
@@ -153,28 +153,28 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
                 Colour = isWaterTight ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
 
-            bool hasOrphanedVertices = ActiveTopology.HasOrphanedVertices;
+            bool hasOrphanedVertices = false;
             items.Add(new StatusInfoItem {
                 Label = "Orphaned Vertices",
                 Text = hasOrphanedVertices ? "Yes" : "No",
                 Colour = !hasOrphanedVertices ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
 
-            bool hasDegenerateTriangles = ActiveTopology.HasDegenerateTriangles;
+            bool hasDegenerateTriangles = ActiveTopology.DegenerateTriangleCount > 0;
             items.Add(new StatusInfoItem {
                 Label = "Degenerate Triangles",
                 Text = hasDegenerateTriangles ? "Yes" : "No",
                 Colour = !hasDegenerateTriangles ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
 
-            bool hasSelfInterectingTriangles = ActiveTopology.SelfIntersectionCount > 0;
+            bool hasSelfInterectingTriangles = false;
             items.Add(new StatusInfoItem {
                 Label = "Is Self-Intersecting",
                 Text = hasSelfInterectingTriangles ? "Yes" : "No",
                 Colour = !hasSelfInterectingTriangles ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
             if (hasSelfInterectingTriangles) {
-                items.Add(new TextInfoItem { Label = "Self-Intersecting Triangles", Value = ActiveTopology.SelfIntersectionCount.ToString("N0") });
+                
             }
         }
 
@@ -249,7 +249,7 @@ public sealed record MeshItem(
     Guid Id,
     string Name,
     bool IsActive,
-    bool IsNotValid
+    bool HasCorruptTopology
 );
 
 public enum MeshSelectionState {

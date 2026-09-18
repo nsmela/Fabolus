@@ -76,9 +76,9 @@ public class DecalWrappingTests
         // Left edge (-20mm along circumference) should have X < 15, Y < 0
         // Right edge (+20mm along circumference) should have X < 15, Y > 0
         var stats = _engine.Evaluators.GetStatistics(prism).Value;
-        stats.MinY.Should().BeLessThan(-10.0);
-        stats.MaxY.Should().BeGreaterThan(10.0);
-        stats.MinX.Should().BeLessThan(5.0); // Wrapped around the sides
+        stats.BoundsMin.Y.Should().BeLessThan(-10.0);
+        stats.BoundsMax.Y.Should().BeGreaterThan(10.0);
+        stats.BoundsMin.X.Should().BeLessThan(5.0); // Wrapped around the sides
 
         // Performance check: should complete in under 30ms
         sw.ElapsedMilliseconds.Should().BeLessThan(30);
@@ -130,9 +130,9 @@ public class DecalWrappingTests
         var stats = _engine.Evaluators.GetStatistics(bolus).Value;
 
         var center = new Vector3(
-            (float)(stats.MinX + stats.MaxX) * 0.5f,
-            (float)(stats.MinY + stats.MaxY) * 0.5f,
-            (float)stats.MaxZ);
+            (float)(stats.BoundsMin.X + stats.BoundsMax.X) * 0.5f,
+            (float)(stats.BoundsMin.Y + stats.BoundsMax.Y) * 0.5f,
+            (float)stats.BoundsMax.Z);
 
         var frame = DecalFrame.FromHit(center, Vector3.UnitZ, 0f);
 

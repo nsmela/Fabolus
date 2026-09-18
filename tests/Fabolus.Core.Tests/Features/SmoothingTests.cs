@@ -62,12 +62,12 @@ public class SmoothingTests
 
         // Smoothing erodes and re-dilates, so the result moves a little either way; what it must
         // not do is balloon. A shredded field shows up here as a box half again too large.
-        after.MaxX.Should().BeApproximately(before.MaxX, 2.0);
-        after.MinX.Should().BeApproximately(before.MinX, 2.0);
-        after.MaxY.Should().BeApproximately(before.MaxY, 2.0);
-        after.MinY.Should().BeApproximately(before.MinY, 2.0);
-        after.MaxZ.Should().BeApproximately(before.MaxZ, 2.0);
-        after.MinZ.Should().BeApproximately(before.MinZ, 2.0);
+        after.BoundsMax.X.Should().BeApproximately(before.BoundsMax.X, 2.0);
+        after.BoundsMin.X.Should().BeApproximately(before.BoundsMin.X, 2.0);
+        after.BoundsMax.Y.Should().BeApproximately(before.BoundsMax.Y, 2.0);
+        after.BoundsMin.Y.Should().BeApproximately(before.BoundsMin.Y, 2.0);
+        after.BoundsMax.Z.Should().BeApproximately(before.BoundsMax.Z, 2.0);
+        after.BoundsMin.Z.Should().BeApproximately(before.BoundsMin.Z, 2.0);
 
         // Volume survives within a fifth. Fragments lose most of it; a runaway offset gains it.
         after.Volume.Should().BeInRange(before.Volume * 0.8, before.Volume * 1.2);
@@ -153,7 +153,7 @@ public class SmoothingTests
         var smoothedStats = _fixture.Engine.Evaluators.GetStatistics(smoothedMesh).Value;
 
         // Bounding box should have grown due to inflation
-        (smoothedStats.MaxX - smoothedStats.MinX).Should().BeGreaterThan(originalStats.MaxX - originalStats.MinX + 1.0);
+        (smoothedStats.BoundsMax.X - smoothedStats.BoundsMin.X).Should().BeGreaterThan(originalStats.BoundsMax.X - originalStats.BoundsMin.X + 1.0);
     }
 
     [Fact]
@@ -205,7 +205,7 @@ public class SmoothingTests
 
         // Smoothing must replay on top of the translation (re-deriving straight from the
         // untranslated BaseMesh would silently discard it).
-        (smoothedStats.MinX - originalStats.MinX).Should().BeApproximately(50, 2.0);
+        (smoothedStats.BoundsMin.X - originalStats.BoundsMin.X).Should().BeApproximately(50, 2.0);
     }
 
     [Fact]
@@ -236,12 +236,12 @@ public class SmoothingTests
         var baseStats = _fixture.Engine.Evaluators.GetStatistics(baseCopy).Value;
 
         // Aligned with the (translated, smoothed) current mesh...
-        var currentCentreX = (currentStats.MinX + currentStats.MaxX) / 2;
-        var unsmoothedCentreX = (unsmoothedStats.MinX + unsmoothedStats.MaxX) / 2;
+        var currentCentreX = (currentStats.BoundsMin.X + currentStats.BoundsMax.X) / 2;
+        var unsmoothedCentreX = (unsmoothedStats.BoundsMin.X + unsmoothedStats.BoundsMax.X) / 2;
         unsmoothedCentreX.Should().BeApproximately(currentCentreX, 2.0);
 
         // ...and NOT with the pristine BaseMesh, which never moves.
-        var baseCentreX = (baseStats.MinX + baseStats.MaxX) / 2;
+        var baseCentreX = (baseStats.BoundsMin.X + baseStats.BoundsMax.X) / 2;
         (unsmoothedCentreX - baseCentreX).Should().BeApproximately(50, 2.0);
     }
 

@@ -32,7 +32,7 @@ public class MouldPresetPointsCalculatorTests
         var mouldMesh = mouldResult.Value;
 
         var stats = _fixture.Engine.Evaluators.GetStatistics(mouldMesh).Value;
-        float zMid = (float)(stats.MinZ + stats.MaxZ) * 0.5f;
+        float zMid = (float)(stats.BoundsMin.Z + stats.BoundsMax.Z) * 0.5f;
 
         var presets = MouldPresetPointsCalculator.Calculate(_fixture.Engine, mouldMesh);
 
@@ -41,27 +41,27 @@ public class MouldPresetPointsCalculatorTests
         // Front (Y near MinY, Z near zMid, Normal pointing -Y)
         var front = presets.Should().ContainSingle(p => p.Name == "Front").Subject;
         front.Position.X.Should().BeApproximately(0f, 1.0f);
-        front.Position.Y.Should().BeApproximately((float)stats.MinY, 1.0f);
+        front.Position.Y.Should().BeApproximately((float)stats.BoundsMin.Y, 1.0f);
         front.Position.Z.Should().BeApproximately(zMid, 0.5f);
         front.Normal.Y.Should().BeLessThan(-0.8f);
 
         // Back (Y near MaxY, Z near zMid, Normal pointing +Y)
         var back = presets.Should().ContainSingle(p => p.Name == "Back").Subject;
         back.Position.X.Should().BeApproximately(0f, 1.0f);
-        back.Position.Y.Should().BeApproximately((float)stats.MaxY, 1.0f);
+        back.Position.Y.Should().BeApproximately((float)stats.BoundsMax.Y, 1.0f);
         back.Position.Z.Should().BeApproximately(zMid, 0.5f);
         back.Normal.Y.Should().BeGreaterThan(0.8f);
 
         // Left (X near MinX, Z near zMid, Normal pointing -X)
         var left = presets.Should().ContainSingle(p => p.Name == "Left").Subject;
-        left.Position.X.Should().BeApproximately((float)stats.MinX, 1.0f);
+        left.Position.X.Should().BeApproximately((float)stats.BoundsMin.X, 1.0f);
         left.Position.Y.Should().BeApproximately(0f, 1.0f);
         left.Position.Z.Should().BeApproximately(zMid, 0.5f);
         left.Normal.X.Should().BeLessThan(-0.8f);
 
         // Right (X near MaxX, Z near zMid, Normal pointing +X)
         var right = presets.Should().ContainSingle(p => p.Name == "Right").Subject;
-        right.Position.X.Should().BeApproximately((float)stats.MaxX, 1.0f);
+        right.Position.X.Should().BeApproximately((float)stats.BoundsMax.X, 1.0f);
         right.Position.Y.Should().BeApproximately(0f, 1.0f);
         right.Position.Z.Should().BeApproximately(zMid, 0.5f);
         right.Normal.X.Should().BeGreaterThan(0.8f);
@@ -74,16 +74,16 @@ public class MouldPresetPointsCalculatorTests
 
         // Rotation & AvailableSpan
         front.RotationDeg.Should().Be(0f);
-        front.AvailableSpan.Should().BeApproximately((float)(stats.MaxX - stats.MinX), 1e-2f);
+        front.AvailableSpan.Should().BeApproximately((float)(stats.BoundsMax.X - stats.BoundsMin.X), 1e-2f);
 
         back.RotationDeg.Should().Be(0f);
-        back.AvailableSpan.Should().BeApproximately((float)(stats.MaxX - stats.MinX), 1e-2f);
+        back.AvailableSpan.Should().BeApproximately((float)(stats.BoundsMax.X - stats.BoundsMin.X), 1e-2f);
 
         left.RotationDeg.Should().Be(90f);
-        left.AvailableSpan.Should().BeApproximately((float)(stats.MaxZ - stats.MinZ), 1e-2f);
+        left.AvailableSpan.Should().BeApproximately((float)(stats.BoundsMax.Z - stats.BoundsMin.Z), 1e-2f);
 
         right.RotationDeg.Should().Be(90f);
-        right.AvailableSpan.Should().BeApproximately((float)(stats.MaxZ - stats.MinZ), 1e-2f);
+        right.AvailableSpan.Should().BeApproximately((float)(stats.BoundsMax.Z - stats.BoundsMin.Z), 1e-2f);
 
         curve1.RotationDeg.Should().Be(90f);
         curve2.RotationDeg.Should().Be(90f);

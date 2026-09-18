@@ -1,4 +1,4 @@
-﻿using BasicResults;
+using BasicResults;
 using Fabolus.Core.Geometry;
 
 namespace Fabolus.Core.Features.Overhangs;
@@ -22,10 +22,10 @@ public sealed class ComputeOverhangColors(IGeometryEngine Engine) {
             return normalsResult.Error;
 
         var normals = normalsResult.Value;
-        var angles = new float[normals.Count];
-        var colors = new double[normals.Count * 3];
+        var angles = new float[normals.Length];
+        var colors = new double[normals.Length * 3];
 
-        for (int i = 0; i < normals.Count; i++) {
+        for (int i = 0; i < normals.Length; i++) {
             var angle = settings.Direction.AngleToDegrees(normals[i]);
             angles[i] = angle;
 

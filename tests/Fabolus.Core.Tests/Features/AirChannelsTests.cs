@@ -28,8 +28,8 @@ public class AirChannelsTests
         var mesh = result.Value;
 
         var stats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
-        stats.MaxZ.Should().BeApproximately(30.0, 0.1); // 10 + 20
-        stats.MinZ.Should().BeApproximately(9.0, 0.1); // 10 - 1.0 (cone penetration)
+        stats.BoundsMax.Z.Should().BeApproximately(30.0, 0.1); // 10 + 20
+        stats.BoundsMin.Z.Should().BeApproximately(9.0, 0.1); // 10 - 1.0 (cone penetration)
     }
 
     [Fact]
@@ -51,8 +51,8 @@ public class AirChannelsTests
         var stats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
         // The normal is (1,0,0) and target Z is TotalLength (20)
         // Starts at X=-1, goes to X=5, then arcs to Z
-        stats.MaxX.Should().BeGreaterThan(4.0);
-        stats.MaxZ.Should().BeGreaterThan(19.0);
+        stats.BoundsMax.X.Should().BeGreaterThan(4.0);
+        stats.BoundsMax.Z.Should().BeGreaterThan(19.0);
     }
 
     [Fact]
@@ -72,8 +72,8 @@ public class AirChannelsTests
         var mesh = result.Value;
 
         var stats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
-        stats.MinZ.Should().BeApproximately(7.0, 0.1); // path Z (5) - PenetrationDepth (-2) -> goes upward
-        stats.MaxZ.Should().BeApproximately(15.0, 0.1); // path[0].Z + TotalLength (5 + 10)
+        stats.BoundsMin.Z.Should().BeApproximately(7.0, 0.1); // path Z (5) - PenetrationDepth (-2) -> goes upward
+        stats.BoundsMax.Z.Should().BeApproximately(15.0, 0.1); // path[0].Z + TotalLength (5 + 10)
     }
 
     [Fact]
@@ -88,10 +88,10 @@ public class AirChannelsTests
         result.IsSuccess.Should().BeTrue();
         var stats = _fixture.Engine.Evaluators.GetStatistics(result.Value).Value;
 
-        stats.MinZ.Should().BeApproximately(4.0, 0.1); // path Z (5) - PenetrationDepth (1)
-        stats.MaxZ.Should().BeApproximately(15.0, 0.1); // path Z (5) + TotalLength (10)
-        (stats.MaxX - stats.MinX).Should().BeApproximately(4.0, 0.3); // ~2 x Radius disc
-        (stats.MaxY - stats.MinY).Should().BeApproximately(4.0, 0.3);
+        stats.BoundsMin.Z.Should().BeApproximately(4.0, 0.1); // path Z (5) - PenetrationDepth (1)
+        stats.BoundsMax.Z.Should().BeApproximately(15.0, 0.1); // path Z (5) + TotalLength (10)
+        (stats.BoundsMax.X - stats.BoundsMin.X).Should().BeApproximately(4.0, 0.3); // ~2 x Radius disc
+        (stats.BoundsMax.Y - stats.BoundsMin.Y).Should().BeApproximately(4.0, 0.3);
     }
 
     [Fact]
@@ -118,9 +118,9 @@ public class AirChannelsTests
         // The contour reaches x = +/-5, where the sphere surface is at z = sqrt(100-25) ~ 8.66;
         // snapped bottom = surface - penetration (1) ~ 7.66, well below the painted path's
         // lowest Z (9.5) that pure interpolation would give.
-        stats.MinZ.Should().BeLessThan(9.0);
-        stats.MinZ.Should().BeGreaterThan(6.5);
-        stats.MaxZ.Should().BeApproximately(19.5, 0.1); // path[0].Z (9.5) + TotalLength (10)
+        stats.BoundsMin.Z.Should().BeLessThan(9.0);
+        stats.BoundsMin.Z.Should().BeGreaterThan(6.5);
+        stats.BoundsMax.Z.Should().BeApproximately(19.5, 0.1); // path[0].Z (9.5) + TotalLength (10)
     }
 
     [Fact]

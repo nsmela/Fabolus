@@ -8,11 +8,11 @@ public static class TextEmbossMetadataExtensions
     /// <summary>
     /// Extracts all applied text decals from the mesh's command history (<see cref="DecalCommand"/> and <see cref="MouldDecalCommand"/>).
     /// </summary>
-    public static Maybe<IReadOnlyList<TextDecal>> TextDecals(this MeshMetadata metadata)
+    public static Maybe<IReadOnlyList<TextDecal>> TextDecals(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase)
     {
         var list = new List<TextDecal>();
 
-        foreach (var cmd in metadata.Commands)
+        foreach (var cmd in metadataBase.AsFabolus().Commands)
         {
             if (cmd is DecalCommand decalCmd)
             {

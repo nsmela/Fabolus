@@ -1,4 +1,4 @@
-﻿namespace Fabolus.Core.Geometry.Metadata;
+namespace Fabolus.Core.Geometry.Metadata;
 
 /// <summary>
 /// A type-safe key that enforces the value type at compile time.

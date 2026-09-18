@@ -1,4 +1,4 @@
-﻿using HelixToolkit.Wpf.SharpDX;
+using HelixToolkit.Wpf.SharpDX;
 using BasicResults;
 using Fabolus.Core.Geometry;
 using SharpDX;
@@ -7,41 +7,36 @@ namespace Fabolus.Wpf.Common.Mesh;
 
 public static class MeshConverters {
     public static Result<MeshGeometry3D> ToHelixMesh(this IMesh mesh, IGeometryEngine engine, double[]? vertexColours = null) {
-        var renderDataResult = engine.Evaluators.GetRenderData(mesh);
-        if (renderDataResult.IsFailure)
-            return renderDataResult.Error;
-
-        var renderData = renderDataResult.Value;
         var geometry = new MeshGeometry3D();
 
-        var positions = new Vector3Collection();
-        for (int i = 0; i < renderData.Vertices.Length; i += 3) {
-            positions.Add(new Vector3(
-                (float)renderData.Vertices[i],
-                (float)renderData.Vertices[i + 1],
-                (float)renderData.Vertices[i + 2]));
+        var positions = new Vector3Collection(mesh.VertexCount);
+        foreach (var v in mesh.Vertices) {
+            positions.Add(new SharpDX.Vector3((float)v.X, (float)v.Y, (float)v.Z));
         }
         geometry.Positions = positions;
 
-        if (renderData.Normals is not null && renderData.Normals.Length > 0) {
-            var normals = new Vector3Collection();
-            for (int i = 0; i < renderData.Normals.Length; i += 3)
-                normals.Add(new Vector3(
-                    (float)renderData.Normals[i],
-                    (float)renderData.Normals[i + 1],
-                    (float)renderData.Normals[i + 2]));
+        var normalsResult = engine.Evaluators.ComputeVertexNormals(mesh);
+        if (normalsResult.IsSuccess) {
+            var normals = new Vector3Collection(mesh.VertexCount);
+            foreach (var n in normalsResult.Value) {
+                normals.Add(new SharpDX.Vector3((float)n.X, (float)n.Y, (float)n.Z));
+            }
             geometry.Normals = normals;
         }
 
-        var colors = vertexColours ?? renderData.Colors;
-        if (colors is not null && colors.Length > 0) {
-            var colorCollection = new Color4Collection();
-            for (int i = 0; i < colors.Length; i += 3)
-                colorCollection.Add(new Color4((float)colors[i], (float)colors[i + 1], (float)colors[i + 2], 1.0f));
+        if (vertexColours is not null && vertexColours.Length >= mesh.VertexCount * 3) {
+            var colorCollection = new Color4Collection(mesh.VertexCount);
+            for (int i = 0; i < mesh.VertexCount; i++) {
+                colorCollection.Add(new SharpDX.Color4((float)vertexColours[i*3], (float)vertexColours[i*3+1], (float)vertexColours[i*3+2], 1.0f));
+            }
             geometry.Colors = colorCollection;
         }
 
-        geometry.Indices = new IntCollection(renderData.Triangles);
+        var indices = new IntCollection(mesh.TriangleCount * 3);
+        foreach (var t in mesh.Triangles) {
+            indices.Add(t);
+        }
+        geometry.Indices = indices;
         return geometry;
     }
 }

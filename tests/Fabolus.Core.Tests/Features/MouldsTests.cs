@@ -181,8 +181,8 @@ public class MouldsTests
         var mouldMesh = result.Value.GetActiveMesh().Value;
 
         var stats = _fixture.Engine.Evaluators.GetStatistics(mouldMesh).Value;
-        stats.MaxZ.Should().BeGreaterThan(10);
-        stats.MinZ.Should().BeLessThan(-10);
+        stats.BoundsMax.Z.Should().BeGreaterThan(10);
+        stats.BoundsMin.Z.Should().BeLessThan(-10);
     }
 
     [Fact]
@@ -206,8 +206,8 @@ public class MouldsTests
         // The contour has to reach the channel's own radius (2.5) plus a full wall (2.0)
         // past its centre, rather than stopping at the bolus wall and letting the channel
         // slice its way out.
-        channelStats.MaxX.Should().BeApproximately(14.5, 0.2);
-        channelStats.MaxX.Should().BeGreaterThan(plainStats.MaxX + 2.0);
+        channelStats.BoundsMax.X.Should().BeApproximately(14.5, 0.2);
+        channelStats.BoundsMax.X.Should().BeGreaterThan(plainStats.BoundsMax.X + 2.0);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class MouldsTests
 
         // Cone end at x=13, then an arc of radius 2.5 back to vertical, plus the channel
         // radius and the wall on top of that.
-        channelStats.MaxX.Should().BeGreaterThan(17.0);
+        channelStats.BoundsMax.X.Should().BeGreaterThan(17.0);
     }
 
     [Fact]
@@ -246,8 +246,8 @@ public class MouldsTests
 
         // A channel well inside the bolus outline is already buried; folding it into the
         // contour must not pad the mould out.
-        channelStats.MaxX.Should().BeApproximately(plainStats.MaxX, 1e-3);
-        channelStats.MaxY.Should().BeApproximately(plainStats.MaxY, 1e-3);
+        channelStats.BoundsMax.X.Should().BeApproximately(plainStats.BoundsMax.X, 1e-3);
+        channelStats.BoundsMax.Y.Should().BeApproximately(plainStats.BoundsMax.Y, 1e-3);
     }
 
     [Fact]
@@ -265,7 +265,7 @@ public class MouldsTests
         var troughedStats = GenerateStats(workspace, meshId, troughed);
         var solidStats = GenerateStats(workspace, meshId, solid);
 
-        troughedStats.MaxZ.Should().BeApproximately(solidStats.MaxZ, 1e-3);
+        troughedStats.BoundsMax.Z.Should().BeApproximately(solidStats.BoundsMax.Z, 1e-3);
         troughedStats.Volume.Should().BeGreaterThan(GenerateStats(workspace, meshId, plain).Volume);
         troughedStats.Volume.Should().BeLessThan(solidStats.Volume);
     }
@@ -320,7 +320,7 @@ public class MouldsTests
 
         // Both moulds are the same height; the channel trough only pools around the one
         // channel, so it leaves more of the top face standing.
-        channelStats.MaxZ.Should().BeApproximately(footprintStats.MaxZ, 1e-3);
+        channelStats.BoundsMax.Z.Should().BeApproximately(footprintStats.BoundsMax.Z, 1e-3);
         channelStats.Volume.Should().BeGreaterThan(footprintStats.Volume);
     }
 
@@ -337,7 +337,7 @@ public class MouldsTests
 
         // Nothing to pool around: the mould must not grow taller for a basin that can't be
         // carved.
-        troughedStats.MaxZ.Should().BeApproximately(plainStats.MaxZ, 1e-3);
+        troughedStats.BoundsMax.Z.Should().BeApproximately(plainStats.BoundsMax.Z, 1e-3);
         troughedStats.Volume.Should().BeApproximately(plainStats.Volume, 1e-3);
     }
 

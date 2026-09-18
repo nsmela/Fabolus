@@ -38,7 +38,7 @@ public sealed class GenerateMould
         var topologyResult = _geometryEngine.Evaluators.ValidateTopology(mouldMesh);
         if (topologyResult.IsFailure) return topologyResult.Error;
 
-        var metadata = mesh.Metadata.WithProperties(m => m
+        var metadata = mesh.Metadata.AsFabolus().WithProperties(m => m
             .Set(MeshIOKeys.Stats, statsResult.Value)
             .Set(MeshIOKeys.Topology, topologyResult.Value));
 

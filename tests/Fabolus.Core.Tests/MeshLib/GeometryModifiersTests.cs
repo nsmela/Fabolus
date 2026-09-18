@@ -33,7 +33,7 @@ public class GeometryModifiersTests
         
         var offsetStats = _engine.Evaluators.GetStatistics(offsetMesh).Value;
         
-        var dx = (offsetStats.MaxX - offsetStats.MinX) - (originalStats.MaxX - originalStats.MinX);
+        var dx = (offsetStats.BoundsMax.X - offsetStats.BoundsMin.X) - (originalStats.BoundsMax.X - originalStats.BoundsMin.X);
         dx.Should().BeApproximately(2 * d, 0.5); // Tolerance
 
         var validation = _engine.Evaluators.ValidateTopology(offsetMesh).Value;

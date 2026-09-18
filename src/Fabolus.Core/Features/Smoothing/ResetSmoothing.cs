@@ -21,10 +21,10 @@ public sealed class ResetSmoothing {
     /// Always returns an owned mesh the caller must dispose - never a shared instance.
     /// </summary>
     public Result<IMesh> ComputeUnsmoothedMesh(IMesh mesh) {
-        var baseCopy = mesh.Metadata.GetBaseMesh();
+        var baseCopy = mesh.Metadata.AsFabolus().GetBaseMesh();
         if (baseCopy.HasNoValue) return MetadataErrors.MissingBaseMesh;
 
-        var revertedMetadata = mesh.Metadata.WithoutCommand<SmoothSettings>();
+        var revertedMetadata = mesh.Metadata.AsFabolus().WithoutCommand<SmoothSettings>();
         return CommandReplay.Apply(_engine, baseCopy.Value, revertedMetadata.Commands);
     }
 
@@ -40,10 +40,10 @@ public sealed class ResetSmoothing {
 
         var activeMesh = getMeshResult.Value;
 
-        var smoothResult = activeMesh.Metadata.GetSmoothing();
+        var smoothResult = activeMesh.Metadata.AsFabolus().GetSmoothing();
         if (smoothResult.HasNoValue) return workspace;
 
-        var revertedMetadata = activeMesh.Metadata.WithoutCommand<SmoothSettings>();
+        var revertedMetadata = activeMesh.Metadata.AsFabolus().WithoutCommand<SmoothSettings>();
 
         var replayResult = ComputeUnsmoothedMesh(activeMesh);
         if (replayResult.IsFailure) return replayResult.Error;

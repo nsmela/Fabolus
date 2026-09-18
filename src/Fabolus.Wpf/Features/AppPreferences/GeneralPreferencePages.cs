@@ -1,4 +1,4 @@
-﻿namespace Fabolus.Wpf.Features.AppPreferences;
+namespace Fabolus.Wpf.Features.AppPreferences;
 
 /// <summary>Default folders, export format and viewport appearance.</summary>
 public sealed class GeneralPreferencePage : IPreferencePage {

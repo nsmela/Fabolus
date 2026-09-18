@@ -1,3 +1,4 @@
+using Fabolus.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -83,7 +84,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         _smoothFeature = new SmoothMesh(engine);
     }
 
-    public SmoothingViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new Fabolus.Core.Geometry.Engine.GeometryEngineAdapter(new FileSystem())) { }
+    public SmoothingViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), GeometryEngine.BspGeometryEngine.Create()) { }
 
     public ISceneManager SceneManager => _sceneManager;
 
@@ -168,7 +169,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         // The base mesh's stats were cached on its metadata at import time and it never
         // changes afterward - no geometry copy needed to read them.
-        var baseMetadata = activeMesh.Metadata.BaseMeshMetadata;
+        var baseMetadata = activeMesh.Metadata.AsFabolus().BaseMeshMetadata;
         if (baseMetadata.HasValue) {
             var statsResult = baseMetadata.Value.MeshStats();
             if (statsResult.HasValue) _originalStats = statsResult.Value;
@@ -195,7 +196,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         double[]? heatmapColors = null;
         if (DisplayMode == SmoothDisplayMode.Heatmap && unsmoothedMesh is not null) {
-            var colorResult = _engine.Evaluators.CalculateDeviationColors(_stagedMesh, unsmoothedMesh, HeatmapSensitivity);
+            var colorResult = CalculateDeviationColors(_stagedMesh, unsmoothedMesh, HeatmapSensitivity);
             if (colorResult.IsSuccess) {
                 heatmapColors = colorResult.Value;
             }
@@ -272,4 +273,31 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         await UpdateWorkspaceAsync(result.Value);
     }
+
+    private BasicResults.Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 0.4)
+    {
+        if (current is null || original is null) return Fabolus.Core.Geometry.MeshErrors.NullSource;
+
+        var indexResult = _engine.Spatial.BuildIndex(original);
+        if (indexResult.IsFailure) return BasicResults.Result<double[]>.Failure(indexResult.Error);
+
+        var index = indexResult.Value;
+        var distances = index.SignedDistances([.. current.Vertices]);
+
+        var gradient = Fabolus.Core.Features.Overhangs.ColourGradient.SmoothingDeviation;
+        var scale = Math.Max(maxDeviation, 0.001);
+        var colours = new double[current.VertexCount * 3];
+
+        for (int i = 0; i < distances.Length; i++)
+        {
+            var t = Math.Clamp((distances[i] + scale) / (2.0 * scale), 0.0, 1.0);
+            var color = gradient.Sample((float)t);
+            colours[i * 3] = color.R;
+            colours[i * 3 + 1] = color.G;
+            colours[i * 3 + 2] = color.B;
+        }
+
+        return colours;
+    }
+
 }

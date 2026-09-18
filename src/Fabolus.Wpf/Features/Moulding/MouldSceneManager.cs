@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -440,7 +440,7 @@ public class MouldSceneManager : ISceneManager
             if (overTarget)
             {
                 var strokePoint = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
-                if (Vector3.DistanceSquared(strokePoint, _strokePoints[^1]) >
+                if (strokePoint.DistanceSquared(_strokePoints[^1]) >
                     MinStrokePointDistance * MinStrokePointDistance)
                 {
                     _strokePoints.Add(strokePoint);

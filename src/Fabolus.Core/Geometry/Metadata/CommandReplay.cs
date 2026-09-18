@@ -37,24 +37,21 @@ public static class CommandReplay {
     /// mesh the caller owns and must dispose - never the input mesh or the stored BaseMesh.
     /// </summary>
     public static Result<IMesh> GetMeshAtStage(IGeometryEngine engine, IMesh currentMesh, int priorityLevel) {
-        if (!currentMesh.Metadata.Commands.Any(c => c.Priority > priorityLevel)) {
+        if (!currentMesh.Metadata.AsFabolus().Commands.Any(c => c.Priority > priorityLevel)) {
             return Result<IMesh>.Success(currentMesh);
         }
 
-        var baseCopy = currentMesh.Metadata.GetBaseMesh();
+        var baseCopy = currentMesh.Metadata.AsFabolus().GetBaseMesh();
         if (baseCopy.HasNoValue) {
             return MetadataErrors.MissingBaseMesh;
         }
 
-        var allowedCommands = currentMesh.Metadata.Commands.Where(c => c.Priority <= priorityLevel).ToList();
+        var allowedCommands = currentMesh.Metadata.AsFabolus().Commands.Where(c => c.Priority <= priorityLevel).ToList();
         
-        var cloneResult = engine.CloneMesh(baseCopy.Value);
-        if (cloneResult.IsFailure) return cloneResult.Error;
-
-        var applyResult = Apply(engine, cloneResult.Value, allowedCommands);
+        var applyResult = Apply(engine, baseCopy.Value, allowedCommands);
         if (applyResult.IsFailure) return applyResult;
 
-        var stagedMetadata = currentMesh.Metadata.WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)allowedCommands);
+        var stagedMetadata = currentMesh.Metadata.AsFabolus().WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)allowedCommands);
         return Result<IMesh>.Success(applyResult.Value.WithMetadata(stagedMetadata));
     }
 }

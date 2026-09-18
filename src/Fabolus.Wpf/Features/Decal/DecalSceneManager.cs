@@ -116,7 +116,7 @@ public sealed class DecalSceneManager : ISceneManager
         // Preparing the surface for querying is the expensive part of building a decal on a large
         // mesh, and it only has to happen once per mesh. Start it now, off the UI thread, so the
         // first label the user drags is as quick as every one after it rather than stalling.
-        _ = _engine.Generators.PrepareDecalSurfaceAsync(mesh);
+        _ = Task.Run(() => _engine.Spatial.BuildIndex(mesh));
 
         var helixMeshResult = mesh.ToHelixMesh(_engine);
         if (helixMeshResult.IsFailure)
@@ -180,7 +180,7 @@ public sealed class DecalSceneManager : ISceneManager
                 continue;
             }
 
-            var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
+            var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)decal.Anchor.X, (float)decal.Anchor.Y, (float)decal.Anchor.Z), new System.Numerics.Vector3((float)decal.AnchorNormal.X, (float)decal.AnchorNormal.Y, (float)decal.AnchorNormal.Z), decal.RotationDeg);
             var outlineResult = outlineSource.GetOutlines(decal.Text, decal.Font, decal.CapHeight, decal.Tracking);
             if (outlineResult.IsFailure || outlineResult.Value.Count == 0)
             {
@@ -193,7 +193,7 @@ public sealed class DecalSceneManager : ISceneManager
             float maxEdge = Math.Max(MinPreviewEdgeLength, decal.CapHeight / PreviewCapHeightDivisor);
             IMesh? surfaceTarget = TargetMesh;
 
-            var prismResult = _engine.Generators.BuildTextPrism(outlineResult.Value, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
+            var prismResult = _engine.Decals.BuildPrism(new GeometryEngine.Core.Geometry.DecalPrismSpec([.. outlineResult.Value], new GeometryEngine.Core.Geometry.SurfaceFrame(new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.U.X, frame.U.Y, frame.U.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.V.X, frame.V.Y, frame.V.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.N.X, frame.N.Y, frame.N.Z)), decal.Depth, sink, overshoot, maxEdge, surfaceTarget is null ? BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.None() : BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.Some(surfaceTarget)));
             if (prismResult.IsFailure) continue;
 
             var helixPrismResult = prismResult.Value.ToHelixMesh(_engine);
@@ -236,7 +236,7 @@ public sealed class DecalSceneManager : ISceneManager
         // Update cyan bounding box around the selected decal
         if (selectedDecal is not null)
         {
-            var selFrame = DecalFrame.FromHit(selectedDecal.Anchor, selectedDecal.AnchorNormal, selectedDecal.RotationDeg);
+            var selFrame = DecalFrame.FromHit(new System.Numerics.Vector3((float)selectedDecal.Anchor.X, (float)selectedDecal.Anchor.Y, (float)selectedDecal.Anchor.Z), new System.Numerics.Vector3((float)selectedDecal.AnchorNormal.X, (float)selectedDecal.AnchorNormal.Y, (float)selectedDecal.AnchorNormal.Z), selectedDecal.RotationDeg);
             var metrics = outlineSource.MeasureText(selectedDecal.Text, selectedDecal.Font, selectedDecal.CapHeight, selectedDecal.Tracking);
             float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
             float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
@@ -278,26 +278,17 @@ public sealed class DecalSceneManager : ISceneManager
     {
         if (TargetMesh is null) return;
 
-        var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
+        var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)decal.Anchor.X, (float)decal.Anchor.Y, (float)decal.Anchor.Z), new System.Numerics.Vector3((float)decal.AnchorNormal.X, (float)decal.AnchorNormal.Y, (float)decal.AnchorNormal.Z), decal.RotationDeg);
         float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
         float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
         float zOff = DragPreviewZOffset;
 
-        var rectPolygon = new Polygon2D
-        {
-            OuterBoundary =
-            [
-                new Vector2(-halfW, -halfH),
-                new Vector2(halfW, -halfH),
-                new Vector2(halfW, halfH),
-                new Vector2(-halfW, halfH)
-            ]
-        };
+        var rectPolygon = new Polygon2D([new GeometryEngine.Core.Geometry.Primitives.Vec2(-halfW, -halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(halfW, -halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(halfW, halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(-halfW, halfH)], []);
 
         float maxEdge = Math.Max(MinPatchEdgeLength, decal.CapHeight / PatchCapHeightDivisor);
         IMesh? surfaceTarget = TargetMesh;
 
-        var patchResult = _engine.Generators.BuildTextPrism(new[] { rectPolygon }, frame, PatchDepth, PatchSink, PatchOvershoot, maxEdge, surfaceTarget);
+        var patchResult = _engine.Decals.BuildPrism(new GeometryEngine.Core.Geometry.DecalPrismSpec([.. new[] { rectPolygon }], new GeometryEngine.Core.Geometry.SurfaceFrame(new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.U.X, frame.U.Y, frame.U.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.V.X, frame.V.Y, frame.V.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.N.X, frame.N.Y, frame.N.Z)), PatchDepth, PatchSink, PatchOvershoot, maxEdge, surfaceTarget is null ? BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.None() : BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.Some(surfaceTarget)));
         if (patchResult.IsSuccess)
         {
             var helixPatch = patchResult.Value.ToHelixMesh(_engine);
@@ -373,7 +364,7 @@ public sealed class DecalSceneManager : ISceneManager
         foreach (var preset in presetPoints)
         {
             var mb = new HelixToolkit.Wpf.SharpDX.MeshBuilder();
-            mb.AddSphere(new SharpDX.Vector3(preset.Position.X, preset.Position.Y, preset.Position.Z), SpherePresetRadius, SphereTessellation, SphereTessellation);
+            mb.AddSphere(new SharpDX.Vector3((float)preset.Position.X, (float)preset.Position.Y, (float)preset.Position.Z), SpherePresetRadius, SphereTessellation, SphereTessellation);
             var sphereGeom = mb.ToMeshGeometry3D();
             var sphereModel = new MeshGeometryModel3D
             {
@@ -392,7 +383,7 @@ public sealed class DecalSceneManager : ISceneManager
         if (TargetMesh is null) return;
 
         // If the active decal is already at this exact preset position, don't double render
-        if (Vector3.Distance(decal.Anchor, preset.Position) < DuplicateAnchorDistanceThreshold && Math.Abs(decal.RotationDeg - (int)preset.RotationDeg) < 1)
+        if (decal.Anchor.DistanceTo(preset.Position) < DuplicateAnchorDistanceThreshold && Math.Abs(decal.RotationDeg - (int)preset.RotationDeg) < 1)
         {
             ClearPresetHoverPreview();
             return;
@@ -411,13 +402,13 @@ public sealed class DecalSceneManager : ISceneManager
             return;
         }
 
-        var frame = DecalFrame.FromHit(preset.Position, preset.Normal, preset.RotationDeg);
+        var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)preset.Position.X, (float)preset.Position.Y, (float)preset.Position.Z), new System.Numerics.Vector3((float)preset.Normal.X, (float)preset.Normal.Y, (float)preset.Normal.Z), preset.RotationDeg);
         float sink = PreviewSinkOffset;
         float overshoot = PreviewOvershootOffset;
         float maxEdge = Math.Max(MinPreviewEdgeLength, capHeight / PreviewCapHeightDivisor);
         IMesh? surfaceTarget = TargetMesh;
 
-        var prismResult = _engine.Generators.BuildTextPrism(outlineResult.Value, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
+        var prismResult = _engine.Decals.BuildPrism(new GeometryEngine.Core.Geometry.DecalPrismSpec([.. outlineResult.Value], new GeometryEngine.Core.Geometry.SurfaceFrame(new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.U.X, frame.U.Y, frame.U.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.V.X, frame.V.Y, frame.V.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.N.X, frame.N.Y, frame.N.Z)), decal.Depth, sink, overshoot, maxEdge, surfaceTarget is null ? BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.None() : BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.Some(surfaceTarget)));
         if (prismResult.IsFailure)
         {
             ClearPresetHoverPreview();
@@ -635,9 +626,9 @@ public sealed class DecalSceneManager : ISceneManager
         // Length is checked before normalising, not after: normalising a zero vector yields NaN,
         // and every comparison against NaN is false, so a post-normalise guard never fires.
         var rawNormal = new Vector3((float)targetHit.NormalAtHit.X, (float)targetHit.NormalAtHit.Y, (float)targetHit.NormalAtHit.Z);
-        var n = rawNormal.LengthSquared() < MinNormalLengthSquared
+        var n = rawNormal.LengthSquared < MinNormalLengthSquared
             ? Vector3.UnitZ
-            : Vector3.Normalize(rawNormal);
+            : rawNormal.Normalize();
 
         DecalMoved?.Invoke(_dragDecalId, p, n);
         return true;
@@ -662,3 +653,4 @@ public sealed class DecalSceneManager : ISceneManager
         return false;
     }
 }
+

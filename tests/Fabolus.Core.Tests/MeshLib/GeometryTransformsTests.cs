@@ -31,9 +31,9 @@ public class GeometryTransformsTests
         result.IsSuccess.Should().BeTrue();
         var transformedStats = _engine.Evaluators.GetStatistics(result.Value).Value;
 
-        transformedStats.MinX.Should().BeApproximately(originalStats.MinX + 10, 1e-3);
-        transformedStats.MinY.Should().BeApproximately(originalStats.MinY - 5, 1e-3);
-        transformedStats.MinZ.Should().BeApproximately(originalStats.MinZ + 2, 1e-3);
+        transformedStats.BoundsMin.X.Should().BeApproximately(originalStats.BoundsMin.X + 10, 1e-3);
+        transformedStats.BoundsMin.Y.Should().BeApproximately(originalStats.BoundsMin.Y - 5, 1e-3);
+        transformedStats.BoundsMin.Z.Should().BeApproximately(originalStats.BoundsMin.Z + 2, 1e-3);
         
         transformedStats.Volume.Should().BeApproximately(originalStats.Volume, 1e-3);
     }
@@ -50,8 +50,8 @@ public class GeometryTransformsTests
         result.IsSuccess.Should().BeTrue();
         var transformedStats = _engine.Evaluators.GetStatistics(result.Value).Value;
 
-        var newWidth = transformedStats.MaxX - transformedStats.MinX;
-        var oldWidth = originalStats.MaxX - originalStats.MinX;
+        var newWidth = transformedStats.BoundsMax.X - transformedStats.BoundsMin.X;
+        var oldWidth = originalStats.BoundsMax.X - originalStats.BoundsMin.X;
         newWidth.Should().BeApproximately(oldWidth * f, 1e-3);
 
         transformedStats.Volume.Should().BeApproximately(originalStats.Volume * Math.Pow(f, 3), 1e-3);
@@ -102,6 +102,6 @@ public class GeometryTransformsTests
         var baseCopy = transformed.Metadata.GetBaseMesh().Value;
         var baseStats = _engine.Evaluators.GetStatistics(baseCopy).Value;
 
-        baseStats.MinX.Should().BeApproximately(originalStats.MinX, 1e-3);
+        baseStats.BoundsMin.X.Should().BeApproximately(originalStats.BoundsMin.X, 1e-3);
     }
 }

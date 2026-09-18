@@ -116,7 +116,7 @@ public abstract record MouldDefinition : IMeshCommand
     {
         var bodyTopZ = HasTrough ? coverTopZ + (float)TroughHeight : coverTopZ;
 
-        var body = engine.Polygons.ExtrudePolygon(footprint, zMin, bodyTopZ);
+        var body = engine.Polygons.Extrude(footprint, zMin, bodyTopZ);
         if (body.IsFailure || !HasTrough) return body;
 
         return MouldTrough.Carve(engine, body.Value, footprint, coverTopZ, bodyTopZ, this);
@@ -133,15 +133,15 @@ public sealed record ConvexMouldDefinition(double OffsetXY = 2.0, double OffsetB
 
         var bounds = statsResult.Value;
         
-        var hull = engine.Polygons.GetConvexHull(mesh);
+        var hull = engine.Polygons.ProjectConvexHull(mesh);
         if (hull.IsFailure) return hull.Error;
         
         var offset = MouldFootprint.Build(engine, hull.Value, OffsetXY, AirChannels);
         if (offset.IsFailure) return offset.Error;
 
         return ExtrudeBody(engine, offset.Value,
-            (float)bounds.MinZ - (float)OffsetBottom,
-            (float)bounds.MaxZ + (float)OffsetTop);
+            (float)bounds.BoundsMin.Z - (float)OffsetBottom,
+            (float)bounds.BoundsMax.Z + (float)OffsetTop);
     }
 }
 
@@ -155,15 +155,15 @@ public sealed record ConcaveMouldDefinition(double OffsetXY = 2.0, double Offset
 
         var bounds = statsResult.Value;
 
-        var shadow = engine.Polygons.GetMeshShadow(mesh);
+        var shadow = engine.Polygons.ProjectOutline(mesh);
         if (shadow.IsFailure) return shadow.Error;
         
         var offset = MouldFootprint.Build(engine, shadow.Value, OffsetXY, AirChannels);
         if (offset.IsFailure) return offset.Error;
 
         return ExtrudeBody(engine, offset.Value,
-            (float)bounds.MinZ - (float)OffsetBottom,
-            (float)bounds.MaxZ + (float)OffsetTop);
+            (float)bounds.BoundsMin.Z - (float)OffsetBottom,
+            (float)bounds.BoundsMax.Z + (float)OffsetTop);
     }
 }
 

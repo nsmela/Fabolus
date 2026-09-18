@@ -1,4 +1,4 @@
-﻿using System.Windows.Input;
+using System.Windows.Input;
 using System.Windows.Media;
 using Fabolus.Core.Features.Smoothing;
 using Fabolus.Core.Geometry;
@@ -23,8 +23,8 @@ public class SmoothingSceneManager : ISceneManager
     private readonly PrintBedGrid _grid;
     private CrossSectionMeshGeometryModel3D? _crossSectionModel;
     private CrossSectionMeshGeometryModel3D? _originalCrossSectionModel;
-    private Plane _crossSectionPlane = new Plane { D = 0, Normal = Vector3.UnitZ };
-    private Plane _originalCrossSectionPlane = new Plane { D = 0, Normal = -Vector3.UnitZ };
+    private SharpDX.Plane _crossSectionPlane = new SharpDX.Plane { D = 0, Normal = SharpDX.Vector3.UnitZ };
+    private SharpDX.Plane _originalCrossSectionPlane = new SharpDX.Plane { D = 0, Normal = -SharpDX.Vector3.UnitZ };
     private Guid _activeId = Guid.Empty;
     private Element3D _gizmo;
     private double _minZ = -double.MaxValue;
@@ -59,8 +59,8 @@ public class SmoothingSceneManager : ISceneManager
     private void OnCuttingPlaneHeightChanged(double height)
     {
         _currentGizmoHeight = height;
-        _crossSectionPlane = new Plane { D = (float)height, Normal = Vector3.UnitZ };
-        _originalCrossSectionPlane = new Plane { D = (float)-height, Normal = -Vector3.UnitZ };
+        _crossSectionPlane = new SharpDX.Plane { D = (float)height, Normal = SharpDX.Vector3.UnitZ };
+        _originalCrossSectionPlane = new SharpDX.Plane { D = (float)-height, Normal = -SharpDX.Vector3.UnitZ };
 
         if (_crossSectionModel is not null)
         {

@@ -19,7 +19,7 @@ public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float I
         int baseTriangleCount = mesh.TriangleCount;
 
         // Erosion through offset cycle
-        var offsetResult = engine.Modifiers.OffsetDouble(mesh, Intensity, Iterations, Resolution);
+        var offsetResult = engine.Modifiers.DoubleOffset(mesh, Intensity, Iterations, Resolution);
         if (offsetResult.IsFailure) return offsetResult.Error;
 
         var currentMesh = offsetResult.Value;
@@ -37,7 +37,7 @@ public record SmoothSettings(int Iterations = 1, float Intensity = 1.0f, float I
 
         // Resize (Decimation)
         int targetTriangleCount = (int)(baseTriangleCount * Math.Max(RemeshRatio, 1.0));
-        var resizeResult = engine.Modifiers.Resize(currentMesh, targetTriangleCount);
+        var resizeResult = engine.Modifiers.Decimate(currentMesh, targetTriangleCount);
 
         return resizeResult;
     }

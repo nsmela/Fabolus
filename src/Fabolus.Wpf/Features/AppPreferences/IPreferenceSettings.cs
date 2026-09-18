@@ -1,4 +1,4 @@
-﻿namespace Fabolus.Wpf.Features.AppPreferences;
+namespace Fabolus.Wpf.Features.AppPreferences;
 
 /// <summary>
 /// Marker for a preference section, so the section messages can be constrained without

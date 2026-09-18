@@ -53,18 +53,18 @@ internal class RotateSceneManager : ISceneManager {
             ColourGradient.Overhang);
     }
 
-    public void ShowAxisRotation(System.Numerics.Vector3 axis) {
+    public void ShowAxisRotation(Vector3 axis) {
         if (_activeGizmoId != Guid.Empty) {
             VisualRemovedById?.Invoke(_activeGizmoId);
             _activeGizmo = new();
             _activeGizmoId = Guid.Empty;
         }
 
-        var vector = new SharpDX.Vector3(axis.X, axis.Y, axis.Z);
+        
 
-        if (vector == Vector3.Zero || ActiveMesh is null) return;
+        if (axis == Vector3.Zero || ActiveMesh is null) return;
 
-        _activeGizmo = GenerateAxisGizmo(vector, ActiveMesh);
+        _activeGizmo = GenerateAxisGizmo(axis, ActiveMesh);
         _activeGizmoId = _activeGizmo.GUID;
         VisualAddedOrUpdated?.Invoke(_activeGizmo);
     }
@@ -149,7 +149,7 @@ internal class RotateSceneManager : ISceneManager {
 
         var v = matrix.Transform(new Vector3D(0, 0, 1));
         var direction = OverhangDirection.Create(
-            new System.Numerics.Vector3((float)v.X, (float)v.Y, (float)v.Z)).Value;
+            new Vector3(v.X, v.Y, v.Z)).Value;
         var colouringResult = _overhangFeature.Execute(
             mesh,
             OverhangSettings with { Direction = direction });
@@ -158,7 +158,7 @@ internal class RotateSceneManager : ISceneManager {
         }
 
         var lv = matrix.Transform(new Vector3D(_lightDirection.X, _lightDirection.Y, _lightDirection.Z));
-        var lightLocal = Vector3.Normalize(new Vector3((float)lv.X, (float)lv.Y, (float)lv.Z));
+        var lightLocal = SharpDX.Vector3.Normalize(new SharpDX.Vector3((float)lv.X, (float)lv.Y, (float)lv.Z));
 
         var geometryResult = mesh.ToHelixMesh(_engine, colouringResult.Value.Colors);
         if (geometryResult.IsFailure) {
@@ -182,10 +182,10 @@ internal class RotateSceneManager : ISceneManager {
     // World-fixed key light + ambient floor. VertColorMaterial is unlit, so we bake Lambert
     // shading into the vertex colours. The light is transformed by R^-1 each update so it stays
     // put in the world while the mesh rotates. Tweak _lightDirection / _ambient to taste.
-    private static readonly Vector3 _lightDirection = Vector3.Normalize(new Vector3(0.3f, 0.4f, 0.85f));
+    private static readonly Vector3 _lightDirection = new Vector3(0.3, 0.4, 0.85).Normalize();
     private const float _ambient = 0.35f;
 
-    private static void ApplyFixedShading(HelixToolkit.Wpf.SharpDX.MeshGeometry3D geometry, Vector3 lightDirection) {
+    private static void ApplyFixedShading(HelixToolkit.Wpf.SharpDX.MeshGeometry3D geometry, SharpDX.Vector3 lightDirection) {
         if (geometry.Colors is null || geometry.Normals is null) {
             return;
         }
@@ -194,7 +194,7 @@ internal class RotateSceneManager : ISceneManager {
         var normals = geometry.Normals;
 
         for (int i = 0; i < colors.Count; i++) {
-            float nDotL = Math.Max(0f, Vector3.Dot(normals[i], lightDirection));
+            float nDotL = Math.Max(0f, SharpDX.Vector3.Dot(normals[i], lightDirection));
             float shade = _ambient + (1f - _ambient) * nDotL;
 
             var c = colors[i];
@@ -208,9 +208,9 @@ internal class RotateSceneManager : ISceneManager {
  
         // Calculate radius based on bounding box
         double radius = axis switch {
-            var a when a == Vector3.UnitX => Math.Max(stats.MaxY - stats.MinY, stats.MaxZ - stats.MinZ),
-            var a when a == Vector3.UnitY => Math.Max(stats.MaxX - stats.MinX, stats.MaxZ - stats.MinZ),
-            _ => Math.Max(stats.MaxX - stats.MinX, stats.MaxY - stats.MinY)
+            var a when a == Vector3.UnitX => Math.Max(stats.BoundsMax.Y - stats.BoundsMin.Y, stats.BoundsMax.Z - stats.BoundsMin.Z),
+            var a when a == Vector3.UnitY => Math.Max(stats.BoundsMax.X - stats.BoundsMin.X, stats.BoundsMax.Z - stats.BoundsMin.Z),
+            _ => Math.Max(stats.BoundsMax.X - stats.BoundsMin.X, stats.BoundsMax.Y - stats.BoundsMin.Y)
         } * 0.7f;
 
         var geometry = CreateCircleGeometry(axis, (float)radius);
@@ -233,16 +233,18 @@ internal class RotateSceneManager : ISceneManager {
 
         var builder = new LineBuilder();
         Vector3 helper = Math.Abs(axis.X) > 0.9f ? Vector3.UnitY : Vector3.UnitX;
-        Vector3 right = Vector3.Normalize(Vector3.Cross(axis, helper));
-        Vector3 up = Vector3.Cross(axis, right);
+        Vector3 right = axis.Cross(helper.Normalize());
+        var dxRight = new SharpDX.Vector3((float)right.X, (float)right.Y, (float)right.Z);
+        Vector3 up = axis.Cross(right);
+        var dxUp = new SharpDX.Vector3((float)up.X, (float)up.Y, (float)up.Z);
 
         for (int i = 0; i < 64; i++) {
             float a1 = (float)(2 * Math.PI * i / 64);
             float a2 = (float)(2 * Math.PI * (i + 1) / 64);
 
             builder.AddLine(
-                (right * (float)Math.Cos(a1) + up * (float)Math.Sin(a1)) * radius,
-                (right * (float)Math.Cos(a2) + up * (float)Math.Sin(a2)) * radius
+                (dxRight * (float)Math.Cos(a1) + dxUp * (float)Math.Sin(a1)) * radius,
+                (dxRight * (float)Math.Cos(a2) + dxUp * (float)Math.Sin(a2)) * radius
             );
         }
         return builder.ToLineGeometry3D();

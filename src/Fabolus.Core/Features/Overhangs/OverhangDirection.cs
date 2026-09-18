@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using BasicResults;
 
 namespace Fabolus.Core.Features.Overhangs;
@@ -33,7 +33,7 @@ public sealed record OverhangDirection {
     /// normal interchangeably.
     /// </summary>
     public static Result<OverhangDirection> Create(Vector3 direction) {
-        var length = direction.Length();
+        var length = direction.Length;
         if (length < Epsilon)
             return new Error("Overhang.ZeroDirection", "The overhang direction must be a non-zero vector.");
 
@@ -51,11 +51,11 @@ public sealed record OverhangDirection {
     /// </para>
     /// </summary>
     public float AngleToDegrees(Vector3 faceNormal) {
-        var length = faceNormal.Length();
+        var length = faceNormal.Length;
         if (length < Epsilon)
             return 180f;
 
-        var cosine = Math.Clamp(Vector3.Dot(Value, faceNormal / length), -1f, 1f);
+        var cosine = (float)Math.Clamp(Value.Dot(faceNormal / length), -1.0, 1.0);
         return MathF.Acos(cosine) * (180f / MathF.PI);
     }
 }

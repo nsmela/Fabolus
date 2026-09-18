@@ -33,8 +33,8 @@ public class GeometryGeneratorsTests
         var sphere = result.Value;
         var stats = _engine.Evaluators.GetStatistics(sphere).Value;
 
-        stats.MinX.Should().BeApproximately(center.X - radius, 1e-1);
-        stats.MaxX.Should().BeApproximately(center.X + radius, 1e-1);
+        stats.BoundsMin.X.Should().BeApproximately(center.X - radius, 1e-1);
+        stats.BoundsMax.X.Should().BeApproximately(center.X + radius, 1e-1);
         // A UV sphere of half as many rings as slices, closed by one vertex at each pole.
         sphere.VertexCount.Should().Be(slices * (slices / 2 - 1) + 2);
     }
@@ -268,8 +268,8 @@ public class GeometryGeneratorsTests
         var mesh = result.Value;
         var stats = _engine.Evaluators.GetStatistics(mesh).Value;
 
-        stats.MinZ.Should().BeApproximately(5.0, 1e-3);
-        stats.MaxZ.Should().BeApproximately(15.0, 1e-3);
+        stats.BoundsMin.Z.Should().BeApproximately(5.0, 1e-3);
+        stats.BoundsMax.Z.Should().BeApproximately(15.0, 1e-3);
 
         var validation = _engine.Evaluators.ValidateTopology(mesh).Value;
         validation.IsWatertight.Should().BeTrue();

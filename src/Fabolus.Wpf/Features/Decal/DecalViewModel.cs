@@ -5,6 +5,7 @@ using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
@@ -190,7 +191,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         Target = preset.Target;
 
         // If a decal already sits on this preset, select it!
-        var existingDecal = _decals.FirstOrDefault(d => d.Target == preset.Target && Vector3.Distance(d.Anchor, preset.Position) < AnchorOccupiedRadiusMm);
+        var existingDecal = _decals.FirstOrDefault(d => d.Target == preset.Target && d.Anchor.DistanceTo(preset.Position) < AnchorOccupiedRadiusMm);
         if (existingDecal is not null)
         {
             SelectedDecalId = existingDecal.Id;
@@ -273,8 +274,8 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         if (stats.IsFailure) return 0f;
 
         return (preset?.RotationDeg ?? 0f) == 0f
-            ? (float)(stats.Value.MaxX - stats.Value.MinX)
-            : (float)(stats.Value.MaxZ - stats.Value.MinZ);
+            ? (float)(stats.Value.BoundsMax.X - stats.Value.BoundsMin.X)
+            : (float)(stats.Value.BoundsMax.Z - stats.Value.BoundsMin.Z);
     }
 
     /// <summary>
@@ -335,9 +336,9 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             {
                 var s = stats.Value;
                 _meshCenter = new Vector3(
-                    (float)(s.MinX + s.MaxX) * 0.5f,
-                    (float)(s.MinY + s.MaxY) * 0.5f,
-                    (float)s.MaxZ);
+                    (float)(s.BoundsMin.X + s.BoundsMax.X) * 0.5f,
+                    (float)(s.BoundsMin.Y + s.BoundsMax.Y) * 0.5f,
+                    (float)s.BoundsMax.Z);
             }
         }
     }
@@ -567,8 +568,8 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     {
         if (_targetMesh is null) return;
         var diff = Anchor - _meshCenter;
-        var frame = DecalFrame.FromHit(Anchor, AnchorNormal, Rotation);
-        _uv = new Vector2(Vector3.Dot(diff, frame.U), Vector3.Dot(diff, frame.V));
+        var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)Anchor.X, (float)Anchor.Y, (float)Anchor.Z), new System.Numerics.Vector3((float)AnchorNormal.X, (float)AnchorNormal.Y, (float)AnchorNormal.Z), Rotation);
+        _uv = new Vector2(diff.Dot(new Vector3(frame.U.X, frame.U.Y, frame.U.Z)), diff.Dot(new Vector3(frame.V.X, frame.V.Y, frame.V.Z)));
         OnPropertyChanged(nameof(PositionU));
         OnPropertyChanged(nameof(PositionV));
         OnPropertyChanged(nameof(PositionUv));
@@ -721,7 +722,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         {
             foreach (var preset in presets)
             {
-                bool isOccupied = _decals.Any(d => d.Target == target && Vector3.Distance(d.Anchor, preset.Position) < AnchorOccupiedRadiusMm);
+                bool isOccupied = _decals.Any(d => d.Target == target && d.Anchor.DistanceTo(preset.Position) < AnchorOccupiedRadiusMm);
                 if (!isOccupied)
                 {
                     freeAnchor = preset;
@@ -855,7 +856,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
         // 2. Apply Base Decals if any
         IMesh appliedBaseMesh = cleanBaseMesh;
-        MeshMetadata baseMetadata = cleanBaseMesh.Metadata;
+        Fabolus.Core.Geometry.Metadata.MeshMetadata baseMetadata = cleanBaseMesh.Metadata.AsFabolus();
 
         if (baseDecals.Count > 0)
         {
@@ -868,7 +869,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             }
             appliedBaseMesh = baseApplyResult.Value;
 
-            baseMetadata = cleanBaseMesh.Metadata
+            baseMetadata = cleanBaseMesh.Metadata.AsFabolus()
                 .WithCommand(new DecalCommand(baseDecals));
 
             appliedBaseMesh = appliedBaseMesh.WithRefreshedStatsAndTopology(_engine, baseMetadata);
@@ -900,8 +901,8 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
             var rawMouldMesh = mouldApplyResult.Value;
 
-            var mouldMetadata = appliedBaseMesh.Metadata
-                .WithCommand(mouldDef.Value with { TargetMeshId = appliedBaseMesh.Metadata.Id });
+            var mouldMetadata = appliedBaseMesh.Metadata.AsFabolus()
+                .WithCommand(mouldDef.Value with { TargetMeshId = appliedBaseMesh.Metadata.AsFabolus().Id });
 
             IMesh appliedMouldMesh = rawMouldMesh;
 

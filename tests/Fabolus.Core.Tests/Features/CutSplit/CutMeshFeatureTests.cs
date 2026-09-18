@@ -48,10 +48,10 @@ public class CutMeshFeatureTests
 
         // Top should be above Z=0
         var topStats = _engine.Evaluators.GetStatistics(top).Value;
-        topStats.MinZ.Should().BeGreaterThanOrEqualTo(-0.1f);
+        topStats.BoundsMin.Z.Should().BeGreaterThanOrEqualTo(-0.1f);
 
         // Bottom should be below Z=0
         var bottomStats = _engine.Evaluators.GetStatistics(bottom).Value;
-        bottomStats.MaxZ.Should().BeLessThanOrEqualTo(0.1f);
+        bottomStats.BoundsMax.Z.Should().BeLessThanOrEqualTo(0.1f);
     }
 }

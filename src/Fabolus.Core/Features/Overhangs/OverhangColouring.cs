@@ -1,4 +1,4 @@
-﻿
+
 namespace Fabolus.Core.Features.Overhangs;
 
 /// <summary>

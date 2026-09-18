@@ -29,8 +29,8 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
 
         var activeMesh = getMeshResult.Value;
 
-        var updatedMetadata = activeMesh.Metadata.WithCommand(settings);
-        var baseMesh = activeMesh.Metadata.GetBaseMesh().Value;
+        var updatedMetadata = activeMesh.Metadata.AsFabolus().WithCommand(settings);
+        var baseMesh = activeMesh.Metadata.AsFabolus().GetBaseMesh().Value;
         var replayResult = CommandReplay.Apply(Engine, baseMesh, updatedMetadata.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 

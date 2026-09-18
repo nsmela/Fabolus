@@ -44,30 +44,27 @@ public sealed record StraightAirChannel(
     };
 
     private Result<IMesh> GeneratePoint(IGeometryEngine engine) =>
-        engine.Generators.GenerateTube(new TubeParameters
-        {
-            Path = new[] { StartPoint + Vector3.UnitZ * -PenetrationDepth, StartPoint + Vector3.UnitZ },
-            Radii = new[] { TipDiameter / 2f, TipDiameter / 2f },
-        });
+        engine.Generators.GenerateTube(new GeometryEngine.Core.Geometry.TubeSpec(
+            [StartPoint + Vector3.UnitZ * -PenetrationDepth, StartPoint + Vector3.UnitZ],
+            [TipDiameter / 2.0, TipDiameter / 2.0]
+        ));
 
     private Result<IMesh> GenerateCone(IGeometryEngine engine) =>
-        engine.Generators.GenerateTube(new TubeParameters
-        {
-            Path = new[] { StartPoint + Vector3.UnitZ * -PenetrationDepth, StartPoint + Vector3.UnitZ * ConeLength },
-            Radii = new[] { TipDiameter / 2f, CylinderDiameter / 2f },
-        });
+        engine.Generators.GenerateTube(new GeometryEngine.Core.Geometry.TubeSpec(
+            [StartPoint + Vector3.UnitZ * -PenetrationDepth, StartPoint + Vector3.UnitZ * ConeLength],
+            [TipDiameter / 2.0, CylinderDiameter / 2.0]
+        ));
 
     private Result<IMesh> GenerateFull(IGeometryEngine engine)
     {
-        var coneStart = StartPoint + Vector3.UnitZ * -PenetrationDepth; // brought into the mesh
+        var coneStart = StartPoint + Vector3.UnitZ * -PenetrationDepth;
         var coneEnd = StartPoint + Vector3.UnitZ * ConeLength;
         var endPoint = StartPoint + Vector3.UnitZ * TotalLength;
 
-        return engine.Generators.GenerateTube(new TubeParameters
-        {
-            Path = new[] { coneStart, coneEnd, endPoint },
-            Radii = new[] { TipDiameter / 2f, CylinderDiameter / 2f, CylinderDiameter / 2f }
-        });
+        return engine.Generators.GenerateTube(new GeometryEngine.Core.Geometry.TubeSpec(
+            [coneStart, coneEnd, endPoint],
+            [TipDiameter / 2.0, CylinderDiameter / 2.0, CylinderDiameter / 2.0]
+        ));
     }
 }
 
@@ -82,7 +79,7 @@ public sealed record AngledAirChannel(
 {
     public Result<IMesh> Generate(IGeometryEngine engine, AirChannelRenderMode renderMode, IMesh? targetMesh = null)
     {
-        var normal = Vector3.Normalize(Normal);
+        var normal = Normal.Normalize();
         var coneEnd = StartPoint + normal * TipLength;
 
         var path = new List<Vector3>();
@@ -102,8 +99,8 @@ public sealed record AngledAirChannel(
             path.Add(StartPoint + normal * -PenetrationDepth); // brought into the mesh
             path.Add(coneEnd);
 
-            var arcPoints = engine.Generators.Arc3d(Radius, coneEnd, normal, Vector3.UnitZ, 16);
-            if (arcPoints.Count > 0)
+            var arcPoints = engine.Generators.GenerateArc(Radius, coneEnd, normal, Vector3.UnitZ, 16).Value;
+            if (arcPoints.Length > 0)
             {
                 // Arc3d includes the start point, skip it
                 path.AddRange(arcPoints.Skip(1));
@@ -126,17 +123,16 @@ public sealed record AngledAirChannel(
             return Result<IMesh>.Failure(new Error("AngledAirChannel.InvalidPath", "Generated curve must contain at least 2 points."));
         }
 
-        var radii = new float[path.Count];
+        var radii = new double[path.Count];
         Array.Fill(radii, Radius);
-        radii[0] = TipDiameter / 2f;
+        radii[0] = TipDiameter / 2.0;
 
-        var parameters = new TubeParameters
-        {
-            Path = path,
-            Radii = radii,
-            Segments = 16,
-            Capped = true
-        };
+        var parameters = new GeometryEngine.Core.Geometry.TubeSpec(
+            [.. path],
+            [.. radii],
+            16,
+            true
+        );
 
         return engine.Generators.GenerateTube(parameters);
     }
@@ -165,15 +161,14 @@ public sealed record PaintedAirChannel(
         if (renderMode == AirChannelRenderMode.Cone)
         {
             // Cone mode: show path along the surface
-            var radii = new float[Path.Count];
+            var radii = new double[Path.Count];
             Array.Fill(radii, Radius);
-            return engine.Generators.GenerateTube(new TubeParameters
-            {
-                Path = Path.ToList(),
-                Radii = radii,
-                Segments = 12,
-                Capped = true
-            });
+            return engine.Generators.GenerateTube(new GeometryEngine.Core.Geometry.TubeSpec(
+                [.. Path],
+                [.. radii],
+                12,
+                true
+            ));
         }
 
         // Full mode: extruded solid contoured along the path. A single click without a
@@ -183,15 +178,18 @@ public sealed record PaintedAirChannel(
             ? new[] { Path[0], Path[0] + new Vector3(0.01f, 0f, 0f) }
             : Path;
 
-        var parameters = new ExtrudedPathParameters
-        {
-            Path = path,
-            Radius = Radius,
-            ZMin = PenetrationDepth, // passed as depth
-            ZMax = Path[0].Z + TotalLength,  // pass absolute Z for the top
-            TargetMesh = targetMesh  // pass mesh down for raycasting
-        };
+        var surface = targetMesh is null 
+            ? BasicResults.Maybe<IMesh>.None() 
+            : BasicResults.Maybe<IMesh>.Some(targetMesh);
 
-        return engine.Generators.GenerateExtrudedPath(parameters);
+        var parameters = new GeometryEngine.Core.Geometry.DrapedPathSpec(
+            [.. path],
+            Radius,
+            PenetrationDepth,
+            Path[0].Z + TotalLength,
+            surface
+        );
+
+        return engine.Generators.GenerateDrapedPath(parameters);
     }
 }

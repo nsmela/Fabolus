@@ -22,17 +22,17 @@ public sealed class ClearDecals
         if (mesh is null)
             return MeshErrors.NullSource;
 
-        var decalsResult = mesh.Metadata.TextDecals();
+        var decalsResult = mesh.Metadata.AsFabolus().TextDecals();
         if (decalsResult.HasNoValue)
             return Result.Success(mesh);
 
-        var baseMeshResult = mesh.Metadata.GetBaseMesh();
+        var baseMeshResult = mesh.Metadata.AsFabolus().GetBaseMesh();
         if (baseMeshResult.HasNoValue)
             return MetadataErrors.MissingBaseMesh;
 
         var baseMesh = baseMeshResult.Value;
 
-        var revertedMetadata = mesh.Metadata
+        var revertedMetadata = mesh.Metadata.AsFabolus()
             .WithoutCommand<DecalCommand>()
             .WithoutCommand<MouldDecalCommand>();
 

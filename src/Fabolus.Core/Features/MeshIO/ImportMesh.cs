@@ -27,13 +27,9 @@ public sealed class ImportMesh {
         var initialMesh = importResult.Value;
         var importedMeshes = new List<IMesh>();
 
-        var multipleCompsResult = _geometryEngine.Evaluators.HasMultipleComponents(initialMesh);
-        if (multipleCompsResult.IsSuccess && multipleCompsResult.Value) {
-            var separatedResult = _geometryEngine.Evaluators.SeparateComponents(initialMesh);
-            if (separatedResult.IsSuccess)
-                importedMeshes.AddRange(separatedResult.Value);
-            else
-                importedMeshes.Add(initialMesh);
+        var separatedResult = _geometryEngine.Evaluators.SeparateComponents(initialMesh);
+        if (separatedResult.IsSuccess && separatedResult.Value.Length > 1) {
+            importedMeshes.AddRange(separatedResult.Value);
         } else {
             importedMeshes.Add(initialMesh);
         }
@@ -47,7 +43,7 @@ public sealed class ImportMesh {
             // Center the mesh at the origin upon import and attach mesh stats. The stats are
             // attached even if centering fails - meshes without cached Stats force every
             // consumer to handle their absence, so only a stats failure itself leaves them out.
-            var metadata = mesh.Metadata;
+            var metadata = mesh.Metadata.AsFabolus();
 
             // A mesh that arrives with its own command history (a Fabolus-saved 3mf) is already
             // in the frame its BaseMesh replays into, and that history carries the centring
@@ -61,8 +57,8 @@ public sealed class ImportMesh {
                 var stats = statsResult.Value;
 
                 if (!hasOwnHistory) {
-                    var centre = stats.Centre;
-                    var centring = new TranslateCommand(new Vector3(-centre.X, -centre.Y, -centre.Z));
+                    var centre = (stats.BoundsMin + stats.BoundsMax) / 2.0;
+                    var centring = new TranslateCommand(new Vector3((float)-centre.X, (float)-centre.Y, (float)-centre.Z));
 
                     var transformResult = centring.Apply(_geometryEngine, mesh);
                     if (transformResult.IsSuccess) {
@@ -85,17 +81,17 @@ public sealed class ImportMesh {
             // Validate topology (IO already does this, but we ensure it's up to date)
             var validationResult = _geometryEngine.Evaluators.ValidateTopology(mesh);
             if (validationResult.IsSuccess) {
-                mesh = mesh.WithMetadata(mesh.Metadata.WithTopology(validationResult.Value));
+                mesh = mesh.WithMetadata(mesh.Metadata.AsFabolus().WithTopology(validationResult.Value));
             }
 
-            // Add to workspace (ID comes from mesh.Metadata.Id)
+            // Add to workspace (ID comes from mesh.Metadata.AsFabolus().Id)
             var addResult = currentWorkspace.AddMesh(mesh);
             if (addResult.IsFailure)
                 return addResult.Error;
 
             currentWorkspace = addResult.Value;
 
-            if (firstId is null) firstId = mesh.Metadata.Id;
+            if (firstId is null) firstId = mesh.Metadata.AsFabolus().Id;
         }
 
         // 5. Set imported mesh as active (the first one)

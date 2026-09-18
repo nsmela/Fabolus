@@ -9,7 +9,10 @@ namespace Fabolus.Core.Geometry.Metadata;
 /// Metadata associated with a mesh.
 /// Immutable value object for mesh identification and display properties.
 /// </summary>
-public sealed record MeshMetadata {
+public sealed record MeshMetadata : GeometryEngine.Core.Geometry.MeshMetadata {
+    public MeshMetadata() : base("mesh", "unknown") {}
+    public MeshMetadata(string name, string createdBy) : base(name, createdBy) {}
+
     private ImmutableDictionary<string, object> Properties { get; init; } = ImmutableDictionary<string, object>.Empty;
 
     /// <summary>
@@ -178,7 +181,7 @@ public sealed record MeshMetadata {
     /// <summary>
     /// Metadata of the base mesh (e.g. its import-time stats).
     /// </summary>
-    public Maybe<MeshMetadata> BaseMeshMetadata => GetProperty(CoreKeys.BaseMesh).Map(m => m.Metadata);
+    public Maybe<MeshMetadata> BaseMeshMetadata => GetProperty(CoreKeys.BaseMesh).Map(m => m.Metadata.AsFabolus());
 
     /// <summary>
     /// Creates a new metadata instance recording the pristine base mesh.

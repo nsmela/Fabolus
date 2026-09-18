@@ -71,14 +71,31 @@ public sealed class GenerateDecals
         if (outlines.Count == 0)
             return DecalErrors.EmptyOutlines;
 
-        var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
+        var frame = DecalFrame.FromHit(
+            new System.Numerics.Vector3((float)decal.Anchor.X, (float)decal.Anchor.Y, (float)decal.Anchor.Z), 
+            new System.Numerics.Vector3((float)decal.AnchorNormal.X, (float)decal.AnchorNormal.Y, (float)decal.AnchorNormal.Z), 
+            decal.RotationDeg);
 
         float sink = decal.Operation == EmbossOperation.Emboss ? EmbossSinkOffset : -decal.Depth;
         float overshoot = decal.Operation == EmbossOperation.Emboss ? EmbossOvershootOffset : EngraveOvershootOffset;
         float maxEdge = Math.Max(MinMaxEdgeLength, decal.CapHeight / CapHeightToEdgeLengthDivisor);
         IMesh? surfaceTarget = target;
 
-        var prismResult = engine.Generators.BuildTextPrism(outlines, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
+        var spec = new GeometryEngine.Core.Geometry.DecalPrismSpec(
+            [.. outlines],
+            new GeometryEngine.Core.Geometry.SurfaceFrame(
+                new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z),
+                new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.U.X, frame.U.Y, frame.U.Z),
+                new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.V.X, frame.V.Y, frame.V.Z),
+                new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.N.X, frame.N.Y, frame.N.Z)
+            ),
+            Depth: decal.Depth,
+            Sink: sink,
+            Overshoot: overshoot,
+            MaxEdgeLength: maxEdge,
+            SurfaceIndex: surfaceTarget is null ? BasicResults.Maybe<GeometryEngine.Core.Geometry.ISpatialIndex>.None() : BasicResults.Maybe<GeometryEngine.Core.Geometry.ISpatialIndex>.Some(engine.Spatial.BuildIndex(surfaceTarget).Value)
+        );
+        var prismResult = engine.Decals.BuildPrism(spec);
         if (prismResult.IsFailure)
             return prismResult.Error;
 

@@ -26,23 +26,23 @@ public static class MouldPresetPointsCalculator
             return Array.Empty<DecalPresetPoint>();
 
         var s = statsResult.Value;
-        float zMid = (float)(s.MinZ + s.MaxZ) * 0.5f;
-        float xCenter = (float)(s.MinX + s.MaxX) * 0.5f;
-        float yCenter = (float)(s.MinY + s.MaxY) * 0.5f;
-        float minX = (float)s.MinX;
-        float maxX = (float)s.MaxX;
-        float minY = (float)s.MinY;
-        float maxY = (float)s.MaxY;
-        float mouldHeight = (float)(s.MaxZ - s.MinZ);
-        float mouldWidth = (float)(s.MaxX - s.MinX);
+        float zMid = (float)(s.BoundsMin.Z + s.BoundsMax.Z) * 0.5f;
+        float xCenter = (float)(s.BoundsMin.X + s.BoundsMax.X) * 0.5f;
+        float yCenter = (float)(s.BoundsMin.Y + s.BoundsMax.Y) * 0.5f;
+        float minX = (float)s.BoundsMin.X;
+        float maxX = (float)s.BoundsMax.X;
+        float minY = (float)s.BoundsMin.Y;
+        float maxY = (float)s.BoundsMax.Y;
+        float mouldHeight = (float)(s.BoundsMax.Z - s.BoundsMin.Z);
+        float mouldWidth = (float)(s.BoundsMax.X - s.BoundsMin.X);
 
         var presets = new List<DecalPresetPoint>(6);
 
         // 1. Front (-Y direction) - horizontal orientation
         var frontRayOrigin = new Vector3(xCenter, minY - RaycastOffsetDistance, zMid);
         var frontRayDir = new Vector3(0f, 1f, 0f);
-        var frontHit = engine.Evaluators.Raycast(mouldMesh, frontRayOrigin, frontRayDir);
-        if (frontHit.IsSuccess)
+        var frontHit = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(frontRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(frontRayDir).Value);
+        if (frontHit.HasValue)
         {
             presets.Add(new DecalPresetPoint("Front", frontHit.Value.Point, frontHit.Value.Normal, 0f, mouldWidth, EmbossTarget.Mould));
         }
@@ -54,8 +54,8 @@ public static class MouldPresetPointsCalculator
         // 2. Back (+Y direction) - horizontal orientation
         var backRayOrigin = new Vector3(xCenter, maxY + RaycastOffsetDistance, zMid);
         var backRayDir = new Vector3(0f, -1f, 0f);
-        var backHit = engine.Evaluators.Raycast(mouldMesh, backRayOrigin, backRayDir);
-        if (backHit.IsSuccess)
+        var backHit = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(backRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(backRayDir).Value);
+        if (backHit.HasValue)
         {
             presets.Add(new DecalPresetPoint("Back", backHit.Value.Point, backHit.Value.Normal, 0f, mouldWidth, EmbossTarget.Mould));
         }
@@ -67,8 +67,8 @@ public static class MouldPresetPointsCalculator
         // 3. Left (-X direction)
         var leftRayOrigin = new Vector3(minX - RaycastOffsetDistance, yCenter, zMid);
         var leftRayDir = new Vector3(1f, 0f, 0f);
-        var leftHit = engine.Evaluators.Raycast(mouldMesh, leftRayOrigin, leftRayDir);
-        if (leftHit.IsSuccess)
+        var leftHit = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(leftRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(leftRayDir).Value);
+        if (leftHit.HasValue)
         {
             presets.Add(new DecalPresetPoint("Left", leftHit.Value.Point, leftHit.Value.Normal, 90f, mouldHeight, EmbossTarget.Mould));
         }
@@ -80,8 +80,8 @@ public static class MouldPresetPointsCalculator
         // 4. Right (+X direction)
         var rightRayOrigin = new Vector3(maxX + RaycastOffsetDistance, yCenter, zMid);
         var rightRayDir = new Vector3(-1f, 0f, 0f);
-        var rightHit = engine.Evaluators.Raycast(mouldMesh, rightRayOrigin, rightRayDir);
-        if (rightHit.IsSuccess)
+        var rightHit = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(rightRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(rightRayDir).Value);
+        if (rightHit.HasValue)
         {
             presets.Add(new DecalPresetPoint("Right", rightHit.Value.Point, rightHit.Value.Normal, 90f, mouldHeight, EmbossTarget.Mould));
         }
@@ -124,13 +124,13 @@ public static class MouldPresetPointsCalculator
         curve1 = null;
         curve2 = null;
 
-        float zMid = (float)(stats.MinZ + stats.MaxZ) * 0.5f;
-        float xCenter = (float)(stats.MinX + stats.MaxX) * 0.5f;
-        float yCenter = (float)(stats.MinY + stats.MaxY) * 0.5f;
-        float minX = (float)stats.MinX;
-        float maxX = (float)stats.MaxX;
-        float minY = (float)stats.MinY;
-        float maxY = (float)stats.MaxY;
+        float zMid = (float)(stats.BoundsMin.Z + stats.BoundsMax.Z) * 0.5f;
+        float xCenter = (float)(stats.BoundsMin.X + stats.BoundsMax.X) * 0.5f;
+        float yCenter = (float)(stats.BoundsMin.Y + stats.BoundsMax.Y) * 0.5f;
+        float minX = (float)stats.BoundsMin.X;
+        float maxX = (float)stats.BoundsMax.X;
+        float minY = (float)stats.BoundsMin.Y;
+        float maxY = (float)stats.BoundsMax.Y;
 
         const int samples = 72; // 5-degree increments
         var points = new List<Vector3>(samples);
@@ -147,8 +147,8 @@ public static class MouldPresetPointsCalculator
             var rayOrigin = new Vector3(xCenter + cos * radius, yCenter + sin * radius, zMid);
             var rayDir = new Vector3(-cos, -sin, 0f);
 
-            var hitResult = engine.Evaluators.Raycast(mouldMesh, rayOrigin, rayDir);
-            if (hitResult.IsSuccess)
+            var hitResult = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(rayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(rayDir).Value);
+            if (hitResult.HasValue)
             {
                 points.Add(hitResult.Value.Point);
                 normals.Add(hitResult.Value.Normal);
@@ -171,13 +171,13 @@ public static class MouldPresetPointsCalculator
 
             // Coincident samples would normalise to NaN and poison this sample and its neighbours
             // through the smoothing pass below; treat them as no turn at all.
-            if (inEdge.LengthSquared() < 1e-12f || outEdge.LengthSquared() < 1e-12f)
+            if (inEdge.LengthSquared < 1e-12f || outEdge.LengthSquared < 1e-12f)
             {
                 curvatures[i] = 0f;
                 continue;
             }
 
-            float dot = Math.Clamp(Vector2.Dot(Vector2.Normalize(inEdge), Vector2.Normalize(outEdge)), -1f, 1f);
+            float dot = (float)Math.Clamp(inEdge.Normalize().Dot(outEdge.Normalize()), -1.0, 1.0);
             curvatures[i] = 1f - dot;
         }
 
@@ -195,7 +195,7 @@ public static class MouldPresetPointsCalculator
         {
             foreach (var card in cardinalPoints)
             {
-                if (Vector3.Distance(pt, card.Position) < CardinalOverlapDistanceThreshold)
+                if (pt.DistanceTo(card.Position) < CardinalOverlapDistanceThreshold)
                     return false;
             }
             return true;

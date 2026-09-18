@@ -33,11 +33,11 @@ internal static class MouldTrough
         MouldDefinition definition)
     {
         // Every trough stops short of the mould wall - that rim is what holds the silicone.
-        var rimResult = engine.Polygons.OffsetPolygon(footprint, -(float)definition.TroughOffset);
+        var rimResult = engine.Polygons.Offset(footprint, -(float)definition.TroughOffset);
         if (rimResult.IsFailure)
             return TroughErrors.RimTooWide;
 
-        var cutterResult = engine.Polygons.ExtrudePolygon(rimResult.Value, floorZ, bodyTopZ + Overshoot);
+        var cutterResult = engine.Polygons.Extrude(rimResult.Value, floorZ, bodyTopZ + Overshoot);
         if (cutterResult.IsFailure) return cutterResult.Error;
 
         var cutter = cutterResult.Value;
@@ -47,7 +47,7 @@ internal static class MouldTrough
             var localResult = ChannelFootprint(engine, definition);
             if (localResult.IsFailure) return localResult.Error;
 
-            var localCutterResult = engine.Polygons.ExtrudePolygon(localResult.Value, floorZ, bodyTopZ + Overshoot);
+            var localCutterResult = engine.Polygons.Extrude(localResult.Value, floorZ, bodyTopZ + Overshoot);
             if (localCutterResult.IsFailure) return localCutterResult.Error;
 
             // Clipped against the full-footprint basin so a channel painted out near the
@@ -73,9 +73,9 @@ internal static class MouldTrough
             return TroughErrors.NoChannelExits;
 
         var hull = ConvexHull(exits);
-        var polygon = new Polygon2D { OuterBoundary = Pad(hull) };
+        var polygon = new Polygon2D([.. Pad(hull)], []);
 
-        return engine.Polygons.OffsetPolygon(polygon, (float)definition.TroughOffset);
+        return engine.Polygons.Offset(polygon, definition.TroughOffset);
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ internal static class MouldTrough
         return chain;
     }
 
-    private static float Cross(Vector2 origin, Vector2 a, Vector2 b) =>
+    private static double Cross(Vector2 origin, Vector2 a, Vector2 b) =>
         (a.X - origin.X) * (b.Y - origin.Y) - (a.Y - origin.Y) * (b.X - origin.X);
 
     /// <summary>
@@ -138,7 +138,7 @@ internal static class MouldTrough
         if (hull.Count >= 3)
             return hull;
 
-        if (hull.Count == 1 || Vector2.DistanceSquared(hull[0], hull[^1]) < DegenerateHullPad * DegenerateHullPad)
+        if (hull.Count == 1 || hull[0].DistanceSquared(hull[^1]) < DegenerateHullPad * DegenerateHullPad)
         {
             var p = hull[0];
             return new[]
@@ -152,8 +152,8 @@ internal static class MouldTrough
 
         var (a, b) = (hull[0], hull[1]);
         var along = b - a;
-        var side = along.LengthSquared() > 0
-            ? Vector2.Normalize(new Vector2(-along.Y, along.X)) * DegenerateHullPad
+        var side = along.LengthSquared > 0
+            ? new Vector2(-along.Y, along.X).Normalize() * DegenerateHullPad
             : new Vector2(DegenerateHullPad, 0);
 
         return new[] { a - side, b - side, b + side, a + side };
