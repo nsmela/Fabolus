@@ -19,8 +19,13 @@ public sealed class CutMeshFeature
     /// <summary>
     /// Cuts a mesh with a plane, returning the top and bottom halves.
     /// The top half is in the direction of the plane normal.
+    ///
+    /// This is the one feature that genuinely forks: the halves are new workspace entries with
+    /// their own identities, not new geometry for the entry <paramref name="record"/> names. It
+    /// mints those identities here rather than leaving the caller to, because naming the halves
+    /// after the mesh they were cut from is part of cutting it.
     /// </summary>
-    public Result<(IMesh top, IMesh bottom)> Execute(IMesh mesh, Vector3 planeOrigin, Vector3 planeNormal)
+    public Result<(CutHalf Top, CutHalf Bottom)> Execute(IMesh mesh, MeshRecord record, Vector3 planeOrigin, Vector3 planeNormal)
     {
         if (mesh is null) return new Error("CutMesh.NullMesh", "Mesh cannot be null.");
         if (planeNormal == Vector3.Zero) return new Error("CutMesh.InvalidNormal", "Plane normal cannot be zero.");
@@ -95,28 +100,22 @@ public sealed class CutMeshFeature
         if (topResult.IsFailure) return topResult.Error;
         if (bottomResult.IsFailure) return bottomResult.Error;
 
-        var top = topResult.Value;
-        var bottom = bottomResult.Value;
+        var top = topResult.Value.WithMeasurements(_engine);
+        var bottom = bottomResult.Value.WithMeasurements(_engine);
 
-        // Add metadata, stats, and topology to the resulting meshes
-        var topMetadata = top.Metadata.AsFabolus().WithProperties(m => 
-            m.Set(CoreKeys.Id, Guid.NewGuid())
-             .Set(CoreKeys.Name, $"{mesh.Metadata.AsFabolus().Name} (Top)")
-             .Set(CoreKeys.CreatedBy, "CutSplit"));
-        var topStatsResult = _engine.Evaluators.GetStatistics(top);
-        if (topStatsResult.IsSuccess) topMetadata = topMetadata.WithMeshStats(topStatsResult.Value);
-        var topTopologyResult = _engine.Evaluators.ValidateTopology(top);
-        if (topTopologyResult.IsSuccess) topMetadata = topMetadata.WithTopology(topTopologyResult.Value);
-
-        var bottomMetadata = bottom.Metadata.AsFabolus().WithProperties(m => 
-            m.Set(CoreKeys.Id, Guid.NewGuid())
-             .Set(CoreKeys.Name, $"{mesh.Metadata.AsFabolus().Name} (Bottom)")
-             .Set(CoreKeys.CreatedBy, "CutSplit"));
-        var bottomStatsResult = _engine.Evaluators.GetStatistics(bottom);
-        if (bottomStatsResult.IsSuccess) bottomMetadata = bottomMetadata.WithMeshStats(bottomStatsResult.Value);
-        var bottomTopologyResult = _engine.Evaluators.ValidateTopology(bottom);
-        if (bottomTopologyResult.IsSuccess) bottomMetadata = bottomMetadata.WithTopology(bottomTopologyResult.Value);
-
-        return Result.Success((top.WithMetadata(topMetadata), bottom.WithMetadata(bottomMetadata)));
+        return Result<(CutHalf, CutHalf)>.Success((
+            new CutHalf(top, Half(record, "Top")),
+            new CutHalf(bottom, Half(record, "Bottom"))));
     }
+
+    // A half starts its own history: the cut is what produced it, and the geometry it was cut
+    // from is its base mesh rather than the original's.
+    private static MeshRecord Half(MeshRecord source, string side) => new() {
+        Id = Guid.NewGuid(),
+        Name = $"{source.Name} ({side})",
+        CreatedBy = "CutSplit",
+    };
 }
+
+/// <summary>One side of a cut: the geometry, and the workspace entry it should be added under.</summary>
+public readonly record struct CutHalf(IMesh Mesh, MeshRecord Record);

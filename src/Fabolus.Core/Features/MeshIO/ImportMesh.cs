@@ -1,6 +1,7 @@
 using BasicResults;
 using Fabolus.Core.Features.Transforms;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 using System.Numerics;
 
 namespace Fabolus.Core.Features.MeshIO;
@@ -19,7 +20,6 @@ public sealed class ImportMesh {
     /// Imports a mesh file and adds it to the workspace.
     /// </summary>
     public Result<Workspace> Execute(Workspace workspace, string filePath) {
-        // 1. Import mesh (metadata created automatically from filename)
         var importResult = _geometryEngine.IO.Import(filePath);
         if (importResult.IsFailure)
             return importResult.Error;
@@ -40,23 +40,22 @@ public sealed class ImportMesh {
         foreach (var meshToProcess in importedMeshes) {
             var mesh = meshToProcess;
 
-            // Center the mesh at the origin upon import and attach mesh stats. The stats are
-            // attached even if centering fails - meshes without cached Stats force every
-            // consumer to handle their absence, so only a stats failure itself leaves them out.
-            var metadata = mesh.Metadata.AsFabolus();
+            // The engine names the mesh after the file it came from, and after the component
+            // within it when one file held several.
+            var record = MeshRecord.ForImport(mesh.Metadata.Name);
 
             // A mesh that arrives with its own command history (a Fabolus-saved 3mf) is already
             // in the frame its BaseMesh replays into, and that history carries the centring
             // TranslateCommand from when it was first imported. Centring it again would move the
             // geometry without moving the BaseMesh, so every replay-from-base view (smoothing,
-            // rotate, export) would render it offset from what the viewport shows.
-            var hasOwnHistory = metadata.HasBaseMesh || metadata.Commands.Any();
+            // rotate, export) would render it offset from what the viewport shows. Nothing
+            // reconstructs a record from a file yet, so this is false for every import today.
+            var hasOwnHistory = record.BaseMesh is not null || record.Commands.Any();
 
-            var statsResult = _geometryEngine.Evaluators.GetStatistics(mesh);
-            if (statsResult.IsSuccess) {
-                var stats = statsResult.Value;
-
-                if (!hasOwnHistory) {
+            if (!hasOwnHistory) {
+                var statsResult = _geometryEngine.Evaluators.GetStatistics(mesh);
+                if (statsResult.IsSuccess) {
+                    var stats = statsResult.Value;
                     var centre = (stats.BoundsMin + stats.BoundsMax) / 2.0;
                     var centring = new TranslateCommand(new Vector3((float)-centre.X, (float)-centre.Y, (float)-centre.Z));
 
@@ -64,37 +63,32 @@ public sealed class ImportMesh {
                     if (transformResult.IsSuccess) {
                         // Recorded rather than baked in: BaseMesh stays the pristine imported
                         // geometry, replay reproduces the centred mesh, and the offset from the
-                        // authored position is persisted with the file for later features to read.
-                        metadata = metadata.WithBaseMesh(mesh).WithCommand(centring);
+                        // authored position is persisted with the entry for later features to read.
+                        // The stats measured just above are cached on it on the way past - the
+                        // base mesh never changes, so anything comparing against it (the Smoothing
+                        // panel's "Original Mesh" figures) reads them rather than measuring again.
+                        record = record
+                            .WithBaseMesh(mesh.WithAnnotations(new FabolusAnnotations(stats)))
+                            .WithCommand(centring);
                         mesh = transformResult.Value;
-
-                        var recomputed = _geometryEngine.Evaluators.GetStatistics(mesh);
-                        if (recomputed.IsSuccess) stats = recomputed.Value;
                     }
                 }
-
-                // Built from the pre-translate metadata: the engine's Translate rewrites
-                // Name/CreatedBy, which must not stick on an imported mesh.
-                mesh = mesh.WithMetadata(metadata.WithMeshStats(stats));
             }
 
-            // Validate topology (IO already does this, but we ensure it's up to date)
-            var validationResult = _geometryEngine.Evaluators.ValidateTopology(mesh);
-            if (validationResult.IsSuccess) {
-                mesh = mesh.WithMetadata(mesh.Metadata.AsFabolus().WithTopology(validationResult.Value));
-            }
+            // Measured once here so every consumer sees a mesh that already knows its own bounds
+            // and topology; IO validates on the way in, but the centring above invalidates the
+            // bounds it measured.
+            mesh = mesh.WithMeasurements(_geometryEngine);
 
-            // Add to workspace (ID comes from mesh.Metadata.AsFabolus().Id)
-            var addResult = currentWorkspace.AddMesh(mesh);
+            var addResult = currentWorkspace.AddMesh(mesh, record);
             if (addResult.IsFailure)
                 return addResult.Error;
 
             currentWorkspace = addResult.Value;
 
-            if (firstId is null) firstId = mesh.Metadata.AsFabolus().Id;
+            firstId ??= record.Id;
         }
 
-        // 5. Set imported mesh as active (the first one)
         if (firstId.HasValue) {
             var activeResult = currentWorkspace.SetActiveMesh(firstId.Value);
             if (activeResult.IsFailure)
@@ -104,5 +98,4 @@ public sealed class ImportMesh {
 
         return currentWorkspace;
     }
-
 }

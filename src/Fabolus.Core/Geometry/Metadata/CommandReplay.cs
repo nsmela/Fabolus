@@ -15,7 +15,7 @@ public static class CommandReplay {
     /// Replays commands against <paramref name="baseMesh"/>, taking ownership of it: it is
     /// either consumed (disposed once the first command produces a new mesh) or returned as
     /// the result (when there are no commands to apply). Intermediates are disposed as the
-    /// chain advances. Pass an owned copy (e.g. from GetBaseMeshCopy), never a shared instance.
+    /// chain advances. Pass an owned copy, never a shared instance.
     /// </summary>
     public static Result<IMesh> Apply(IGeometryEngine engine, IMesh baseMesh, IEnumerable<IMeshCommand> commands) {
         IMesh current = baseMesh;
@@ -32,26 +32,24 @@ public static class CommandReplay {
     }
 
     /// <summary>
-    /// Computes the mesh exactly as it was at the specified pipeline stage, by replaying only
-    /// commands up to that priority level against a copy of the base mesh. Always returns a
-    /// mesh the caller owns and must dispose - never the input mesh or the stored BaseMesh.
+    /// The mesh exactly as it was at the given pipeline stage, by replaying only the commands up
+    /// to that priority level against <paramref name="record"/>'s base mesh. Always returns a mesh
+    /// the caller owns and must dispose - never the input mesh or the stored BaseMesh.
     /// </summary>
-    public static Result<IMesh> GetMeshAtStage(IGeometryEngine engine, IMesh currentMesh, int priorityLevel) {
-        if (!currentMesh.Metadata.AsFabolus().Commands.Any(c => c.Priority > priorityLevel)) {
+    public static Result<IMesh> GetMeshAtStage(
+        IGeometryEngine engine,
+        IMesh currentMesh,
+        MeshRecord record,
+        int priorityLevel) {
+        if (!record.Commands.Any(c => c.Priority > priorityLevel)) {
             return Result<IMesh>.Success(currentMesh);
         }
 
-        var baseCopy = currentMesh.Metadata.AsFabolus().GetBaseMesh();
-        if (baseCopy.HasNoValue) {
+        if (record.BaseMesh is null) {
             return MetadataErrors.MissingBaseMesh;
         }
 
-        var allowedCommands = currentMesh.Metadata.AsFabolus().Commands.Where(c => c.Priority <= priorityLevel).ToList();
-        
-        var applyResult = Apply(engine, baseCopy.Value, allowedCommands);
-        if (applyResult.IsFailure) return applyResult;
-
-        var stagedMetadata = currentMesh.Metadata.AsFabolus().WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)allowedCommands);
-        return Result<IMesh>.Success(applyResult.Value.WithMetadata(stagedMetadata));
+        var allowed = record.Commands.Where(c => c.Priority <= priorityLevel).ToList();
+        return Apply(engine, record.BaseMesh, allowed);
     }
 }

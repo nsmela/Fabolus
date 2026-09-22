@@ -1,5 +1,4 @@
 using BasicResults;
-using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 
@@ -11,38 +10,25 @@ namespace Fabolus.Core.Features.Smoothing;
 /// </summary>
 public sealed class SmoothMesh(IGeometryEngine Engine) {
     /// <summary>
-    /// Smooths the specified mesh in place. Records the new SmoothSettings (replacing any
-    /// prior one - overwrite, not stack) and replays the full updated Commands list against
-    /// BaseMesh, so any sibling command already applied (e.g. a prior Rotate) is preserved in
-    /// the result instead of being silently discarded, and repeat Apply calls don't
-    /// stack/degrade. Never forks a new mesh, so there's only ever one Workspace entry for
-    /// this mesh, matching Rotate/Translate.
+    /// Smooths the active mesh in place. Records the new SmoothSettings (replacing any prior one -
+    /// overwrite, not stack) and replays the full updated Commands list against BaseMesh, so any
+    /// sibling command already applied (e.g. a prior Rotate) is preserved in the result instead of
+    /// being silently discarded, and repeat Apply calls don't stack/degrade. Never forks a new
+    /// mesh, so there's only ever one Workspace entry for this mesh, matching Rotate/Translate.
     /// </summary>
     /// <param name="workspace">The current workspace.</param>
     /// <param name="settings">The smoothing parameters to apply.</param>
-    public Result<Workspace> Execute(
-        Workspace workspace,
-        SmoothSettings settings)
-    {
-        var getMeshResult = workspace.GetActiveMesh();
-        if (getMeshResult.IsFailure) return getMeshResult.Error;
+    public Result<Workspace> Execute(Workspace workspace, SmoothSettings settings) {
+        var recordResult = workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return recordResult.Error;
 
-        var activeMesh = getMeshResult.Value;
+        var record = recordResult.Value.WithCommand(settings);
+        if (record.BaseMesh is null) return MetadataErrors.MissingBaseMesh;
 
-        var updatedMetadata = activeMesh.Metadata.AsFabolus().WithCommand(settings);
-        var baseMesh = activeMesh.Metadata.AsFabolus().GetBaseMesh().Value;
-        var replayResult = CommandReplay.Apply(Engine, baseMesh, updatedMetadata.Commands);
+        var replayResult = CommandReplay.Apply(Engine, record.BaseMesh, record.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var finalMesh = replayResult.Value;
-        var topology = Engine.Evaluators.ValidateTopology(finalMesh).Value;
-        var stats = Engine.Evaluators.GetStatistics(finalMesh).Value;
-
-        var metadata = updatedMetadata.WithProperties(m => m
-            .Set(MeshIOKeys.Stats, stats)
-            .Set(MeshIOKeys.Topology, topology));
-
-        finalMesh = finalMesh.WithMetadata(metadata);
-        return workspace.UpdateMesh(finalMesh);
+        var mesh = replayResult.Value.WithMeasurements(Engine);
+        return workspace.UpdateMesh(record.Id, mesh, record);
     }
 }

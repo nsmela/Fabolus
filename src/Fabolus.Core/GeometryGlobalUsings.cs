@@ -6,4 +6,5 @@ global using Polygon2D = GeometryEngine.Core.Geometry.PlanarPolygon;
 global using RaycastHit = GeometryEngine.Core.Geometry.RayHit;
 global using MeshStatistics = GeometryEngine.Core.Geometry.MeshStatistics;
 global using TopologyValidation = GeometryEngine.Core.Geometry.TopologyValidation;
-global using MeshMetadata = Fabolus.Core.Geometry.Metadata.MeshMetadata;
+global using MeshMetadata = GeometryEngine.Core.Geometry.MeshMetadata;
+global using MeshOperation = GeometryEngine.Core.Geometry.MeshOperation;

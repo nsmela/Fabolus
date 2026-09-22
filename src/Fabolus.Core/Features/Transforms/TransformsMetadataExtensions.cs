@@ -1,33 +1,29 @@
-using BasicResults;
-using Fabolus.Core.Geometry.Metadata;
-using System.Linq;
+using Fabolus.Core.Geometry;
 using System.Numerics;
 
 namespace Fabolus.Core.Features.Transforms;
 
 /// <summary>
-/// Helpers for reading/updating the net rotation and translation recorded on a mesh.
+/// Reading and updating the net rotation and translation recorded on a workspace entry.
 /// </summary>
-public static class TransformMetadataExtensions {
-    public static MeshMetadata WithoutRotation(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) =>
-        metadataBase.AsFabolus().WithoutCommand<RotateCommand>();
+public static class TransformRecordExtensions {
+    public static MeshRecord WithoutRotation(this MeshRecord record) =>
+        record.WithoutCommand<RotateCommand>();
 
-    public static MeshMetadata WithoutTranslate(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) =>
-        metadataBase.AsFabolus().WithoutCommand<TranslateCommand>();
+    public static MeshRecord WithoutTranslate(this MeshRecord record) =>
+        record.WithoutCommand<TranslateCommand>();
 
-    public static MeshMetadata WithRotation(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase, Quaternion q) =>
-        metadataBase.AsFabolus().WithCommand(new RotateCommand(q));
+    public static MeshRecord WithRotation(this MeshRecord record, Quaternion q) =>
+        record.WithCommand(new RotateCommand(q));
 
-    public static MeshMetadata WithTranslate(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase, Vector3 v) =>
-        metadataBase.AsFabolus().WithCommand(new TranslateCommand(v));
+    public static MeshRecord WithTranslate(this MeshRecord record, Vector3 v) =>
+        record.WithCommand(new TranslateCommand(v));
 
-    public static Maybe<Quaternion> Rotation(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) {
-        var command = metadataBase.AsFabolus().Commands.OfType<RotateCommand>().FirstOrDefault();
-        return command is null ? Maybe<Quaternion>.None() : Maybe<Quaternion>.Some(command.Rotation);
-    }
+    /// <summary>The net rotation applied to this entry, or null if it has never been rotated.</summary>
+    public static Quaternion? Rotation(this MeshRecord record) =>
+        record.Command<RotateCommand>()?.Rotation;
 
-    public static Maybe<Vector3> Translation(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) {
-        var command = metadataBase.AsFabolus().Commands.OfType<TranslateCommand>().FirstOrDefault();
-        return command is null ? Maybe<Vector3>.None() : Maybe<Vector3>.Some(command.Translation);
-    }
+    /// <summary>The net translation applied to this entry, or null if it has never been moved.</summary>
+    public static Vector3? Translation(this MeshRecord record) =>
+        record.Command<TranslateCommand>()?.Translation;
 }

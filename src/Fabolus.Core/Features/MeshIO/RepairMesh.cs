@@ -1,5 +1,6 @@
 using BasicResults;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 
 namespace Fabolus.Core.Features.MeshIO;
 
@@ -18,28 +19,16 @@ public sealed class RepairMesh {
         if (meshResult.IsFailure) return meshResult.Error;
         var mesh = meshResult.Value;
 
-        Result<IMesh> repairResult;
-        if (fixSelfIntersections)
-            repairResult = _geometryEngine.Modifiers.RepairSelfIntersections(mesh);
-        else
-            repairResult = _geometryEngine.Modifiers.Repair(mesh);
-
+        var repairResult = fixSelfIntersections
+            ? _geometryEngine.Modifiers.RepairSelfIntersections(mesh)
+            : _geometryEngine.Modifiers.Repair(mesh);
 
         if (repairResult.IsFailure) return repairResult.Error;
-        var repairedMesh = repairResult.Value;
 
-        // Re-audit after repair. Repair changes geometry (fills holes, removes degenerate
-        // faces), so the cached Stats must be refreshed too - consumers size UI from them.
-        var metadata = repairedMesh.Metadata;
+        // Repair changes geometry (fills holes, removes degenerate faces), so both the topology
+        // audit and the bounds have to be read again - consumers size UI from them.
+        var repairedMesh = repairResult.Value.WithMeasurements(_geometryEngine);
 
-        var audit = _geometryEngine.Evaluators.ValidateTopology(repairedMesh);
-        if (audit.IsSuccess) metadata = metadata.WithTopology(audit.Value);
-
-        var stats = _geometryEngine.Evaluators.GetStatistics(repairedMesh);
-        if (stats.IsSuccess) metadata = metadata.WithMeshStats(stats.Value);
-
-        repairedMesh = repairedMesh.WithMetadata(metadata);
-
-        return workspace.UpdateMesh(repairedMesh);
+        return workspace.UpdateMesh(meshId, repairedMesh);
     }
 }

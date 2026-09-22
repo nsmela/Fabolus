@@ -28,6 +28,10 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
     private IMesh? _activeMesh;
+
+    // The active workspace entry. _activeMesh, _baseMesh and _mouldMesh are all geometry for this
+    // one entry at different stages of its command list, so one record covers all three.
+    private MeshRecord? _record;
     private IMesh? _baseMesh;
     private IMesh? _mouldMesh;
     private IMesh? _targetMesh;
@@ -517,9 +521,9 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
     private void EnsureCleanMeshForPreview()
     {
-        if (IsApplied && _activeMesh is not null)
+        if (IsApplied && _activeMesh is not null && _record is not null)
         {
-            var cleanBase = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
+            var cleanBase = CommandReplay.GetMeshAtStage(_engine, _activeMesh, _record, CommandPriority.Transform);
             if (cleanBase.IsSuccess)
             {
                 _baseMesh = cleanBase.Value;
@@ -527,7 +531,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
             if (HasMould && _mouldMesh is not null)
             {
-                var cleanMould = CommandReplay.GetMeshAtStage(_engine, _mouldMesh, CommandPriority.Mould);
+                var cleanMould = CommandReplay.GetMeshAtStage(_engine, _mouldMesh, _record, CommandPriority.Mould);
                 if (cleanMould.IsSuccess)
                 {
                     _mouldMesh = cleanMould.Value;
@@ -845,7 +849,16 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             activeMesh = activeMeshResult.Value;
         }
 
-        var cleanBaseResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
+        var record = _record;
+        if (record is null)
+        {
+            const string noRecord = "The mesh being edited is no longer in the workspace.";
+            ErrorText = noRecord;
+            _alert.ShowError(noRecord);
+            return;
+        }
+
+        var cleanBaseResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, record, CommandPriority.Transform);
         if (cleanBaseResult.IsFailure)
         {
             ErrorText = cleanBaseResult.Error.Description;
@@ -856,7 +869,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
         // 2. Apply Base Decals if any
         IMesh appliedBaseMesh = cleanBaseMesh;
-        Fabolus.Core.Geometry.Metadata.MeshMetadata baseMetadata = cleanBaseMesh.Metadata.AsFabolus();
+        var updatedRecord = record;
 
         if (baseDecals.Count > 0)
         {
@@ -867,12 +880,9 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                 _alert.ShowError(baseApplyResult.Error.Description);
                 return;
             }
-            appliedBaseMesh = baseApplyResult.Value;
 
-            baseMetadata = cleanBaseMesh.Metadata.AsFabolus()
-                .WithCommand(new DecalCommand(baseDecals));
-
-            appliedBaseMesh = appliedBaseMesh.WithRefreshedStatsAndTopology(_engine, baseMetadata);
+            updatedRecord = record.WithCommand(new DecalCommand(baseDecals));
+            appliedBaseMesh = baseApplyResult.Value.WithMeasurements(_engine);
         }
 
         IMesh meshToSave = appliedBaseMesh;
@@ -880,8 +890,8 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         // 3. If Mould exists, re-generate mould from appliedBaseMesh, then apply Mould Decals
         if (HasMould && _mouldMesh is not null)
         {
-            var mouldDef = _mouldMesh.Metadata.MouldDefinition();
-            if (mouldDef.HasNoValue)
+            var mouldDef = record.MouldDefinition();
+            if (mouldDef is null)
             {
                 // Without a definition the mould cannot be regenerated over the embossed base,
                 // so saving here would leave the workspace holding a mould that no longer matches.
@@ -891,7 +901,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                 return;
             }
 
-            var mouldApplyResult = await Task.Run(() => mouldDef.Value.Apply(_engine, appliedBaseMesh));
+            var mouldApplyResult = await Task.Run(() => mouldDef.Apply(_engine, appliedBaseMesh));
             if (mouldApplyResult.IsFailure)
             {
                 ErrorText = mouldApplyResult.Error.Description;
@@ -901,8 +911,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
             var rawMouldMesh = mouldApplyResult.Value;
 
-            var mouldMetadata = appliedBaseMesh.Metadata.AsFabolus()
-                .WithCommand(mouldDef.Value with { TargetMeshId = appliedBaseMesh.Metadata.AsFabolus().Id });
+            updatedRecord = updatedRecord.WithCommand(mouldDef with { TargetMeshId = record.Id });
 
             IMesh appliedMouldMesh = rawMouldMesh;
 
@@ -917,10 +926,10 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                 }
 
                 appliedMouldMesh = mouldDecalApplyResult.Value;
-                mouldMetadata = mouldMetadata.WithCommand(new MouldDecalCommand(mouldDecals));
+                updatedRecord = updatedRecord.WithCommand(new MouldDecalCommand(mouldDecals));
             }
 
-            appliedMouldMesh = appliedMouldMesh.WithRefreshedStatsAndTopology(_engine, mouldMetadata);
+            appliedMouldMesh = appliedMouldMesh.WithMeasurements(_engine);
             meshToSave = appliedMouldMesh;
             _mouldMesh = appliedMouldMesh;
             _baseMesh = appliedBaseMesh;
@@ -936,7 +945,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             WarningText = string.Join(" · ", warnings.Distinct());
         }
 
-        var updateResult = Workspace.UpdateMesh(meshToSave);
+        var updateResult = Workspace.UpdateMesh(record.Id, meshToSave, updatedRecord);
         if (updateResult.IsFailure)
         {
             ErrorText = updateResult.Error.Description;
@@ -946,6 +955,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
         Workspace = updateResult.Value;
         _activeMesh = meshToSave;
+        _record = updatedRecord;
         IsApplied = true;
 
         UpdateTargetMesh();
@@ -977,12 +987,13 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         if (activeResult.IsSuccess)
         {
             _activeMesh = activeResult.Value;
-            var mouldDef = _activeMesh.Metadata.MouldDefinition();
-            HasMould = mouldDef.HasValue;
+            _record = Workspace.GetActiveRecord() is { IsSuccess: true } r ? r.Value : null;
+
+            HasMould = _record?.MouldDefinition() is not null;
             if (HasMould)
             {
                 _mouldMesh = _activeMesh;
-                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
+                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, _record!, CommandPriority.Transform);
                 _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : _activeMesh;
             }
             else
@@ -1036,17 +1047,17 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             if (activeResult.IsFailure) return;
 
             _activeMesh = activeResult.Value;
+            _record = Workspace.GetActiveRecord() is { IsSuccess: true } r ? r.Value : null;
 
-            // Check if active mesh has a MouldDefinition
-            var mouldDef = _activeMesh.Metadata.MouldDefinition();
-            HasMould = mouldDef.HasValue;
+            // Check whether the active entry is a generated mould
+            HasMould = _record?.MouldDefinition() is not null;
 
             if (HasMould)
             {
                 _mouldMesh = _activeMesh;
                 // Transform stage, matching ClearText and EnsureCleanMeshForPreview: the base mesh
                 // under the mould must be free of decals, or previews stack on top of applied ones.
-                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, CommandPriority.Transform);
+                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, _record!, CommandPriority.Transform);
                 _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : _activeMesh;
                 Target = EmbossTarget.Mould;
             }
@@ -1057,13 +1068,13 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                 Target = EmbossTarget.Base;
             }
 
-            var savedDecals = _activeMesh.Metadata.TextDecals();
-            if (savedDecals.HasNoValue && _baseMesh is not null)
-                savedDecals = _baseMesh.Metadata.TextDecals();
+            // Decals are recorded on the entry, so the same list covers the mesh and the base
+            // mesh under it - no need to ask one and then the other.
+            var savedDecals = _record?.TextDecals() ?? [];
 
-            if (savedDecals.HasValue && savedDecals.Value.Count > 0)
+            if (savedDecals.Count > 0)
             {
-                _decals = savedDecals.Value.ToList();
+                _decals = savedDecals.ToList();
                 IsApplied = true;
                 SelectedDecalId = Guid.Empty;
                 Target = _decals[0].Target;

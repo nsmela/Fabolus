@@ -1,6 +1,7 @@
 using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Overhangs;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
 using HelixToolkit.Wpf.SharpDX;
@@ -204,7 +205,8 @@ internal class RotateSceneManager : ISceneManager {
 
     private static LineGeometryModel3D GenerateAxisGizmo(Vector3 axis, IMesh activeMesh) {
 
-        var stats = activeMesh.Metadata.MeshStats().Value;
+        var stats = activeMesh.Stats()
+            ?? throw new InvalidOperationException("The rotation gizmo is sized from the mesh's bounds, which have not been measured.");
  
         // Calculate radius based on bounding box
         double radius = axis switch {

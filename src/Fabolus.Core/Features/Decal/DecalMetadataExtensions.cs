@@ -1,29 +1,26 @@
-using BasicResults;
-using Fabolus.Core.Geometry.Metadata;
+using Fabolus.Core.Geometry;
 
 namespace Fabolus.Core.Features.Decal;
 
-public static class TextEmbossMetadataExtensions
-{
+public static class TextEmbossRecordExtensions {
     /// <summary>
-    /// Extracts all applied text decals from the mesh's command history (<see cref="DecalCommand"/> and <see cref="MouldDecalCommand"/>).
+    /// Every text decal applied to this entry, gathered from its command history
+    /// (<see cref="DecalCommand"/> and <see cref="MouldDecalCommand"/>). Empty when none have been.
     /// </summary>
-    public static Maybe<IReadOnlyList<TextDecal>> TextDecals(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase)
-    {
-        var list = new List<TextDecal>();
+    public static IReadOnlyList<TextDecal> TextDecals(this MeshRecord record) {
+        var decals = new List<TextDecal>();
 
-        foreach (var cmd in metadataBase.AsFabolus().Commands)
-        {
-            if (cmd is DecalCommand decalCmd)
-            {
-                list.AddRange(decalCmd.Decals);
-            }
-            else if (cmd is MouldDecalCommand mouldDecalCmd)
-            {
-                list.AddRange(mouldDecalCmd.Decals);
+        foreach (var command in record.Commands) {
+            switch (command) {
+                case DecalCommand decal:
+                    decals.AddRange(decal.Decals);
+                    break;
+                case MouldDecalCommand mouldDecal:
+                    decals.AddRange(mouldDecal.Decals);
+                    break;
             }
         }
 
-        return list.Count > 0 ? Maybe<IReadOnlyList<TextDecal>>.Some(list) : Maybe<IReadOnlyList<TextDecal>>.None();
+        return decals;
     }
 }

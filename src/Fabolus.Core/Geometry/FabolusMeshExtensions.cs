@@ -1,13 +1,10 @@
 namespace Fabolus.Core;
-public static class FabolusMeshExtensions {
-    public static Fabolus.Core.Geometry.Metadata.MeshMetadata GetFabolusMetadata(this IMesh mesh) {
-        return mesh.Metadata.AsFabolus();
-    }
-    public static Fabolus.Core.Geometry.Metadata.MeshMetadata AsFabolus(this GeometryEngine.Core.Geometry.MeshMetadata baseMetadata) {
-        if (baseMetadata is Fabolus.Core.Geometry.Metadata.MeshMetadata fm) return fm;
-        return new Fabolus.Core.Geometry.Metadata.MeshMetadata(baseMetadata.Name, baseMetadata.CreatedBy);
-    }
 
+/// <summary>
+/// Small adapters over the engine's transform API, taking the shapes Fabolus already speaks
+/// (System.Numerics quaternions, loose x/y/z) rather than making every caller convert.
+/// </summary>
+public static class FabolusMeshExtensions {
     public static BasicResults.Result<IMesh> Rotate(this GeometryEngine.Core.Geometry.IGeometryTransforms transforms, IMesh mesh, System.Numerics.Quaternion q) {
         var axis = new System.Numerics.Vector3(q.X, q.Y, q.Z);
         var length = axis.Length();
@@ -20,6 +17,4 @@ public static class FabolusMeshExtensions {
     public static BasicResults.Result<IMesh> Translate(this GeometryEngine.Core.Geometry.IGeometryTransforms transforms, IMesh mesh, double x, double y, double z) {
         return transforms.Translate(mesh, new Vector3(x, y, z));
     }
-
 }
-

@@ -177,12 +177,12 @@ public partial class MainViewModel : ObservableObject
     {
         Workspace = workspace;
 
-        // Metadata-only read - the name and the mould command are all that is needed here.
-        var result = Workspace.GetActiveMeshMetadata();
+        // Record-only read - the name and the mould command are all that is needed here.
+        var result = Workspace.GetActiveRecord();
 
-        // Without readable metadata there is no mould to detect, so the cut view falls back
+        // Without a readable record there is no mould to detect, so the cut view falls back
         // to whatever the preference allows.
-        _activeMeshIsMould = result.IsSuccess && result.Value.MouldDefinition().HasValue;
+        _activeMeshIsMould = result.IsSuccess && result.Value.MouldDefinition() is not null;
         UpdateCutViewAvailability();
 
         if (result.IsFailure && result.Error == WorkspaceErrors.NoActiveMesh)

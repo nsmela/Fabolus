@@ -1,15 +1,12 @@
-using BasicResults;
-using Fabolus.Core.Geometry.Metadata;
-using System.Linq;
+using Fabolus.Core.Geometry;
 
 namespace Fabolus.Core.Features.Smoothing;
 
 public static class MeshSmoothingExtensions {
-    public static Maybe<SmoothSettings> GetSmoothing(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase) {
-        var settings = metadataBase.AsFabolus().Commands.OfType<SmoothSettings>().FirstOrDefault();
-        return settings is null ? Maybe<SmoothSettings>.None() : Maybe<SmoothSettings>.Some(settings);
-    }
+    /// <summary>The smoothing applied to this entry, or null if it has never been smoothed.</summary>
+    public static SmoothSettings? Smoothing(this MeshRecord record) =>
+        record.Command<SmoothSettings>();
 
-    public static MeshMetadata WithSmoothing(this GeometryEngine.Core.Geometry.MeshMetadata metadataBase, SmoothSettings settings) =>
-        metadataBase.AsFabolus().WithCommand(settings);
+    public static MeshRecord WithSmoothing(this MeshRecord record, SmoothSettings settings) =>
+        record.WithCommand(settings);
 }

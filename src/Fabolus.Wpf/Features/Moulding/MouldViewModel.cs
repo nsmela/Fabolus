@@ -5,6 +5,7 @@ using Fabolus.Core.Features.AirChannels;
 using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Viewport;
@@ -369,19 +370,25 @@ public partial class MouldViewModel : ObservableObject, IViewState
         // An owned copy; ownership transfers to the scene manager in SetSceneTarget below.
         IMesh mesh = activeMeshResult.Value;
 
-        // MouldDefinition is only ever set on an actual generated-mould result (by
-        // GenerateMould); PendingMouldDefinition holds settings/channels the user was
-        // still editing when they last left this mesh. Prefer the former - if this mesh
-        // IS a mould, we're viewing its baked result, not something still being edited.
-        var mouldResult = mesh.Metadata.MouldDefinition();
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure)
+            return;
 
-        IsGenerated = mouldResult.HasValue;
+        var record = recordResult.Value;
 
-        // A mesh that already carries a mould - baked or still being edited - reopens with its
-        // own settings. Only a mesh with neither falls back to the app preferences.
-        var mouldDefinition = mouldResult.HasValue
-            ? mouldResult.Value
-            : mesh.Metadata.PendingMouldDefinition().GetValueOrDefault(BuildPreferredMouldDefinition());
+        // MouldDefinition is only ever recorded on an actual generated-mould result (by
+        // GenerateMould); PendingMould holds settings/channels the user was still editing
+        // when they last left this mesh. Prefer the former - if this entry IS a mould, we're
+        // viewing its baked result, not something still being edited.
+        var mould = record.MouldDefinition();
+
+        IsGenerated = mould is not null;
+
+        // An entry that already carries a mould - baked or still being edited - reopens with its
+        // own settings. Only one with neither falls back to the app preferences.
+        var mouldDefinition = mould
+            ?? record.PendingMould
+            ?? BuildPreferredMouldDefinition();
 
         SelectedChannelId = Guid.Empty;
         Channels = mouldDefinition.AirChannels.ToList();
@@ -443,8 +450,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // stats the hover path needs.
     private void SetSceneTarget(IMesh mesh)
     {
-        var statsResult = mesh.Metadata.MeshStats();
-        _targetStats = statsResult.HasValue ? statsResult.Value : null;
+        _targetStats = mesh.Stats();
 
         var result = _sceneManager.UpdateMesh(mesh);
         if (result.IsFailure)
@@ -453,27 +459,22 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     // The mould/channel settings only live here in the ViewModel until Generate is
     // clicked. If the user switches away (and another feature - Smooth, Rotate, etc. -
-    // then forks or updates this mesh), that in-progress work would otherwise be lost.
-    // Saved as PendingMouldDefinition, distinct from MouldDefinition (which means "this
-    // mesh IS a generated mould") - metadata already carries forward across those forks
-    // (they copy the existing metadata and only touch their own keys), so this is enough.
+    // then updates this mesh), that in-progress work would otherwise be lost. Saved as
+    // PendingMould on the workspace entry, distinct from a recorded MouldDefinition (which
+    // means "this entry IS a generated mould"); the record outlives any change to the
+    // entry's geometry, so this is enough.
     private void PersistUncommittedMouldState()
     {
-        // Already generated: GenerateMould saved the correct metadata directly on the
-        // result mesh - nothing pending to persist for this (no-longer-active) mesh.
+        // Already generated: GenerateMould recorded the definition on the entry - nothing
+        // pending to persist for this (no-longer-active) mesh.
         if (IsGenerated || Channels.Count == 0)
             return;
 
-        var meshResult = Workspace.GetActiveMesh();
-        if (meshResult.IsFailure)
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure)
             return;
 
-        // WithMetadata transfers native ownership from the fetched copy to updatedMesh,
-        // and UpdateMesh consumes updatedMesh - nothing left to dispose on success.
-        var mesh = meshResult.Value;
-        var updatedMesh = mesh.WithMetadata(mesh.Metadata.WithPendingMouldDefinition(BuildMouldDefinition()));
-
-        var result = Workspace.UpdateMesh(updatedMesh);
+        var result = Workspace.UpdateRecord(recordResult.Value.WithPendingMould(BuildMouldDefinition()));
         if (result.IsSuccess)
             Workspace = result.Value;
     }

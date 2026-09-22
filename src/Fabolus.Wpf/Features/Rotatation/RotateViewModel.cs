@@ -132,10 +132,14 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         if (activeMeshResult.IsFailure) return;
         var activeMesh = activeMeshResult.Value;
 
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return;
+        var record = recordResult.Value;
+
         // GetMeshAtStage always returns an owned mesh (the view shows the model as it was
         // before any mould was cut); the scene manager takes ownership of it, since it
         // re-renders the mesh on every temp-rotation/overhang change.
-        var stageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform));
+        var stageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, activeMesh, record, CommandPriority.Transform));
         if (stageResult.IsFailure) return;
 
         _sceneManager.UpdateMesh(stageResult.Value);

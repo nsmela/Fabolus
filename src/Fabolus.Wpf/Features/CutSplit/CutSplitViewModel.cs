@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Features.CutSplit;
+using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Main;
@@ -120,8 +121,13 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
                 _isUpdatingFromScene = false;
             }
 
-            IsMould = ActiveMesh.Metadata.Name.Contains("Mould");
-            
+            // A generated mould is one carrying a MouldDefinition, which is what the Mould feature
+            // records. Matching on the mesh's name used to stand in for this, and could not work:
+            // the name on the geometry is whatever the boolean that built the mould called it.
+            var recordResult = Workspace.GetActiveRecord();
+            IsMould = recordResult.IsSuccess && recordResult.Value.MouldDefinition() is not null;
+
+
             _sceneManager.UpdateMesh(ActiveMesh);
             UpdatePlane();
         }
@@ -160,7 +166,15 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         var snNormal = global::System.Numerics.Vector3.Transform(global::System.Numerics.Vector3.UnitZ, rotation);
         var normal = new Vector3(snNormal.X, snNormal.Y, snNormal.Z);
 
-        var result = await Task.Run(() => _cutFeature.Execute(ActiveMesh, origin, normal));
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure) {
+            _alert.ShowError(recordResult.Error.Description);
+            _messenger.Send(new IsLoadingMessage(false));
+            return;
+        }
+
+        var record = recordResult.Value;
+        var result = await Task.Run(() => _cutFeature.Execute(ActiveMesh, record, origin, normal));
         if (result.IsFailure) {
             _alert.ShowError(result.Error.Description);
             _messenger.Send(new IsLoadingMessage(false));
@@ -168,12 +182,12 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         }
 
         var (top, bottom) = result.Value;
-        
-        // Add to workspace
-        var topWsResult = Workspace.AddMesh(top, setActive: false);
+
+        // Add to workspace - each half is its own entry, with the identity the cut gave it.
+        var topWsResult = Workspace.AddMesh(top.Mesh, top.Record, setActive: false);
         if (topWsResult.IsSuccess) Workspace = topWsResult.Value;
 
-        var botWsResult = Workspace.AddMesh(bottom, setActive: false);
+        var botWsResult = Workspace.AddMesh(bottom.Mesh, bottom.Record, setActive: false);
         if (botWsResult.IsSuccess) Workspace = botWsResult.Value;
 
         // Clear active mesh selection so none is selected

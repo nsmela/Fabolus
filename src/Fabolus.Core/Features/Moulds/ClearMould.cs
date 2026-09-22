@@ -1,5 +1,4 @@
 using BasicResults;
-using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 
@@ -19,30 +18,19 @@ public sealed class ClearMould {
     /// never forks.
     /// </summary>
     public Result<Workspace> Execute(Workspace workspace) {
-        var getMeshResult = workspace.GetActiveMesh();
-        if (getMeshResult.IsFailure) return getMeshResult.Error;
+        var recordResult = workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return recordResult.Error;
 
-        var activeMesh = getMeshResult.Value;
+        var record = recordResult.Value;
+        if (record.MouldDefinition() is null) return workspace;
 
-        var mouldResult = activeMesh.Metadata.AsFabolus().MouldDefinition();
-        if (mouldResult.HasNoValue) return workspace;
+        var reverted = record.WithoutCommand<MouldDefinition>();
+        if (reverted.BaseMesh is null) return MetadataErrors.MissingBaseMesh;
 
-        // The copy is consumed by the replay.
-        var baseMesh = activeMesh.Metadata.AsFabolus().GetBaseMesh().Value;
-        var revertedMetadata = activeMesh.Metadata.AsFabolus().WithoutCommand<MouldDefinition>();
-
-        var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
+        var replayResult = CommandReplay.Apply(_engine, reverted.BaseMesh, reverted.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var currentMesh = replayResult.Value;
-
-        var topology = _engine.Evaluators.ValidateTopology(currentMesh).Value;
-        var stats = _engine.Evaluators.GetStatistics(currentMesh).Value;
-        var metadata = revertedMetadata.WithProperties(m => m
-            .Set(MeshIOKeys.Stats, stats)
-            .Set(MeshIOKeys.Topology, topology));
-
-        var finalMesh = currentMesh.WithMetadata(metadata);
-        return workspace.UpdateMesh(finalMesh);
+        var mesh = replayResult.Value.WithMeasurements(_engine);
+        return workspace.UpdateMesh(reverted.Id, mesh, reverted);
     }
 }

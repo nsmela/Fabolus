@@ -1,5 +1,4 @@
 using BasicResults;
-using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using System.Numerics;
@@ -23,38 +22,18 @@ public sealed class TransformMesh {
     /// (e.g. a generated Mould) now sits on top of this one.
     /// </summary>
     public Result<Workspace> Translate(Workspace workspace, Guid meshId, float deltaX, float deltaY, float deltaZ) {
-        var getMeshResult = workspace.GetMesh(meshId);
-        if (getMeshResult.IsFailure)
-            return getMeshResult.Error;
+        var recordResult = workspace.GetRecord(meshId);
+        if (recordResult.IsFailure)
+            return recordResult.Error;
 
-        var mesh = getMeshResult.Value;
+        var record = recordResult.Value;
 
         var vector = new Vector3(deltaX, deltaY, deltaZ);
-        var translateResult = mesh.Metadata.AsFabolus().Translation();
-        if (translateResult.HasValue) {
-            vector += translateResult.Value; // add vectors to stack
+        if (record.Translation() is { } existing) {
+            vector += existing; // add vectors to stack
         }
 
-        // BaseMesh is guaranteed present - Workspace.AddMesh establishes it for every mesh
-        // the moment it enters the workspace - and carries forward automatically below since
-        // updatedMetadata is built from mesh.Metadata, which already has it. The copy is
-        // consumed by the replay.
-        var baseMesh = mesh.Metadata.AsFabolus().GetBaseMesh().Value;
-        var updatedMetadata = mesh.Metadata.AsFabolus().WithCommand(new TranslateCommand(vector));
-
-        var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
-        if (replayResult.IsFailure) return replayResult.Error;
-
-        var transformedMesh = replayResult.Value;
-
-        // Rigid transforms preserve topology (no need to re-validate) but move the bounding
-        // box - refresh Stats so anything sized from it (e.g. the rotation axis gizmo) sees
-        // the mesh's new extents.
-        var stats = _engine.Evaluators.GetStatistics(transformedMesh).Value;
-        var metadata = updatedMetadata.WithProperties(m => m.Set(MeshIOKeys.Stats, stats));
-        transformedMesh = transformedMesh.WithMetadata(metadata);
-
-        return workspace.UpdateMesh(transformedMesh);
+        return Replay(workspace, record.WithTranslate(vector), rigid: true);
     }
 
     /// <summary>
@@ -64,40 +43,20 @@ public sealed class TransformMesh {
     /// (e.g. a generated Mould) now sits on top of this one.
     /// </summary>
     public Result<Workspace> Rotate(Workspace workspace, Guid meshId, float angleRadians, Vector3 axis) {
-        var getMeshResult = workspace.GetMesh(meshId);
-        if (getMeshResult.IsFailure)
-            return getMeshResult.Error;
+        var recordResult = workspace.GetRecord(meshId);
+        if (recordResult.IsFailure)
+            return recordResult.Error;
 
-        var mesh = getMeshResult.Value;
+        var record = recordResult.Value;
 
         var numAxis = new System.Numerics.Vector3((float)axis.X, (float)axis.Y, (float)axis.Z);
         var quaternion = Quaternion.CreateFromAxisAngle(numAxis, angleRadians);
 
-        var rotationResult = mesh.Metadata.AsFabolus().Rotation();
-        if (rotationResult.HasValue) {
-            quaternion = quaternion * rotationResult.Value;
+        if (record.Rotation() is { } existing) {
+            quaternion = quaternion * existing;
         }
 
-        // BaseMesh is guaranteed present - Workspace.AddMesh establishes it for every mesh
-        // the moment it enters the workspace - and carries forward automatically below since
-        // updatedMetadata is built from mesh.Metadata, which already has it. The copy is
-        // consumed by the replay.
-        var baseMesh = mesh.Metadata.AsFabolus().GetBaseMesh().Value;
-        var updatedMetadata = mesh.Metadata.AsFabolus().WithCommand(new RotateCommand(quaternion));
-
-        var replayResult = CommandReplay.Apply(_engine, baseMesh, updatedMetadata.Commands);
-        if (replayResult.IsFailure) return replayResult.Error;
-
-        var transformedMesh = replayResult.Value;
-
-        // Rigid transforms preserve topology (no need to re-validate) but move the bounding
-        // box - refresh Stats so anything sized from it (e.g. the rotation axis gizmo) sees
-        // the mesh's new extents.
-        var stats = _engine.Evaluators.GetStatistics(transformedMesh).Value;
-        var metadata = updatedMetadata.WithProperties(m => m.Set(MeshIOKeys.Stats, stats));
-        transformedMesh = transformedMesh.WithMetadata(metadata);
-
-        return workspace.UpdateMesh(transformedMesh);
+        return Replay(workspace, record.WithRotation(quaternion), rigid: true);
     }
 
     /// <summary>
@@ -108,33 +67,44 @@ public sealed class TransformMesh {
     /// the pre-rotation solid.
     /// </summary>
     public Result<Workspace> ClearRotation(Workspace workspace, Guid meshId) {
-        var getMeshResult = workspace.GetMesh(meshId);
-        if (getMeshResult.IsFailure)
-            return getMeshResult.Error;
+        var recordResult = workspace.GetRecord(meshId);
+        if (recordResult.IsFailure)
+            return recordResult.Error;
 
-        var mesh = getMeshResult.Value;
-
-        var rotationResult = mesh.Metadata.AsFabolus().Rotation();
-        if (rotationResult.HasNoValue) {
+        var record = recordResult.Value;
+        if (record.Rotation() is null) {
             return workspace; // no rotation to remove
         }
 
-        var baseMesh = mesh.Metadata.AsFabolus().GetBaseMesh().Value;
-        var revertedMetadata = mesh.Metadata.AsFabolus().WithoutCommand<RotateCommand>();
-
-        var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
-        if (replayResult.IsFailure) return replayResult.Error;
-
-        var currentMesh = replayResult.Value;
-
-        var topology = _engine.Evaluators.ValidateTopology(currentMesh).Value;
-        var stats = _engine.Evaluators.GetStatistics(currentMesh).Value;
-        var metadata = revertedMetadata.WithProperties(m => m
-            .Set(MeshIOKeys.Stats, stats)
-            .Set(MeshIOKeys.Topology, topology));
-
-        var finalMesh = currentMesh.WithMetadata(metadata);
-        return workspace.UpdateMesh(finalMesh);
+        // Dropping a command can drop higher-priority ones with it (a generated Mould), so the
+        // result is not merely the old geometry un-rotated and the topology has to be re-read.
+        return Replay(workspace, record.WithoutRotation(), rigid: false);
     }
 
+    /// <summary>
+    /// Rebuilds an entry's geometry from its base mesh and updated command list, and stores both.
+    /// </summary>
+    /// <param name="rigid">
+    /// True when the only thing that changed is a rigid transform. Every other command in the list
+    /// is then unchanged and the new one leaves connectivity alone, so the topology audit taken
+    /// before this call still reads the same and is carried across rather than recomputed - it
+    /// would walk every edge to learn what the entry already knew. Only the bounds move.
+    /// </param>
+    private Result<Workspace> Replay(Workspace workspace, MeshRecord record, bool rigid) {
+        if (record.BaseMesh is null)
+            return MetadataErrors.MissingBaseMesh;
+
+        var previous = workspace.GetMesh(record.Id);
+
+        var replayResult = CommandReplay.Apply(_engine, record.BaseMesh, record.Commands);
+        if (replayResult.IsFailure) return replayResult.Error;
+
+        var mesh = replayResult.Value;
+
+        mesh = rigid && previous.IsSuccess && previous.Value.Topology() is { } topology
+            ? mesh.WithAnnotations(new FabolusAnnotations(Topology: topology)).WithRefreshedStats(_engine)
+            : mesh.WithMeasurements(_engine);
+
+        return workspace.UpdateMesh(record.Id, mesh, record);
+    }
 }

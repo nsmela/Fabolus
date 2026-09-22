@@ -45,7 +45,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     [ObservableProperty] private MeshItem? _selectedMesh;
     [ObservableProperty] private MeshSelectionState _selectionState = MeshSelectionState.None;
 
-    [ObservableProperty] private MeshMetadata? _activeMetadata;
+    [ObservableProperty] private MeshRecord? _activeRecord;
     [ObservableProperty] private MeshStatistics? _activeStats;
     [ObservableProperty] private TopologyValidation? _activeTopology;
 
@@ -85,12 +85,15 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         _selectedMesh = null;
 #pragma warning restore MVVMTK0034
 
-        MeshItems = Workspace.MeshMetadataList
-            .Select(metadata => new MeshItem(
-                metadata.Id,
-                metadata.Name,
-                metadata.Id == id,
-                metadata.Topology().HasValue ? metadata.Topology().Value.HasCorruptTopology : false))
+        // Identity and name come from the record; the topology audit is cached on the geometry,
+        // which the workspace hands back without copying.
+        MeshItems = Workspace.Records
+            .Select(record => new MeshItem(
+                record.Id,
+                record.Name,
+                record.Id == id,
+                Workspace.GetMesh(record.Id) is { IsSuccess: true } entry
+                    && entry.Value.Topology()?.HasCorruptTopology == true))
             .ToList();
 
         SetActiveMesh();
@@ -101,21 +104,23 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     }
 
     private void SetActiveMesh() {
-        // Metadata-only read - no geometry copy needed to fill the info panel.
-        var metadataResult = Workspace.GetActiveMeshMetadata();
+        var recordResult = Workspace.GetActiveRecord();
 
-        if (metadataResult.IsSuccess) {
-            ActiveMetadata = metadataResult.Value;
-            SelectedMesh = MeshItems.FirstOrDefault(x => x.Id == ActiveMetadata.Id);
-            ActiveStats = ActiveMetadata.MeshStats().HasValue ? ActiveMetadata.MeshStats().Value : null;
-            ActiveTopology = ActiveMetadata.Topology().HasValue ? ActiveMetadata.Topology().Value : null;
+        if (recordResult.IsSuccess) {
+            ActiveRecord = recordResult.Value;
+            SelectedMesh = MeshItems.FirstOrDefault(x => x.Id == ActiveRecord.Id);
+
+            // The measurements are cached on the geometry by whichever feature last changed it,
+            // so filling the info panel still costs no measuring.
+            var mesh = Workspace.GetActiveMesh();
+            ActiveStats = mesh.IsSuccess ? mesh.Value.Stats() : null;
+            ActiveTopology = mesh.IsSuccess ? mesh.Value.Topology() : null;
         } else {
             SelectedMesh = null;
-            ActiveMetadata = null;
+            ActiveRecord = null;
             ActiveStats = null;
             ActiveTopology = null;
         }
-
     }
 
     private void PublishMeshInfo() {

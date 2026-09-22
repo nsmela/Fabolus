@@ -14,35 +14,30 @@ public sealed class ClearDecals
     }
 
     /// <summary>
-    /// Reverts text embossing/engraving directly on an <see cref="IMesh"/>:
-    /// removes Decal commands and replays remaining upstream commands against its BaseMesh.
+    /// Reverts text embossing/engraving on a mesh and its record: removes the Decal commands and
+    /// replays the remaining upstream commands against the record's BaseMesh. A mesh with no
+    /// decals comes back untouched.
     /// </summary>
-    public Result<IMesh> Clear(IMesh mesh)
+    public Result<(IMesh Mesh, MeshRecord Record)> Clear(IMesh mesh, MeshRecord record)
     {
         if (mesh is null)
             return MeshErrors.NullSource;
 
-        var decalsResult = mesh.Metadata.AsFabolus().TextDecals();
-        if (decalsResult.HasNoValue)
-            return Result.Success(mesh);
+        if (record.TextDecals().Count == 0)
+            return Result<(IMesh, MeshRecord)>.Success((mesh, record));
 
-        var baseMeshResult = mesh.Metadata.AsFabolus().GetBaseMesh();
-        if (baseMeshResult.HasNoValue)
-            return MetadataErrors.MissingBaseMesh;
-
-        var baseMesh = baseMeshResult.Value;
-
-        var revertedMetadata = mesh.Metadata.AsFabolus()
+        var reverted = record
             .WithoutCommand<DecalCommand>()
             .WithoutCommand<MouldDecalCommand>();
 
-        var replayResult = CommandReplay.Apply(_engine, baseMesh, revertedMetadata.Commands);
+        if (reverted.BaseMesh is null)
+            return MetadataErrors.MissingBaseMesh;
+
+        var replayResult = CommandReplay.Apply(_engine, reverted.BaseMesh, reverted.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var currentMesh = replayResult.Value;
-        var finalMesh = currentMesh.WithRefreshedStatsAndTopology(_engine, revertedMetadata);
-
-        return Result.Success(finalMesh);
+        var cleared = replayResult.Value.WithMeasurements(_engine);
+        return Result<(IMesh, MeshRecord)>.Success((cleared, reverted));
     }
 
     /// <summary>
@@ -50,14 +45,16 @@ public sealed class ClearDecals
     /// </summary>
     public Result<Workspace> Execute(Workspace workspace)
     {
-        var getMeshResult = workspace.GetActiveMesh();
-        if (getMeshResult.IsFailure) return getMeshResult.Error;
+        var meshResult = workspace.GetActiveMesh();
+        if (meshResult.IsFailure) return meshResult.Error;
 
-        var activeMesh = getMeshResult.Value;
+        var recordResult = workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return recordResult.Error;
 
-        var clearResult = Clear(activeMesh);
+        var clearResult = Clear(meshResult.Value, recordResult.Value);
         if (clearResult.IsFailure) return clearResult.Error;
 
-        return workspace.UpdateMesh(clearResult.Value);
+        var (mesh, record) = clearResult.Value;
+        return workspace.UpdateMesh(record.Id, mesh, record);
     }
 }

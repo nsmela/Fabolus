@@ -89,9 +89,9 @@ public partial class ExportViewModel : ObservableObject, IViewState
         FileCount = workspace.MeshCount;
         ExportButtonText = Is3mfSelected ? "Export package" : "Export file";
 
-        // Info-panel values come from metadata (the features keep the cached stats fresh) -
-        // no need to copy geometry just to display numbers.
-        var metadataResult = workspace.GetActiveMeshMetadata();
+        // Info-panel values come from the workspace entry and the measurements cached on its
+        // geometry - no measuring needed just to display numbers.
+        var metadataResult = workspace.GetActiveRecord();
         if (metadataResult.IsFailure)
         {
             _alert.ShowError(metadataResult.Error.Description);
@@ -118,11 +118,11 @@ public partial class ExportViewModel : ObservableObject, IViewState
         HasBakedOperations = BakedOperationsCount > 0;
         BakedOperationsText = $"{BakedOperationsCount} included";
 
-        if (metadata.MouldDefinition().HasValue)
+        if (metadata.MouldDefinition() is not null)
         {
             PrintableMeshName = "mould";
         }
-        else if (metadata.GetSmoothing().HasValue)
+        else if (metadata.Smoothing() is not null)
         {
             PrintableMeshName = "smoothed mesh";
         }
@@ -149,21 +149,26 @@ public partial class ExportViewModel : ObservableObject, IViewState
             return;
         }
 
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure)
+        {
+            _alert.ShowError(recordResult.Error.Description);
+            return;
+        }
+
         var mesh = activeMeshResult.Value;
-        var metadata = mesh.Metadata;
+        var record = recordResult.Value;
 
         var items = new List<MeshInfoItem> {
                 new OutputHeaderInfoItem { Label = "OUTPUT", PillText = Is3mfSelected ? "3MF" : "STL" }
             };
 
         string fileSize = "Unknown MB";
-        MeshStatistics stats;
-        var activeStatsResult = metadata.MeshStats();
-        if (activeStatsResult.HasValue)
+        var activeStats = mesh.Stats();
+        if (activeStats is not null)
         {
-            stats = activeStatsResult.Value;
             // Roughly estimate file size for display using the final mesh
-            double sizeMb = Is3mfSelected ? (stats.TriangleCount * 15.0) / (1024 * 1024) : (stats.TriangleCount * 50.0) / (1024 * 1024);
+            double sizeMb = Is3mfSelected ? (activeStats.TriangleCount * 15.0) / (1024 * 1024) : (activeStats.TriangleCount * 50.0) / (1024 * 1024);
             if (sizeMb < 0.1)
                 sizeMb = 0.1;
             fileSize = $"{sizeMb:F1} MB";
@@ -174,9 +179,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
         items.Add(new FileDetailsInfoItem { FileName = filename, FileSize = fileSize });
         items.Add(new SeparatorInfoItem());
 
-        var smoothing = metadata.GetSmoothing();
-
-        if (smoothing.HasValue)
+        if (record.Smoothing() is not null)
         {
             items.Add(new SubtitleInfoItem { Label = "Measured from smoothed mesh" });
         }
@@ -185,10 +188,17 @@ public partial class ExportViewModel : ObservableObject, IViewState
             items.Add(new SubtitleInfoItem { Label = "Measured from base mesh" });
         }
 
-        var transformStageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, mesh, CommandPriority.Transform));
-        stats = transformStageResult.IsSuccess
-            ? _engine.Evaluators.GetStatistics(transformStageResult.Value).Value
-            : activeStatsResult.Value;
+        var transformStageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, mesh, record, CommandPriority.Transform));
+        var stageStats = transformStageResult.IsSuccess
+            ? _engine.Evaluators.GetStatistics(transformStageResult.Value)
+            : BasicResults.Result<MeshStatistics>.Failure(transformStageResult.Error);
+
+        var stats = stageStats.IsSuccess ? stageStats.Value : activeStats;
+        if (stats is null)
+        {
+            _messenger.Send(new UpdateMeshInfoMessage(items));
+            return;
+        }
 
         items.Add(new TextInfoItem { Label = "Volume", Value = $"{(stats.Volume):N1} mL" });
         items.Add(new TextInfoItem { Label = "Surface area", Value = $"{(stats.SurfaceArea / 100):N1} cm²" });

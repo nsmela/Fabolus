@@ -76,7 +76,9 @@ public class SmoothingSceneManager : ISceneManager
     /// <param name="unsmoothedMesh">The aligned unsmoothed counterpart to compare against in
     /// cross-section mode (BaseMesh with the mesh's other commands replayed on top, supplied
     /// by the view model). Only borrowed for this call - the caller may dispose it after.</param>
-    public void UpdateMesh(IMesh mesh, IMesh? unsmoothedMesh = null, double[]? heatmapColors = null)
+    // Whether the mesh is smoothed is a fact about the workspace entry, not about the geometry in
+    // hand, so the view model - which holds the record - passes it in rather than this asking.
+    public void UpdateMesh(IMesh mesh, bool isSmoothed, IMesh? unsmoothedMesh = null, double[]? heatmapColors = null)
     {
         VisualRemovedById?.Invoke(_activeId);
         if (_crossSectionModel is not null)
@@ -97,7 +99,7 @@ public class SmoothingSceneManager : ISceneManager
         }
         else
         {
-            material = mesh.Metadata.GetSmoothing().HasValue ? _smoothSkin : _rawSkin;
+            material = isSmoothed ? _smoothSkin : _rawSkin;
         }
 
         var model = new MeshGeometryModel3D
@@ -108,8 +110,6 @@ public class SmoothingSceneManager : ISceneManager
         };
         SceneVisual.SetIsModelGeometry(model, true);
         _activeId = model.GUID;
-
-        bool isSmoothed = mesh.Metadata.GetSmoothing().HasValue;
 
         if (isSmoothed && unsmoothedMesh is not null && _displayMode == SmoothDisplayMode.CrossSection)
         {

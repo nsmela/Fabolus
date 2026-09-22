@@ -33,6 +33,11 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     private IMesh? _unsmoothedTwin;
     private MeshStatistics? _originalStats;
 
+    // The active entry, cached alongside the meshes above: whether this mesh is smoothed, and
+    // what to replay to produce its unsmoothed twin, are both questions about the entry rather
+    // than about the geometry in hand.
+    private MeshRecord? _record;
+
     // Seeded from app preferences on every activation (see ActivateAsync). The values here are
     // only what a design-time instance shows, and are kept in step with the shipped defaults.
     [ObservableProperty] private int _iterations = 1;
@@ -98,10 +103,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         // A mesh that has already been smoothed reopens with the settings it was actually
         // smoothed at; the preference only supplies the starting point for one that has not.
         var settings = preferences.ToSmoothSettings();
-        var metadataResult = Workspace.GetActiveMeshMetadata();
-        if (metadataResult.IsSuccess) {
-            var settingsResult = metadataResult.Value.GetSmoothing();
-            if (settingsResult.HasValue) { settings = settingsResult.Value; }
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsSuccess && recordResult.Value.Smoothing() is { } applied) {
+            settings = applied;
         }
 
         UpdateSettings(settings);
@@ -163,17 +167,17 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         if (activeMeshResult.IsFailure) return;
         var activeMesh = activeMeshResult.Value;
 
-        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return;
+        _record = recordResult.Value;
+
+        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, _record, CommandPriority.Transform);
         if (stageResult.IsFailure) return;
         _stagedMesh = stageResult.Value;
 
-        // The base mesh's stats were cached on its metadata at import time and it never
-        // changes afterward - no geometry copy needed to read them.
-        var baseMetadata = activeMesh.Metadata.AsFabolus().BaseMeshMetadata;
-        if (baseMetadata.HasValue) {
-            var statsResult = baseMetadata.Value.MeshStats();
-            if (statsResult.HasValue) _originalStats = statsResult.Value;
-        }
+        // The base mesh's stats were cached on it at import time and it never changes
+        // afterward - nothing to measure to read them.
+        _originalStats = _record.BaseMesh?.Stats();
     }
 
     private void RenderViewport() {
@@ -183,10 +187,12 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         // "unsmoothed twin" - BaseMesh with the remaining commands (e.g. a rotation) replayed
         // on top - NOT raw BaseMesh, which stays pristine and never rotates, so it drifts out
         // of alignment as soon as the mesh is transformed after smoothing.
+        var isSmoothed = _record?.Smoothing() is not null;
+
         IMesh? unsmoothedMesh = null;
-        if (DisplayMode != SmoothDisplayMode.None && _stagedMesh.Metadata.GetSmoothing().HasValue) {
+        if (DisplayMode != SmoothDisplayMode.None && isSmoothed) {
             if (_unsmoothedTwin is null) {
-                var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(_stagedMesh);
+                var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(_record!);
                 if (unsmoothedResult.IsSuccess) {
                     _unsmoothedTwin = unsmoothedResult.Value;
                 }
@@ -205,13 +211,14 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         PublishInfo();
         // The scene manager only borrows the meshes for this call (it converts them to
         // render geometry immediately); ownership stays here with the cache.
-        _sceneManager.UpdateMesh(_stagedMesh, unsmoothedMesh, heatmapColors);
+        _sceneManager.UpdateMesh(_stagedMesh, isSmoothed, unsmoothedMesh, heatmapColors);
     }
 
     private void ReleaseCachedMeshes() {
         _stagedMesh = null;
         _unsmoothedTwin = null;
         _originalStats = null;
+        _record = null;
     }
 
     private void PublishInfo() {
@@ -224,12 +231,10 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
             items.Add(new TextInfoItem { Label = "Triangles", Value = _originalStats.TriangleCount.ToString("N0") });
         }
 
-        var metadataResult = Workspace.GetActiveMeshMetadata();
-        if (metadataResult.IsSuccess && metadataResult.Value.GetSmoothing().HasValue)
+        var activeResult = Workspace.GetActiveMesh();
+        if (_record?.Smoothing() is not null && activeResult.IsSuccess)
         {
-            var statsResult = metadataResult.Value.MeshStats();
-            if (statsResult.HasValue) {
-                var stats = statsResult.Value;
+            if (activeResult.Value.Stats() is { } stats) {
                 items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
                 items.Add(new TextInfoItem { Label = "Volume", Value = $"{stats.Volume:N2} mL" });
                 items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(stats.SurfaceArea / 100):N2} mm²" });

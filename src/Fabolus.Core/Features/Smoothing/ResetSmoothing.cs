@@ -1,5 +1,4 @@
 using BasicResults;
-using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 
@@ -20,12 +19,11 @@ public sealed class ResetSmoothing {
     /// pristine and never rotates/translates.
     /// Always returns an owned mesh the caller must dispose - never a shared instance.
     /// </summary>
-    public Result<IMesh> ComputeUnsmoothedMesh(IMesh mesh) {
-        var baseCopy = mesh.Metadata.AsFabolus().GetBaseMesh();
-        if (baseCopy.HasNoValue) return MetadataErrors.MissingBaseMesh;
+    public Result<IMesh> ComputeUnsmoothedMesh(MeshRecord record) {
+        if (record.BaseMesh is null) return MetadataErrors.MissingBaseMesh;
 
-        var revertedMetadata = mesh.Metadata.AsFabolus().WithoutCommand<SmoothSettings>();
-        return CommandReplay.Apply(_engine, baseCopy.Value, revertedMetadata.Commands);
+        var reverted = record.WithoutCommand<SmoothSettings>();
+        return CommandReplay.Apply(_engine, record.BaseMesh, reverted.Commands);
     }
 
     /// <summary>
@@ -35,28 +33,16 @@ public sealed class ResetSmoothing {
     /// separate Workspace entry to remove or reactivate - Smoothing never forks.
     /// </summary>
     public Result<Workspace> Execute(Workspace workspace) {
-        var getMeshResult = workspace.GetActiveMesh();
-        if (getMeshResult.IsFailure) return getMeshResult.Error;
+        var recordResult = workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return recordResult.Error;
 
-        var activeMesh = getMeshResult.Value;
+        var record = recordResult.Value;
+        if (record.Smoothing() is null) return workspace;
 
-        var smoothResult = activeMesh.Metadata.AsFabolus().GetSmoothing();
-        if (smoothResult.HasNoValue) return workspace;
-
-        var revertedMetadata = activeMesh.Metadata.AsFabolus().WithoutCommand<SmoothSettings>();
-
-        var replayResult = ComputeUnsmoothedMesh(activeMesh);
+        var replayResult = ComputeUnsmoothedMesh(record);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var currentMesh = replayResult.Value;
-
-        var topology = _engine.Evaluators.ValidateTopology(currentMesh).Value;
-        var stats = _engine.Evaluators.GetStatistics(currentMesh).Value;
-        var metadata = revertedMetadata.WithProperties(m => m
-            .Set(MeshIOKeys.Stats, stats)
-            .Set(MeshIOKeys.Topology, topology));
-
-        var finalMesh = currentMesh.WithMetadata(metadata);
-        return workspace.UpdateMesh(finalMesh);
+        var mesh = replayResult.Value.WithMeasurements(_engine);
+        return workspace.UpdateMesh(record.Id, mesh, record.WithoutCommand<SmoothSettings>());
     }
 }

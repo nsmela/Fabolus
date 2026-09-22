@@ -6,44 +6,44 @@ namespace Fabolus.Core.Geometry;
 /// <summary>
 /// Immutable aggregate root representing a CAD workspace.
 /// Manages meshes and maintains consistency.
-/// Ownership contract: the Workspace owns its stored meshes (and their recorded BaseMesh)
-/// for the duration of each mesh's lineage. Meshes passed in (AddMesh/UpdateMesh) are
-/// consumed; meshes handed out (GetMesh/GetActiveMesh) are owned copies the caller must
-/// dispose. Read-only info paths should use the metadata accessors instead - metadata is a
-/// value object with nothing to dispose.
+///
+/// Every entry is a mesh paired with the <see cref="MeshRecord"/> naming it: the workspace owns
+/// the identity and history, and the mesh is only the geometry currently filling that entry. That
+/// split is what lets a feature replace an entry's geometry with the output of a boolean - which
+/// carries none of the original's identity - without the entry losing track of what it is.
+///
+/// Ownership contract: the Workspace owns its stored meshes (and each record's BaseMesh) for the
+/// duration of that entry's lifetime. Meshes passed in (AddMesh/UpdateMesh) are consumed; meshes
+/// handed out (GetMesh/GetActiveMesh) are owned copies the caller must dispose. Read-only info
+/// paths should use <see cref="GetRecord"/> instead - a record is a value object with nothing to
+/// dispose.
 /// </summary>
 public sealed class Workspace
 {
-    private readonly IReadOnlyDictionary<Guid, IMesh> _meshes;
+    private readonly IReadOnlyDictionary<Guid, Entry> _entries;
+
+    private readonly record struct Entry(IMesh Mesh, MeshRecord Record);
 
     /// <summary>
-    /// Metadata of all meshes currently loaded, for listing/display. Safe to hold - no
+    /// The records of all meshes currently loaded, for listing and display. Safe to hold - no
     /// geometry crosses this boundary. Use <see cref="GetMesh"/> when geometry is needed.
     /// </summary>
-    public IReadOnlyList<MeshMetadata> MeshMetadataList => _meshes.Values.Select(m => m.Metadata.AsFabolus()).ToList();
+    public IReadOnlyList<MeshRecord> Records => _entries.Values.Select(e => e.Record).ToList();
 
     /// <summary>
     /// ID of the currently active (selected) mesh.
-    /// Null if no mesh is selected.
+    /// <see cref="Guid.Empty"/> if no mesh is selected.
     /// </summary>
     public Guid ActiveMeshId { get; }
 
     /// <summary>
     /// Number of meshes in the workspace.
     /// </summary>
-    public int MeshCount => _meshes.Count;
+    public int MeshCount => _entries.Count;
 
-    private Workspace(
-        IReadOnlyDictionary<Guid, IMesh> meshes,
-        Guid? activeMeshId = null)
+    private Workspace(IReadOnlyDictionary<Guid, Entry> entries, Guid? activeMeshId = null)
     {
-        var updatedMeshes = new Dictionary<Guid, IMesh>();
-        foreach (var kvp in meshes)
-        {
-            updatedMeshes[kvp.Key] = kvp.Value;
-        }
-
-        _meshes = updatedMeshes;
+        _entries = entries;
         ActiveMeshId = activeMeshId ?? Guid.Empty;
     }
 
@@ -51,32 +51,30 @@ public sealed class Workspace
     /// Creates a new empty workspace.
     /// </summary>
     public static Workspace CreateEmpty() =>
-        new(new Dictionary<Guid, IMesh>());
+        new(new Dictionary<Guid, Entry>());
 
     /// <summary>
-    /// Adds a mesh to the workspace, which takes ownership of it - the caller must not
-    /// dispose it afterward. Mesh ID comes from IMesh.Id property.
+    /// Adds a mesh under the given record, which the workspace takes ownership of - the caller
+    /// must not dispose the mesh afterward. The record's BaseMesh is established here if it does
+    /// not already have one, so every entry can replay its history from the moment it is added.
     /// </summary>
-    public Result<Workspace> AddMesh(IMesh mesh, bool setActive = true)
+    public Result<Workspace> AddMesh(IMesh mesh, MeshRecord record, bool setActive = true)
     {
         if (mesh is null)
             return WorkspaceErrors.NullMesh;
 
-        var meshId = mesh.Metadata.AsFabolus().Id;
-        if (meshId == Guid.Empty)
+        if (record is null || record.Id == Guid.Empty)
             return WorkspaceErrors.InvalidId;
 
-        if (_meshes.ContainsKey(meshId))
-            return WorkspaceErrors.DuplicateMesh(mesh.Metadata.AsFabolus().Name);
+        if (_entries.ContainsKey(record.Id))
+            return WorkspaceErrors.DuplicateMesh(record.Name);
 
-        if (!mesh.Metadata.AsFabolus().HasBaseMesh)
-            mesh = mesh.WithMetadata(mesh.Metadata.AsFabolus().WithBaseMesh(mesh));
+        if (record.BaseMesh is null)
+            record = record.WithBaseMesh(mesh);
 
-        var newMeshes = new Dictionary<Guid, IMesh>(_meshes) { [meshId] = mesh };
+        var entries = new Dictionary<Guid, Entry>(_entries) { [record.Id] = new(mesh, record) };
 
-        var activeId = setActive ? meshId : ActiveMeshId;
-
-        return new Workspace(newMeshes, activeId);
+        return new Workspace(entries, setActive ? record.Id : ActiveMeshId);
     }
 
     /// <summary>
@@ -85,31 +83,52 @@ public sealed class Workspace
     /// </summary>
     public Result<Workspace> RemoveMesh(Guid meshId)
     {
-        if (!_meshes.ContainsKey(meshId))
+        if (!_entries.ContainsKey(meshId))
             return WorkspaceErrors.MeshNotFound(meshId);
 
-        var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
-        newMeshes.Remove(meshId);
+        var entries = new Dictionary<Guid, Entry>(_entries);
+        entries.Remove(meshId);
 
-        var newActiveMeshId = meshId == ActiveMeshId ? Guid.Empty : ActiveMeshId;
-        return new Workspace(newMeshes, newActiveMeshId);
+        return new Workspace(entries, meshId == ActiveMeshId ? Guid.Empty : ActiveMeshId);
     }
 
     /// <summary>
-    /// Updates an existing mesh, replacing the old entry.
+    /// Replaces an entry's geometry, and its record when one is given. The ID is passed rather
+    /// than read off the mesh precisely because the new geometry may have come from an operation
+    /// that knows nothing about this workspace - a boolean result, say.
     /// </summary>
-    public Result<Workspace> UpdateMesh(IMesh updatedMesh)
+    public Result<Workspace> UpdateMesh(Guid meshId, IMesh mesh, MeshRecord? record = null)
     {
-        if (updatedMesh is null)
+        if (mesh is null)
             return WorkspaceErrors.NullMesh;
 
-        var meshId = updatedMesh.Metadata.AsFabolus().Id;
-        if (!_meshes.ContainsKey(meshId))
-            return WorkspaceErrors.MeshNotFound(updatedMesh.Metadata.AsFabolus().Name);
+        if (!_entries.TryGetValue(meshId, out var existing))
+            return WorkspaceErrors.MeshNotFound(meshId);
 
-        var newMeshes = new Dictionary<Guid, IMesh>(_meshes);
-        newMeshes[meshId] = updatedMesh;
-        return new Workspace(newMeshes, ActiveMeshId);
+        if (record is not null && record.Id != meshId)
+            return WorkspaceErrors.InvalidId;
+
+        var updated = record ?? existing.Record;
+        if (updated.BaseMesh is null)
+            updated = updated.WithBaseMesh(mesh);
+
+        var entries = new Dictionary<Guid, Entry>(_entries) { [meshId] = new(mesh, updated) };
+        return new Workspace(entries, ActiveMeshId);
+    }
+
+    /// <summary>
+    /// Replaces only an entry's record, leaving its geometry alone.
+    /// </summary>
+    public Result<Workspace> UpdateRecord(MeshRecord record)
+    {
+        if (record is null)
+            return WorkspaceErrors.InvalidId;
+
+        if (!_entries.TryGetValue(record.Id, out var existing))
+            return WorkspaceErrors.MeshNotFound(record.Id);
+
+        var entries = new Dictionary<Guid, Entry>(_entries) { [record.Id] = existing with { Record = record } };
+        return new Workspace(entries, ActiveMeshId);
     }
 
     /// <summary>
@@ -118,12 +137,12 @@ public sealed class Workspace
     public Result<Workspace> SetActiveMesh(Guid? meshId)
     {
         if (meshId is null || meshId == Guid.Empty)
-            return new Workspace(_meshes, null);
+            return new Workspace(_entries, null);
 
-        if (!_meshes.ContainsKey(meshId.Value))
+        if (!_entries.ContainsKey(meshId.Value))
             return WorkspaceErrors.MeshNotFound(meshId.Value);
 
-        return new Workspace(_meshes, meshId);
+        return new Workspace(_entries, meshId);
     }
 
     /// <summary>
@@ -134,10 +153,10 @@ public sealed class Workspace
         if (ActiveMeshId == Guid.Empty)
             return WorkspaceErrors.NoActiveMesh;
 
-        if (!_meshes.TryGetValue(ActiveMeshId, out var mesh))
+        if (!_entries.TryGetValue(ActiveMeshId, out var entry))
             return WorkspaceErrors.ActiveMeshNotFound;
 
-        return Result.Success(mesh);
+        return Result.Success(entry.Mesh);
     }
 
     /// <summary>
@@ -145,29 +164,39 @@ public sealed class Workspace
     /// </summary>
     public Result<IMesh> GetMesh(Guid meshId)
     {
-        if (_meshes.TryGetValue(meshId, out var mesh))
-            return Result.Success(mesh);
+        if (_entries.TryGetValue(meshId, out var entry))
+            return Result.Success(entry.Mesh);
 
         return WorkspaceErrors.MeshNotFound(meshId);
     }
 
     /// <summary>
-    /// Gets the metadata of the currently active mesh - a value object, safe to hold.
+    /// Gets an entry's record - a value object, safe to hold.
     /// </summary>
-    public Result<MeshMetadata> GetActiveMeshMetadata()
+    public Result<MeshRecord> GetRecord(Guid meshId)
+    {
+        if (_entries.TryGetValue(meshId, out var entry))
+            return Result.Success(entry.Record);
+
+        return WorkspaceErrors.MeshNotFound(meshId);
+    }
+
+    /// <summary>
+    /// Gets the record of the currently active mesh - a value object, safe to hold.
+    /// </summary>
+    public Result<MeshRecord> GetActiveRecord()
     {
         if (ActiveMeshId == Guid.Empty)
             return WorkspaceErrors.NoActiveMesh;
 
-        if (!_meshes.TryGetValue(ActiveMeshId, out var mesh))
+        if (!_entries.TryGetValue(ActiveMeshId, out var entry))
             return WorkspaceErrors.ActiveMeshNotFound;
 
-        return Result.Success(mesh.Metadata.AsFabolus());
+        return Result.Success(entry.Record);
     }
 
     /// <summary>
     /// Checks if a mesh exists.
     /// </summary>
-    public bool ContainsMesh(Guid meshId) => _meshes.ContainsKey(meshId);
-
+    public bool ContainsMesh(Guid meshId) => _entries.ContainsKey(meshId);
 }

@@ -42,7 +42,7 @@ public interface IGlyphOutlineSource
 /// </summary>
 /// <remarks>
 /// A service locator, and a deliberate one. Commands are rebuilt from save files by
-/// <see cref="Geometry.Metadata.AsFabolus().MeshCommandRegistry"/> with no DI container in scope, and
+/// <see cref="Geometry.Metadata.MeshCommandRegistry"/> with no DI container in scope, and
 /// IMeshCommand.Apply is handed only an engine and a mesh - so a replayed decal command has no
 /// constructor-injected way to reach a font stack. Set once at application startup from the
 /// registered singleton.
