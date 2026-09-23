@@ -5,7 +5,6 @@ using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
-using Fabolus.Core.Geometry.Engine;
 using Xunit;
 
 namespace Fabolus.Tests.MeshLib;

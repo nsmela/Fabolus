@@ -1,5 +1,4 @@
 using System.Numerics;
-using BasicResults;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
@@ -29,8 +28,9 @@ public class ClearDecalsTests
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
         var initialTriCount = sphere.TriangleCount;
 
-        var mesh = sphere.WithMetadata(sphere.Metadata.WithBaseMesh(sphere));
-        var workspace = Workspace.CreateEmpty().AddMesh(mesh).Value;
+        // AddMesh establishes the base mesh for the entry, so the replay has something to
+        // revert to without the test wiring one up by hand.
+        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), sphere);
 
         var tool = new GenerateDecals(_outlineSource);
         var decal = new TextDecal
@@ -43,25 +43,26 @@ public class ClearDecalsTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var applied = tool.Execute(_fixture.Engine, mesh, new[] { decal }).Value;
-        var appliedMetadata = mesh.Metadata
-            .WithCommand(new DecalCommand(new[] { decal }));
-
-        var embossedMesh = applied.WithMetadata(appliedMetadata);
-        workspace = workspace.UpdateMesh(embossedMesh).Value;
+        var embossedMesh = tool.Execute(_fixture.Engine, sphere, new[] { decal }).Value;
+        var embossedRecord = workspace.GetRecord(id).Value.WithCommand(new DecalCommand(new[] { decal }));
+        workspace = workspace.UpdateMesh(id, embossedMesh, embossedRecord).Value;
 
         embossedMesh.TriangleCount.Should().BeGreaterThan(initialTriCount);
-        workspace.GetActiveMesh().Value.Metadata.TextDecals().HasValue.Should().BeTrue();
+        workspace.GetActiveRecord().Value.TextDecals().Should().NotBeEmpty();
 
         var clearFeature = new ClearDecals(_fixture.Engine);
         var clearedResult = clearFeature.Execute(workspace);
 
         clearedResult.IsSuccess.Should().BeTrue();
         var clearedMesh = clearedResult.Value.GetActiveMesh().Value;
+        var clearedRecord = clearedResult.Value.GetActiveRecord().Value;
 
         clearedMesh.TriangleCount.Should().Be(initialTriCount);
-        clearedMesh.Metadata.TextDecals().HasNoValue.Should().BeTrue();
-        clearedMesh.Metadata.Commands.Should().NotContain(c => c is DecalCommand);
+        clearedRecord.TextDecals().Should().BeEmpty();
+        clearedRecord.Commands.Should().NotContain(c => c is DecalCommand);
+
+        // Identity is untouched by the round trip.
+        clearedRecord.Id.Should().Be(id);
     }
 
     [Fact]
@@ -69,8 +70,7 @@ public class ClearDecalsTests
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
         var initialTriCount = sphere.TriangleCount;
-        var mesh = sphere.WithMetadata(sphere.Metadata.WithBaseMesh(sphere));
-        var workspace = Workspace.CreateEmpty().AddMesh(mesh).Value;
+        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), sphere);
 
         var tool = new GenerateDecals(_outlineSource);
         var decal = new TextDecal
@@ -83,48 +83,38 @@ public class ClearDecalsTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var applied = tool.Execute(_fixture.Engine, mesh, new[] { decal }).Value;
-        var appliedMetadata = mesh.Metadata
-            .WithCommand(new DecalCommand(new[] { decal }));
-
-        var embossedBase = applied.WithMetadata(appliedMetadata);
+        var embossedBase = tool.Execute(_fixture.Engine, sphere, new[] { decal }).Value;
+        var record = workspace.GetRecord(id).Value.WithCommand(new DecalCommand(new[] { decal }));
 
         var mouldDef = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0);
+        var mouldMesh = mouldDef.Apply(_fixture.Engine, embossedBase).Value;
+        record = record.WithMouldDefinition(mouldDef);
 
-        var mouldResult = mouldDef.Apply(_fixture.Engine, embossedBase).Value;
-        var mouldMetadata = embossedBase.Metadata
-            .WithCommand(mouldDef)
-            .WithMouldDefinition(mouldDef);
-
-        var mouldMesh = mouldResult.WithMetadata(mouldMetadata);
-        workspace = workspace.UpdateMesh(mouldMesh).Value;
+        workspace = workspace.UpdateMesh(id, mouldMesh, record).Value;
 
         var clearFeature = new ClearDecals(_fixture.Engine);
         var clearedResult = clearFeature.Execute(workspace);
 
         clearedResult.IsSuccess.Should().BeTrue();
         var clearedBase = clearedResult.Value.GetActiveMesh().Value;
+        var clearedRecord = clearedResult.Value.GetActiveRecord().Value;
 
         clearedBase.TriangleCount.Should().Be(initialTriCount);
-        clearedBase.Metadata.TextDecals().HasNoValue.Should().BeTrue();
-        clearedBase.Metadata.MouldDefinition().HasNoValue.Should().BeTrue();
-        clearedBase.Metadata.Commands.Should().NotContain(c => c is DecalCommand);
-        clearedBase.Metadata.Commands.Should().NotContain(c => c is MouldDefinition);
+        clearedRecord.TextDecals().Should().BeEmpty();
+        clearedRecord.MouldDefinition().Should().BeNull();
+        clearedRecord.Commands.Should().NotContain(c => c is DecalCommand);
+        clearedRecord.Commands.Should().NotContain(c => c is MouldDefinition);
     }
 
     [Fact]
     public void ClearDecals_OnMouldMesh_ClearsMouldDecalsAndPreservesMould()
     {
         var sphere = _fixture.Engine.Generators.GenerateSphere(Vector3.Zero, 15, 16).Value;
-        var mesh = sphere.WithMetadata(sphere.Metadata.WithBaseMesh(sphere));
-        var workspace = Workspace.CreateEmpty().AddMesh(mesh).Value;
+        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), sphere);
 
         var mouldDef = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0);
-        var mouldResult = mouldDef.Apply(_fixture.Engine, mesh).Value;
-        var mouldMetadata = mesh.Metadata
-            .WithCommand(mouldDef)
-            .WithMouldDefinition(mouldDef);
-        var mouldMesh = mouldResult.WithMetadata(mouldMetadata);
+        var mouldMesh = mouldDef.Apply(_fixture.Engine, sphere).Value;
+        var record = workspace.GetRecord(id).Value.WithMouldDefinition(mouldDef);
 
         var tool = new GenerateDecals(_outlineSource);
         var mouldDecal = new TextDecal
@@ -138,22 +128,20 @@ public class ClearDecalsTests
             AnchorNormal = Vector3.UnitZ
         };
 
-        var applied = tool.Execute(_fixture.Engine, mouldMesh, new[] { mouldDecal }).Value;
-        var appliedMetadata = mouldMesh.Metadata
-            .WithCommand(new MouldDecalCommand(new[] { mouldDecal }));
+        var embossedMould = tool.Execute(_fixture.Engine, mouldMesh, new[] { mouldDecal }).Value;
+        record = record.WithCommand(new MouldDecalCommand(new[] { mouldDecal }));
 
-        var embossedMould = applied.WithMetadata(appliedMetadata);
-        workspace = workspace.UpdateMesh(embossedMould).Value;
+        workspace = workspace.UpdateMesh(id, embossedMould, record).Value;
 
         var clearFeature = new ClearDecals(_fixture.Engine);
         var clearedResult = clearFeature.Execute(workspace);
 
         clearedResult.IsSuccess.Should().BeTrue();
-        var clearedMould = clearedResult.Value.GetActiveMesh().Value;
+        var clearedRecord = clearedResult.Value.GetActiveRecord().Value;
 
-        clearedMould.Metadata.TextDecals().HasNoValue.Should().BeTrue();
-        clearedMould.Metadata.MouldDefinition().HasValue.Should().BeTrue();
-        clearedMould.Metadata.Commands.Should().NotContain(c => c is MouldDecalCommand);
-        clearedMould.Metadata.Commands.Should().Contain(c => c is MouldDefinition);
+        clearedRecord.TextDecals().Should().BeEmpty();
+        clearedRecord.MouldDefinition().Should().NotBeNull();
+        clearedRecord.Commands.Should().NotContain(c => c is MouldDecalCommand);
+        clearedRecord.Commands.Should().Contain(c => c is MouldDefinition);
     }
 }

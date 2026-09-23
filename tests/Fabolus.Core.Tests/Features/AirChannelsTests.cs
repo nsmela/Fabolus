@@ -131,17 +131,17 @@ public class AirChannelsTests
         for (var i = 0; i <= 20; i++)
             path.Add(new Vector3(i, i % 2 == 0 ? 0.5f : -0.5f, 3.0f));
 
-        var result = _fixture.Engine.Generators.ResampleOpenPath(path, targetSpacing: 2.0f);
+        var result = _fixture.Engine.Generators.ResampleOpenPath([.. path], spacing: 2.0);
 
         result.IsSuccess.Should().BeTrue();
         var resampled = result.Value;
 
-        resampled.Count.Should().BeGreaterThanOrEqualTo(2);
+        resampled.Length.Should().BeGreaterThanOrEqualTo(2);
         resampled[0].Should().Be(path[0]);
         resampled[^1].Should().Be(path[^1]);
 
         // Smoothing must have reduced the zig-zag amplitude on interior points.
-        var maxInteriorY = resampled.Skip(1).Take(resampled.Count - 2).Max(p => Math.Abs(p.Y));
+        var maxInteriorY = resampled.Skip(1).Take(resampled.Length - 2).Max(p => Math.Abs(p.Y));
         maxInteriorY.Should().BeLessThan(0.4f);
     }
 
@@ -150,7 +150,7 @@ public class AirChannelsTests
     {
         var path = new[] { new Vector3(0, 0, 0), new Vector3(5, 0, 0) };
 
-        var result = _fixture.Engine.Generators.ResampleOpenPath(path, targetSpacing: 2.0f);
+        var result = _fixture.Engine.Generators.ResampleOpenPath([.. path], spacing: 2.0);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Equal(path);

@@ -7,15 +7,16 @@ namespace Fabolus.Core.Geometry.Metadata;
 /// Reconstructs a mesh by replaying an ordered list of commands against a base mesh. Used to
 /// revert a mesh after removing one of its commands (Reset/Clear features), and eventually to
 /// rebuild a mesh from a save file (base mesh geometry + its Commands list).
-/// Ownership contract: every mesh returned from here is owned by the caller and must be
-/// disposed - shared instances never cross this boundary.
+///
+/// Meshes are immutable values, so nothing here copies defensively and a caller is free to hold
+/// whatever it gets back. Where there is nothing to replay the input is returned as-is, which is
+/// safe for the same reason - this used to matter a great deal, when a mesh owned native memory
+/// and handing out a shared instance let a caller dispose the workspace's own geometry.
 /// </summary>
 public static class CommandReplay {
     /// <summary>
-    /// Replays commands against <paramref name="baseMesh"/>, taking ownership of it: it is
-    /// either consumed (disposed once the first command produces a new mesh) or returned as
-    /// the result (when there are no commands to apply). Intermediates are disposed as the
-    /// chain advances. Pass an owned copy, never a shared instance.
+    /// Replays commands against <paramref name="baseMesh"/>, returning it unchanged when there is
+    /// nothing to apply.
     /// </summary>
     public static Result<IMesh> Apply(IGeometryEngine engine, IMesh baseMesh, IEnumerable<IMeshCommand> commands) {
         IMesh current = baseMesh;
@@ -33,8 +34,10 @@ public static class CommandReplay {
 
     /// <summary>
     /// The mesh exactly as it was at the given pipeline stage, by replaying only the commands up
-    /// to that priority level against <paramref name="record"/>'s base mesh. Always returns a mesh
-    /// the caller owns and must dispose - never the input mesh or the stored BaseMesh.
+    /// to that priority level against <paramref name="record"/>'s base mesh. Returns
+    /// <paramref name="currentMesh"/> itself when nothing outranks the requested stage, and the
+    /// record's base mesh when the stage admits no commands at all; both are immutable values
+    /// that the caller may hold freely.
     /// </summary>
     public static Result<IMesh> GetMeshAtStage(
         IGeometryEngine engine,

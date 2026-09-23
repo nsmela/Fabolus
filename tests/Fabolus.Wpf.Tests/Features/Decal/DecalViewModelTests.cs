@@ -20,13 +20,7 @@ public sealed class TestOutlineSource : IGlyphOutlineSource
     {
         return Result.Success<IReadOnlyList<Polygon2D>>(new List<Polygon2D>
         {
-            new()
-            {
-                OuterBoundary = new List<Vector2>
-                {
-                    new(-5, -3), new(5, -3), new(5, 3), new(-5, 3)
-                }
-            }
+            Polygon2D.FromOuter([new(-5, -3), new(5, -3), new(5, 3), new(-5, 3)])
         });
     }
 

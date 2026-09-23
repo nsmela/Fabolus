@@ -45,8 +45,7 @@ public class SmoothingTests
         var mesh = _fixture.LoadStl(filename);
         var before = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
 
-        var workspace = Workspace.CreateEmpty();
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+        var (workspace, _) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         var result = _smoothingFeature.Execute(workspace, new SmoothSettings());
         result.IsSuccess.Should().BeTrue();
@@ -99,7 +98,7 @@ public class SmoothingTests
 
         var before = _fixture.Engine.Evaluators.GetStatistics(peanut.Value).Value;
 
-        var result = _fixture.Engine.Modifiers.OffsetDouble(peanut.Value, 1.0f, iterations: 1, cellSize: 1.0f);
+        var result = _fixture.Engine.Modifiers.DoubleOffset(peanut.Value, 1.0, iterations: 1, cellSize: 1.0);
         result.IsSuccess.Should().BeTrue();
 
         var parts = _fixture.Engine.Evaluators.SeparateComponents(result.Value);
@@ -113,10 +112,8 @@ public class SmoothingTests
     [Fact]
     public void SmoothMesh_ValidMesh_SmoothsInPlace()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        var (workspace, baseId) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         var result = _smoothingFeature.Execute(workspace, new SmoothSettings());
 
@@ -127,20 +124,22 @@ public class SmoothingTests
         updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        var smoothedMesh = updatedWorkspace.GetActiveMesh().Value;
-        smoothedMesh.Metadata.Id.Should().Be(baseId);
-        smoothedMesh.Metadata.DerivedFrom.HasValue.Should().BeFalse();
-        smoothedMesh.Metadata.HasBaseMesh.Should().BeTrue();
-        smoothedMesh.Metadata.GetSmoothing().HasValue.Should().BeTrue();
+        var record = updatedWorkspace.GetActiveRecord().Value;
+        record.Id.Should().Be(baseId);
+        record.BaseMesh.Should().NotBeNull();
+        record.Smoothing().Should().NotBeNull();
+
+        // Smoothing rebuilds the surface, so the engine drops the annotations and the feature
+        // measures again rather than leaving stale numbers behind.
+        updatedWorkspace.GetActiveMesh().Value.Stats().Should().NotBeNull();
+        updatedWorkspace.GetActiveMesh().Value.Topology().Should().NotBeNull();
     }
 
     [Fact]
     public void SmoothMesh_WithInflation_AppliesInflation()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        var (workspace, baseId) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         // Capture stats before smoothing - Execute updates this mesh's Workspace entry in
         // place, which disposes the original native mesh.
@@ -159,14 +158,12 @@ public class SmoothingTests
     [Fact]
     public void SmoothMesh_AppliedTwice_StaysInPlaceAndDoesNotStack()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        var (workspace, baseId) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         // Smooth once
         workspace = _smoothingFeature.Execute(workspace, new SmoothSettings()).Value;
-        var firstBaseMesh = workspace.GetActiveMeshMetadata().Value.GetBaseMesh().Value;
+        var firstBaseMesh = workspace.GetActiveRecord().Value.BaseMesh;
 
         // Smooth again with different settings
         var result = _smoothingFeature.Execute(workspace, new SmoothSettings(Iterations: 2));
@@ -179,18 +176,18 @@ public class SmoothingTests
         finalWorkspace.ActiveMeshId.Should().Be(baseId);
 
         // Re-derives from the same pristine BaseMesh both times (doesn't stack smoothing on
-        // top of already-smoothed geometry, and doesn't re-clone on the second Apply).
-        // GetBaseMesh sees the stored instance itself, so BeSameAs holds.
-        finalWorkspace.GetActiveMeshMetadata().Value.GetBaseMesh().Value.Should().BeSameAs(firstBaseMesh);
+        // top of already-smoothed geometry).
+        finalWorkspace.GetActiveRecord().Value.BaseMesh.Should().BeSameAs(firstBaseMesh);
+
+        // And one net SmoothSettings, not two.
+        finalWorkspace.GetActiveRecord().Value.Commands.OfType<SmoothSettings>().Should().ContainSingle();
     }
 
     [Fact]
     public void Smooth_AfterTranslate_PreservesTranslationInFinalGeometry()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        var (workspace, baseId) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         var originalStats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
 
@@ -211,26 +208,24 @@ public class SmoothingTests
     [Fact]
     public void ComputeUnsmoothedMesh_AfterTransform_StaysAlignedWithCurrentMesh()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        var (workspace, baseId) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         // Smooth, then translate - the comparison reference shown in the Smoothing view must
         // follow the mesh to its new position, not sit back at BaseMesh's original spot.
         workspace = _smoothingFeature.Execute(workspace, new SmoothSettings()).Value;
-        var smoothedId = workspace.ActiveMeshId;
         var transformFeature = new TransformMesh(_fixture.Engine);
-        workspace = transformFeature.Translate(workspace, smoothedId, 50, 0, 0).Value;
+        workspace = transformFeature.Translate(workspace, baseId, 50, 0, 0).Value;
 
         var currentMesh = workspace.GetActiveMesh().Value;
+        var record = workspace.GetActiveRecord().Value;
 
-        var result = _resetFeature.ComputeUnsmoothedMesh(currentMesh);
+        var result = _resetFeature.ComputeUnsmoothedMesh(record);
 
         result.IsSuccess.Should().BeTrue();
         var unsmoothed = result.Value;
 
-        var baseCopy = currentMesh.Metadata.GetBaseMesh().Value;
+        var baseCopy = record.BaseMesh!;
         var currentStats = _fixture.Engine.Evaluators.GetStatistics(currentMesh).Value;
         var unsmoothedStats = _fixture.Engine.Evaluators.GetStatistics(unsmoothed).Value;
         var baseStats = _fixture.Engine.Evaluators.GetStatistics(baseCopy).Value;
@@ -248,20 +243,19 @@ public class SmoothingTests
     [Fact]
     public void ComputeUnsmoothedMesh_NoOtherCommands_ReturnsSameInstance()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+        var (workspace, _) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         workspace = _smoothingFeature.Execute(workspace, new SmoothSettings()).Value;
-        var currentMesh = workspace.GetActiveMesh().Value;
+        var record = workspace.GetActiveRecord().Value;
 
-        var result = _resetFeature.ComputeUnsmoothedMesh(currentMesh);
+        var result = _resetFeature.ComputeUnsmoothedMesh(record);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeSameAs(currentMesh.Metadata.GetBaseMesh().Value);
+        result.Value.Should().BeSameAs(record.BaseMesh);
 
-        // The stored BaseMesh must still be usable after disposing the copy: resetting
-        // smoothing replays from it.
+        // The stored BaseMesh must still be usable afterwards: resetting smoothing replays
+        // from it.
         var reset = _resetFeature.Execute(workspace);
         reset.IsSuccess.Should().BeTrue();
     }
@@ -269,10 +263,8 @@ public class SmoothingTests
     [Fact]
     public void ResetSmoothing_RemovesSmoothingButKeepsOtherCommands()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        var (workspace, baseId) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         var transformFeature = new TransformMesh(_fixture.Engine);
         workspace = transformFeature.Rotate(workspace, baseId, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
@@ -287,8 +279,8 @@ public class SmoothingTests
         resetWorkspace.MeshCount.Should().Be(1);
         resetWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        var resetMesh = resetWorkspace.GetActiveMesh().Value;
-        resetMesh.Metadata.GetSmoothing().HasNoValue.Should().BeTrue();
-        resetMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
+        var resetRecord = resetWorkspace.GetActiveRecord().Value;
+        resetRecord.Smoothing().Should().BeNull();
+        resetRecord.Commands.OfType<RotateCommand>().Should().HaveCount(1);
     }
 }

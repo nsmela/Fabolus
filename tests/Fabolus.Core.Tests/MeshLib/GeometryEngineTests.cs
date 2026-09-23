@@ -1,7 +1,6 @@
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
 using Fabolus.Core.Geometry;
-using Fabolus.Core.Geometry.Engine;
 using Xunit;
 
 namespace Fabolus.Tests.MeshLib;

@@ -32,26 +32,33 @@ public class CutMeshFeatureTests
         var origin = Vector3.Zero;
         var normal = Vector3.UnitZ;
 
+        var record = MeshRecord.ForImport("sphere");
+
         // Act
-        var result = _sut.Execute(mesh, origin, normal);
+        var result = _sut.Execute(mesh, record, origin, normal);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         var (top, bottom) = result.Value;
 
-        top.Should().NotBeNull();
-        bottom.Should().NotBeNull();
+        top.Mesh.Should().NotBeNull();
+        bottom.Mesh.Should().NotBeNull();
 
-        // Check metadata names
-        top.Metadata.Name.Should().Contain("(Top)");
-        bottom.Metadata.Name.Should().Contain("(Bottom)");
+        // Each half is a new entry named after the one it was cut from...
+        top.Record.Name.Should().Contain("(Top)");
+        bottom.Record.Name.Should().Contain("(Bottom)");
+
+        // ...with its own identity, rather than inheriting the original's.
+        top.Record.Id.Should().NotBe(record.Id);
+        bottom.Record.Id.Should().NotBe(record.Id);
+        top.Record.Id.Should().NotBe(bottom.Record.Id);
 
         // Top should be above Z=0
-        var topStats = _engine.Evaluators.GetStatistics(top).Value;
+        var topStats = _engine.Evaluators.GetStatistics(top.Mesh).Value;
         topStats.BoundsMin.Z.Should().BeGreaterThanOrEqualTo(-0.1f);
 
         // Bottom should be below Z=0
-        var bottomStats = _engine.Evaluators.GetStatistics(bottom).Value;
+        var bottomStats = _engine.Evaluators.GetStatistics(bottom.Mesh).Value;
         bottomStats.BoundsMax.Z.Should().BeLessThanOrEqualTo(0.1f);
     }
 }

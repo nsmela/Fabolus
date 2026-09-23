@@ -31,22 +31,22 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+        workspace = Add(workspace, mesh, out var meshId);
 
         var transformFeature = new TransformMesh(_fixture.Engine);
-        workspace = transformFeature.Rotate(workspace, mesh.Metadata.Id, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
+        workspace = transformFeature.Rotate(workspace, meshId, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
         var rotatedMeshId = workspace.ActiveMeshId;
 
         var mouldDef = new ContouredMouldDefinition(OffsetXY: 2.0);
         var result = _generateMouldFeature.Execute(workspace, rotatedMeshId, mouldDef);
 
         result.IsSuccess.Should().BeTrue();
-        var mouldMesh = result.Value.GetActiveMesh().Value;
+        var mouldRecord = result.Value.GetActiveRecord().Value;
 
         // Boolean ops hand back bare metadata - the source mesh's prior commands (the
         // rotation) must be carried forward explicitly, in addition to the new MouldDefinition.
-        mouldMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
-        mouldMesh.Metadata.Commands.OfType<MouldDefinition>().Should().HaveCount(1);
+        mouldRecord.Commands.OfType<RotateCommand>().Should().HaveCount(1);
+        mouldRecord.Commands.OfType<MouldDefinition>().Should().HaveCount(1);
     }
 
     [Fact]
@@ -54,23 +54,23 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+        workspace = Add(workspace, mesh, out var meshId);
 
         var mouldDef = new ContouredMouldDefinition(OffsetXY: 2.0);
 
-        var result = _generateMouldFeature.Execute(workspace, mesh.Metadata.Id, mouldDef);
+        var result = _generateMouldFeature.Execute(workspace, meshId, mouldDef);
 
         result.IsSuccess.Should().BeTrue();
         var updatedWorkspace = result.Value;
 
-        var mouldMesh = updatedWorkspace.GetActiveMesh().Value;
+        var mouldRecord = updatedWorkspace.GetActiveRecord().Value;
 
         // Ensure the mould definition is tracked
-        mouldMesh.Metadata.MouldDefinition().HasValue.Should().BeTrue();
-        mouldMesh.Metadata.MouldDefinition().Value.TargetMeshId.Should().Be(mesh.Metadata.Id);
+        mouldRecord.MouldDefinition().Should().NotBeNull();
+        mouldRecord.MouldDefinition()!.TargetMeshId.Should().Be(meshId);
 
         // Subtracted target mesh should make it a hollow shell
-        var stats = _fixture.Engine.Evaluators.GetStatistics(mouldMesh).Value;
+        var stats = _fixture.Engine.Evaluators.GetStatistics(updatedWorkspace.GetActiveMesh().Value).Value;
         stats.Volume.Should().BeGreaterThan(0);
         
         // Since it's contoured and subtracted, the volume should be roughly the shell volume
@@ -81,7 +81,7 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+        workspace = Add(workspace, mesh, out var meshId);
 
         var airChannel = new AirChannelModel(
             System.Guid.NewGuid(),
@@ -95,12 +95,12 @@ public class MouldsTests
             AirChannels = new[] { airChannel }
         };
 
-        var result = _generateMouldFeature.Execute(workspace, mesh.Metadata.Id, mouldDef);
+        var result = _generateMouldFeature.Execute(workspace, meshId, mouldDef);
 
         result.IsSuccess.Should().BeTrue();
-        var mouldMesh = result.Value.GetActiveMesh().Value;
+        var mouldRecord = result.Value.GetActiveRecord().Value;
 
-        mouldMesh.Metadata.MouldDefinition().Value.AirChannels.Count.Should().Be(1);
+        mouldRecord.MouldDefinition()!.AirChannels.Count.Should().Be(1);
     }
 
     [Fact]
@@ -108,10 +108,10 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+        workspace = Add(workspace, mesh, out var meshId);
 
         var mouldDef = new ConvexMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0);
-        var withoutChannel = _generateMouldFeature.Execute(workspace, mesh.Metadata.Id, mouldDef);
+        var withoutChannel = _generateMouldFeature.Execute(workspace, meshId, mouldDef);
         withoutChannel.IsSuccess.Should().BeTrue();
         var baseVolume = _fixture.Engine.Evaluators.GetStatistics(withoutChannel.Value.GetActiveMesh().Value).Value.Volume;
 
@@ -123,7 +123,7 @@ public class MouldsTests
             PenetrationDepth: 1.0f);
         var channel = new AirChannelModel(System.Guid.NewGuid(), AirChannelType.Painted, 2.0, 4.0, 5.0, painted);
 
-        var withChannel = _generateMouldFeature.Execute(workspace, mesh.Metadata.Id, mouldDef with { AirChannels = new[] { channel } });
+        var withChannel = _generateMouldFeature.Execute(workspace, meshId, mouldDef with { AirChannels = new[] { channel } });
 
         withChannel.IsSuccess.Should().BeTrue();
         var channelVolume = _fixture.Engine.Evaluators.GetStatistics(withChannel.Value.GetActiveMesh().Value).Value.Volume;
@@ -171,16 +171,14 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(mesh.Metadata.Id).Value;
+        workspace = Add(workspace, mesh, out var meshId);
 
         var mouldDef = new ConcaveMouldDefinition(OffsetXY: 5.0, OffsetBottom: 5.0, OffsetTop: 5.0);
 
-        var result = _generateMouldFeature.Execute(workspace, mesh.Metadata.Id, mouldDef);
+        var result = _generateMouldFeature.Execute(workspace, meshId, mouldDef);
 
         result.IsSuccess.Should().BeTrue();
-        var mouldMesh = result.Value.GetActiveMesh().Value;
-
-        var stats = _fixture.Engine.Evaluators.GetStatistics(mouldMesh).Value;
+        var stats = _fixture.Engine.Evaluators.GetStatistics(result.Value.GetActiveMesh().Value).Value;
         stats.BoundsMax.Z.Should().BeGreaterThan(10);
         stats.BoundsMin.Z.Should().BeLessThan(-10);
     }
@@ -380,10 +378,19 @@ public class MouldsTests
 
     private Workspace SphereWorkspace(out System.Guid meshId)
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        meshId = mesh.Metadata.Id;
-        return workspace.AddMesh(mesh).Value.SetActiveMesh(meshId).Value;
+        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh, "sphere");
+        meshId = id;
+        return workspace;
+    }
+
+    // Identity lives on the record now, so a test that wants an id mints one rather than
+    // reading it off the geometry.
+    private static Workspace Add(Workspace workspace, IMesh mesh, out System.Guid id)
+    {
+        var (updated, newId) = GeometryEngineFixture.AddActive(workspace, mesh, "sphere");
+        id = newId;
+        return updated;
     }
 
     private IMesh GenerateMesh(Workspace workspace, System.Guid meshId, MouldDefinition definition)
@@ -403,16 +410,13 @@ public class MouldsTests
     /// </summary>
     private double SliceVolume(IMesh mesh, float zMin, float zMax)
     {
-        var slab = new Polygon2D
-        {
-            OuterBoundary = new[]
-            {
-                new Vector2(-100, -100), new Vector2(100, -100),
-                new Vector2(100, 100), new Vector2(-100, 100)
-            }
-        };
+        var slab = Polygon2D.FromOuter(
+        [
+            new Vector2(-100, -100), new Vector2(100, -100),
+            new Vector2(100, 100), new Vector2(-100, 100)
+        ]);
 
-        var slabMesh = _fixture.Engine.Polygons.ExtrudePolygon(slab, zMin, zMax).Value;
+        var slabMesh = _fixture.Engine.Polygons.Extrude(slab, zMin, zMax).Value;
         var sliced = _fixture.Engine.Booleans.Intersect(mesh, slabMesh).Value;
 
         return _fixture.Engine.Evaluators.GetStatistics(sliced).Value.Volume;
@@ -423,8 +427,7 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        workspace = Add(workspace, mesh, out var baseId);
 
         var mouldDef = new ContouredMouldDefinition(OffsetXY: 2.0);
         var result = _generateMouldFeature.Execute(workspace, baseId, mouldDef);
@@ -434,7 +437,7 @@ public class MouldsTests
 
         updatedWorkspace.MeshCount.Should().Be(1);
         updatedWorkspace.ActiveMeshId.Should().Be(baseId);
-        updatedWorkspace.GetActiveMeshMetadata().Value.Id.Should().Be(baseId);
+        updatedWorkspace.GetActiveRecord().Value.Id.Should().Be(baseId);
     }
 
     [Fact]
@@ -442,8 +445,7 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        workspace = Add(workspace, mesh, out var baseId);
 
         var transformFeature = new TransformMesh(_fixture.Engine);
         workspace = transformFeature.Rotate(workspace, baseId, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
@@ -460,9 +462,9 @@ public class MouldsTests
         clearedWorkspace.MeshCount.Should().Be(1);
         clearedWorkspace.ActiveMeshId.Should().Be(baseId);
 
-        var clearedMesh = clearedWorkspace.GetActiveMesh().Value;
-        clearedMesh.Metadata.MouldDefinition().HasNoValue.Should().BeTrue();
-        clearedMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
+        var clearedRecord = clearedWorkspace.GetActiveRecord().Value;
+        clearedRecord.MouldDefinition().Should().BeNull();
+        clearedRecord.Commands.OfType<RotateCommand>().Should().HaveCount(1);
     }
 
     [Fact]
@@ -470,8 +472,7 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        workspace = Add(workspace, mesh, out var baseId);
 
         var transformFeature = new TransformMesh(_fixture.Engine);
         workspace = transformFeature.Rotate(workspace, baseId, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
@@ -482,9 +483,9 @@ public class MouldsTests
         // Rotating again invalidates the mould shell built from the prior rotation.
         workspace = transformFeature.Rotate(workspace, baseId, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
 
-        var rotatedMesh = workspace.GetActiveMesh().Value;
-        rotatedMesh.Metadata.MouldDefinition().HasNoValue.Should().BeTrue();
-        rotatedMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
+        var rotatedRecord = workspace.GetActiveRecord().Value;
+        rotatedRecord.MouldDefinition().Should().BeNull();
+        rotatedRecord.Commands.OfType<RotateCommand>().Should().HaveCount(1);
     }
 
     [Fact]
@@ -492,8 +493,7 @@ public class MouldsTests
     {
         var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
-        var baseId = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(baseId).Value;
+        workspace = Add(workspace, mesh, out var baseId);
 
         var transformFeature = new TransformMesh(_fixture.Engine);
         var smoothFeature = new SmoothMesh(_fixture.Engine);
@@ -506,9 +506,9 @@ public class MouldsTests
 
         // Rotate and Smoothing are siblings (same priority) - generating the mould doesn't
         // clear either of them.
-        var mouldMesh = workspace.GetActiveMesh().Value;
-        mouldMesh.Metadata.Commands.OfType<RotateCommand>().Should().HaveCount(1);
-        mouldMesh.Metadata.Commands.OfType<SmoothSettings>().Should().HaveCount(1);
-        mouldMesh.Metadata.Commands.OfType<MouldDefinition>().Should().HaveCount(1);
+        var mouldRecord = workspace.GetActiveRecord().Value;
+        mouldRecord.Commands.OfType<RotateCommand>().Should().HaveCount(1);
+        mouldRecord.Commands.OfType<SmoothSettings>().Should().HaveCount(1);
+        mouldRecord.Commands.OfType<MouldDefinition>().Should().HaveCount(1);
     }
 }

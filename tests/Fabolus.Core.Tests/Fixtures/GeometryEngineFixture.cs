@@ -1,7 +1,8 @@
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
-using Fabolus.Core.Geometry.Engine;
+using GeometryEngine;
 using System;
+using System.Collections.Immutable;
 using System.IO;
 using Xunit;
 
@@ -10,10 +11,22 @@ namespace Fabolus.Tests.Fixtures;
 public class GeometryEngineFixture
 {
     public IGeometryEngine Engine { get; }
-    
+
     public GeometryEngineFixture()
     {
-        Engine = new GeometryEngineAdapter(new TestFileSystem());
+        // The same factory the app uses, so the tests exercise the kernel that ships.
+        Engine = BspGeometryEngine.Create();
+    }
+
+    /// <summary>
+    /// Adds a mesh to the workspace under a fresh entry and makes it active, handing back the
+    /// updated workspace and the entry's id. Identity lives on the record rather than the mesh,
+    /// so a test that needs an id has to mint one - this is that, in one line.
+    /// </summary>
+    public static (Workspace Workspace, Guid Id) AddActive(Workspace workspace, IMesh mesh, string name = "test")
+    {
+        var record = MeshRecord.ForImport(name);
+        return (workspace.AddMesh(mesh, record).Value, record.Id);
     }
 
     public IMesh LoadStl(string name)
@@ -56,16 +69,16 @@ public class GeometryEngineFixture
 
     public IMesh UnitCube()
     {
-        double[] vertices = new double[]
+        Vector3[] vertices = new Vector3[]
         {
-            -0.5, -0.5, -0.5, // 0
-             0.5, -0.5, -0.5, // 1
-             0.5,  0.5, -0.5, // 2
-            -0.5,  0.5, -0.5, // 3
-            -0.5, -0.5,  0.5, // 4
-             0.5, -0.5,  0.5, // 5
-             0.5,  0.5,  0.5, // 6
-            -0.5,  0.5,  0.5  // 7
+            new(-0.5, -0.5, -0.5), // 0
+            new( 0.5, -0.5, -0.5), // 1
+            new( 0.5,  0.5, -0.5), // 2
+            new(-0.5,  0.5, -0.5), // 3
+            new(-0.5, -0.5,  0.5), // 4
+            new( 0.5, -0.5,  0.5), // 5
+            new( 0.5,  0.5,  0.5), // 6
+            new(-0.5,  0.5,  0.5)  // 7
         };
 
         int[] triangles = new int[]
@@ -90,7 +103,10 @@ public class GeometryEngineFixture
             1, 6, 5
         };
 
-        return Engine.CreateMesh(vertices, triangles).Value;
+        return Engine.CreateMesh(
+            vertices.ToImmutableArray(),
+            triangles.ToImmutableArray(),
+            MeshMetadata.Named("unit cube")).Value;
     }
 }
 

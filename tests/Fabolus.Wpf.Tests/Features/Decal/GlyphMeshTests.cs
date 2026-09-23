@@ -4,7 +4,6 @@ using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Features.Decal;
-using Fabolus.Core.Geometry.Engine;
 using Moq;
 using Xunit;
 

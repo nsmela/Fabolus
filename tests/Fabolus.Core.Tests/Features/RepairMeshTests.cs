@@ -1,5 +1,6 @@
 using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
 using Xunit;
@@ -21,40 +22,38 @@ public class RepairMeshTests
     [Fact]
     public void Execute_RefreshesCachedStatsAndTopology()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        var id = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(id).Value;
+        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         var result = _repairFeature.Execute(workspace, id);
 
         result.IsSuccess.Should().BeTrue();
         var repaired = result.Value.GetActiveMesh().Value;
 
-        // Repair changes geometry, so the cached Stats/Topology must be recomputed - UI
-        // consumers (hover paths, info panels) read these instead of re-deriving.
-        var cachedStats = repaired.Metadata.MeshStats();
-        cachedStats.HasValue.Should().BeTrue();
-        var freshStats = _fixture.Engine.Evaluators.GetStatistics(repaired).Value;
-        cachedStats.Value.TriangleCount.Should().Be(freshStats.TriangleCount);
-        cachedStats.Value.Volume.Should().BeApproximately(freshStats.Volume, 1e-3);
+        // Repair rebuilds geometry, so the engine drops the annotations on the way through and
+        // the feature has to measure again - UI consumers (hover paths, info panels) read these
+        // instead of re-deriving them.
+        var cachedStats = repaired.Stats();
+        cachedStats.Should().NotBeNull();
 
-        repaired.Metadata.Topology().HasValue.Should().BeTrue();
+        var freshStats = _fixture.Engine.Evaluators.GetStatistics(repaired).Value;
+        cachedStats!.TriangleCount.Should().Be(freshStats.TriangleCount);
+        cachedStats.Volume.Should().BeApproximately(freshStats.Volume, 1e-3);
+
+        repaired.Topology().Should().NotBeNull();
     }
 
     [Fact]
     public void Execute_PreservesBaseMeshAndId()
     {
-        var workspace = Workspace.CreateEmpty();
         var mesh = _fixture.LoadStl("sphere.stl");
-        var id = mesh.Metadata.Id;
-        workspace = workspace.AddMesh(mesh).Value.SetActiveMesh(id).Value;
+        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
         var result = _repairFeature.Execute(workspace, id);
 
         result.IsSuccess.Should().BeTrue();
-        var metadata = result.Value.GetActiveMeshMetadata().Value;
-        metadata.Id.Should().Be(id);
-        metadata.HasBaseMesh.Should().BeTrue();
+        var record = result.Value.GetActiveRecord().Value;
+        record.Id.Should().Be(id);
+        record.BaseMesh.Should().NotBeNull();
     }
 }
