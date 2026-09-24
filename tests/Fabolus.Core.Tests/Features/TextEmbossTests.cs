@@ -98,6 +98,84 @@ public class TextEmbossTests
         mirrored.Outer.Should().HaveCount(4);
     }
 
+    /// <summary>
+    /// What the decal gate accepts and refuses. The gate used to reject anything whose
+    /// <c>HasCorruptTopology</c> flag was set, which counts slivers and coincident vertices
+    /// alongside real defects. That check could never fire before the engine migration - the
+    /// MeshLib evaluator hardcoded the flag to <c>false</c> - so it went live as a real
+    /// measurement and began refusing meshes that were watertight, manifold and perfectly
+    /// printable. A saved mould carrying two degenerate triangles in twenty-five thousand was
+    /// enough to block every decal on it.
+    /// </summary>
+    /// <remarks>
+    /// Exercised on the decision rather than through a boolean, because the condition cannot be
+    /// built reliably from geometry: Manifold only re-meshes near the intersection, so whether
+    /// untidiness survives depends on where on the mesh it happens to sit. On a small synthetic
+    /// mesh the boolean welds it away and the bug does not reproduce; on a real mould, where the
+    /// slivers are far from the decal, it does. The defect was in the predicate, so that is what
+    /// is pinned here.
+    /// </remarks>
+    public class DecalTopologyGateTests
+    {
+        private static readonly IMesh AnyMesh = GeometryEngine.Core.Geometry.ImmutableMesh.Empty;
+
+        private static TopologyValidation Topology(
+            int boundaryEdges = 0,
+            int nonManifoldEdges = 0,
+            int degenerateTriangles = 0,
+            int duplicateVertices = 0,
+            int inconsistentWinding = 0,
+            int duplicateFaces = 0) =>
+            new(boundaryEdges, nonManifoldEdges, degenerateTriangles, duplicateVertices,
+                inconsistentWinding, duplicateFaces, ShellCount: 1);
+
+        [Fact]
+        public void AMeshThatIsMerelyUntidyIsAccepted()
+        {
+            // The regression: closed, manifold, correctly wound - and carrying the slivers and
+            // coincident vertices that a boolean leaves behind.
+            var topology = Topology(degenerateTriangles: 2, duplicateVertices: 9);
+
+            topology.IsWatertight.Should().BeTrue();
+            topology.IsManifold.Should().BeTrue();
+            topology.HasCorruptTopology.Should().BeTrue("this is the flag the old gate read");
+
+            GenerateDecals.AcceptIfPrintable(AnyMesh, topology).IsSuccess.Should().BeTrue();
+        }
+
+        [Fact]
+        public void ACleanMeshIsAccepted() =>
+            GenerateDecals.AcceptIfPrintable(AnyMesh, Topology()).IsSuccess.Should().BeTrue();
+
+        [Fact]
+        public void AHoledMeshIsRefused()
+        {
+            // The defect that actually matters: no well-defined inside for a slicer to fill.
+            var result = GenerateDecals.AcceptIfPrintable(AnyMesh, Topology(boundaryEdges: 12));
+
+            result.IsFailure.Should().BeTrue();
+            result.Error.Should().Be(MeshErrors.NotWatertight);
+        }
+
+        [Fact]
+        public void ANonManifoldMeshIsRefused()
+        {
+            var result = GenerateDecals.AcceptIfPrintable(AnyMesh, Topology(nonManifoldEdges: 4));
+
+            result.IsFailure.Should().BeTrue();
+            result.Error.Code.Should().Be("Decal.NonManifold");
+        }
+
+        [Fact]
+        public void AnInvertedFaceIsRefused()
+        {
+            var result = GenerateDecals.AcceptIfPrintable(AnyMesh, Topology(inconsistentWinding: 2));
+
+            result.IsFailure.Should().BeTrue();
+            result.Error.Code.Should().Be("Decal.NonManifold");
+        }
+    }
+
     [Fact]
     public void GenerateDecals_Execute_Emboss_ProducesValidMesh()
     {

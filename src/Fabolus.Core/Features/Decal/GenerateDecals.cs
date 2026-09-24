@@ -111,21 +111,56 @@ public sealed class GenerateDecals
         return ValidateAndReturn(engine, booleanResult.Value);
     }
 
+    /// <summary>
+    /// Refuses a decal result that is not a printable solid, and accepts one that is merely untidy.
+    ///
+    /// This used to reject anything with <c>HasCorruptTopology</c>, which counts slivers and
+    /// coincident vertices alongside real defects. That check could never fire before the engine
+    /// migration - the MeshLib evaluator hardcoded the flag to <c>false</c> - so it went live as a
+    /// real measurement and started refusing meshes that were watertight, manifold and correctly
+    /// wound. A saved mould carrying two degenerate triangles in twenty-five thousand was enough.
+    ///
+    /// What is actually checked is what would make the result unusable: a hole, which leaves the
+    /// model with no well-defined inside for a slicer to fill, and a surface that is not a solid.
+    /// Slivers and coincident vertices survive a boolean routinely, change nothing about
+    /// printability, and are the mesh repair tool's business rather than grounds for refusing the
+    /// operation the user asked for.
+    /// </summary>
     private static Result<IMesh> ValidateAndReturn(IGeometryEngine engine, IMesh mesh)
     {
         var topologyResult = engine.Evaluators.ValidateTopology(mesh);
-        if (topologyResult.IsSuccess)
+
+        // A mesh that cannot be measured is handed back rather than refused: failing to validate
+        // is not evidence of a defect, and the caller can still repair or inspect it.
+        return topologyResult.IsFailure
+            ? Result.Success(mesh)
+            : AcceptIfPrintable(mesh, topologyResult.Value);
+    }
+
+    /// <summary>
+    /// The decision this gate makes, separated from measuring the mesh so it can be tested on its
+    /// own - the defect it used to have was in the decision, not in the measurement.
+    /// </summary>
+    internal static Result<IMesh> AcceptIfPrintable(IMesh mesh, TopologyValidation topology)
+    {
+        // No well-defined inside for a slicer to fill: the decal has made the model unprintable.
+        if (!topology.IsClosed)
         {
-            var topo = topologyResult.Value;
-            if (topo.HasCorruptTopology)
-            {
-                return MeshErrors.CorruptTopology;
-            }
-            if (!topo.IsManifold)
-            {
-                return new Error("Decal.NonManifold", "Boolean operation produced a non-manifold mesh. Try adjusting placement or depth.");
-            }
+            return MeshErrors.NotWatertight;
         }
+
+        // Two sheets of surface along one edge, a doubled face, or an inverted one - whatever the
+        // boolean produced, it is not a solid.
+        if (!topology.IsManifold)
+        {
+            return new Error("Decal.NonManifold", "Boolean operation produced a non-manifold mesh. Try adjusting placement or depth.");
+        }
+
+        // Deliberately not checked: HasRedundantGeometry, and the HasCorruptTopology flag that
+        // folds it in with real defects. Slivers and coincident vertices survive a boolean
+        // routinely - Manifold only re-meshes near the intersection, so anything untidy further
+        // away passes straight through - and they change nothing about printability. They are the
+        // repair tool's business, not grounds for refusing the operation the user asked for.
         return Result.Success(mesh);
     }
 }
