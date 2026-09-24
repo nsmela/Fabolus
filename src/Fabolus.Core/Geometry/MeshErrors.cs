@@ -17,6 +17,13 @@ public static class MeshErrors
     // ===== EXPORT =====
     public static readonly Error ExportMeshIsNull = new("Export.MeshIsNull", "Mesh cannot be null.");
     public static readonly Error ExportFilePathIsEmpty = new("Export.FilePathIsEmpty", "File path cannot be null or empty.");
+    public static readonly Error ExportRecordIsNull = new("Export.RecordIsNull", "The workspace entry cannot be null.");
+
+    public static Error ExportFileExists(string filePath) =>
+        new("Export.FileExists", $"'{filePath}' already exists. Pass overwrite to replace it.");
+
+    public static Error ExportFailed(string detail) =>
+        new("Export.Failed", $"The file could not be written: {detail}.");
 
     // ===== RAYCAST =====
     public static readonly Error RaycastMiss = new("Mesh.RaycastMiss", "The ray did not intersect with the mesh.");

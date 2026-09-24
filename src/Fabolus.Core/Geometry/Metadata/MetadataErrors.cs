@@ -21,4 +21,12 @@ public static class MetadataErrors {
     /// </summary>
     public static Error UnknownCommand(string name) =>
         new("Metadata.UnknownCommand", $"Unrecognised mesh command '{name}'. The file was saved by a different version of Fabolus; add the name to MeshCommandRegistry if the command was renamed.");
+
+    /// <summary>
+    /// Error returned when a save file's recorded history cannot be read at all. Distinct from
+    /// <see cref="UnknownCommand"/>: that one names a command this build does not know, where
+    /// this one means the history itself is damaged.
+    /// </summary>
+    public static Error MalformedHistory(string detail) =>
+        new("Metadata.MalformedHistory", $"The saved mesh history could not be read: {detail}.");
 }

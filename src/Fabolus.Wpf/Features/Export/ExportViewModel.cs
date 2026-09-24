@@ -231,10 +231,19 @@ public partial class ExportViewModel : ObservableObject, IViewState
         var saveResult = _dialogueSystem.ShowSaveFileDialog(filter, defaultExt);
         if (saveResult.HasNoValue) return;
 
+        var exportRecordResult = Workspace.GetActiveRecord();
+        if (exportRecordResult.IsFailure)
+        {
+            _alert.ShowError(exportRecordResult.Error.Description);
+            return;
+        }
+
         var mesh = activeMeshResult.Value;
         var filepath = saveResult.Value;
 
-        var result = _exportFeature.Execute(mesh, filepath, true);
+        // The record goes along so a 3MF carries the entry's history; an STL takes the geometry
+        // alone, which is all that format holds.
+        var result = _exportFeature.Execute(mesh, exportRecordResult.Value, filepath, true);
         if (result.IsFailure)
         {
             _alert.ShowError($"Failed to export: {result.Error.Description}");

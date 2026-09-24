@@ -100,16 +100,12 @@ public class MeshIOTests
     }
 
     /// <summary>
-    /// A mesh re-imported from a Fabolus-saved 3mf should arrive with its own command history,
-    /// already in the frame its BaseMesh replays into: centring it a second time would shift the
-    /// geometry without shifting the BaseMesh, leaving the smoothing/rotate views drawing the
-    /// model offset from the viewport. ImportMesh still guards against that, but nothing puts a
-    /// history back on an imported mesh for it to guard.
+    /// A mesh re-imported from a Fabolus-saved 3mf arrives with its own command history, already
+    /// in the frame its BaseMesh replays into: centring it a second time would shift the geometry
+    /// without shifting the BaseMesh, leaving the smoothing/rotate views drawing the model offset
+    /// from the viewport.
     /// </summary>
-    [Fact(Skip = "Needs 3mf history round-trip. The engine's MeshPackage carries a string->string " +
-                 "metadata dictionary, but nothing writes a MeshRecord into it on export or " +
-                 "reconstructs one on import, so every import arrives with an empty history. " +
-                 "Un-skip when that round-trip exists.")]
+    [Fact]
     public void ImportMesh_MeshWithOwnHistory_StaysAlignedWithItsBaseMesh()
     {
         var filePath = _fixture.GetAssetPath("chin_legacy_smooth.3mf");
@@ -143,11 +139,12 @@ public class MeshIOTests
     public void ExportMesh_ValidMesh_ExportsToFile()
     {
         var mesh = _fixture.LoadStl("sphere.stl");
+        var record = MeshRecord.ForImport("sphere");
         var tempFile = Path.Combine(Path.GetTempPath(), $"{System.Guid.NewGuid()}.stl");
 
         try
         {
-            var result = _exportFeature.Execute(mesh, tempFile);
+            var result = _exportFeature.Execute(mesh, record, tempFile);
             result.IsSuccess.Should().BeTrue();
             File.Exists(tempFile).Should().BeTrue();
         }
