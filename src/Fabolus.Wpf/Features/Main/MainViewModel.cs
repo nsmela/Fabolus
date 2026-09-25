@@ -239,6 +239,21 @@ public partial class MainViewModel : ObservableObject
 
     }
 
+    /// <summary>
+    /// Empties the info panel as each view is swapped in.
+    /// </summary>
+    /// <remarks>
+    /// The panel is shared, but its contents belong to whichever view published them, so without
+    /// this the next view inherits the last one's numbers - and the views that publish nothing
+    /// at all (decals, moulding, cut/split) showed the previous view's readings for as long as
+    /// the user stayed in them. Clearing here rather than in each view means a view has to do
+    /// nothing to get an empty panel, and the ones that do publish are unaffected: every switch
+    /// assigns this property immediately before awaiting ActivateAsync, so their own publishing
+    /// happens after this and stands.
+    /// </remarks>
+    partial void OnCurrentViewChanged(IViewState value) =>
+        _messenger.Send(new UpdateMeshInfoMessage([]));
+
     [RelayCommand]
     public async Task SwitchToMeshManagerViewAsync()
     {

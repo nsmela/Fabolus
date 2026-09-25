@@ -86,10 +86,9 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         // manager skips rendering here because it has no mesh yet.
         _sceneManager.SetOverhangs(WarningAngle, CriticalAngle);
 
+        // The info panel is already empty: MainViewModel clears it as each view is swapped in,
+        // and this view publishes nothing to it.
         await UpdateWorkspaceAsync(workspace);
-
-        // clear mesh info
-        _messenger.Send(new UpdateMeshInfoMessage([]));
     }
 
     public Task<Workspace> DeactivateAsync() {
