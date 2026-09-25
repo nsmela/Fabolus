@@ -1299,6 +1299,12 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         _previewPending = false;
         _previewTimer.Stop();
         _sceneManager.ReleaseMesh();
+
+        // The info panel is shared and this view never writes to it, so it has been showing
+        // whatever the previous view left there. Emptying it on the way out stops those stale
+        // numbers following the user into the next view.
+        _messenger.Send(new UpdateMeshInfoMessage([]));
+
         return Task.FromResult(Workspace);
     }
 

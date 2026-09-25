@@ -390,6 +390,26 @@ public class DecalViewModelTests
         Assert.Equal([true, false], states);
     }
 
+    /// <summary>
+    /// The info panel is shared between views and the decal view never writes to it, so on the
+    /// way out it must be emptied rather than left showing the previous view's numbers.
+    /// </summary>
+    [Fact]
+    public async Task DeactivateAsync_EmptiesTheMeshInfoPanel()
+    {
+        var (vm, messenger) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Test"));
+
+        // Whatever the view before this one had put on the panel.
+        var panel = new InfoPanelViewModel(messenger);
+        messenger.Send(new UpdateMeshInfoMessage([new TextInfoItem { Label = "Volume", Value = "12 mL" }]));
+        Assert.Single(panel.InfoItems);
+
+        await vm.DeactivateAsync();
+
+        Assert.Empty(panel.InfoItems);
+    }
+
     [Fact]
     public async Task ActivateAsync_RaisesTheLoadingOverlayAndLowersItWhenDone()
     {
