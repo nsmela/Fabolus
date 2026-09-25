@@ -24,26 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--
-      TEMPORARY. These two files stopped compiling when GeometryEngine replaced MeshLib, and
-      between them held every error in this project - the other six files are fine and could not
-      run while these blocked the build.
-
-      DecalViewModelTests mocks IGeometryEngine against the old MeshLib surface: GetRenderData,
-      GetMeshShadow, OffsetPolygon, ExtrudePolygon and CloneMesh are all gone, and MeshStatistics
-      and TopologyValidation are positional records now rather than settable property bags.
-      GlyphMeshTests calls Generators.BuildTextPrism, which moved to IDecalOperations.BuildPrism
-      and takes a DecalPrismSpec. Both need porting against the current decal API.
-
-      Of DecalViewModelTests' 233 errors, ~21 are the workspace record API from this branch
-      (AddMesh now takes a MeshRecord, identity is no longer on the mesh); the rest predate it.
-      Port the mock first - the record changes fall out easily once it compiles.
-    -->
-    <Compile Remove="Features\Decal\DecalViewModelTests.cs" />
-    <Compile Remove="Features\Decal\GlyphMeshTests.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

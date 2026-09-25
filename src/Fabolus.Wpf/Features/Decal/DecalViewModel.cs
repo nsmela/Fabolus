@@ -688,14 +688,19 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         };
     }
 
-    /// <summary>The mesh's file name, stripped of its extension, for the automatic name decal.</summary>
+    /// <summary>
+    /// The entry's name, stripped of any extension, for the automatic name decal.
+    ///
+    /// Taken from the workspace record rather than from the geometry. The name on a mesh is
+    /// whatever produced it - "box" from a generator, or "a subtract b" from the boolean that
+    /// built a mould - where the record carries the name the user sees in the mesh list and the
+    /// one they would expect to find engraved on the thing.
+    /// </summary>
     private string ResolveFileNameText()
     {
-        string rawName = !string.IsNullOrWhiteSpace(_baseMesh?.Metadata.Name)
-            ? _baseMesh!.Metadata.Name
-            : !string.IsNullOrWhiteSpace(_activeMesh?.Metadata.Name)
-                ? _activeMesh!.Metadata.Name
-                : TextDecal.DefaultText;
+        string rawName = !string.IsNullOrWhiteSpace(_record?.Name)
+            ? _record!.Name
+            : TextDecal.DefaultText;
 
         string fileName = Path.GetFileNameWithoutExtension(rawName);
         return string.IsNullOrWhiteSpace(fileName) ? TextDecal.DefaultText : fileName;

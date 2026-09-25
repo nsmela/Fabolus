@@ -12,7 +12,7 @@ Each feature is a self-contained "vertical slice" that holds everything it needs
 - **Everything in one place**: For example, everything related to Smoothing (the slider controls, the 3D viewport tools, the calculation logic, and the user settings) lives together under the Smoothing feature.
 - **Independent features**: Changes made to one feature (like Decals or Moulding) do not break or affect other features, making the application easier to test, maintain, and expand.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 10.1: Vertical Slice Architecture Diagram for Fabolus. Diagram showing vertical feature slices (MeshIO, Smoothing, Orientation, Decals, Moulding, Cut/Split, Export) cutting across presentation (WPF), domain logic (Fabolus.Core), and the native geometry engine (Geometry.MeshLib).] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 10.1: Vertical Slice Architecture Diagram for Fabolus. Diagram showing vertical feature slices (MeshIO, Smoothing, Orientation, Decals, Moulding, Cut/Split, Export) cutting across presentation (WPF), domain logic (Fabolus.Core), and the geometry engine (GeometryEngine).] -->
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -32,15 +32,15 @@ Each feature is a self-contained "vertical slice" that holds everything it needs
 │          │                 │                 │                 │                 │                  │           │
 │          └─────────────────┴────────────┬────┴─────────────────┴─────────────────┴──────────────────┘           │
 │                                         ▼                                                                       │
-│               Immutable Core: Workspace, IMesh, MeshMetadata, IMeshCommand, Result<T>                          │
+│               Immutable Core: Workspace, MeshRecord, IMesh, IMeshCommand, Result<T>                            │
 │                                         │                                                                       │
 │                                  IGeometryEngine (Geometry Interface)                                           │
 └─────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────┘
                                           │ implements
                                           ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                       Geometry.MeshLib (Native 3D Engine)                                       │
-│                MeshInspector MeshLib (C++), Clipper2Lib, Memory Safety Boundaries & Buffer Marshaling           │
+│                                    GeometryEngine (separate library)                                            │
+│              Manifold kernel (C++) with a managed BSP fallback, Clipper2 planar operations                      │
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -97,17 +97,15 @@ The codebase is split into three focused projects:
 - **Key Components**:
   - **`Workspace`**: The central container managing the collection of meshes and keeping track of the active model.
   - **`IMesh`**: The lightweight representation of 3D geometry (vertices and triangle faces).
-  - **`MeshMetadata`**: Stores strongly-typed properties (such as mesh volume, surface area, and name) without touching raw 3D geometry.
+  - **`MeshRecord`**: The workspace entry beside each mesh — its identity, name and command history. Readable without touching raw 3D geometry, and unaffected by operations that replace the geometry entirely.
   - **`IMeshCommand` & Replay Pipeline**: Manages and stores all non-destructive editing commands.
   - **`IGeometryEngine`**: The shared interface defining all 3D operations (smoothing, booleans, transforms, repair, and file import/export) without depending on how they are implemented.
 
-### 2. `Geometry.MeshLib` (`net8.0`)
-- **Role**: The high-performance 3D engine adapter that performs the heavy geometric calculations.
-- **Dependencies**: `MeshLib` (native C++ geometry engine from MeshInspector) and `Clipper2Lib` (2D contour offsetting).
-- **Safe Memory Management**:
-  - Fabolus runs in managed C# (.NET), while `MeshLib` runs in high-speed native C++.
-  - When performing complex operations (like hole repair or mould subtraction), Fabolus temporarily transfers vertex data to C++ memory, executes the algorithm, transfers the result back to C#, and immediately cleans up all temporary C++ memory.
-  - This prevents memory leaks and ensures long-running stability even when handling large 3D scans.
+### 2. `GeometryEngine` (`net8.0`, [separate repository](https://github.com/nsmela/GeometryEngine))
+- **Role**: Every geometric operation Fabolus performs — booleans, offsets, smoothing, decimation, spatial queries, polygon work and mesh files.
+- **Dependencies**: the **Manifold** kernel (native C++, shipped with the library alongside oneTBB) with a fully managed BSP fallback, plus `Clipper2` and `NetTopologySuite` for planar work.
+- **Why it is a separate library**: it has no idea what a bolus or a mould is. That lets its geometry be tested on its own terms — against analytic volume identities and real clinical meshes — without a workspace or a window involved, and keeps Fabolus from growing geometry code of its own.
+- **Meshes are values, not resources**: `ImmutableMesh` cannot be constructed in an invalid state and is not `IDisposable`. No marshalling boundary, no ownership contract, no disposal for callers to get wrong.
 
 ### 3. `Fabolus.Wpf` (`net8.0-windows7.0`, target `win-x64`)
 - **Role**: The desktop user interface application for Windows.

@@ -23,24 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--
-      TEMPORARY. These tests were written against the old MeshLib API and stopped compiling when
-      GeometryEngine replaced it - before the metadata work, and unrelated to it. Excluded so the
-      rest of the suite can run at all; the whole project failed to compile while they were in.
-
-      Most of them re-test the engine's own surface (booleans, transforms, generators, modifiers),
-      which GeometryEngine.Tests now covers in far more depth, on real clinical meshes. Those can
-      simply go. Three groups cannot:
-        - GeometryIOTests' 3MF command round-trip, which is the specification for a capability the
-          migration dropped (see the skipped ImportMesh_MeshWithOwnHistory test).
-        - DecalWrappingTests' BuildTextPrism cases on clinical moulds.
-        - GeometryEngineTests' CalculateDeviationColors, for the smoothing heatmap.
-      Decide each group, then delete this exclusion.
-    -->
-    <Compile Remove="MeshLib\**" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

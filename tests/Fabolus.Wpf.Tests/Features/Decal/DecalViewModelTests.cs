@@ -1,4 +1,4 @@
-using System.Numerics;
+using System.Collections.Immutable;
 using CommunityToolkit.Mvvm.Messaging;
 using BasicResults;
 using Fabolus.Core.Common.Interfaces;
@@ -7,7 +7,6 @@ using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
-using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Decal;
 using Moq;
 using Xunit;
@@ -30,53 +29,57 @@ public sealed class TestOutlineSource : IGlyphOutlineSource
     }
 }
 
+/// <summary>
+/// Behaviour of the decal view model: the decal list, target switching, preset snapping, applying
+/// and clearing.
+/// </summary>
+/// <remarks>
+/// Driven by the real geometry engine on a real box rather than a mocked IGeometryEngine. The
+/// mock these replaced stubbed BuildTextPrism, GetRenderData, CloneMesh, Raycast and a
+/// property-bag MeshStatistics - none of which exist any more - and it stopped compiling the
+/// moment the engine moved beneath it. Nothing here cares how a boolean is computed, only what
+/// the view model does with the answer, so the real engine costs milliseconds and cannot rot.
+///
+/// The box is 40 x 60 x 50 about the origin, which is what the preset-point assertions are
+/// written against.
+/// </remarks>
 public class DecalViewModelTests
 {
-    private static (DecalViewModel vm, IMessenger messenger, Mock<IGeometryEngine> engineMock) CreateViewModel()
+    private static readonly IGeometryEngine Engine = global::GeometryEngine.BspGeometryEngine.Create();
+
+    private static (DecalViewModel vm, IMessenger messenger) CreateViewModel()
     {
         var messenger = new StrongReferenceMessenger();
 
         // No preference store here: an unanswered section request falls back to that section's
         // Default, which is what this test wants anyway.
-
-        var engineMock = new Mock<IGeometryEngine>();
         var alertMock = new Mock<IAlertDialog>();
-        var outlineSource = new TestOutlineSource();
-
-        var prismMock = new Mock<IMesh>();
-        prismMock.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        prismMock.Setup(m => m.Triangles).Returns(new int[3]);
-        engineMock.Setup(e => e.Generators.BuildTextPrism(
-            It.IsAny<IReadOnlyList<Polygon2D>>(),
-            It.IsAny<DecalFrame>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<IMesh?>()))
-            .Returns(Result<IMesh>.Success(prismMock.Object));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MinX = -10, MaxX = 10, MinY = -10, MaxY = 10, MinZ = -10, MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
-            .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsManifold = true, IsWatertight = true }));
-        engineMock.Setup(e => e.Evaluators.Raycast(It.IsAny<IMesh>(), It.IsAny<Vector3>(), It.IsAny<Vector3>()))
-            .Returns<IMesh, Vector3, Vector3>((m, o, d) => Result<RaycastHit>.Success(new RaycastHit(o + d * 10f, -d, 10f)));
-        engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns<IMesh, IMesh>((a, b) => Result<IMesh>.Success(a));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns<IMesh, IMesh>((a, b) => Result<IMesh>.Success(a));
-
-        var vm = new DecalViewModel(messenger, alertMock.Object, engineMock.Object, outlineSource);
-        return (vm, messenger, engineMock);
+        var vm = new DecalViewModel(messenger, alertMock.Object, Engine, new TestOutlineSource());
+        return (vm, messenger);
     }
 
+    private static IMesh Box() =>
+        Engine.Generators.GenerateBox(new Vector3(-20, -30, 0), new Vector3(20, 30, 50)).Value;
+
+    /// <summary>
+    /// A workspace holding one entry. Commands must be listed in ascending priority order, since
+    /// recording one clears anything of a strictly greater priority.
+    /// </summary>
+    private static Workspace WorkspaceWith(string name, params IMeshCommand[] commands) =>
+        WorkspaceWith(Box(), name, commands);
+
+    private static Workspace WorkspaceWith(IMesh mesh, string name, params IMeshCommand[] commands)
+    {
+        var record = MeshRecord.ForImport(name);
+        foreach (var command in commands) record = record.WithCommand(command);
+
+        return Workspace.CreateEmpty().AddMesh(mesh, record).Value;
+    }
 
     [Fact]
     public void Operation_ChangingToEngrave_UpdatesDepthLabel()
     {
-        var (vm, _, _) = CreateViewModel();
+        var (vm, _) = CreateViewModel();
 
         vm.Operation = EmbossOperation.Emboss;
         Assert.Equal("Height", vm.DepthLabel);
@@ -90,7 +93,7 @@ public class DecalViewModelTests
     [Fact]
     public void AddDecalCommand_AddsNewDecal()
     {
-        var (vm, _, _) = CreateViewModel();
+        var (vm, _) = CreateViewModel();
 
         Assert.Equal(0, vm.DecalCount);
 
@@ -104,7 +107,7 @@ public class DecalViewModelTests
     [Fact]
     public void ClearTextCommand_WhenNotApplied_DoesNothing()
     {
-        var (vm, _, _) = CreateViewModel();
+        var (vm, _) = CreateViewModel();
         Assert.False(vm.IsApplied);
 
         vm.ClearTextCommand.Execute(null);
@@ -114,10 +117,7 @@ public class DecalViewModelTests
     [Fact]
     public async Task ActivateAsync_WithImportedDecalCommand_InheritsDecalsAndSetsIsAppliedTrue()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
+        var (vm, _) = CreateViewModel();
 
         var decal = new TextDecal
         {
@@ -129,46 +129,8 @@ public class DecalViewModelTests
             Anchor = new Vector3(5, 10, 15),
             AnchorNormal = Vector3.UnitZ
         };
-        var command = new DecalCommand(new[] { decal });
-        var metadata = new MeshMetadata()
-            .WithId(Guid.NewGuid())
-            .WithName("Test")
-            .WithCommand(command);
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
 
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var prismMock = new Mock<IMesh>();
-        prismMock.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        prismMock.Setup(m => m.Triangles).Returns(new int[3]);
-        engineMock.Setup(e => e.Generators.BuildTextPrism(
-            It.IsAny<IReadOnlyList<Polygon2D>>(),
-            It.IsAny<DecalFrame>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<IMesh?>()))
-            .Returns(Result<IMesh>.Success(prismMock.Object));
-        engineMock.Setup(e => e.Generators.GenerateSphere(It.IsAny<Vector3>(), It.IsAny<double>(), It.IsAny<int>()))
-            .Returns(Result<IMesh>.Success(prismMock.Object));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        await vm.ActivateAsync(WorkspaceWith("Test", new DecalCommand(new[] { decal })));
 
         Assert.True(vm.IsApplied);
         Assert.False(vm.HasMould);
@@ -190,51 +152,9 @@ public class DecalViewModelTests
     [Fact]
     public async Task ActivateAsync_WithMouldMesh_SetsHasMouldTrue()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
+        var (vm, _) = CreateViewModel();
 
-        var mouldDef = new Fabolus.Core.Features.Moulds.ConcaveMouldDefinition(5, 5, 5);
-        var metadata = new MeshMetadata()
-            .WithId(Guid.NewGuid())
-            .WithName("Mould Mesh")
-            .WithCommand(mouldDef);
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var prismMock = new Mock<IMesh>();
-        prismMock.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        prismMock.Setup(m => m.Triangles).Returns(new int[3]);
-        engineMock.Setup(e => e.Generators.BuildTextPrism(
-            It.IsAny<IReadOnlyList<Polygon2D>>(),
-            It.IsAny<DecalFrame>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<IMesh?>()))
-            .Returns(Result<IMesh>.Success(prismMock.Object));
-        engineMock.Setup(e => e.Generators.GenerateSphere(It.IsAny<Vector3>(), It.IsAny<double>(), It.IsAny<int>()))
-            .Returns(Result<IMesh>.Success(prismMock.Object));
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        await vm.ActivateAsync(WorkspaceWith("Mould Mesh", new ConcaveMouldDefinition(5, 5, 5)));
 
         Assert.True(vm.HasMould);
     }
@@ -242,65 +162,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task ApplyCommand_OnBaseMesh_AppliesEmbossSuccessfully()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
-
-        var metadata = new MeshMetadata()
-            .WithId(Guid.NewGuid())
-            .WithName("Base Mesh");
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                copy.Setup(x => x.WithMetadata(It.IsAny<MeshMetadata>()))
-                    .Returns<MeshMetadata>(m2 => copy.Object);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
-            .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsWatertight = true, IsManifold = true }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var embossedMeshMock = new Mock<IMesh>();
-        embossedMeshMock.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        embossedMeshMock.Setup(m => m.Triangles).Returns(new int[3]);
-        embossedMeshMock.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-        engineMock.Setup(e => e.Generators.BuildTextPrism(
-            It.IsAny<IReadOnlyList<Polygon2D>>(),
-            It.IsAny<DecalFrame>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<float>(),
-            It.IsAny<IMesh?>()))
-            .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-        engineMock.Setup(e => e.Generators.GenerateSphere(It.IsAny<Vector3>(), It.IsAny<double>(), It.IsAny<int>()))
-            .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Base Mesh"));
 
         vm.LabelText = "TEST";
         await vm.ApplyCommand.ExecuteAsync(null);
@@ -313,29 +176,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task DeleteSelectedDecal_RemovesDecalAndUpdatesCount()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
-        var metadata = new MeshMetadata().WithId(Guid.NewGuid()).WithName("Test");
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Test"));
 
         Assert.Equal(1, vm.DecalCount);
         Assert.Equal(Guid.Empty, vm.SelectedDecalId);
@@ -352,30 +194,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task ClearDecals_ClearsAllDecals()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
-
-        var metadata = new MeshMetadata().WithId(Guid.NewGuid()).WithName("TestMesh");
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("TestMesh"));
 
         Assert.Equal(1, vm.DecalCount);
 
@@ -387,30 +207,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task DecalList_SyncsWithDecalsAndSelection()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
-
-        var metadata = new MeshMetadata().WithId(Guid.NewGuid()).WithName("TestMesh");
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("TestMesh"));
 
         Assert.Single(vm.DecalList);
         Assert.Equal("FABOLUS", vm.DecalList[0].Text);
@@ -434,51 +232,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task ApplyCommand_CollapsesDecalsExpander()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
-        var metadata = new MeshMetadata().WithId(Guid.NewGuid()).WithName("Test");
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                copy.Setup(x => x.WithMetadata(It.IsAny<MeshMetadata>()))
-                    .Returns<MeshMetadata>(m2 => copy.Object);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
-            .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsWatertight = true, IsManifold = true }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var embossedMeshMock = new Mock<IMesh>();
-        embossedMeshMock.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        embossedMeshMock.Setup(m => m.Triangles).Returns(new int[3]);
-        embossedMeshMock.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Test"));
 
         Assert.True(vm.IsDecalsExpanded);
 
@@ -491,43 +246,16 @@ public class DecalViewModelTests
     [Fact]
     public async Task ActivateAsync_WithMould_SetsHasMouldAndTargetOnDecalList()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
+        var (vm, _) = CreateViewModel();
 
-        var mouldDef = new ConcaveMouldDefinition();
         var decal1 = new TextDecal { Id = Guid.NewGuid(), Text = "BASE1", Target = EmbossTarget.Base, CapHeight = 5f, Operation = EmbossOperation.Emboss };
         var decal2 = new TextDecal { Id = Guid.NewGuid(), Text = "MOULD1", Target = EmbossTarget.Mould, CapHeight = 6f, Operation = EmbossOperation.Engrave };
 
-        var metadata = new MeshMetadata()
-            .WithId(Guid.NewGuid())
-            .WithName("MouldMesh")
-            .WithBaseMesh(mockMesh.Object)
-            .WithCommand(new DecalCommand(new[] { decal1 }))
-            .WithMouldDefinition(mouldDef)
-            .WithCommand(new MouldDecalCommand(new[] { decal2 }));
-
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        await vm.ActivateAsync(WorkspaceWith(
+            "MouldMesh",
+            new DecalCommand(new[] { decal1 }),
+            new ConcaveMouldDefinition(),
+            new MouldDecalCommand(new[] { decal2 })));
 
         Assert.True(vm.HasMould);
         Assert.True(vm.IsApplied);
@@ -546,39 +274,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task AddDecal_SwitchingTargetToMould_PreservesPreviousBaseDecalTarget()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
-
-        var mouldDef = new ConcaveMouldDefinition();
-        var metadata = new MeshMetadata()
-            .WithId(Guid.NewGuid())
-            .WithName("MouldMesh")
-            .WithBaseMesh(mockMesh.Object)
-            .WithMouldDefinition(mouldDef)
-            .WithCommand(mouldDef);
-
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("MouldMesh", new ConcaveMouldDefinition()));
 
         Assert.True(vm.HasMould);
         Assert.Equal(2, vm.DecalList.Count);
@@ -606,51 +303,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task ClearText_PreservesDecalsAndRevertsToEditMode()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
-        var metadata = new MeshMetadata().WithId(Guid.NewGuid()).WithName("Test");
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                copy.Setup(x => x.WithMetadata(It.IsAny<MeshMetadata>()))
-                    .Returns<MeshMetadata>(m2 => copy.Object);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
-            .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsWatertight = true, IsManifold = true }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var embossedMeshMock = new Mock<IMesh>();
-        embossedMeshMock.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        embossedMeshMock.Setup(m => m.Triangles).Returns(new int[3]);
-        embossedMeshMock.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(embossedMeshMock.Object));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Test"));
 
         Assert.Equal(1, vm.DecalCount);
         Assert.Equal("FABOLUS", vm.DecalList[0].Text);
@@ -674,72 +328,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task ActivateAsync_WithMould_CalculatesPresetPointsAndAllowsPresetSnapping()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[]
-        {
-            new(-20, -30, 0),
-            new( 20, -30, 0),
-            new( 20,  30, 0),
-            new(-20,  30, 0),
-            new(-20, -30, 50),
-            new( 20, -30, 50),
-            new( 20,  30, 50),
-            new(-20,  30, 50),
-        });
-        mockMesh.Setup(m => m.Triangles).Returns(new int[]
-        {
-            0, 1, 5, 0, 5, 4,
-            2, 3, 7, 2, 7, 6,
-            3, 0, 4, 3, 4, 7,
-            1, 2, 6, 1, 6, 5,
-            0, 3, 2, 0, 2, 1,
-            4, 5, 6, 4, 6, 7
-        });
-
-        var mouldDef = new ConcaveMouldDefinition();
-        var metadata = new MeshMetadata()
-            .WithId(Guid.NewGuid())
-            .WithName("MouldMesh")
-            .WithBaseMesh(mockMesh.Object)
-            .WithMouldDefinition(mouldDef)
-            .WithCommand(mouldDef);
-
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
-                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics
-            {
-                MinX = -20, MaxX = 20,
-                MinY = -30, MaxY = 30,
-                MinZ = 0, MaxZ = 50
-            }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-        engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
-            .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsManifold = true }));
-        engineMock.Setup(e => e.Polygons.GetMeshShadow(It.IsAny<IMesh>()))
-            .Returns(Result<Polygon2D>.Success(new Polygon2D { OuterBoundary = new Vector2[] { new(-20, -30), new(20, -30), new(20, 30), new(-20, 30) } }));
-        engineMock.Setup(e => e.Polygons.OffsetPolygon(It.IsAny<Polygon2D>(), It.IsAny<float>()))
-            .Returns<Polygon2D, float>((p, _) => Result<Polygon2D>.Success(p));
-        engineMock.Setup(e => e.Polygons.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
-            .Returns(Result<IMesh>.Success(mockMesh.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(mockMesh.Object));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("MouldMesh", new ConcaveMouldDefinition()));
 
         Assert.True(vm.HasMould);
         Assert.Equal(6, vm.MouldPresetPoints.Count);
@@ -766,23 +356,6 @@ public class DecalViewModelTests
         Assert.Equal(curve1Preset.Position, vm.Anchor);
         Assert.Equal(90, vm.Rotation);
 
-        // Apply decals with mould
-        var embossedMock = new Mock<IMesh>();
-        embossedMock.Setup(m => m.Vertices).Returns(mockMesh.Object.Vertices);
-        embossedMock.Setup(m => m.Triangles).Returns(mockMesh.Object.Triangles);
-        embossedMock.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
-                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Booleans.Union(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(embossedMock.Object));
-
         await vm.ApplyCommand.ExecuteAsync(null);
 
         Assert.True(vm.IsApplied);
@@ -797,56 +370,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task ActivateAsync_WithBaseMesh_CalculatesBasePresetPointsAndAllowsTopFrontBackSnapping()
     {
-        var (vm, messenger, engineMock) = CreateViewModel();
-
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[]
-        {
-            new(-20, -30,  0),
-            new( 20, -30,  0),
-            new( 20,  30,  0),
-            new(-20,  30,  0),
-            new(-20, -30, 50),
-            new( 20, -30, 50),
-            new( 20,  30, 50),
-            new(-20,  30, 50),
-        });
-        mockMesh.Setup(m => m.Triangles).Returns(new int[]
-        {
-            0, 1, 5, 0, 5, 4,
-            2, 3, 7, 2, 7, 6,
-            3, 0, 4, 3, 4, 7,
-            1, 2, 6, 1, 6, 5,
-            0, 3, 2, 0, 2, 1,
-            4, 5, 6, 4, 6, 7
-        });
-
-        var metadata = new MeshMetadata().WithId(Guid.NewGuid()).WithName("BaseMesh");
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
-                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics
-            {
-                MinX = -20, MaxX = 20,
-                MinY = -30, MaxY = 30,
-                MinZ = 0, MaxZ = 50
-            }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("BaseMesh"));
 
         Assert.False(vm.HasMould);
         Assert.Equal(EmbossTarget.Base, vm.Target);
@@ -879,63 +404,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task AddDecal_GeneratesOnFirstFreeAnchorInViewedTarget()
     {
-        var (vm, messenger, engineMock) = CreateViewModel();
-
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[]
-        {
-            new(-20, -30,  0),
-            new( 20, -30,  0),
-            new( 20,  30,  0),
-            new(-20,  30,  0),
-            new(-20, -30, 50),
-            new( 20, -30, 50),
-            new( 20,  30, 50),
-            new(-20,  30, 50),
-        });
-        mockMesh.Setup(m => m.Triangles).Returns(new int[]
-        {
-            0, 1, 5, 0, 5, 4,
-            2, 3, 7, 2, 7, 6,
-            3, 0, 4, 3, 4, 7,
-            1, 2, 6, 1, 6, 5,
-            0, 3, 2, 0, 2, 1,
-            4, 5, 6, 4, 6, 7
-        });
-
-        var mouldDef = new ConcaveMouldDefinition();
-        var metadata = new MeshMetadata()
-            .WithId(Guid.NewGuid())
-            .WithName("MouldMesh")
-            .WithBaseMesh(mockMesh.Object)
-            .WithMouldDefinition(mouldDef)
-            .WithCommand(mouldDef);
-
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
-                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics
-            {
-                MinX = -20, MaxX = 20,
-                MinY = -30, MaxY = 30,
-                MinZ = 0, MaxZ = 50
-            }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("MouldMesh", new ConcaveMouldDefinition()));
 
         // Initial decals start on Mould target at Front (file name) and Back (volume)
         Assert.True(vm.HasMould);
@@ -970,37 +440,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task SelectionMode_DefaultsToNoSelection_AndAllowsSwitchingAndDeselecting()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[]
-        {
-            new(-20, -30,  0),
-            new( 20, -30,  0),
-            new(  0,  30, 50)
-        });
-        mockMesh.Setup(m => m.Triangles).Returns(new int[] { 0, 1, 2 });
-        var metadata = new MeshMetadata().WithId(Guid.NewGuid()).WithName("TestMesh");
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 50 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("TestMesh"));
 
         // Verify default on activation: NO decal selected
         Assert.Equal(Guid.Empty, vm.SelectedDecalId);
@@ -1036,73 +477,8 @@ public class DecalViewModelTests
     [Fact]
     public async Task SwitchingTarget_DoesNotRequireSelectedDecal()
     {
-        var (vm, _, engineMock) = CreateViewModel();
-
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[]
-        {
-            new(-20, -30, 0),
-            new( 20, -30, 0),
-            new( 20,  30, 0),
-            new(-20,  30, 0),
-            new(-20, -30, 50),
-            new( 20, -30, 50),
-            new( 20,  30, 50),
-            new(-20,  30, 50),
-        });
-        mockMesh.Setup(m => m.Triangles).Returns(new int[]
-        {
-            0, 1, 5, 0, 5, 4,
-            2, 3, 7, 2, 7, 6,
-            3, 0, 4, 3, 4, 7,
-            1, 2, 6, 1, 6, 5,
-            0, 3, 2, 0, 2, 1,
-            4, 5, 6, 4, 6, 7
-        });
-
-        var mouldDef = new ConcaveMouldDefinition();
-        var metadata = new MeshMetadata()
-            .WithId(Guid.NewGuid())
-            .WithName("MouldMesh")
-            .WithBaseMesh(mockMesh.Object)
-            .WithMouldDefinition(mouldDef)
-            .WithCommand(mouldDef);
-
-        mockMesh.Setup(m => m.Metadata).Returns(metadata);
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(mockMesh.Object.Vertices);
-                copy.Setup(x => x.Triangles).Returns(mockMesh.Object.Triangles);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.CloneMesh(It.IsAny<IMesh>()))
-            .Returns<IMesh>(m => Result<IMesh>.Success(m));
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics
-            {
-                MinX = -20, MaxX = 20,
-                MinY = -30, MaxY = 30,
-                MinZ = 0, MaxZ = 50
-            }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-        engineMock.Setup(e => e.Evaluators.ValidateTopology(It.IsAny<IMesh>()))
-            .Returns(Result<TopologyValidation>.Success(new TopologyValidation { IsManifold = true }));
-        engineMock.Setup(e => e.Polygons.GetMeshShadow(It.IsAny<IMesh>()))
-            .Returns(Result<Polygon2D>.Success(new Polygon2D { OuterBoundary = new Vector2[] { new(-20, -30), new(20, -30), new(20, 30), new(-20, 30) } }));
-        engineMock.Setup(e => e.Polygons.OffsetPolygon(It.IsAny<Polygon2D>(), It.IsAny<float>()))
-            .Returns<Polygon2D, float>((p, _) => Result<Polygon2D>.Success(p));
-        engineMock.Setup(e => e.Polygons.ExtrudePolygon(It.IsAny<Polygon2D>(), It.IsAny<float>(), It.IsAny<float>()))
-            .Returns(Result<IMesh>.Success(mockMesh.Object));
-        engineMock.Setup(e => e.Booleans.Subtract(It.IsAny<IMesh>(), It.IsAny<IMesh>()))
-            .Returns(Result<IMesh>.Success(mockMesh.Object));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("MouldMesh", new ConcaveMouldDefinition()));
 
         // Starts with Mould target, NO decal selected
         Assert.True(vm.HasMould);
@@ -1126,39 +502,16 @@ public class DecalViewModelTests
     [Fact]
     public async Task DraggingDecal_UpdatesPositionAndCompletesOnDragFinish()
     {
-        var (vm, outlineMock, engineMock) = CreateViewModel();
-
-        var mockMesh = new Mock<IMesh>();
-        mockMesh.Setup(m => m.Vertices).Returns(new Vector3[3]);
-        mockMesh.Setup(m => m.Triangles).Returns(new int[3]);
-        mockMesh.Setup(m => m.Metadata).Returns(new MeshMetadata().WithId(Guid.NewGuid()).WithName("Test"));
-        mockMesh.Setup(m => m.WithMetadata(It.IsAny<MeshMetadata>()))
-            .Returns<MeshMetadata>(meta =>
-            {
-                var copy = new Mock<IMesh>();
-                copy.Setup(x => x.Metadata).Returns(meta);
-                copy.Setup(x => x.Vertices).Returns(new Vector3[3]);
-                copy.Setup(x => x.Triangles).Returns(new int[3]);
-                return copy.Object;
-            });
-
-        engineMock.Setup(e => e.Evaluators.GetStatistics(It.IsAny<IMesh>()))
-            .Returns(Result<MeshStatistics>.Success(new MeshStatistics { MaxZ = 10 }));
-        engineMock.Setup(e => e.Evaluators.GetRenderData(It.IsAny<IMesh>()))
-            .Returns(Result<RenderData>.Success(new RenderData { Vertices = new double[9], Triangles = new int[3] }));
-
-        var workspace = Workspace.CreateEmpty().AddMesh(mockMesh.Object).Value;
-        await vm.ActivateAsync(workspace);
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Test"));
 
         var decal = vm.DecalList[0];
         vm.SelectedDecalId = decal.Id;
 
-        var sceneManager = (DecalSceneManager)vm.SceneManager;
-
         // Simulate decal move
         var newPos = new Vector3(15, 25, 35);
         var newNorm = new Vector3(0, 0, 1);
-        
+
         // Raising DecalMoved
         var movedMethod = typeof(DecalViewModel).GetMethod("OnDecalMoved", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         movedMethod!.Invoke(vm, new object[] { decal.Id, newPos, newNorm });

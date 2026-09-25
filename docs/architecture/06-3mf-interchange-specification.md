@@ -121,7 +121,11 @@ To allow the project to be re-opened and re-edited without degrading geometry, t
 
 Fabolus's packaging strategy adheres strictly to the core 3MF Consortium specifications:
 - **How Slicers See the File**: 3D slicers only slice items explicitly referenced in the `<build>` block (`<item objectid="1" />`). Because Object 2 is marked `type="other"` and has no entry in `<build>`, slicers completely ignore it. You can drag a Fabolus `.3mf` directly into Bambu Studio or PrusaSlicer and slice the mould immediately.
-- **How Fabolus Re-Imports the File**: When opened in Fabolus, [`GeometryIO.Import`](https://github.com/nsmela/Fabolus/blob/v1/src/Geometry.MeshLib/GeometryIO.cs#L305) reads `fab:Commands`, looks for `fab:role="basemesh"` (or `type="other"`), restores the base geometry into `BaseMesh`, and populates the command pipeline.
+- **How Fabolus Re-Imports the File**: When opened in Fabolus, [`ImportMesh`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Features/MeshIO/ImportMesh.cs) reads the package, deserializes `fab:Commands` through [`MeshCommandSerializer`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/MeshCommandSerializer.cs), restores the `fab:role="basemesh"` object as the entry's `BaseMesh`, and reconstructs the `MeshRecord` with its full command history.
+
+  A restored entry is deliberately **not** re-centred or split into components on the way in. It is already in the frame its base mesh replays into — that history carries the centring translation from when it was first imported — and a mould is one entry rather than a pile of shells.
+
+  A history the reader cannot make sense of **fails the import** rather than quietly downgrading to a geometry-only load. An unrecognised command name reports `Metadata.UnknownCommand` and names the command; damaged JSON reports `Metadata.MalformedHistory`. Opening a file that looks correct while having silently forgotten what it is would be the worse outcome — the baked geometry would then disagree with the history claiming to describe it.
 
 <!-- IMAGE_PLACEHOLDER: [Figure 15.2: Round-Trip Project Restoration Flow. Diagram illustrating saving to 3MF and re-importing in a fresh Fabolus session with 100% parametric history preserved. Dimensions: 850x400px.] -->
 

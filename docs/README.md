@@ -38,10 +38,10 @@ Detailed technical specifications for software engineers extending or maintainin
 
 | Document | Description |
 | :--- | :--- |
-| **[01. System Architecture](architecture/01-system-architecture.md)** | Vertical Slice Architecture: `Fabolus.Core` (domain & functional core), `Geometry.MeshLib` (native adapter), `Fabolus.Wpf` (presentation feature slices). |
+| **[01. System Architecture](architecture/01-system-architecture.md)** | Vertical Slice Architecture: `Fabolus.Core` (domain & functional core), `GeometryEngine` (separate geometry library), `Fabolus.Wpf` (presentation feature slices). |
 | **[02. Command-Replay Pipeline](architecture/02-command-replay-pipeline.md)** | The immutable `IMeshCommand` pipeline, `CommandPriority`, cascading invalidation, and non-destructive replay against `BaseMesh`. |
-| **[03. Geometry Engine & Native MeshLib](architecture/03-geometry-engine-and-meshlib.md)** | Integration with MeshInspector C++ `MeshLib`, unmanaged memory lifecycle, polygon offsetting via `Clipper2Lib`, and 3D swept tubes. |
-| **[04. Domain Model & State Management](architecture/04-domain-model-and-workspace.md)** | The `Workspace` aggregate root, `IMesh` contract, `MeshMetadata` type-safe key-value system, and functional error handling (`Result<T>`). |
+| **[03. Geometry Engine](architecture/03-geometry-engine.md)** | The `IGeometryEngine` boundary, the immutable mesh contract, the Manifold kernel and its managed fallback, polygon offsetting via `Clipper2`, and 3D swept tubes. |
+| **[04. Domain Model & State Management](architecture/04-domain-model-and-workspace.md)** | The `Workspace` aggregate root, the `MeshRecord` that holds an entry's identity and history, the `FabolusAnnotations` carried on the geometry, and functional error handling (`Result<T>`). |
 | **[05. WPF MVVM & Scene Managers](architecture/05-wpf-mvvm-and-scene-managers.md)** | CommunityToolkit.Mvvm patterns, decoupling DirectX 11 rendering via `ISceneManager`, and messaging with `WeakReferenceMessenger`. |
 | **[06. 3MF Interchange Specification](architecture/06-3mf-interchange-specification.md)** | Custom XML schema (`fab:Commands`), base mesh resource embedding (`fab:role="basemesh"`), and lossless project round-tripping. |
 | **[07. Testing Strategy & Benchmarks](architecture/07-testing-strategy.md)** | Unit and integration testing practices, `GeometryEngineFixture`, synthetic primitives, and anatomical test suites. |

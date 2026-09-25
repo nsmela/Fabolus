@@ -1,16 +1,28 @@
-using System.Numerics;
+using System.Collections.Immutable;
 using System.Threading;
-using Fabolus.Core.Common.Interfaces;
+using BasicResults;
 using Fabolus.Core.Features.Decal;
-using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Features.Decal;
-using Moq;
+using GeometryEngine.Core.Geometry;
 using Xunit;
+
+using SnVector3 = System.Numerics.Vector3;
 
 namespace Fabolus.Wpf.Tests.Features.Decal;
 
+/// <summary>
+/// Every glyph the app can emboss has to build a sound prism.
+/// </summary>
+/// <remarks>
+/// This is the one decal test that has to live in the WPF project: the outlines come from
+/// WpfGlyphOutlineSource, which renders them with WPF's own text stack and needs an STA thread.
+/// GeometryEngine tests its prism builder against outlines it makes itself, so nothing else
+/// checks that what a real font hands over is something the builder can close.
+/// </remarks>
 public class GlyphMeshTests
 {
+    private static readonly IGeometryEngine Engine = global::GeometryEngine.BspGeometryEngine.Create();
+
     private static void RunInSta(Action action)
     {
         Exception? exception = null;
@@ -33,17 +45,50 @@ public class GlyphMeshTests
             throw exception;
     }
 
+    private static Result<IMesh> BuildPrism(IReadOnlyList<Polygon2D> outlines)
+    {
+        var frame = DecalFrame.FromHit(SnVector3.Zero, SnVector3.UnitZ, 0f);
+
+        return Engine.Decals.BuildPrism(new DecalPrismSpec(
+            outlines.ToImmutableArray(),
+            new SurfaceFrame(
+                new Vector3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z),
+                new Vector3(frame.U.X, frame.U.Y, frame.U.Z),
+                new Vector3(frame.V.X, frame.V.Y, frame.V.Z),
+                new Vector3(frame.N.X, frame.N.Y, frame.N.Z)),
+            Depth: 0.8,
+            Sink: -0.05,
+            Overshoot: 0.05,
+            MaxEdgeLength: 0.5));
+    }
+
+    private void AssertSoundPrism(IMesh mesh, string what)
+    {
+        Assert.True(mesh.TriangleCount > 0, $"Mesh has 0 triangles for {what}");
+
+        var topology = Engine.Evaluators.ValidateTopology(mesh);
+        if (topology.IsFailure)
+            Assert.Fail($"Topology validation failed for {what}: {topology.Error.Description}");
+
+        Assert.True(topology.Value.IsManifold, $"{what} is NOT manifold!");
+        Assert.True(topology.Value.IsWatertight, $"{what} is NOT watertight!");
+        Assert.Equal(0, topology.Value.DegenerateTriangleCount);
+
+        var selfIntersections = Engine.Evaluators.CountSelfIntersections(mesh);
+        if (selfIntersections.IsSuccess)
+            Assert.Equal(0, selfIntersections.Value);
+    }
+
     [Theory]
     [InlineData("FABOLUS")]
     [InlineData("ABCDEFGHIJKLMNOPQRSTUVWXYZ")]
     [InlineData("abcdefghijklmnopqrstuvwxyz")]
     [InlineData("0123456789")]
     [InlineData("!@#$%&*()-_+=[]{}|:;,.?")]
-    public void BuildTextPrism_AllAlphanumericCharacters_GeneratesCleanManifoldMesh(string characters)
+    public void EveryGlyph_BuildsACleanManifoldPrism(string characters)
     {
         RunInSta(() =>
         {
-            var engine = new GeometryEngineAdapter(new Mock<IFileSystem>().Object);
             var outlineSource = new WpfGlyphOutlineSource();
 
             foreach (char c in characters)
@@ -51,67 +96,34 @@ public class GlyphMeshTests
                 string text = c.ToString();
                 foreach (var font in new[] { DecalFont.Sans, DecalFont.Mono, DecalFont.Bold })
                 {
-                    var outlineResult = outlineSource.GetOutlines(text, font, capHeight: 6.0f, tracking: 0.4f);
-                    if (outlineResult.IsFailure || outlineResult.Value.Count == 0) continue;
+                    var outlines = outlineSource.GetOutlines(text, font, capHeight: 6.0f, tracking: 0.4f);
+                    if (outlines.IsFailure || outlines.Value.Count == 0) continue;
 
-                    var outlines = outlineResult.Value;
-                    var frame = DecalFrame.FromHit(Vector3.Zero, Vector3.UnitZ, 0f);
-                    var prismResult = engine.Generators.BuildTextPrism(
-                        outlines,
-                        frame,
-                        depth: 0.8f,
-                        sink: -0.05f,
-                        overshoot: 0.05f,
-                        maxEdgeLength: 0.5f);
+                    var prism = BuildPrism(outlines.Value);
+                    if (prism.IsFailure)
+                        Assert.Fail($"Failed to build prism for character '{c}' ({font}): {prism.Error.Description}");
 
-                    if (prismResult.IsFailure)
-                        Assert.Fail($"Failed to build prism for character '{c}' ({font}): {prismResult.Error.Description}");
-
-                    var mesh = prismResult.Value;
-                    Assert.True(mesh.TriangleCount > 0, $"Mesh has 0 triangles for '{c}' ({font})");
-
-                    var topoResult = engine.Evaluators.ValidateTopology(mesh);
-                    if (topoResult.IsFailure)
-                        Assert.Fail($"Topology validation failed for '{c}' ({font}): {topoResult.Error.Description}");
-
-                    var topo = topoResult.Value;
-                    Assert.True(topo.IsManifold, $"Character '{c}' ({font}) is NOT manifold!");
-                    Assert.True(topo.IsWatertight, $"Character '{c}' ({font}) is NOT watertight!");
-                    Assert.Equal(0, topo.SelfIntersectionCount);
-                    Assert.False(topo.HasDegenerateTriangles, $"Character '{c}' ({font}) has degenerate triangles!");
+                    AssertSoundPrism(prism.Value, $"character '{c}' ({font})");
                 }
             }
         });
     }
 
     [Fact]
-    public void BuildTextPrism_WordFabolus_GeneratesCleanManifoldMesh()
+    public void AWholeWord_BuildsACleanManifoldPrism()
     {
         RunInSta(() =>
         {
-            var engine = new GeometryEngineAdapter(new Mock<IFileSystem>().Object);
             var outlineSource = new WpfGlyphOutlineSource();
 
-            var outlineResult = outlineSource.GetOutlines("FABOLUS", DecalFont.Sans, capHeight: 6.0f, tracking: 0.4f);
-            Assert.True(outlineResult.IsSuccess);
-            Assert.NotEmpty(outlineResult.Value);
+            var outlines = outlineSource.GetOutlines("FABOLUS", DecalFont.Sans, capHeight: 6.0f, tracking: 0.4f);
+            Assert.True(outlines.IsSuccess);
+            Assert.NotEmpty(outlines.Value);
 
-            var frame = DecalFrame.FromHit(Vector3.Zero, Vector3.UnitZ, 0f);
-            var prismResult = engine.Generators.BuildTextPrism(
-                outlineResult.Value,
-                frame,
-                depth: 0.8f,
-                sink: -0.05f,
-                overshoot: 0.05f,
-                maxEdgeLength: 0.5f);
+            var prism = BuildPrism(outlines.Value);
+            Assert.True(prism.IsSuccess, prism.IsFailure ? prism.Error.Description : string.Empty);
 
-            Assert.True(prismResult.IsSuccess);
-            var topoResult = engine.Evaluators.ValidateTopology(prismResult.Value);
-            Assert.True(topoResult.IsSuccess);
-            Assert.True(topoResult.Value.IsManifold);
-            Assert.True(topoResult.Value.IsWatertight);
-            Assert.Equal(0, topoResult.Value.SelfIntersectionCount);
-            Assert.False(topoResult.Value.HasDegenerateTriangles);
+            AssertSoundPrism(prism.Value, "the word FABOLUS");
         });
     }
 }

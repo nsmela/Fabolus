@@ -122,10 +122,12 @@ A 3D mesh that forms a completely enclosed solid volume with zero holes or open 
 ## 4. Fabolus Pipeline & Architectural Concepts
 
 ### BaseMesh
-The unmodified triangle mesh imported into Fabolus from an external source (such as an STL exported from a clinical TPS). It is stored in metadata (`CoreKeys.BaseMesh`) and serves as the immutable root against which the command pipeline is replayed.
+The unmodified triangle mesh imported into Fabolus from an external source (such as an STL exported from a clinical TPS). It is held on the workspace entry (`MeshRecord.BaseMesh`) and serves as the immutable root against which the command pipeline is replayed.
 
 ### Command History Pipeline
-An ordered, non-destructive list of `IMeshCommand` records stored in a mesh's metadata (`CoreKeys.Commands`). Each command carries a static `Priority` from `CommandPriority`: `Transform = 10` (rotate, translate, smoothing), `TextEmboss = 15`, `Mould = 20`, and `MouldTextEmboss = 25`. Recording a command clears any existing commands with a strictly greater priority (they depended on geometry the new command changed); commands sharing a priority do not clear each other. Replaying the list against the `BaseMesh` reconstructs the current mesh.
+An ordered, non-destructive list of `IMeshCommand` records held on the workspace entry (`MeshRecord.Commands`). Each command carries a static `Priority` from `CommandPriority`: `Transform = 10` (rotate, translate, smoothing), `TextEmboss = 15`, `Mould = 20`, and `MouldTextEmboss = 25`. Recording a command clears any existing commands with a strictly greater priority (they depended on geometry the new command changed); commands sharing a priority do not clear each other. Replaying the list against the `BaseMesh` reconstructs the current mesh.
+
+The history lives on the entry rather than on the geometry so that it survives operations which replace the geometry outright — a boolean returns a mesh that is neither of its operands, and an entry whose history vanished at that point would forget it was a mould.
 
 ### Predictable Error Handling (Result and Maybe Patterns)
 A programming pattern where operations explicitly return `Result<T>` (either a success value or a clear clinical diagnostic) or `Maybe<T>` (an optional reference without null pointers), ensuring that 3D geometry computations never crash silently or produce corrupted model files.
