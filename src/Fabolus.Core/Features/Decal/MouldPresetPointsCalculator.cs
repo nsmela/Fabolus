@@ -25,6 +25,12 @@ public static class MouldPresetPointsCalculator
         if (statsResult.IsFailure)
             return Array.Empty<DecalPresetPoint>();
 
+        // One index for all 76 rays. Each ray used to build its own, over the whole mould.
+        var surfaceResult = DecalSurface.For(engine, mouldMesh);
+        if (surfaceResult.IsFailure)
+            return Array.Empty<DecalPresetPoint>();
+        var index = surfaceResult.Value.Index;
+
         var s = statsResult.Value;
         float zMid = (float)(s.BoundsMin.Z + s.BoundsMax.Z) * 0.5f;
         float xCenter = (float)(s.BoundsMin.X + s.BoundsMax.X) * 0.5f;
@@ -41,7 +47,7 @@ public static class MouldPresetPointsCalculator
         // 1. Front (-Y direction) - horizontal orientation
         var frontRayOrigin = new Vector3(xCenter, minY - RaycastOffsetDistance, zMid);
         var frontRayDir = new Vector3(0f, 1f, 0f);
-        var frontHit = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(frontRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(frontRayDir).Value);
+        var frontHit = index.Raycast(frontRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(frontRayDir).Value);
         if (frontHit.HasValue)
         {
             presets.Add(new DecalPresetPoint("Front", frontHit.Value.Point, frontHit.Value.Normal, 0f, mouldWidth, EmbossTarget.Mould));
@@ -54,7 +60,7 @@ public static class MouldPresetPointsCalculator
         // 2. Back (+Y direction) - horizontal orientation
         var backRayOrigin = new Vector3(xCenter, maxY + RaycastOffsetDistance, zMid);
         var backRayDir = new Vector3(0f, -1f, 0f);
-        var backHit = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(backRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(backRayDir).Value);
+        var backHit = index.Raycast(backRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(backRayDir).Value);
         if (backHit.HasValue)
         {
             presets.Add(new DecalPresetPoint("Back", backHit.Value.Point, backHit.Value.Normal, 0f, mouldWidth, EmbossTarget.Mould));
@@ -67,7 +73,7 @@ public static class MouldPresetPointsCalculator
         // 3. Left (-X direction)
         var leftRayOrigin = new Vector3(minX - RaycastOffsetDistance, yCenter, zMid);
         var leftRayDir = new Vector3(1f, 0f, 0f);
-        var leftHit = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(leftRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(leftRayDir).Value);
+        var leftHit = index.Raycast(leftRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(leftRayDir).Value);
         if (leftHit.HasValue)
         {
             presets.Add(new DecalPresetPoint("Left", leftHit.Value.Point, leftHit.Value.Normal, 90f, mouldHeight, EmbossTarget.Mould));
@@ -80,7 +86,7 @@ public static class MouldPresetPointsCalculator
         // 4. Right (+X direction)
         var rightRayOrigin = new Vector3(maxX + RaycastOffsetDistance, yCenter, zMid);
         var rightRayDir = new Vector3(-1f, 0f, 0f);
-        var rightHit = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(rightRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(rightRayDir).Value);
+        var rightHit = index.Raycast(rightRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(rightRayDir).Value);
         if (rightHit.HasValue)
         {
             presets.Add(new DecalPresetPoint("Right", rightHit.Value.Point, rightHit.Value.Normal, 90f, mouldHeight, EmbossTarget.Mould));
@@ -91,7 +97,7 @@ public static class MouldPresetPointsCalculator
         }
 
         // 5 & 6. Analyze 2D contour to find strong curves that don't overlap cardinals
-        CalculateCurvePresets(engine, mouldMesh, s, mouldHeight, presets, out var curve1, out var curve2);
+        CalculateCurvePresets(index, s, mouldHeight, presets, out var curve1, out var curve2);
         if (curve1 is not null) presets.Add(curve1);
         if (curve2 is not null) presets.Add(curve2);
 
@@ -113,8 +119,7 @@ public static class MouldPresetPointsCalculator
     }
 
     private static void CalculateCurvePresets(
-        IGeometryEngine engine,
-        IMesh mouldMesh,
+        GeometryEngine.Core.Geometry.ISpatialIndex index,
         MeshStatistics stats,
         float mouldHeight,
         IReadOnlyList<DecalPresetPoint> cardinalPoints,
@@ -147,7 +152,7 @@ public static class MouldPresetPointsCalculator
             var rayOrigin = new Vector3(xCenter + cos * radius, yCenter + sin * radius, zMid);
             var rayDir = new Vector3(-cos, -sin, 0f);
 
-            var hitResult = engine.Spatial.BuildIndex(mouldMesh).Value.Raycast(rayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(rayDir).Value);
+            var hitResult = index.Raycast(rayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(rayDir).Value);
             if (hitResult.HasValue)
             {
                 points.Add(hitResult.Value.Point);

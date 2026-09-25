@@ -4,16 +4,11 @@ using Fabolus.Core.Geometry;
 namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
-/// Executes 3D text solid generation, surface contouring, and Boolean union/subtraction for decals.
+/// Builds text prisms, contours them to the target surface, and joins them onto or cuts them into
+/// the target with Boolean union/subtraction.
 /// </summary>
 public sealed class GenerateDecals
 {
-    private const float EmbossSinkOffset = -0.25f;
-    private const float EmbossOvershootOffset = 0.0f;
-    private const float EngraveOvershootOffset = 0.5f;
-    private const float MinMaxEdgeLength = 0.4f;
-    private const float CapHeightToEdgeLengthDivisor = 8.0f;
-
     private readonly IGlyphOutlineSource _outlineSource;
 
     public GenerateDecals(IGlyphOutlineSource outlineSource)
@@ -22,8 +17,24 @@ public sealed class GenerateDecals
     }
 
     /// <summary>
-    /// Applies a collection of text decals to the target mesh in sequence.
+    /// Applies a collection of text decals to the target mesh.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A Boolean against the target costs in proportion to the target, which is tens of
+    /// thousands of triangles, while a text prism is a few thousand. So rather than one Boolean
+    /// against the target per decal, the prisms are merged first and the target is operated on
+    /// once per run of decals that share an operation - usually once in all. Merging is a union
+    /// of the small prisms, so overlapping labels still merge correctly. Union and subtraction
+    /// are associative, so T - A - B = T - (A U B) and the result is the same set as before.
+    /// Runs are kept in list order, so an engrave that follows an emboss still cuts into it.
+    /// </para>
+    /// <para>
+    /// Every prism is contoured to the untouched target, through one spatial index, rather than
+    /// to the mesh left by the decals before it. That is what the preview shows, and it only
+    /// differs from the old sequential projection where two labels overlap.
+    /// </para>
+    /// </remarks>
     public Result<IMesh> Execute(IGeometryEngine engine, IMesh target, IReadOnlyList<TextDecal> decals, List<string>? warnings = null)
     {
         if (target is null)
@@ -32,15 +43,49 @@ public sealed class GenerateDecals
         if (decals is null || decals.Count == 0)
             return DecalErrors.NoDecalsProvided;
 
-        var currentMesh = target;
+        var surfaceResult = DecalSurface.For(engine, target);
+        if (surfaceResult.IsFailure)
+            return surfaceResult.Error;
+
+        var surface = surfaceResult.Value;
+
+        var prisms = new List<(EmbossOperation Operation, IMesh Prism)>(decals.Count);
         foreach (var decal in decals)
         {
-            var result = ExecuteSingle(engine, currentMesh, decal, warnings);
-            if (result.IsFailure) return result;
-            currentMesh = result.Value;
+            if (decal is null)
+                return DecalErrors.NoDecalsProvided;
+
+            if (string.IsNullOrWhiteSpace(decal.Text))
+                return DecalErrors.EmptyOutlines;
+
+            var prism = surface.GetOrBuildPrism(engine, _outlineSource, DecalPrismRequest.ForApply(decal));
+            if (prism.IsFailure)
+                return prism.Error;
+
+            prisms.Add((decal.Operation, prism.Value));
         }
 
-        return Result.Success(currentMesh);
+        var current = target;
+        for (int start = 0; start < prisms.Count;)
+        {
+            var operation = prisms[start].Operation;
+            int end = start;
+            while (end < prisms.Count && prisms[end].Operation == operation)
+                end++;
+
+            var run = new List<IMesh>(end - start);
+            for (int i = start; i < end; i++)
+                run.Add(prisms[i].Prism);
+
+            var applied = ApplyRun(engine, current, operation, run);
+            if (applied.IsFailure)
+                return applied;
+
+            current = applied.Value;
+            start = end;
+        }
+
+        return ValidateAndReturn(engine, current);
     }
 
     /// <summary>
@@ -52,64 +97,77 @@ public sealed class GenerateDecals
     /// <summary>
     /// Applies a single text decal to the target mesh.
     /// </summary>
-    public Result<IMesh> ExecuteSingle(IGeometryEngine engine, IMesh target, TextDecal decal, List<string>? warnings = null)
+    public Result<IMesh> ExecuteSingle(IGeometryEngine engine, IMesh target, TextDecal decal, List<string>? warnings = null) =>
+        decal is null
+            ? DecalErrors.NoDecalsProvided
+            : Execute(engine, target, [decal], warnings);
+
+    /// <summary>
+    /// Joins or cuts one run of same-operation prisms with a single Boolean against the target.
+    /// Falls back to one Boolean per prism - the old behaviour - if merging them, or the merged
+    /// Boolean, fails, so a label that used to apply still does.
+    /// </summary>
+    private static Result<IMesh> ApplyRun(IGeometryEngine engine, IMesh target, EmbossOperation operation, IReadOnlyList<IMesh> prisms)
     {
-        if (target is null)
-            return MeshErrors.NullSource;
+        if (prisms.Count > 1)
+        {
+            var tool = MergePrisms(engine, prisms);
+            if (tool.IsSuccess)
+            {
+                var merged = Combine(engine, target, tool.Value, operation);
+                if (merged.IsSuccess)
+                    return merged;
+            }
+        }
 
-        if (decal is null)
-            return DecalErrors.NoDecalsProvided;
+        var current = target;
+        foreach (var prism in prisms)
+        {
+            var result = Combine(engine, current, prism, operation);
+            if (result.IsFailure)
+                return new Error("Decal.BooleanFailed", $"Boolean operation failed: {result.Error.Description}");
 
-        if (string.IsNullOrWhiteSpace(decal.Text))
-            return DecalErrors.EmptyOutlines;
+            current = result.Value;
+        }
 
-        var outlineResult = _outlineSource.GetOutlines(decal.Text, decal.Font, decal.CapHeight, decal.Tracking);
-        if (outlineResult.IsFailure)
-            return outlineResult.Error;
-
-        var outlines = outlineResult.Value;
-        if (outlines.Count == 0)
-            return DecalErrors.EmptyOutlines;
-
-        var frame = DecalFrame.FromHit(
-            new System.Numerics.Vector3((float)decal.Anchor.X, (float)decal.Anchor.Y, (float)decal.Anchor.Z), 
-            new System.Numerics.Vector3((float)decal.AnchorNormal.X, (float)decal.AnchorNormal.Y, (float)decal.AnchorNormal.Z), 
-            decal.RotationDeg);
-
-        float sink = decal.Operation == EmbossOperation.Emboss ? EmbossSinkOffset : -decal.Depth;
-        float overshoot = decal.Operation == EmbossOperation.Emboss ? EmbossOvershootOffset : EngraveOvershootOffset;
-        float maxEdge = Math.Max(MinMaxEdgeLength, decal.CapHeight / CapHeightToEdgeLengthDivisor);
-        IMesh? surfaceTarget = target;
-
-        var spec = new GeometryEngine.Core.Geometry.DecalPrismSpec(
-            [.. outlines],
-            new GeometryEngine.Core.Geometry.SurfaceFrame(
-                new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z),
-                new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.U.X, frame.U.Y, frame.U.Z),
-                new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.V.X, frame.V.Y, frame.V.Z),
-                new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.N.X, frame.N.Y, frame.N.Z)
-            ),
-            Depth: decal.Depth,
-            Sink: sink,
-            Overshoot: overshoot,
-            MaxEdgeLength: maxEdge,
-            SurfaceIndex: surfaceTarget is null ? BasicResults.Maybe<GeometryEngine.Core.Geometry.ISpatialIndex>.None() : BasicResults.Maybe<GeometryEngine.Core.Geometry.ISpatialIndex>.Some(engine.Spatial.BuildIndex(surfaceTarget).Value)
-        );
-        var prismResult = engine.Decals.BuildPrism(spec);
-        if (prismResult.IsFailure)
-            return prismResult.Error;
-
-        var prismMesh = prismResult.Value;
-
-        var booleanResult = decal.Operation == EmbossOperation.Emboss
-            ? engine.Booleans.Union(target, prismMesh)
-            : engine.Booleans.Subtract(target, prismMesh);
-
-        if (booleanResult.IsFailure)
-            return new Error("Decal.BooleanFailed", $"Boolean operation failed: {booleanResult.Error.Description}");
-
-        return ValidateAndReturn(engine, booleanResult.Value);
+        return Result.Success(current);
     }
+
+    /// <summary>
+    /// Unions the prisms pairwise, level by level, so each Boolean joins two meshes of similar
+    /// size rather than folding every prism into one ever-growing accumulator.
+    /// </summary>
+    private static Result<IMesh> MergePrisms(IGeometryEngine engine, IReadOnlyList<IMesh> prisms)
+    {
+        var level = new List<IMesh>(prisms);
+        while (level.Count > 1)
+        {
+            var next = new List<IMesh>((level.Count + 1) / 2);
+            for (int i = 0; i < level.Count; i += 2)
+            {
+                if (i + 1 == level.Count)
+                {
+                    next.Add(level[i]);
+                    continue;
+                }
+
+                var union = engine.Booleans.Union(level[i], level[i + 1]);
+                if (union.IsFailure)
+                    return union.Error;
+
+                next.Add(union.Value);
+            }
+
+            level = next;
+        }
+
+        return Result.Success(level[0]);
+    }
+
+    private static Result<IMesh> Combine(IGeometryEngine engine, IMesh target, IMesh tool, EmbossOperation operation) =>
+        operation == EmbossOperation.Emboss
+            ? engine.Booleans.Union(target, tool)
+            : engine.Booleans.Subtract(target, tool);
 
     /// <summary>
     /// Refuses a decal result that is not a printable solid, and accepts one that is merely untidy.

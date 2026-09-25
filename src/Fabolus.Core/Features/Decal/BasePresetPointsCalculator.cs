@@ -22,6 +22,11 @@ public static class BasePresetPointsCalculator
         if (statsResult.IsFailure)
             return Array.Empty<DecalPresetPoint>();
 
+        var surfaceResult = DecalSurface.For(engine, baseMesh);
+        if (surfaceResult.IsFailure)
+            return Array.Empty<DecalPresetPoint>();
+        var index = surfaceResult.Value.Index;
+
         var s = statsResult.Value;
         float zMid = (float)(s.BoundsMin.Z + s.BoundsMax.Z) * 0.5f;
         float xCenter = (float)(s.BoundsMin.X + s.BoundsMax.X) * 0.5f;
@@ -36,7 +41,7 @@ public static class BasePresetPointsCalculator
         // 1. Top (raycast down from +Z at XY center) - horizontal orientation
         var topRayOrigin = new Vector3(xCenter, yCenter, maxZ + RaycastOffsetDistance);
         var topRayDir = new Vector3(0f, 0f, -1f);
-        var topHitResult = engine.Spatial.BuildIndex(baseMesh).Value.Raycast(topRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(topRayDir).Value);
+        var topHitResult = index.Raycast(topRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(topRayDir).Value);
         if (topHitResult.HasValue)
         {
             presets.Add(new DecalPresetPoint("Top", topHitResult.Value.Point, topHitResult.Value.Normal, 0f, baseWidth, EmbossTarget.Base));
@@ -49,7 +54,7 @@ public static class BasePresetPointsCalculator
         // 2. Front (-Y direction at mid-height) - horizontal orientation
         var frontRayOrigin = new Vector3(xCenter, minY - RaycastOffsetDistance, zMid);
         var frontRayDir = new Vector3(0f, 1f, 0f);
-        var frontHitResult = engine.Spatial.BuildIndex(baseMesh).Value.Raycast(frontRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(frontRayDir).Value);
+        var frontHitResult = index.Raycast(frontRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(frontRayDir).Value);
         if (frontHitResult.HasValue)
         {
             presets.Add(new DecalPresetPoint("Front", frontHitResult.Value.Point, frontHitResult.Value.Normal, 0f, baseWidth, EmbossTarget.Base));
@@ -62,7 +67,7 @@ public static class BasePresetPointsCalculator
         // 3. Back (+Y direction at mid-height) - horizontal orientation
         var backRayOrigin = new Vector3(xCenter, maxY + RaycastOffsetDistance, zMid);
         var backRayDir = new Vector3(0f, -1f, 0f);
-        var backHitResult = engine.Spatial.BuildIndex(baseMesh).Value.Raycast(backRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(backRayDir).Value);
+        var backHitResult = index.Raycast(backRayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(backRayDir).Value);
         if (backHitResult.HasValue)
         {
             presets.Add(new DecalPresetPoint("Back", backHitResult.Value.Point, backHitResult.Value.Normal, 0f, baseWidth, EmbossTarget.Base));

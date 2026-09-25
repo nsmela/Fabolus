@@ -43,6 +43,10 @@ public sealed class DecalSceneManager : ISceneManager
     private readonly Dictionary<Guid, MeshGeometryModel3D> _decalVisuals = [];
     private readonly Dictionary<Guid, Guid> _visualToDecalId = [];
 
+    // The prism and skin each decal visual is showing, so a refresh can skip decals that did not
+    // change instead of re-uploading every label's geometry on every preview tick.
+    private readonly Dictionary<Guid, (IMesh Prism, Material Skin)> _shownPrisms = [];
+
     // Preset sphere markers
     private readonly Dictionary<Guid, MeshGeometryModel3D> _presetSphereVisuals = [];
     private readonly Dictionary<Guid, DecalPresetPoint> _visualToPreset = [];
@@ -116,7 +120,7 @@ public sealed class DecalSceneManager : ISceneManager
         // Preparing the surface for querying is the expensive part of building a decal on a large
         // mesh, and it only has to happen once per mesh. Start it now, off the UI thread, so the
         // first label the user drags is as quick as every one after it rather than stalling.
-        _ = Task.Run(() => _engine.Spatial.BuildIndex(mesh));
+        _ = Task.Run(() => DecalSurface.For(_engine, mesh));
 
         var helixMeshResult = mesh.ToHelixMesh(_engine);
         if (helixMeshResult.IsFailure)
@@ -157,6 +161,14 @@ public sealed class DecalSceneManager : ISceneManager
             return;
         }
 
+        var surfaceResult = DecalSurface.For(_engine, TargetMesh);
+        if (surfaceResult.IsFailure)
+        {
+            ClearPreviewVisuals();
+            return;
+        }
+        var surface = surfaceResult.Value;
+
         var activeIds = new HashSet<Guid>();
         TextDecal? selectedDecal = null;
 
@@ -180,7 +192,7 @@ public sealed class DecalSceneManager : ISceneManager
                 continue;
             }
 
-            var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)decal.Anchor.X, (float)decal.Anchor.Y, (float)decal.Anchor.Z), new System.Numerics.Vector3((float)decal.AnchorNormal.X, (float)decal.AnchorNormal.Y, (float)decal.AnchorNormal.Z), decal.RotationDeg);
+            // Outlines are cached by the glyph source, so this check is a lookup.
             var outlineResult = outlineSource.GetOutlines(decal.Text, decal.Font, decal.CapHeight, decal.Tracking);
             if (outlineResult.IsFailure || outlineResult.Value.Count == 0)
             {
@@ -188,18 +200,24 @@ public sealed class DecalSceneManager : ISceneManager
                 continue;
             }
 
-            float sink = PreviewSinkOffset;
-            float overshoot = PreviewOvershootOffset;
-            float maxEdge = Math.Max(MinPreviewEdgeLength, decal.CapHeight / PreviewCapHeightDivisor);
-            IMesh? surfaceTarget = TargetMesh;
-
-            var prismResult = _engine.Decals.BuildPrism(new GeometryEngine.Core.Geometry.DecalPrismSpec([.. outlineResult.Value], new GeometryEngine.Core.Geometry.SurfaceFrame(new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.U.X, frame.U.Y, frame.U.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.V.X, frame.V.Y, frame.V.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.N.X, frame.N.Y, frame.N.Z)), decal.Depth, sink, overshoot, maxEdge, surfaceTarget is null ? BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.None() : BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.Some(surfaceTarget)));
+            var request = PreviewRequest(decal, decal.Text, decal.CapHeight, decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
+            var prismResult = surface.GetOrBuildPrism(_engine, outlineSource, request);
             if (prismResult.IsFailure) continue;
 
-            var helixPrismResult = prismResult.Value.ToHelixMesh(_engine);
-            if (helixPrismResult.IsFailure) continue;
-
+            var prism = prismResult.Value;
             var skin = decal.Operation == EmbossOperation.Emboss ? _embossSkin : _engraveSkin;
+
+            // Unchanged since the last refresh: the visual already shows exactly this.
+            if (_decalVisuals.ContainsKey(decal.Id)
+                && _shownPrisms.TryGetValue(decal.Id, out var shown)
+                && ReferenceEquals(shown.Prism, prism)
+                && ReferenceEquals(shown.Skin, skin))
+            {
+                continue;
+            }
+
+            var helixPrismResult = prism.ToHelixMesh(_engine);
+            if (helixPrismResult.IsFailure) continue;
 
             if (!_decalVisuals.TryGetValue(decal.Id, out var model))
             {
@@ -224,6 +242,8 @@ public sealed class DecalSceneManager : ISceneManager
                 model.Visibility = Visibility.Visible;
                 VisualAddedOrUpdated?.Invoke(model);
             }
+
+            _shownPrisms[decal.Id] = (prism, skin);
         }
 
         // Remove visuals that are no longer present
@@ -286,9 +306,16 @@ public sealed class DecalSceneManager : ISceneManager
         var rectPolygon = new Polygon2D([new GeometryEngine.Core.Geometry.Primitives.Vec2(-halfW, -halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(halfW, -halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(halfW, halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(-halfW, halfH)], []);
 
         float maxEdge = Math.Max(MinPatchEdgeLength, decal.CapHeight / PatchCapHeightDivisor);
-        IMesh? surfaceTarget = TargetMesh;
 
-        var patchResult = _engine.Decals.BuildPrism(new GeometryEngine.Core.Geometry.DecalPrismSpec([.. new[] { rectPolygon }], new GeometryEngine.Core.Geometry.SurfaceFrame(new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.U.X, frame.U.Y, frame.U.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.V.X, frame.V.Y, frame.V.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.N.X, frame.N.Y, frame.N.Z)), PatchDepth, PatchSink, PatchOvershoot, maxEdge, surfaceTarget is null ? BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.None() : BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.Some(surfaceTarget)));
+        // Runs on every mouse move, so it must query the prepared surface rather than hand the
+        // engine the raw mesh to index all over again.
+        var surfaceResult = DecalSurface.For(_engine, TargetMesh);
+        if (surfaceResult.IsFailure) return;
+
+        // The visual is about to show the patch, not the label's prism.
+        _shownPrisms.Remove(decal.Id);
+
+        var patchResult = surfaceResult.Value.BuildPrism(_engine, [rectPolygon], frame, PatchDepth, PatchSink, PatchOvershoot, maxEdge);
         if (patchResult.IsSuccess)
         {
             var helixPatch = patchResult.Value.ToHelixMesh(_engine);
@@ -324,6 +351,11 @@ public sealed class DecalSceneManager : ISceneManager
         }
     }
 
+    private static DecalPrismRequest PreviewRequest(TextDecal decal, string text, float capHeight, Vector3 anchor, Vector3 normal, float rotationDeg) =>
+        new(text, decal.Font, capHeight, decal.Tracking, anchor, normal, rotationDeg, decal.Depth,
+            PreviewSinkOffset, PreviewOvershootOffset,
+            Math.Max(MinPreviewEdgeLength, capHeight / PreviewCapHeightDivisor));
+
     private void RemoveDecalVisual(Guid decalId)
     {
         if (_decalVisuals.TryGetValue(decalId, out var model))
@@ -331,6 +363,7 @@ public sealed class DecalSceneManager : ISceneManager
             VisualRemovedById?.Invoke(model.GUID);
             _visualToDecalId.Remove(model.GUID);
             _decalVisuals.Remove(decalId);
+            _shownPrisms.Remove(decalId);
         }
     }
 
@@ -403,12 +436,17 @@ public sealed class DecalSceneManager : ISceneManager
         }
 
         var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)preset.Position.X, (float)preset.Position.Y, (float)preset.Position.Z), new System.Numerics.Vector3((float)preset.Normal.X, (float)preset.Normal.Y, (float)preset.Normal.Z), preset.RotationDeg);
-        float sink = PreviewSinkOffset;
-        float overshoot = PreviewOvershootOffset;
-        float maxEdge = Math.Max(MinPreviewEdgeLength, capHeight / PreviewCapHeightDivisor);
-        IMesh? surfaceTarget = TargetMesh;
 
-        var prismResult = _engine.Decals.BuildPrism(new GeometryEngine.Core.Geometry.DecalPrismSpec([.. outlineResult.Value], new GeometryEngine.Core.Geometry.SurfaceFrame(new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.U.X, frame.U.Y, frame.U.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.V.X, frame.V.Y, frame.V.Z), new GeometryEngine.Core.Geometry.Primitives.Vec3(frame.N.X, frame.N.Y, frame.N.Z)), decal.Depth, sink, overshoot, maxEdge, surfaceTarget is null ? BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.None() : BasicResults.Maybe<GeometryEngine.Core.Geometry.IMesh>.Some(surfaceTarget)));
+        var surfaceResult = DecalSurface.For(_engine, TargetMesh);
+        if (surfaceResult.IsFailure)
+        {
+            ClearPresetHoverPreview();
+            return;
+        }
+
+        // Cached per preset, so hovering back and forth between spheres builds each once.
+        var request = PreviewRequest(decal, text, capHeight, preset.Position, preset.Normal, preset.RotationDeg);
+        var prismResult = surfaceResult.Value.GetOrBuildPrism(_engine, outlineSource, request);
         if (prismResult.IsFailure)
         {
             ClearPresetHoverPreview();
@@ -509,6 +547,7 @@ public sealed class DecalSceneManager : ISceneManager
         }
         _decalVisuals.Clear();
         _visualToDecalId.Clear();
+        _shownPrisms.Clear();
 
         if (_gizmoLineId != Guid.Empty)
         {
