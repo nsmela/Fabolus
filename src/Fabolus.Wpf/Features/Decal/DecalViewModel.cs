@@ -12,6 +12,7 @@ using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Viewport;
 
 namespace Fabolus.Wpf.Features.Decal;
@@ -50,6 +51,14 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     private bool _isSyncingFromModel;
     private readonly DispatcherTimer _previewTimer;
     private bool _previewPending;
+
+    /// <summary>
+    /// How many decal operations are currently holding the viewport's loading overlay up. The
+    /// overlay is a single shared flag, so a nested operation - ClearDecals calls ClearText -
+    /// must not lower it while the outer one is still working. Only ever touched from the UI
+    /// thread, so a plain counter is enough.
+    /// </summary>
+    private int _busyDepth;
 
     /// <summary>
     /// How close a decal anchor has to sit to a preset for that preset to count as taken.
@@ -292,6 +301,84 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         return span > 0f
             ? MouldPresetPointsCalculator.CalculateSuggestedCapHeight(span, charCount)
             : fallback;
+    }
+
+    /// <summary>
+    /// Raises the viewport's loading overlay until the returned scope is disposed.
+    /// </summary>
+    /// <remarks>
+    /// Decal work is geometry work - replaying a command list, rebuilding a mould, 76 preset
+    /// raycasts - and it is slow enough on a real bolus that the window looks hung without this.
+    /// The overlay can only paint if the UI thread is free, so every caller of this also pushes
+    /// its heavy work off that thread; raising the flag around a blocking call would show
+    /// nothing at all.
+    /// </remarks>
+    private BusyScope Busy() => new(this);
+
+    private readonly struct BusyScope : IDisposable
+    {
+        private readonly DecalViewModel _owner;
+
+        public BusyScope(DecalViewModel owner)
+        {
+            _owner = owner;
+            if (owner._busyDepth++ == 0)
+            {
+                owner._messenger.Send(new IsLoadingMessage(true));
+            }
+        }
+
+        public void Dispose()
+        {
+            if (--_owner._busyDepth == 0)
+            {
+                _owner._messenger.Send(new IsLoadingMessage(false));
+            }
+        }
+    }
+
+    /// <summary>
+    /// <see cref="UpdatePresets"/> with the raycasting done off the UI thread. The calculators
+    /// are pure geometry over an immutable mesh, so they are safe to run there; only the scene
+    /// manager and the change notifications have to come back to the UI thread, which they do
+    /// because the continuation is awaited on it.
+    /// </summary>
+    private async Task UpdatePresetsAsync()
+    {
+        var baseMesh = _baseMesh;
+        var mouldPresetSource = HasMould ? _mouldMesh : null;
+
+        bool baseStale = !ReferenceEquals(_basePresetSource, baseMesh);
+        bool mouldStale = !ReferenceEquals(_mouldPresetSource, mouldPresetSource);
+
+        if (baseStale || mouldStale)
+        {
+            var (basePoints, mouldPoints) = await Task.Run(() => (
+                baseStale && baseMesh is not null
+                    ? BasePresetPointsCalculator.Calculate(_engine, baseMesh)
+                    : null,
+                mouldStale && mouldPresetSource is not null
+                    ? MouldPresetPointsCalculator.Calculate(_engine, mouldPresetSource)
+                    : null));
+
+            if (baseStale)
+            {
+                _basePresetPoints = basePoints ?? [];
+                _basePresetSource = baseMesh;
+            }
+
+            if (mouldStale)
+            {
+                _mouldPresetPoints = mouldPoints ?? [];
+                _mouldPresetSource = mouldPresetSource;
+            }
+        }
+
+        OnPropertyChanged(nameof(BasePresetPoints));
+        OnPropertyChanged(nameof(MouldPresetPoints));
+        OnPropertyChanged(nameof(ActivePresetPoints));
+
+        _sceneManager.UpdatePresetPoints(ActivePresetPoints, isVisible: !IsApplied);
     }
 
     private void UpdatePresets()
@@ -796,13 +883,15 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     }
 
     [RelayCommand]
-    public void ClearDecals()
+    public async Task ClearDecalsAsync()
     {
+        using var busy = Busy();
+
         // If the decals are already booleaned into the mesh, revert that first. Otherwise the
         // list empties while the geometry keeps them, and nothing short of Clear reconciles the two.
         if (IsApplied)
         {
-            ClearText();
+            await ClearTextAsync();
             if (IsApplied) return; // revert failed; ClearText has already surfaced the error
         }
 
@@ -818,6 +907,10 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     private async Task ApplyAsync()
     {
         if (_decals.Count == 0) return;
+
+        // Every exit below is an early return on an error, so the overlay comes down in a finally
+        // rather than at each one.
+        using var busy = Busy();
 
         ErrorText = string.Empty;
         WarningText = string.Empty;
@@ -863,7 +956,9 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             return;
         }
 
-        var cleanBaseResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, record, CommandPriority.Transform);
+        // Replaying the command list rebuilds the mesh from scratch, so it belongs off the UI
+        // thread alongside the boolean work below.
+        var cleanBaseResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, activeMesh, record, CommandPriority.Transform));
         if (cleanBaseResult.IsFailure)
         {
             ErrorText = cleanBaseResult.Error.Description;
@@ -973,11 +1068,15 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     }
 
     [RelayCommand]
-    public void ClearText()
+    public async Task ClearTextAsync()
     {
         if (!IsApplied) return;
 
-        var result = _clearDecals.Execute(Workspace);
+        using var busy = Busy();
+
+        // Reverting the decals replays the entry's command list to rebuild the mesh without them,
+        // which is as costly as applying them was.
+        var result = await Task.Run(() => _clearDecals.Execute(Workspace));
         if (result.IsFailure)
         {
             _alert.ShowError(result.Error.Description);
@@ -997,9 +1096,11 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             HasMould = _record?.MouldDefinition() is not null;
             if (HasMould)
             {
-                _mouldMesh = _activeMesh;
-                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, _record!, CommandPriority.Transform);
-                _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : _activeMesh;
+                var mesh = _activeMesh;
+                var record = _record!;
+                _mouldMesh = mesh;
+                var baseMeshAtStage = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, mesh, record, CommandPriority.Transform));
+                _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : mesh;
             }
             else
             {
@@ -1015,7 +1116,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             }
 
             UpdateTargetMesh();
-            UpdatePresets();
+            await UpdatePresetsAsync();
             SyncDecalList();
             Invalidate();
         }
@@ -1026,7 +1127,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     }
 
     [RelayCommand]
-    public void Clear() => ClearText();
+    public Task ClearAsync() => ClearTextAsync();
 
     public async Task ActivateAsync(Workspace workspace)
     {
@@ -1034,6 +1135,10 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
         // Restarted here rather than only in the constructor, so a view model that is
         // deactivated and activated again keeps updating its preview.
         _previewTimer.Start();
+
+        // MainViewModel already raises the overlay around the view switch, but this view model is
+        // also activated on its own; the depth counter makes the two nest harmlessly.
+        using var busy = Busy();
         try
         {
             await Task.Yield();
@@ -1059,11 +1164,13 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
             if (HasMould)
             {
-                _mouldMesh = _activeMesh;
+                var mesh = _activeMesh;
+                var activeRecord = _record!;
+                _mouldMesh = mesh;
                 // Transform stage, matching ClearText and EnsureCleanMeshForPreview: the base mesh
                 // under the mould must be free of decals, or previews stack on top of applied ones.
-                var baseMeshAtStage = CommandReplay.GetMeshAtStage(_engine, _activeMesh, _record!, CommandPriority.Transform);
-                _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : _activeMesh;
+                var baseMeshAtStage = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, mesh, activeRecord, CommandPriority.Transform));
+                _baseMesh = baseMeshAtStage.IsSuccess ? baseMeshAtStage.Value : mesh;
                 Target = EmbossTarget.Mould;
             }
             else
@@ -1088,7 +1195,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             {
                 IsApplied = false;
                 Target = HasMould ? EmbossTarget.Mould : EmbossTarget.Base;
-                UpdatePresets();
+                await UpdatePresetsAsync();
 
                 var autoPlaced = new List<TextDecal>();
 
@@ -1158,7 +1265,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
 
             UpdateTargetMesh();
 
-            UpdatePresets();
+            await UpdatePresetsAsync();
             IsDecalsExpanded = !IsApplied;
             SyncDecalList();
 

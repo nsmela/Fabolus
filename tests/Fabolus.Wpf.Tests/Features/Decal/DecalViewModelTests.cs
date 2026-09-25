@@ -8,6 +8,7 @@ using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Decal;
+using Fabolus.Wpf.Features.Main;
 using Moq;
 using Xunit;
 
@@ -105,12 +106,12 @@ public class DecalViewModelTests
     }
 
     [Fact]
-    public void ClearTextCommand_WhenNotApplied_DoesNothing()
+    public async Task ClearTextCommand_WhenNotApplied_DoesNothing()
     {
         var (vm, _) = CreateViewModel();
         Assert.False(vm.IsApplied);
 
-        vm.ClearTextCommand.Execute(null);
+        await vm.ClearTextCommand.ExecuteAsync(null);
         Assert.False(vm.IsApplied);
     }
 
@@ -199,7 +200,7 @@ public class DecalViewModelTests
 
         Assert.Equal(1, vm.DecalCount);
 
-        vm.ClearDecalsCommand.Execute(null);
+        await vm.ClearDecalsCommand.ExecuteAsync(null);
         Assert.Equal(0, vm.DecalCount);
         Assert.Equal(Guid.Empty, vm.SelectedDecalId);
     }
@@ -315,7 +316,7 @@ public class DecalViewModelTests
         Assert.False(vm.IsDecalsExpanded);
 
         // Clear applied decals (reverts baked geometry, keeps decal definitions)
-        vm.ClearTextCommand.Execute(null);
+        await vm.ClearTextCommand.ExecuteAsync(null);
 
         Assert.False(vm.IsApplied);
         Assert.True(vm.IsDecalsExpanded);
@@ -323,6 +324,81 @@ public class DecalViewModelTests
         Assert.Single(vm.DecalList);
         Assert.Equal("FABOLUS", vm.DecalList[0].Text);
         Assert.Equal(Guid.Empty, vm.SelectedDecalId);
+    }
+
+    /// <summary>
+    /// Records every <see cref="IsLoadingMessage"/> the view model sends, in order. The list is
+    /// its own recipient, and the test holds it, so the strong-reference messenger keeps the
+    /// registration alive for as long as the test needs it.
+    /// </summary>
+    private static List<bool> TrackLoading(IMessenger messenger)
+    {
+        var states = new List<bool>();
+        messenger.Register<List<bool>, IsLoadingMessage>(states, (r, m) => r.Add(m.IsLoading));
+        return states;
+    }
+
+    [Fact]
+    public async Task ApplyCommand_RaisesTheLoadingOverlayAndLowersItWhenDone()
+    {
+        var (vm, messenger) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Base Mesh"));
+
+        // Activation raises the overlay too; this test is about what applying does.
+        var states = TrackLoading(messenger);
+
+        vm.LabelText = "TEST";
+        await vm.ApplyCommand.ExecuteAsync(null);
+
+        Assert.True(vm.IsApplied);
+        Assert.Equal([true, false], states);
+    }
+
+    [Fact]
+    public async Task ClearTextCommand_RaisesTheLoadingOverlayAndLowersItWhenDone()
+    {
+        var (vm, messenger) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Test"));
+        await vm.ApplyCommand.ExecuteAsync(null);
+
+        var states = TrackLoading(messenger);
+
+        await vm.ClearTextCommand.ExecuteAsync(null);
+
+        Assert.False(vm.IsApplied);
+        Assert.Equal([true, false], states);
+    }
+
+    /// <summary>
+    /// ClearDecals reverts through ClearText, so two busy scopes are open at once over one piece
+    /// of work. The overlay must not come down when the inner one closes - that would clear it
+    /// while the outer is still rebuilding.
+    /// </summary>
+    [Fact]
+    public async Task ClearDecalsCommand_WhenItRevertsAppliedDecals_LowersTheOverlayOnlyOnce()
+    {
+        var (vm, messenger) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("Test"));
+        await vm.ApplyCommand.ExecuteAsync(null);
+        Assert.True(vm.IsApplied);
+
+        var states = TrackLoading(messenger);
+
+        await vm.ClearDecalsCommand.ExecuteAsync(null);
+
+        Assert.Equal(0, vm.DecalCount);
+        Assert.Equal([true, false], states);
+    }
+
+    [Fact]
+    public async Task ActivateAsync_RaisesTheLoadingOverlayAndLowersItWhenDone()
+    {
+        var (vm, messenger) = CreateViewModel();
+        var states = TrackLoading(messenger);
+
+        await vm.ActivateAsync(WorkspaceWith("Test"));
+
+        Assert.Equal([true, false], states);
     }
 
     [Fact]
@@ -362,7 +438,7 @@ public class DecalViewModelTests
         Assert.False(vm.IsDecalsExpanded);
 
         // Clear reverts to edit mode and removes translucent overlay
-        vm.ClearTextCommand.Execute(null);
+        await vm.ClearTextCommand.ExecuteAsync(null);
         Assert.False(vm.IsApplied);
         Assert.True(vm.IsDecalsExpanded);
     }
