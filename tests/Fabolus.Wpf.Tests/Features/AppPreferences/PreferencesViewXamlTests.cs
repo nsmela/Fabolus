@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Windows;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Common;
@@ -20,54 +19,12 @@ namespace Fabolus.Wpf.Tests.Features.AppPreferences;
 /// </summary>
 public class PreferencesViewXamlTests {
 
-    /// <summary>Same dictionaries App.xaml merges, so window resources resolve as they do live.</summary>
-    private static readonly string[] ThemeDictionaries = [
-        "pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml",
-        "pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml",
-        "pack://application:,,,/MahApps.Metro;component/Styles/Themes/Light.Blue.xaml",
-        "pack://application:,,,/Fabolus;component/Themes/Buttons.xaml",
-        "pack://application:,,,/Fabolus;component/Themes/Colours.xaml",
-        "pack://application:,,,/Fabolus;component/Themes/Controls.xaml",
-        "pack://application:,,,/Fabolus;component/Themes/Icons.xaml",
-        "pack://application:,,,/Fabolus;component/Themes/SteelSlider.xaml",
-        "pack://application:,,,/Fabolus;component/Themes/SteelCyan.xaml",
-    ];
-
-    /// <summary>Runs <paramref name="action"/> on an STA thread and rethrows whatever it threw.</summary>
-    private static void OnStaThread(Action action) {
-        Exception? failure = null;
-
-        var thread = new Thread(() => {
-            try {
-                // A pack URI resolves its assembly by simple name through Assembly.Load, which
-                // only finds one already in the load context. Touch a type first so the
-                // Fabolus theme dictionaries can be found.
-                _ = typeof(PreferencesView).Assembly;
-
-                if (Application.Current is null) {
-                    var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-                    foreach (var source in ThemeDictionaries) {
-                        app.Resources.MergedDictionaries.Add(
-                            new ResourceDictionary { Source = new Uri(source, UriKind.Absolute) });
-                    }
-                }
-
-                action();
-            }
-            catch (Exception e) {
-                failure = e;
-            }
-        });
-
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-
-        if (failure is not null) {
-            throw new Xunit.Sdk.XunitException(
-                $"{failure.GetType().Name}: {failure.Message}{Environment.NewLine}{failure}");
-        }
-    }
+    /// <summary>
+    /// Runs <paramref name="action"/> on the shared XAML host thread and rethrows whatever it
+    /// threw. This class used to stand up its own STA thread and Application; see
+    /// <see cref="XamlHost"/> for why a second class doing the same broke both.
+    /// </summary>
+    private static void OnStaThread(Action action) => XamlHost.Run(action);
 
     private static PreferencesView BuildView() =>
         new(new PreferencesViewModel(new StrongReferenceMessenger(), new Mock<IAlertDialog>().Object));

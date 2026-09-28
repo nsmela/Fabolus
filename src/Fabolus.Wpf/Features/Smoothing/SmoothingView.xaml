@@ -21,7 +21,16 @@
             <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
         </Style>
 
-        <!-- One segment of the Display (Solid / Wire / Heat) control. -->
+        <!-- One segment of the Display (None / Section / Heat) control.
+
+             Padding is horizontal as well as vertical, and each segment carries a small side
+             margin. Without both, the three labels ran edge to edge with no gap at all and the
+             selected segment's pill was drawn hard against its neighbours.
+
+             The rail is 280px wide and can be dragged down to 240, which leaves each of the three
+             equal columns between about 80px and 67px. The padding below is what the longest
+             label - "Section" - still fits inside at the narrow end; it is deliberately not
+             larger. -->
         <Style x:Key="SegmentButton" TargetType="RadioButton">
             <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Muted}" />
             <Setter Property="FontFamily" Value="{StaticResource Font.Sans}" />
@@ -29,10 +38,13 @@
             <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="Margin" Value="2,0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="seg" CornerRadius="5" Background="Transparent" Padding="0,6">
+                        <Border x:Name="seg" CornerRadius="5" Background="Transparent"
+                                Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -150,15 +162,20 @@
             <!-- Display mode -->
             <StackPanel Grid.Row="5" Margin="0,0,0,18">
                 <TextBlock Text="Display" Style="{StaticResource FieldLabel}" Margin="0,0,0,7" />
+                <!-- Labels are short so three of them fit across the rail with room to breathe;
+                     the tooltips carry the full name of each mode. -->
                 <Border Background="#FFE6EAED" CornerRadius="7" Padding="3">
                     <UniformGrid Columns="3">
                         <RadioButton Content="None" GroupName="DisplayMode"
+                                     ToolTip="Show the mesh on its own"
                                      Style="{StaticResource SegmentButton}"
                                      IsChecked="{Binding DisplayMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:SmoothDisplayMode.None}}" />
-                        <RadioButton Content="Cross Section" GroupName="DisplayMode"
+                        <RadioButton Content="Section" GroupName="DisplayMode"
+                                     ToolTip="Cross section"
                                      Style="{StaticResource SegmentButton}"
                                      IsChecked="{Binding DisplayMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:SmoothDisplayMode.CrossSection}}" />
-                        <RadioButton Content="Heat Map" GroupName="DisplayMode"
+                        <RadioButton Content="Heat" GroupName="DisplayMode"
+                                     ToolTip="Heat map"
                                      Style="{StaticResource SegmentButton}"
                                      IsChecked="{Binding DisplayMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static local:SmoothDisplayMode.Heatmap}}" />
                     </UniformGrid>
