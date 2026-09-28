@@ -1,4 +1,4 @@
-﻿using System.Windows.Input;
+using System.Windows.Input;
 using System.Windows.Media;
 using Fabolus.Core.Features.Smoothing;
 using Fabolus.Core.Geometry;
@@ -23,8 +23,8 @@ public class SmoothingSceneManager : ISceneManager
     private readonly PrintBedGrid _grid;
     private CrossSectionMeshGeometryModel3D? _crossSectionModel;
     private CrossSectionMeshGeometryModel3D? _originalCrossSectionModel;
-    private Plane _crossSectionPlane = new Plane { D = 0, Normal = Vector3.UnitZ };
-    private Plane _originalCrossSectionPlane = new Plane { D = 0, Normal = -Vector3.UnitZ };
+    private SharpDX.Plane _crossSectionPlane = new SharpDX.Plane { D = 0, Normal = SharpDX.Vector3.UnitZ };
+    private SharpDX.Plane _originalCrossSectionPlane = new SharpDX.Plane { D = 0, Normal = -SharpDX.Vector3.UnitZ };
     private Guid _activeId = Guid.Empty;
     private Element3D _gizmo;
     private double _minZ = -double.MaxValue;
@@ -59,8 +59,8 @@ public class SmoothingSceneManager : ISceneManager
     private void OnCuttingPlaneHeightChanged(double height)
     {
         _currentGizmoHeight = height;
-        _crossSectionPlane = new Plane { D = (float)height, Normal = Vector3.UnitZ };
-        _originalCrossSectionPlane = new Plane { D = (float)-height, Normal = -Vector3.UnitZ };
+        _crossSectionPlane = new SharpDX.Plane { D = (float)height, Normal = SharpDX.Vector3.UnitZ };
+        _originalCrossSectionPlane = new SharpDX.Plane { D = (float)-height, Normal = -SharpDX.Vector3.UnitZ };
 
         if (_crossSectionModel is not null)
         {
@@ -76,7 +76,9 @@ public class SmoothingSceneManager : ISceneManager
     /// <param name="unsmoothedMesh">The aligned unsmoothed counterpart to compare against in
     /// cross-section mode (BaseMesh with the mesh's other commands replayed on top, supplied
     /// by the view model). Only borrowed for this call - the caller may dispose it after.</param>
-    public void UpdateMesh(IMesh mesh, IMesh? unsmoothedMesh = null, double[]? heatmapColors = null)
+    // Whether the mesh is smoothed is a fact about the workspace entry, not about the geometry in
+    // hand, so the view model - which holds the record - passes it in rather than this asking.
+    public void UpdateMesh(IMesh mesh, bool isSmoothed, IMesh? unsmoothedMesh = null, double[]? heatmapColors = null)
     {
         VisualRemovedById?.Invoke(_activeId);
         if (_crossSectionModel is not null)
@@ -97,7 +99,7 @@ public class SmoothingSceneManager : ISceneManager
         }
         else
         {
-            material = mesh.Metadata.GetSmoothing().HasValue ? _smoothSkin : _rawSkin;
+            material = isSmoothed ? _smoothSkin : _rawSkin;
         }
 
         var model = new MeshGeometryModel3D
@@ -108,8 +110,6 @@ public class SmoothingSceneManager : ISceneManager
         };
         SceneVisual.SetIsModelGeometry(model, true);
         _activeId = model.GUID;
-
-        bool isSmoothed = mesh.Metadata.GetSmoothing().HasValue;
 
         if (isSmoothed && unsmoothedMesh is not null && _displayMode == SmoothDisplayMode.CrossSection)
         {

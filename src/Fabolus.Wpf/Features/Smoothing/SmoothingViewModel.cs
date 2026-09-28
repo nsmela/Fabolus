@@ -1,3 +1,4 @@
+using Fabolus.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -15,6 +16,8 @@ namespace Fabolus.Wpf.Features.Smoothing;
 public partial class SmoothingViewModel : ObservableObject, IViewState {
     
     private readonly IMessenger _messenger;
+    
+    private readonly BusyIndicator _busy;
     private readonly IAlertDialog _alert;
     private readonly IGeometryEngine _engine;
     private readonly SmoothingSceneManager _sceneManager;
@@ -31,6 +34,11 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     private IMesh? _stagedMesh;
     private IMesh? _unsmoothedTwin;
     private MeshStatistics? _originalStats;
+
+    // The active entry, cached alongside the meshes above: whether this mesh is smoothed, and
+    // what to replay to produce its unsmoothed twin, are both questions about the entry rather
+    // than about the geometry in hand.
+    private MeshRecord? _record;
 
     // Seeded from app preferences on every activation (see ActivateAsync). The values here are
     // only what a design-time instance shows, and are kept in step with the shipped defaults.
@@ -75,6 +83,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
     public SmoothingViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine) {
         _messenger = messenger;
+        _busy = new BusyIndicator(messenger);
         _alert = alert;
         _engine = engine;
 
@@ -83,7 +92,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         _smoothFeature = new SmoothMesh(engine);
     }
 
-    public SmoothingViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryMeshLib.GeometryEngine(new FileSystem())) { }
+    public SmoothingViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), GeometryEngine.BspGeometryEngine.Create()) { }
 
     public ISceneManager SceneManager => _sceneManager;
 
@@ -97,10 +106,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         // A mesh that has already been smoothed reopens with the settings it was actually
         // smoothed at; the preference only supplies the starting point for one that has not.
         var settings = preferences.ToSmoothSettings();
-        var metadataResult = Workspace.GetActiveMeshMetadata();
-        if (metadataResult.IsSuccess) {
-            var settingsResult = metadataResult.Value.GetSmoothing();
-            if (settingsResult.HasValue) { settings = settingsResult.Value; }
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsSuccess && recordResult.Value.Smoothing() is { } applied) {
+            settings = applied;
         }
 
         UpdateSettings(settings);
@@ -162,17 +170,17 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         if (activeMeshResult.IsFailure) return;
         var activeMesh = activeMeshResult.Value;
 
-        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform);
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return;
+        _record = recordResult.Value;
+
+        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, _record, CommandPriority.Transform);
         if (stageResult.IsFailure) return;
         _stagedMesh = stageResult.Value;
 
-        // The base mesh's stats were cached on its metadata at import time and it never
-        // changes afterward - no geometry copy needed to read them.
-        var baseMetadata = activeMesh.Metadata.BaseMeshMetadata;
-        if (baseMetadata.HasValue) {
-            var statsResult = baseMetadata.Value.MeshStats();
-            if (statsResult.HasValue) _originalStats = statsResult.Value;
-        }
+        // The base mesh's stats were cached on it at import time and it never changes
+        // afterward - nothing to measure to read them.
+        _originalStats = _record.BaseMesh?.Stats();
     }
 
     private void RenderViewport() {
@@ -182,10 +190,12 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         // "unsmoothed twin" - BaseMesh with the remaining commands (e.g. a rotation) replayed
         // on top - NOT raw BaseMesh, which stays pristine and never rotates, so it drifts out
         // of alignment as soon as the mesh is transformed after smoothing.
+        var isSmoothed = _record?.Smoothing() is not null;
+
         IMesh? unsmoothedMesh = null;
-        if (DisplayMode != SmoothDisplayMode.None && _stagedMesh.Metadata.GetSmoothing().HasValue) {
+        if (DisplayMode != SmoothDisplayMode.None && isSmoothed) {
             if (_unsmoothedTwin is null) {
-                var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(_stagedMesh);
+                var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(_record!);
                 if (unsmoothedResult.IsSuccess) {
                     _unsmoothedTwin = unsmoothedResult.Value;
                 }
@@ -195,7 +205,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         double[]? heatmapColors = null;
         if (DisplayMode == SmoothDisplayMode.Heatmap && unsmoothedMesh is not null) {
-            var colorResult = _engine.Evaluators.CalculateDeviationColors(_stagedMesh, unsmoothedMesh, HeatmapSensitivity);
+            var colorResult = CalculateDeviationColors(_stagedMesh, unsmoothedMesh, HeatmapSensitivity);
             if (colorResult.IsSuccess) {
                 heatmapColors = colorResult.Value;
             }
@@ -204,13 +214,14 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         PublishInfo();
         // The scene manager only borrows the meshes for this call (it converts them to
         // render geometry immediately); ownership stays here with the cache.
-        _sceneManager.UpdateMesh(_stagedMesh, unsmoothedMesh, heatmapColors);
+        _sceneManager.UpdateMesh(_stagedMesh, isSmoothed, unsmoothedMesh, heatmapColors);
     }
 
     private void ReleaseCachedMeshes() {
         _stagedMesh = null;
         _unsmoothedTwin = null;
         _originalStats = null;
+        _record = null;
     }
 
     private void PublishInfo() {
@@ -223,12 +234,10 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
             items.Add(new TextInfoItem { Label = "Triangles", Value = _originalStats.TriangleCount.ToString("N0") });
         }
 
-        var metadataResult = Workspace.GetActiveMeshMetadata();
-        if (metadataResult.IsSuccess && metadataResult.Value.GetSmoothing().HasValue)
+        var activeResult = Workspace.GetActiveMesh();
+        if (_record?.Smoothing() is not null && activeResult.IsSuccess)
         {
-            var statsResult = metadataResult.Value.MeshStats();
-            if (statsResult.HasValue) {
-                var stats = statsResult.Value;
+            if (activeResult.Value.Stats() is { } stats) {
                 items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
                 items.Add(new TextInfoItem { Label = "Volume", Value = $"{stats.Volume:N2} mL" });
                 items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(stats.SurfaceArea / 100):N2} mm²" });
@@ -241,7 +250,9 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
     [RelayCommand]
     public async Task ApplySmoothingAsync() {
-        _messenger.Send(new IsLoadingMessage(true));
+        // A scope rather than a send per exit: the overlay comes down in a finally, so a path
+        // added later cannot leave it up.
+        using var busy = _busy.Enter();
 
         var settings = new SmoothSettings(
             Iterations,
@@ -253,13 +264,10 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         var result = await Task.Run(() => _smoothFeature.Execute(Workspace, settings));
         if (result.IsFailure) {
             _alert.ShowError(result.Error.Description);
-            _messenger.Send(new IsLoadingMessage(false));
             return;
         }
-       
-        await UpdateWorkspaceAsync(result.Value);
 
-        _messenger.Send(new IsLoadingMessage(false));
+        await UpdateWorkspaceAsync(result.Value);
     }
 
     [RelayCommand]
@@ -272,4 +280,31 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         await UpdateWorkspaceAsync(result.Value);
     }
+
+    private BasicResults.Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 0.4)
+    {
+        if (current is null || original is null) return Fabolus.Core.Geometry.MeshErrors.NullSource;
+
+        var indexResult = _engine.Spatial.BuildIndex(original);
+        if (indexResult.IsFailure) return BasicResults.Result<double[]>.Failure(indexResult.Error);
+
+        var index = indexResult.Value;
+        var distances = index.SignedDistances([.. current.Vertices]);
+
+        var gradient = Fabolus.Core.Features.Overhangs.ColourGradient.SmoothingDeviation;
+        var scale = Math.Max(maxDeviation, 0.001);
+        var colours = new double[current.VertexCount * 3];
+
+        for (int i = 0; i < distances.Length; i++)
+        {
+            var t = Math.Clamp((distances[i] + scale) / (2.0 * scale), 0.0, 1.0);
+            var color = gradient.Sample((float)t);
+            colours[i * 3] = color.R;
+            colours[i * 3 + 1] = color.G;
+            colours[i * 3 + 2] = color.B;
+        }
+
+        return colours;
+    }
+
 }

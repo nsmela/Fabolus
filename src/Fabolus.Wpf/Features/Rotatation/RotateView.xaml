@@ -110,6 +110,7 @@
                 </Grid>
                 <Slider Minimum="-180" Maximum="180"
                         Style="{StaticResource Slider.Axis.X}"
+                        IsEnabled="{Binding IsRotationEnabled}"
                         Value="{Binding XAxisAngle, Mode=TwoWay}"
                         SmallChange="1" LargeChange="15"
                         local:SliderExtension.DragCompletedCommand="{Binding SaveAxisRotationCommand}"
@@ -142,6 +143,7 @@
                 </Grid>
                 <Slider Minimum="-180" Maximum="180"
                         Style="{StaticResource Slider.Axis.Y}"
+                        IsEnabled="{Binding IsRotationEnabled}"
                         Value="{Binding YAxisAngle, Mode=TwoWay}"
                         SmallChange="1" LargeChange="15"
                         local:SliderExtension.DragCompletedCommand="{Binding SaveAxisRotationCommand}"
@@ -174,6 +176,7 @@
                 </Grid>
                 <Slider Minimum="-180" Maximum="180"
                         Style="{StaticResource Slider.Axis.Z}"
+                        IsEnabled="{Binding IsRotationEnabled}"
                         Value="{Binding ZAxisAngle, Mode=TwoWay}"
                         SmallChange="1" LargeChange="15"
                         local:SliderExtension.DragCompletedCommand="{Binding SaveAxisRotationCommand}"

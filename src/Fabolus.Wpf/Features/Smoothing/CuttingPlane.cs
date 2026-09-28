@@ -1,4 +1,4 @@
-﻿using HelixToolkit.Wpf.SharpDX;
+using HelixToolkit.Wpf.SharpDX;
 using Fabolus.Wpf.Common.Helpers;
 
 namespace Fabolus.Wpf.Features.Smoothing;

@@ -8,7 +8,6 @@ using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Viewport;
-using GeometryMeshLib;
 using System.Numerics;
 using System.Windows.Media.Media3D;
 
@@ -17,6 +16,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     private readonly IAlertDialog _alert;
     private readonly IGeometryEngine _engine;
     private readonly IMessenger _messenger;
+    private readonly BusyIndicator _busy;
     private readonly RotateSceneManager _sceneManager;
 
     private readonly TransformMesh _transformsFeature;
@@ -24,6 +24,22 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     private Workspace Workspace { get; set; }
 
     private bool _isLocked = false;
+
+    /// <summary>
+    /// True while a rotation is being applied or cleared.
+    /// </summary>
+    /// <remarks>
+    /// The sliders and their hover ring are suppressed for the duration. The rotation is applied
+    /// off the UI thread, so the panel stays live while it runs - and a temp rotation or an axis
+    /// ring shown now would be drawn against a mesh that is in the middle of being replaced, on
+    /// top of a rotation the user has already committed.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRotationEnabled))]
+    private bool _isRotating;
+
+    /// <summary>The inverse of <see cref="IsRotating"/>, for the sliders to bind IsEnabled to.</summary>
+    public bool IsRotationEnabled => !IsRotating;
 
     [ObservableProperty] private float _xAxisAngle;
     [ObservableProperty] private float _yAxisAngle;
@@ -70,6 +86,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
     public RotateViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine) {
         _messenger = messenger;
+        _busy = new BusyIndicator(messenger);
         _alert = alert;
         _engine = engine;
 
@@ -77,7 +94,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         _transformsFeature = new TransformMesh(_engine);
     }
 
-    public RotateViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryEngine(new FileSystem())) { }
+    public RotateViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), GeometryEngine.BspGeometryEngine.Create()) { }
 
     public async Task ActivateAsync(Workspace workspace) {
         LoadOverhangPreferences();
@@ -87,10 +104,9 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         // manager skips rendering here because it has no mesh yet.
         _sceneManager.SetOverhangs(WarningAngle, CriticalAngle);
 
+        // The info panel is already empty: MainViewModel clears it as each view is swapped in,
+        // and this view publishes nothing to it.
         await UpdateWorkspaceAsync(workspace);
-
-        // clear mesh info
-        _messenger.Send(new UpdateMeshInfoMessage([]));
     }
 
     public Task<Workspace> DeactivateAsync() {
@@ -99,7 +115,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     }
 
     private void SendTempRotation(Vector3 axis, float degrees) {
-        if (_isLocked) return;
+        if (_isLocked || IsRotating) return;
 
         // process the value
         _sceneManager.ApplyTempRotation(new Vector3D(axis.X, axis.Y, axis.Z), degrees);
@@ -133,17 +149,47 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         if (activeMeshResult.IsFailure) return;
         var activeMesh = activeMeshResult.Value;
 
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return;
+        var record = recordResult.Value;
+
         // GetMeshAtStage always returns an owned mesh (the view shows the model as it was
         // before any mould was cut); the scene manager takes ownership of it, since it
         // re-renders the mesh on every temp-rotation/overhang change.
-        var stageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, activeMesh, CommandPriority.Transform));
+        var stageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, activeMesh, record, CommandPriority.Transform));
         if (stageResult.IsFailure) return;
 
         _sceneManager.UpdateMesh(stageResult.Value);
     }
 
     private void ShowAxisRotation(Vector3 axis) {
+        // Hovering a slider while the rotation is being applied must not raise the ring. The
+        // sliders are disabled for the duration, but the hover commands are reachable on their
+        // own, so the rule lives here rather than only in the view.
+        if (IsRotating) return;
+
         _sceneManager.ShowAxisRotation(axis);
+    }
+
+    /// <summary>
+    /// Takes the axis ring down and holds off the sliders for as long as the scope is held.
+    /// </summary>
+    /// <remarks>
+    /// A drag finishes with the pointer still over the slider, so the ring is up at the moment
+    /// the rotation is committed. Left alone it would hang over the mesh for the whole rebuild.
+    /// </remarks>
+    private RotatingScope Rotating() => new(this);
+
+    private readonly struct RotatingScope : IDisposable {
+        private readonly RotateViewModel _owner;
+
+        public RotatingScope(RotateViewModel owner) {
+            _owner = owner;
+            owner._sceneManager.ShowAxisRotation(Vector3.Zero);
+            owner.IsRotating = true;
+        }
+
+        public void Dispose() => _owner.IsRotating = false;
     }
 
     [RelayCommand] public void ShowAxisXRotation() => ShowAxisRotation(Vector3.UnitX);
@@ -169,31 +215,39 @@ public partial class RotateViewModel : ObservableObject, IViewState {
             return;
         }
 
-        var activeId = Workspace.ActiveMeshId;
-        var result = _transformsFeature.Rotate(
-            Workspace,
-            Workspace.ActiveMeshId,
-            degrees * (float)(Math.PI / 180.0f),
-            axis);
+        // The overlay covers the rotation itself, not just the re-render after it: transforming
+        // every vertex of a large bolus is the quarter-second here, and it used to run on the UI
+        // thread before the flag went up.
+        using var busy = _busy.Enter();
+        using var rotating = Rotating();
+
+        var workspace = Workspace;
+        var radians = degrees * (float)(Math.PI / 180.0f);
+        var result = await Task.Run(() => _transformsFeature.Rotate(
+            workspace,
+            workspace.ActiveMeshId,
+            radians,
+            axis));
 
         if (result.IsFailure) {
             _alert.ShowError(result.Error.Description);
             return;
         }
 
-        _messenger.Send(new IsLoadingMessage(true));
-
         await UpdateWorkspaceAsync(result.Value);
-
-        _messenger.Send(new IsLoadingMessage(false));
 
         ResetValues();
     }
 
     [RelayCommand]
     public async Task ClearRotationsAsync() {
-        var activeId = Workspace.ActiveMeshId;
-        var result = _transformsFeature.ClearRotation(Workspace, Workspace.ActiveMeshId);
+        // Reverting the rotation replays the command list, which costs the same as applying it -
+        // and this path had no overlay at all.
+        using var busy = _busy.Enter();
+        using var rotating = Rotating();
+
+        var workspace = Workspace;
+        var result = await Task.Run(() => _transformsFeature.ClearRotation(workspace, workspace.ActiveMeshId));
 
         if (result.IsFailure) {
             _alert.ShowError(result.Error.Description);

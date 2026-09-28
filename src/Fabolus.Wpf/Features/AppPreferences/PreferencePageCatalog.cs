@@ -1,4 +1,4 @@
-﻿using Fabolus.Wpf.Features.CutSplit;
+using Fabolus.Wpf.Features.CutSplit;
 using Fabolus.Wpf.Features.Decal;
 using Fabolus.Wpf.Features.Moulding;
 using Fabolus.Wpf.Features.Rotatation;

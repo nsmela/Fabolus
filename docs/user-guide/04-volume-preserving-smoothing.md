@@ -22,7 +22,7 @@ fills the gaps between CT steps       returns broad areas to their original posi
 Expanding then contracting by the same distance leaves flat and broad regions where they were, while the sharp slice corners are rounded off. This is a morphological offset (a double offset: inflate then deflate), computed by the geometry engine.
 
 > [!TIP]
-> For additional background on morphological operations in 3D geometry, see [Mathematical Morphology (Wikipedia)](https://en.wikipedia.org/wiki/Mathematical_morphology) and [Geometry Engine & Native MeshLib](../architecture/03-geometry-engine-and-meshlib.md).
+> For additional background on morphological operations in 3D geometry, see [Mathematical Morphology (Wikipedia)](https://en.wikipedia.org/wiki/Mathematical_morphology) and [Geometry Engine](../architecture/03-geometry-engine.md).
 
 <!-- IMAGE_PLACEHOLDER: [Figure 4.1: The smoothing controls panel with the Apply Smoothing button.] -->
 

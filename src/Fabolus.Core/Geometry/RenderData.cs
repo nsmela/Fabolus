@@ -1,4 +1,4 @@
-﻿namespace Fabolus.Core.Geometry;
+namespace Fabolus.Core.Geometry;
 
 /// <summary>
 /// Mesh data prepared for rendering.

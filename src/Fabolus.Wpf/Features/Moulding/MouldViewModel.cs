@@ -5,10 +5,13 @@ using Fabolus.Core.Features.AirChannels;
 using Fabolus.Core.Features.MeshIO;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Viewport;
 using System.Numerics;
+using System.Windows.Threading;
 
 namespace Fabolus.Wpf.Features.Moulding;
 
@@ -30,6 +33,34 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // (ComputeTotalLength runs on every mouse-move over the target) reads a value instead
     // of fetching a mesh and recomputing statistics per event.
     private MeshStatistics? _targetStats;
+
+    /// <summary>
+    /// Rebuilding the mould shell costs about as much as the bolus is big - most of a second at a
+    /// hundred thousand triangles. Every wall/base/trough slider rebuilds it, and a drag raises a
+    /// change per step, so the rebuild is deferred until the user pauses rather than run per step.
+    /// </summary>
+    private readonly DispatcherTimer _mouldTimer;
+
+    // A rebuild is wanted; set by any change, cleared when one starts.
+    private bool _mouldPending;
+
+    // A rebuild is in flight. A change arriving during one does not start a second: it re-arms
+    // _mouldPending and the running rebuild goes round again, so however fast the parameters
+    // change there is only ever one build running and one queued.
+    private bool _mouldRebuilding;
+
+    /// <summary>
+    /// The viewport's loading overlay. The mould view had none at all, while being the slowest
+    /// of the tools.
+    /// </summary>
+    private readonly BusyIndicator _busy;
+
+    /// <summary>
+    /// How many times the shell has actually been rebuilt. The coalescing is invisible from
+    /// outside - a drag and a single step both raise the overlay once - so this is what lets a
+    /// test tell "the change was folded into the running rebuild" from "the change was dropped".
+    /// </summary>
+    internal int MouldRebuildCount { get; private set; }
 
     // Last point/normal the mouse hovered on the target mesh, so switching channel type
     // rebuilds the preview in place instead of resetting it to the origin.
@@ -181,7 +212,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         var position = existing.Position;
         var direction = existing.Direction;
-        var totalLength = ComputeTotalLength(position.Z);
+        var totalLength = ComputeTotalLength((float)position.Z);
 
         IAirChannel domainModel = ChannelType switch
         {
@@ -293,10 +324,11 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     public ISceneManager SceneManager => _sceneManager;
 
-    public MouldViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryMeshLib.GeometryEngine(new FileSystem())) { }
+    public MouldViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), GeometryEngine.BspGeometryEngine.Create()) { }
     public MouldViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine)
     {
         _messenger = messenger;
+        _busy = new BusyIndicator(messenger);
         _alert = alert;
         _engine = engine;
 
@@ -322,6 +354,16 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         _messenger.Register<PreferenceSectionUpdateMessage<PrintBedPreferences>>(
             this, (r, m) => ApplyPrintBedPreferences(m.Section));
+
+        // Long enough that a drag settles into one rebuild, short enough that letting go of a
+        // slider feels like it answered. Restarted on every change, so it fires once the user
+        // stops rather than repeatedly through the drag.
+        _mouldTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _mouldTimer.Tick += (_, _) =>
+        {
+            _mouldTimer.Stop();
+            _ = RebuildMouldAsync();
+        };
     }
 
     // Air-channel defaults are stored alongside the print bed; the panel mirrors them so a
@@ -336,7 +378,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         // Copy the list - the scene manager keeps mutating its accumulator.
         var path = points.ToList();
-        var preview = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength(path[0].Z), TipDepth);
+        var preview = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength((float)path[0].Z), TipDepth);
         _sceneManager.UpdatePreviewChannel(preview);
     }
 
@@ -346,10 +388,10 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         // Decimated raw input is still jittery; store the resampled/smoothed path so
         // persistence and every later regeneration work from the clean stroke.
-        var resampleResult = _engine.Generators.ResampleOpenPath(points, targetSpacing: 2.0f);
+        var resampleResult = _engine.Generators.ResampleOpenPath([.. points], spacing: 2.0f);
         var path = resampleResult.IsSuccess ? resampleResult.Value : points;
 
-        var domainModel = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength(path[0].Z), TipDepth);
+        var domainModel = new PaintedAirChannel(path, ChannelDiameter / 2f, ComputeTotalLength((float)path[0].Z), TipDepth);
         AddChannel(new AirChannelModel(Guid.NewGuid(), AirChannelType.Painted, TipDiameter, ChannelDiameter, TipLength, domainModel));
     }
 
@@ -369,19 +411,25 @@ public partial class MouldViewModel : ObservableObject, IViewState
         // An owned copy; ownership transfers to the scene manager in SetSceneTarget below.
         IMesh mesh = activeMeshResult.Value;
 
-        // MouldDefinition is only ever set on an actual generated-mould result (by
-        // GenerateMould); PendingMouldDefinition holds settings/channels the user was
-        // still editing when they last left this mesh. Prefer the former - if this mesh
-        // IS a mould, we're viewing its baked result, not something still being edited.
-        var mouldResult = mesh.Metadata.MouldDefinition();
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure)
+            return;
 
-        IsGenerated = mouldResult.HasValue;
+        var record = recordResult.Value;
 
-        // A mesh that already carries a mould - baked or still being edited - reopens with its
-        // own settings. Only a mesh with neither falls back to the app preferences.
-        var mouldDefinition = mouldResult.HasValue
-            ? mouldResult.Value
-            : mesh.Metadata.PendingMouldDefinition().GetValueOrDefault(BuildPreferredMouldDefinition());
+        // MouldDefinition is only ever recorded on an actual generated-mould result (by
+        // GenerateMould); PendingMould holds settings/channels the user was still editing
+        // when they last left this mesh. Prefer the former - if this entry IS a mould, we're
+        // viewing its baked result, not something still being edited.
+        var mould = record.MouldDefinition();
+
+        IsGenerated = mould is not null;
+
+        // An entry that already carries a mould - baked or still being edited - reopens with its
+        // own settings. Only one with neither falls back to the app preferences.
+        var mouldDefinition = mould
+            ?? record.PendingMould
+            ?? BuildPreferredMouldDefinition();
 
         SelectedChannelId = Guid.Empty;
         Channels = mouldDefinition.AirChannels.ToList();
@@ -426,14 +474,24 @@ public partial class MouldViewModel : ObservableObject, IViewState
         {
             _isActivating = false;
         }
+
         if (!IsGenerated)
         {
-            UpdateMould();
+            // Built now rather than through the debounce timer: opening the view should show the
+            // shell when it is ready, not a beat later. MainViewModel holds the overlay up over
+            // this, and the build itself is off the UI thread, so it can finally paint.
+            _mouldPending = true;
+            await RebuildMouldAsync();
         }
     }
 
     public Task<Workspace> DeactivateAsync()
     {
+        // Nothing to rebuild for a view that is going away, and the scene manager is about to
+        // lose the mesh a queued rebuild would read.
+        _mouldPending = false;
+        _mouldTimer.Stop();
+
         PersistUncommittedMouldState();
         _sceneManager.ReleaseMesh();
         return Task.FromResult(Workspace);
@@ -443,8 +501,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // stats the hover path needs.
     private void SetSceneTarget(IMesh mesh)
     {
-        var statsResult = mesh.Metadata.MeshStats();
-        _targetStats = statsResult.HasValue ? statsResult.Value : null;
+        _targetStats = mesh.Stats();
 
         var result = _sceneManager.UpdateMesh(mesh);
         if (result.IsFailure)
@@ -453,27 +510,22 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     // The mould/channel settings only live here in the ViewModel until Generate is
     // clicked. If the user switches away (and another feature - Smooth, Rotate, etc. -
-    // then forks or updates this mesh), that in-progress work would otherwise be lost.
-    // Saved as PendingMouldDefinition, distinct from MouldDefinition (which means "this
-    // mesh IS a generated mould") - metadata already carries forward across those forks
-    // (they copy the existing metadata and only touch their own keys), so this is enough.
+    // then updates this mesh), that in-progress work would otherwise be lost. Saved as
+    // PendingMould on the workspace entry, distinct from a recorded MouldDefinition (which
+    // means "this entry IS a generated mould"); the record outlives any change to the
+    // entry's geometry, so this is enough.
     private void PersistUncommittedMouldState()
     {
-        // Already generated: GenerateMould saved the correct metadata directly on the
-        // result mesh - nothing pending to persist for this (no-longer-active) mesh.
+        // Already generated: GenerateMould recorded the definition on the entry - nothing
+        // pending to persist for this (no-longer-active) mesh.
         if (IsGenerated || Channels.Count == 0)
             return;
 
-        var meshResult = Workspace.GetActiveMesh();
-        if (meshResult.IsFailure)
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure)
             return;
 
-        // WithMetadata transfers native ownership from the fetched copy to updatedMesh,
-        // and UpdateMesh consumes updatedMesh - nothing left to dispose on success.
-        var mesh = meshResult.Value;
-        var updatedMesh = mesh.WithMetadata(mesh.Metadata.WithPendingMouldDefinition(BuildMouldDefinition()));
-
-        var result = Workspace.UpdateMesh(updatedMesh);
+        var result = Workspace.UpdateRecord(recordResult.Value.WithPendingMould(BuildMouldDefinition()));
         if (result.IsSuccess)
             Workspace = result.Value;
     }
@@ -523,22 +575,69 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
     private IAirChannel Relengthen(IAirChannel channel) => channel switch
     {
-        StraightAirChannel s => s with { TotalLength = ComputeTotalLength(s.StartPoint.Z) },
-        AngledAirChannel a => a with { TotalLength = ComputeTotalLength(a.StartPoint.Z) },
+        StraightAirChannel s => s with { TotalLength = ComputeTotalLength((float)s.StartPoint.Z) },
+        AngledAirChannel a => a with { TotalLength = ComputeTotalLength((float)a.StartPoint.Z) },
         // A painted channel is extruded from the height its stroke started at.
-        PaintedAirChannel { Path.Count: > 0 } p => p with { TotalLength = ComputeTotalLength(p.Path[0].Z) },
+        PaintedAirChannel { Path.Count: > 0 } p => p with { TotalLength = ComputeTotalLength((float)p.Path[0].Z) },
         _ => channel
     };
 
+    /// <summary>
+    /// Asks for the mould shell to be rebuilt once the parameters stop changing. Returns at once;
+    /// the rebuild happens off the UI thread behind the loading overlay.
+    /// </summary>
     private void UpdateMould()
     {
         if (_isActivating) return;
 
         EnsureNotGenerated();
 
-        var result = _sceneManager.UpdateMould(BuildMouldDefinition());
-        if (result.IsFailure)
-            _alert.ShowError(result.Error.Description);
+        _mouldPending = true;
+        _mouldTimer.Stop();
+        _mouldTimer.Start();
+    }
+
+    /// <summary>
+    /// Rebuilds the mould shell and puts it on screen. Building is the slow part and runs off the
+    /// UI thread; showing the result happens back on it, because the continuation is awaited here.
+    /// </summary>
+    /// <remarks>
+    /// Loops rather than recursing so that changes arriving mid-build are absorbed into one more
+    /// pass: at most one build runs and one is queued, however fast the user drags. The overlay is
+    /// taken once around the whole thing rather than per pass, so it does not flicker between them.
+    /// </remarks>
+    private async Task RebuildMouldAsync()
+    {
+        if (_mouldRebuilding)
+        {
+            // One is already running; make sure it goes round again with the newer parameters.
+            _mouldPending = true;
+            return;
+        }
+
+        if (!_mouldPending) return;
+
+        _mouldRebuilding = true;
+        using var busy = _busy.Enter();
+        try
+        {
+            while (_mouldPending)
+            {
+                _mouldPending = false;
+                MouldRebuildCount++;
+
+                var definition = BuildMouldDefinition();
+                var built = await Task.Run(() => _sceneManager.BuildMould(definition));
+
+                // Parameters that do not describe a mould come back empty, which is routine
+                // part-way through a drag - the shell is cleared rather than reported.
+                _sceneManager.ShowMould(built);
+            }
+        }
+        finally
+        {
+            _mouldRebuilding = false;
+        }
     }
 
     // The channel must vent above the mould, not stay sealed inside it: its top always
@@ -555,7 +654,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
         var topOffset = SelectedMouldType == MouldShapeType.Contoured ? WallThickness : BaseHeight;
         // A trough raises the top of the mould by its depth, and the channel still has to
         // vent above the rim rather than into the pool.
-        var mouldTopZ = _targetStats.MaxZ + topOffset + (HasTrough ? TroughHeight : 0.0);
+        var mouldTopZ = _targetStats.BoundsMax.Z + topOffset + (HasTrough ? TroughHeight : 0.0);
         var totalLength = (float)(mouldTopZ + MouldClearance) - startZ;
 
         // Never let the total length come out shorter than the cone/tip itself.
@@ -566,7 +665,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         var point = _lastHoverPoint;
         var normal = _lastHoverNormal;
-        var totalLength = ComputeTotalLength(point.Z);
+        var totalLength = ComputeTotalLength((float)point.Z);
 
         IAirChannel preview = ChannelType switch
         {
@@ -582,7 +681,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // into a paint stroke, committed via OnStrokeCompleted.
     private void OnChannelPlaced(Vector3 point, Vector3 normal)
     {
-        var totalLength = ComputeTotalLength(point.Z);
+        var totalLength = ComputeTotalLength((float)point.Z);
 
         IAirChannel domainModel = ChannelType switch
         {
@@ -642,11 +741,17 @@ public partial class MouldViewModel : ObservableObject, IViewState
     }
 
     [RelayCommand]
-    public void GenerateMould()
+    public async Task GenerateMouldAsync()
     {
+        using var busy = _busy.Enter();
+
         var mouldDefinition = BuildMouldDefinition();
 
-        var result = _generateMouldFeature.Execute(Workspace, Workspace.ActiveMeshId, mouldDefinition);
+        // Cutting the mould for real costs more than previewing it, and the preview alone was
+        // most of a second on a large bolus.
+        var workspace = Workspace;
+        var activeId = Workspace.ActiveMeshId;
+        var result = await Task.Run(() => _generateMouldFeature.Execute(workspace, activeId, mouldDefinition));
         if (result.IsFailure)
         {
             _alert.ShowError(result.Error.Description);
@@ -667,10 +772,14 @@ public partial class MouldViewModel : ObservableObject, IViewState
         _messenger.Send(new WorkspaceChangedMessage(Workspace));
     }
 
+    // Left synchronous: EnsureNotGenerated calls this from the parameter-change handlers, which
+    // have to see the revert finished before they go on to rebuild against the reverted mesh.
     [RelayCommand]
     public void ClearGeneratedMould()
     {
         if (!IsGenerated) return;
+
+        using var busy = _busy.Enter();
 
         var result = _clearMouldFeature.Execute(Workspace);
         if (result.IsFailure)

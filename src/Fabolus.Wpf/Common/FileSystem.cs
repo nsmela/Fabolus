@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Common.Interfaces;
+using Fabolus.Core.Common.Interfaces;
 using System.IO;
 
 namespace Fabolus.Wpf.Common;

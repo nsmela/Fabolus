@@ -1,4 +1,4 @@
-﻿
+
 namespace Fabolus.Wpf.Common.Mesh;
 public record struct DisplayModel3D(
     HelixToolkit.Wpf.SharpDX.MeshGeometry3D Geometry, 

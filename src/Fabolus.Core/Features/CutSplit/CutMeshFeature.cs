@@ -1,4 +1,4 @@
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Core.Features.MeshIO;
@@ -19,8 +19,13 @@ public sealed class CutMeshFeature
     /// <summary>
     /// Cuts a mesh with a plane, returning the top and bottom halves.
     /// The top half is in the direction of the plane normal.
+    ///
+    /// This is the one feature that genuinely forks: the halves are new workspace entries with
+    /// their own identities, not new geometry for the entry <paramref name="record"/> names. It
+    /// mints those identities here rather than leaving the caller to, because naming the halves
+    /// after the mesh they were cut from is part of cutting it.
     /// </summary>
-    public Result<(IMesh top, IMesh bottom)> Execute(IMesh mesh, Vector3 planeOrigin, Vector3 planeNormal)
+    public Result<(CutHalf Top, CutHalf Bottom)> Execute(IMesh mesh, MeshRecord record, Vector3 planeOrigin, Vector3 planeNormal)
     {
         if (mesh is null) return new Error("CutMesh.NullMesh", "Mesh cannot be null.");
         if (planeNormal == Vector3.Zero) return new Error("CutMesh.InvalidNormal", "Plane normal cannot be zero.");
@@ -29,22 +34,22 @@ public sealed class CutMeshFeature
         if (statsResult.IsFailure) return statsResult.Error;
         
         var stats = statsResult.Value;
-        float dx = (float)(stats.MaxX - stats.MinX);
-        float dy = (float)(stats.MaxY - stats.MinY);
-        float dz = (float)(stats.MaxZ - stats.MinZ);
+        float dx = (float)(stats.BoundsMax.X - stats.BoundsMin.X);
+        float dy = (float)(stats.BoundsMax.Y - stats.BoundsMin.Y);
+        float dz = (float)(stats.BoundsMax.Z - stats.BoundsMin.Z);
         float maxDim = Math.Max(dx, Math.Max(dy, dz)) * 2f;
         if (maxDim < 100f) maxDim = 100f;
 
         float d = maxDim / 2f;
-        double[] vertices = {
-            -d, -d, 0,
-             d, -d, 0,
-             d,  d, 0,
-            -d,  d, 0,
-            -d, -d, maxDim,
-             d, -d, maxDim,
-             d,  d, maxDim,
-            -d,  d, maxDim
+        Vector3[] vertices = {
+            new Vector3(-d, -d, 0),
+             new Vector3(d, -d, 0),
+             new Vector3(d, d, 0),
+            new Vector3(-d, d, 0),
+            new Vector3(-d, -d, maxDim),
+             new Vector3(d, -d, maxDim),
+             new Vector3(d, d, maxDim),
+            new Vector3(-d, d, maxDim)
         };
 
         int[] triangles = {
@@ -68,19 +73,19 @@ public sealed class CutMeshFeature
             3, 4, 7
         };
 
-        var cubeResult = _engine.CreateMesh(vertices.AsSpan(), triangles.AsSpan());
+        var cubeResult = _engine.CreateMesh([.. vertices], [.. triangles], new MeshMetadata("CutCube", "System"));
         if (cubeResult.IsFailure) return cubeResult.Error;
         var cubeMesh = cubeResult.Value;
         
         var zAxis = Vector3.UnitZ;
-        var normal = Vector3.Normalize(planeNormal);
-        var axis = Vector3.Cross(zAxis, normal);
-        float dot = Vector3.Dot(zAxis, normal);
+        var normal = planeNormal.Normalize();
+        var axis = zAxis.Cross(normal);
+        double dot = zAxis.Dot(normal);
         
-        Quaternion q;
-        if (dot < -0.9999f) q = Quaternion.CreateFromAxisAngle(Vector3.UnitX, (float)Math.PI);
-        else if (dot > 0.9999f) q = Quaternion.Identity;
-        else q = Quaternion.Normalize(new Quaternion(axis, 1 + dot));
+        System.Numerics.Quaternion q;
+        if (dot < -0.9999) q = System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitX, (float)Math.PI);
+        else if (dot > 0.9999) q = System.Numerics.Quaternion.Identity;
+        else q = System.Numerics.Quaternion.Normalize(new System.Numerics.Quaternion((float)axis.X, (float)axis.Y, (float)axis.Z, (float)(1 + dot)));
         
         var rotatedCubeResult = _engine.Transforms.Rotate(cubeMesh, q);
         if (rotatedCubeResult.IsFailure) return rotatedCubeResult.Error;
@@ -95,28 +100,22 @@ public sealed class CutMeshFeature
         if (topResult.IsFailure) return topResult.Error;
         if (bottomResult.IsFailure) return bottomResult.Error;
 
-        var top = topResult.Value;
-        var bottom = bottomResult.Value;
+        var top = topResult.Value.WithMeasurements(_engine);
+        var bottom = bottomResult.Value.WithMeasurements(_engine);
 
-        // Add metadata, stats, and topology to the resulting meshes
-        var topMetadata = top.Metadata.WithProperties(m => 
-            m.Set(CoreKeys.Id, Guid.NewGuid())
-             .Set(CoreKeys.Name, $"{mesh.Metadata.Name} (Top)")
-             .Set(CoreKeys.CreatedBy, "CutSplit"));
-        var topStatsResult = _engine.Evaluators.GetStatistics(top);
-        if (topStatsResult.IsSuccess) topMetadata = topMetadata.WithMeshStats(topStatsResult.Value);
-        var topTopologyResult = _engine.Evaluators.ValidateTopology(top);
-        if (topTopologyResult.IsSuccess) topMetadata = topMetadata.WithTopology(topTopologyResult.Value);
-
-        var bottomMetadata = bottom.Metadata.WithProperties(m => 
-            m.Set(CoreKeys.Id, Guid.NewGuid())
-             .Set(CoreKeys.Name, $"{mesh.Metadata.Name} (Bottom)")
-             .Set(CoreKeys.CreatedBy, "CutSplit"));
-        var bottomStatsResult = _engine.Evaluators.GetStatistics(bottom);
-        if (bottomStatsResult.IsSuccess) bottomMetadata = bottomMetadata.WithMeshStats(bottomStatsResult.Value);
-        var bottomTopologyResult = _engine.Evaluators.ValidateTopology(bottom);
-        if (bottomTopologyResult.IsSuccess) bottomMetadata = bottomMetadata.WithTopology(bottomTopologyResult.Value);
-
-        return Result.Success((top.WithMetadata(topMetadata), bottom.WithMetadata(bottomMetadata)));
+        return Result<(CutHalf, CutHalf)>.Success((
+            new CutHalf(top, Half(record, "Top")),
+            new CutHalf(bottom, Half(record, "Bottom"))));
     }
+
+    // A half starts its own history: the cut is what produced it, and the geometry it was cut
+    // from is its base mesh rather than the original's.
+    private static MeshRecord Half(MeshRecord source, string side) => new() {
+        Id = Guid.NewGuid(),
+        Name = $"{source.Name} ({side})",
+        CreatedBy = "CutSplit",
+    };
 }
+
+/// <summary>One side of a cut: the geometry, and the workspace entry it should be added under.</summary>
+public readonly record struct CutHalf(IMesh Mesh, MeshRecord Record);

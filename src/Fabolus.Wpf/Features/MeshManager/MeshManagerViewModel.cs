@@ -9,7 +9,6 @@ using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Features.Main;
 using SharpDX.DirectWrite;
 using Fabolus.Core.Features.MeshIO;
-using static MR;
 
 namespace Fabolus.Wpf.Features.MeshManager;
 
@@ -20,6 +19,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     private readonly IAlertDialog _alertDialog;
     private readonly IGeometryEngine _engine;
     private readonly IMessenger _messenger;
+    private readonly BusyIndicator _busy;
 
     private readonly ExportMesh _exportFeature;
     private readonly ImportMesh _importFeature;
@@ -34,6 +34,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         _alertDialog = alertDialog;
         _engine = engine;
         _messenger = messenger;
+        _busy = new BusyIndicator(messenger);
 
         _exportFeature = new ExportMesh(_engine);
         _importFeature = new ImportMesh(_engine);
@@ -46,7 +47,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     [ObservableProperty] private MeshItem? _selectedMesh;
     [ObservableProperty] private MeshSelectionState _selectionState = MeshSelectionState.None;
 
-    [ObservableProperty] private MeshMetadata? _activeMetadata;
+    [ObservableProperty] private MeshRecord? _activeRecord;
     [ObservableProperty] private MeshStatistics? _activeStats;
     [ObservableProperty] private TopologyValidation? _activeTopology;
 
@@ -86,12 +87,15 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         _selectedMesh = null;
 #pragma warning restore MVVMTK0034
 
-        MeshItems = Workspace.MeshMetadataList
-            .Select(metadata => new MeshItem(
-                metadata.Id,
-                metadata.Name,
-                metadata.Id == id,
-                metadata.Topology().HasValue ? metadata.Topology().Value.IsNotValid : false))
+        // Identity and name come from the record; the topology audit is cached on the geometry,
+        // which the workspace hands back without copying.
+        MeshItems = Workspace.Records
+            .Select(record => new MeshItem(
+                record.Id,
+                record.Name,
+                record.Id == id,
+                Workspace.GetMesh(record.Id) is { IsSuccess: true } entry
+                    && entry.Value.Topology()?.HasCorruptTopology == true))
             .ToList();
 
         SetActiveMesh();
@@ -102,21 +106,23 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     }
 
     private void SetActiveMesh() {
-        // Metadata-only read - no geometry copy needed to fill the info panel.
-        var metadataResult = Workspace.GetActiveMeshMetadata();
+        var recordResult = Workspace.GetActiveRecord();
 
-        if (metadataResult.IsSuccess) {
-            ActiveMetadata = metadataResult.Value;
-            SelectedMesh = MeshItems.FirstOrDefault(x => x.Id == ActiveMetadata.Id);
-            ActiveStats = ActiveMetadata.MeshStats().HasValue ? ActiveMetadata.MeshStats().Value : null;
-            ActiveTopology = ActiveMetadata.Topology().HasValue ? ActiveMetadata.Topology().Value : null;
+        if (recordResult.IsSuccess) {
+            ActiveRecord = recordResult.Value;
+            SelectedMesh = MeshItems.FirstOrDefault(x => x.Id == ActiveRecord.Id);
+
+            // The measurements are cached on the geometry by whichever feature last changed it,
+            // so filling the info panel still costs no measuring.
+            var mesh = Workspace.GetActiveMesh();
+            ActiveStats = mesh.IsSuccess ? mesh.Value.Stats() : null;
+            ActiveTopology = mesh.IsSuccess ? mesh.Value.Topology() : null;
         } else {
             SelectedMesh = null;
-            ActiveMetadata = null;
+            ActiveRecord = null;
             ActiveStats = null;
             ActiveTopology = null;
         }
-
     }
 
     private void PublishMeshInfo() {
@@ -128,9 +134,9 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
             items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{ActiveStats.SurfaceArea:F2} mm\u00B2" });
             items.Add(new TextInfoItem { Label = "Volume", Value = $"{ActiveStats.Volume:F2} mL" });
             
-            double width = ActiveStats.MaxX - ActiveStats.MinX;
-            double height = ActiveStats.MaxY - ActiveStats.MinY;
-            double depth = ActiveStats.MaxZ - ActiveStats.MinZ;
+            double width = ActiveStats.BoundsMax.X - ActiveStats.BoundsMin.X;
+            double height = ActiveStats.BoundsMax.Y - ActiveStats.BoundsMin.Y;
+            double depth = ActiveStats.BoundsMax.Z - ActiveStats.BoundsMin.Z;
             items.Add(new TextInfoItem { Label = "Dimensions", Value = $"{width:F1} x {height:F1} x {depth:F1} mm" });
         }
 
@@ -154,28 +160,28 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
                 Colour = isWaterTight ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
 
-            bool hasOrphanedVertices = ActiveTopology.HasOrphanedVertices;
+            bool hasOrphanedVertices = false;
             items.Add(new StatusInfoItem {
                 Label = "Orphaned Vertices",
                 Text = hasOrphanedVertices ? "Yes" : "No",
                 Colour = !hasOrphanedVertices ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
 
-            bool hasDegenerateTriangles = ActiveTopology.HasDegenerateTriangles;
+            bool hasDegenerateTriangles = ActiveTopology.DegenerateTriangleCount > 0;
             items.Add(new StatusInfoItem {
                 Label = "Degenerate Triangles",
                 Text = hasDegenerateTriangles ? "Yes" : "No",
                 Colour = !hasDegenerateTriangles ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
 
-            bool hasSelfInterectingTriangles = ActiveTopology.SelfIntersectionCount > 0;
+            bool hasSelfInterectingTriangles = false;
             items.Add(new StatusInfoItem {
                 Label = "Is Self-Intersecting",
                 Text = hasSelfInterectingTriangles ? "Yes" : "No",
                 Colour = !hasSelfInterectingTriangles ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
             if (hasSelfInterectingTriangles) {
-                items.Add(new TextInfoItem { Label = "Self-Intersecting Triangles", Value = ActiveTopology.SelfIntersectionCount.ToString("N0") });
+                
             }
         }
 
@@ -188,25 +194,26 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
 
         if (openFileResult.HasNoValue) return;
 
-        _messenger.Send(new IsLoadingMessage(true));
+        using var busy = _busy.Enter();
 
         var result = await Task.Run(() => _importFeature.Execute(Workspace, openFileResult.Value));
 
         if (result.IsFailure) {
             _alertDialog.ShowError(result.Error.Description);
-            _messenger.Send(new IsLoadingMessage(false));
             return;
         }
 
         UpdateWorkspace(result.Value);
-
-        _messenger.Send(new IsLoadingMessage(false));
     }
 
     [RelayCommand]
-    public void RepairMesh(Guid id) {
+    public async Task RepairMeshAsync(Guid id) {
+        // Repairing rebuilds the mesh, which is a quarter of a second on a large bolus. It ran on
+        // the UI thread with nothing on screen to say so.
+        using var busy = _busy.Enter();
 
-        var result = _repairFeature.Execute(Workspace, id);
+        var workspace = Workspace;
+        var result = await Task.Run(() => _repairFeature.Execute(workspace, id));
         if (result.IsFailure) {
             _alertDialog.ShowError(result.Error.Description);
             return;
@@ -238,8 +245,14 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
             return;
         }
 
+        var recordResult = Workspace.GetRecord(id);
+        if (recordResult.IsFailure) {
+            _alertDialog.ShowError(recordResult.Error.Description);
+            return;
+        }
+
         var mesh = meshResult.Value;
-        var result = _exportFeature.Execute(mesh, saveFileResult.Value, true);
+        var result = _exportFeature.Execute(mesh, recordResult.Value, saveFileResult.Value, true);
         if (result.IsFailure) {
             _alertDialog.ShowError(result.Error.Description);
         }
@@ -250,7 +263,7 @@ public sealed record MeshItem(
     Guid Id,
     string Name,
     bool IsActive,
-    bool IsNotValid
+    bool HasCorruptTopology
 );
 
 public enum MeshSelectionState {

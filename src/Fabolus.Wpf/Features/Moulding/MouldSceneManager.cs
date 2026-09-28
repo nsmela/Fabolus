@@ -1,9 +1,9 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.AppPreferences;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Features.AirChannels;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
@@ -121,7 +121,34 @@ public class MouldSceneManager : ISceneManager
         return Result.Success();
     }
 
-    public Result UpdateMould(MouldDefinition mouldDefinition)
+    /// <summary>
+    /// Builds the mould shell for <paramref name="mouldDefinition"/> against the current target,
+    /// without touching the scene. Returns nothing when there is no target, or when the
+    /// parameters do not describe a mould - which happens routinely part-way through a drag.
+    /// </summary>
+    /// <remarks>
+    /// Pure geometry over an immutable mesh, so it is safe to call off the UI thread, and it has
+    /// to be: on a hundred-thousand-triangle bolus this is most of a second. Pair it with
+    /// <see cref="ShowMould"/> back on the UI thread.
+    /// </remarks>
+    public Maybe<IMesh> BuildMould(MouldDefinition mouldDefinition)
+    {
+        var target = TargetMesh;
+        if (target is null)
+            return Maybe<IMesh>.None();
+
+        var generateResult = mouldDefinition.Generate(_engine, target);
+
+        return generateResult.IsFailure
+            ? Maybe<IMesh>.None()
+            : Maybe<IMesh>.Some(generateResult.Value);
+    }
+
+    /// <summary>
+    /// Puts a shell from <see cref="BuildMould"/> on screen in place of the one showing, or
+    /// clears it when there is nothing to show. UI thread.
+    /// </summary>
+    public Result ShowMould(Maybe<IMesh> mouldMesh)
     {
         if (_mouldModel is not null)
         {
@@ -129,16 +156,10 @@ public class MouldSceneManager : ISceneManager
             _mouldModel = null;
         }
 
-        if (TargetMesh is null)
+        if (mouldMesh.HasNoValue)
             return Result.Success();
 
-        var generateResult = mouldDefinition.Generate(_engine, TargetMesh);
-        if (generateResult.IsFailure)
-            return Result.Success(); // Invalid parameters mid-drag; just skip the preview silently.
-
-        var mouldMesh = generateResult.Value;
-
-        var geometryResult = mouldMesh.ToHelixMesh(_engine);
+        var geometryResult = mouldMesh.Value.ToHelixMesh(_engine);
         if (geometryResult.IsFailure)
             return Result.Success();
 
@@ -440,7 +461,7 @@ public class MouldSceneManager : ISceneManager
             if (overTarget)
             {
                 var strokePoint = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
-                if (Vector3.DistanceSquared(strokePoint, _strokePoints[^1]) >
+                if (strokePoint.DistanceSquared(_strokePoints[^1]) >
                     MinStrokePointDistance * MinStrokePointDistance)
                 {
                     _strokePoints.Add(strokePoint);

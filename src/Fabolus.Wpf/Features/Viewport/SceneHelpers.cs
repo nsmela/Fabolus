@@ -17,14 +17,14 @@ public static class SceneHelpers {
 
         for (int i = 0; i <= width / spacing; i++) {
             grid.AddLine(
-                new Vector3(minX + spacing * i, minY, 0),
-                new Vector3(minX + spacing * i, maxY, 0));
+                new SharpDX.Vector3(minX + spacing * i, minY, 0),
+                new SharpDX.Vector3(minX + spacing * i, maxY, 0));
         }
 
         for (int i = 0; i <= depth / spacing; i++) {
             grid.AddLine(
-                new Vector3(minX, minY + spacing * i, 0),
-                new Vector3(maxX, minY + spacing * i, 0));
+                new SharpDX.Vector3(minX, minY + spacing * i, 0),
+                new SharpDX.Vector3(maxX, minY + spacing * i, 0));
         }
 
         return new LineGeometryModel3D {

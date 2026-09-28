@@ -34,11 +34,11 @@ internal static class AirChannelFootprints
                 // Leaves along the surface normal and only then arcs back to vertical, so it
                 // travels a fair way in XY before it starts climbing. Walking the same arc
                 // the channel mesh is built from beats approximating it.
-                var normal = Vector3.Normalize(angled.Normal);
+                var normal = angled.Normal.Normalize();
                 var coneEnd = angled.StartPoint + normal * angled.TipLength;
 
                 var path = new List<Vector2> { Flatten(angled.StartPoint), Flatten(coneEnd) };
-                foreach (var point in engine.Generators.Arc3d(angled.Radius, coneEnd, normal, Vector3.UnitZ, 16))
+                foreach (var point in engine.Generators.GenerateArc(angled.Radius, coneEnd, normal, Vector3.UnitZ, 16).Value)
                     path.Add(Flatten(point));
 
                 return new AirChannelFootprint(path, angled.Radius);

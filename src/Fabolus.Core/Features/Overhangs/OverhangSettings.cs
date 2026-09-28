@@ -1,4 +1,4 @@
-﻿namespace Fabolus.Core.Features.Overhangs;
+namespace Fabolus.Core.Features.Overhangs;
 
 /// <summary>
 /// Inputs for overhang colouring: the direction overhangs face toward, the gradient to

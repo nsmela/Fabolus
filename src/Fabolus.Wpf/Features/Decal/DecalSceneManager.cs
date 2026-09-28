@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
@@ -42,6 +42,10 @@ public sealed class DecalSceneManager : ISceneManager
     // Visual elements
     private readonly Dictionary<Guid, MeshGeometryModel3D> _decalVisuals = [];
     private readonly Dictionary<Guid, Guid> _visualToDecalId = [];
+
+    // The prism and skin each decal visual is showing, so a refresh can skip decals that did not
+    // change instead of re-uploading every label's geometry on every preview tick.
+    private readonly Dictionary<Guid, (IMesh Prism, Material Skin)> _shownPrisms = [];
 
     // Preset sphere markers
     private readonly Dictionary<Guid, MeshGeometryModel3D> _presetSphereVisuals = [];
@@ -112,6 +116,12 @@ public sealed class DecalSceneManager : ISceneManager
             VisualRemovedById?.Invoke(_targetMeshId);
 
         TargetMesh = mesh;
+
+        // Preparing the surface for querying is the expensive part of building a decal on a large
+        // mesh, and it only has to happen once per mesh. Start it now, off the UI thread, so the
+        // first label the user drags is as quick as every one after it rather than stalling.
+        _ = Task.Run(() => DecalSurface.For(_engine, mesh));
+
         var helixMeshResult = mesh.ToHelixMesh(_engine);
         if (helixMeshResult.IsFailure)
             return helixMeshResult;
@@ -151,6 +161,14 @@ public sealed class DecalSceneManager : ISceneManager
             return;
         }
 
+        var surfaceResult = DecalSurface.For(_engine, TargetMesh);
+        if (surfaceResult.IsFailure)
+        {
+            ClearPreviewVisuals();
+            return;
+        }
+        var surface = surfaceResult.Value;
+
         var activeIds = new HashSet<Guid>();
         TextDecal? selectedDecal = null;
 
@@ -174,7 +192,7 @@ public sealed class DecalSceneManager : ISceneManager
                 continue;
             }
 
-            var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
+            // Outlines are cached by the glyph source, so this check is a lookup.
             var outlineResult = outlineSource.GetOutlines(decal.Text, decal.Font, decal.CapHeight, decal.Tracking);
             if (outlineResult.IsFailure || outlineResult.Value.Count == 0)
             {
@@ -182,18 +200,24 @@ public sealed class DecalSceneManager : ISceneManager
                 continue;
             }
 
-            float sink = PreviewSinkOffset;
-            float overshoot = PreviewOvershootOffset;
-            float maxEdge = Math.Max(MinPreviewEdgeLength, decal.CapHeight / PreviewCapHeightDivisor);
-            IMesh? surfaceTarget = TargetMesh;
-
-            var prismResult = _engine.Generators.BuildTextPrism(outlineResult.Value, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
+            var request = PreviewRequest(decal, decal.Text, decal.CapHeight, decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
+            var prismResult = surface.GetOrBuildPrism(_engine, outlineSource, request);
             if (prismResult.IsFailure) continue;
 
-            var helixPrismResult = prismResult.Value.ToHelixMesh(_engine);
-            if (helixPrismResult.IsFailure) continue;
-
+            var prism = prismResult.Value;
             var skin = decal.Operation == EmbossOperation.Emboss ? _embossSkin : _engraveSkin;
+
+            // Unchanged since the last refresh: the visual already shows exactly this.
+            if (_decalVisuals.ContainsKey(decal.Id)
+                && _shownPrisms.TryGetValue(decal.Id, out var shown)
+                && ReferenceEquals(shown.Prism, prism)
+                && ReferenceEquals(shown.Skin, skin))
+            {
+                continue;
+            }
+
+            var helixPrismResult = prism.ToHelixMesh(_engine);
+            if (helixPrismResult.IsFailure) continue;
 
             if (!_decalVisuals.TryGetValue(decal.Id, out var model))
             {
@@ -218,6 +242,8 @@ public sealed class DecalSceneManager : ISceneManager
                 model.Visibility = Visibility.Visible;
                 VisualAddedOrUpdated?.Invoke(model);
             }
+
+            _shownPrisms[decal.Id] = (prism, skin);
         }
 
         // Remove visuals that are no longer present
@@ -230,7 +256,7 @@ public sealed class DecalSceneManager : ISceneManager
         // Update cyan bounding box around the selected decal
         if (selectedDecal is not null)
         {
-            var selFrame = DecalFrame.FromHit(selectedDecal.Anchor, selectedDecal.AnchorNormal, selectedDecal.RotationDeg);
+            var selFrame = DecalFrame.FromHit(new System.Numerics.Vector3((float)selectedDecal.Anchor.X, (float)selectedDecal.Anchor.Y, (float)selectedDecal.Anchor.Z), new System.Numerics.Vector3((float)selectedDecal.AnchorNormal.X, (float)selectedDecal.AnchorNormal.Y, (float)selectedDecal.AnchorNormal.Z), selectedDecal.RotationDeg);
             var metrics = outlineSource.MeasureText(selectedDecal.Text, selectedDecal.Font, selectedDecal.CapHeight, selectedDecal.Tracking);
             float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
             float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
@@ -272,26 +298,24 @@ public sealed class DecalSceneManager : ISceneManager
     {
         if (TargetMesh is null) return;
 
-        var frame = DecalFrame.FromHit(decal.Anchor, decal.AnchorNormal, decal.RotationDeg);
+        var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)decal.Anchor.X, (float)decal.Anchor.Y, (float)decal.Anchor.Z), new System.Numerics.Vector3((float)decal.AnchorNormal.X, (float)decal.AnchorNormal.Y, (float)decal.AnchorNormal.Z), decal.RotationDeg);
         float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
         float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
         float zOff = DragPreviewZOffset;
 
-        var rectPolygon = new Polygon2D
-        {
-            OuterBoundary =
-            [
-                new Vector2(-halfW, -halfH),
-                new Vector2(halfW, -halfH),
-                new Vector2(halfW, halfH),
-                new Vector2(-halfW, halfH)
-            ]
-        };
+        var rectPolygon = new Polygon2D([new GeometryEngine.Core.Geometry.Primitives.Vec2(-halfW, -halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(halfW, -halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(halfW, halfH), new GeometryEngine.Core.Geometry.Primitives.Vec2(-halfW, halfH)], []);
 
         float maxEdge = Math.Max(MinPatchEdgeLength, decal.CapHeight / PatchCapHeightDivisor);
-        IMesh? surfaceTarget = TargetMesh;
 
-        var patchResult = _engine.Generators.BuildTextPrism(new[] { rectPolygon }, frame, PatchDepth, PatchSink, PatchOvershoot, maxEdge, surfaceTarget);
+        // Runs on every mouse move, so it must query the prepared surface rather than hand the
+        // engine the raw mesh to index all over again.
+        var surfaceResult = DecalSurface.For(_engine, TargetMesh);
+        if (surfaceResult.IsFailure) return;
+
+        // The visual is about to show the patch, not the label's prism.
+        _shownPrisms.Remove(decal.Id);
+
+        var patchResult = surfaceResult.Value.BuildPrism(_engine, [rectPolygon], frame, PatchDepth, PatchSink, PatchOvershoot, maxEdge);
         if (patchResult.IsSuccess)
         {
             var helixPatch = patchResult.Value.ToHelixMesh(_engine);
@@ -327,6 +351,11 @@ public sealed class DecalSceneManager : ISceneManager
         }
     }
 
+    private static DecalPrismRequest PreviewRequest(TextDecal decal, string text, float capHeight, Vector3 anchor, Vector3 normal, float rotationDeg) =>
+        new(text, decal.Font, capHeight, decal.Tracking, anchor, normal, rotationDeg, decal.Depth,
+            PreviewSinkOffset, PreviewOvershootOffset,
+            Math.Max(MinPreviewEdgeLength, capHeight / PreviewCapHeightDivisor));
+
     private void RemoveDecalVisual(Guid decalId)
     {
         if (_decalVisuals.TryGetValue(decalId, out var model))
@@ -334,6 +363,7 @@ public sealed class DecalSceneManager : ISceneManager
             VisualRemovedById?.Invoke(model.GUID);
             _visualToDecalId.Remove(model.GUID);
             _decalVisuals.Remove(decalId);
+            _shownPrisms.Remove(decalId);
         }
     }
 
@@ -367,7 +397,7 @@ public sealed class DecalSceneManager : ISceneManager
         foreach (var preset in presetPoints)
         {
             var mb = new HelixToolkit.Wpf.SharpDX.MeshBuilder();
-            mb.AddSphere(new SharpDX.Vector3(preset.Position.X, preset.Position.Y, preset.Position.Z), SpherePresetRadius, SphereTessellation, SphereTessellation);
+            mb.AddSphere(new SharpDX.Vector3((float)preset.Position.X, (float)preset.Position.Y, (float)preset.Position.Z), SpherePresetRadius, SphereTessellation, SphereTessellation);
             var sphereGeom = mb.ToMeshGeometry3D();
             var sphereModel = new MeshGeometryModel3D
             {
@@ -386,7 +416,7 @@ public sealed class DecalSceneManager : ISceneManager
         if (TargetMesh is null) return;
 
         // If the active decal is already at this exact preset position, don't double render
-        if (Vector3.Distance(decal.Anchor, preset.Position) < DuplicateAnchorDistanceThreshold && Math.Abs(decal.RotationDeg - (int)preset.RotationDeg) < 1)
+        if (decal.Anchor.DistanceTo(preset.Position) < DuplicateAnchorDistanceThreshold && Math.Abs(decal.RotationDeg - (int)preset.RotationDeg) < 1)
         {
             ClearPresetHoverPreview();
             return;
@@ -405,13 +435,18 @@ public sealed class DecalSceneManager : ISceneManager
             return;
         }
 
-        var frame = DecalFrame.FromHit(preset.Position, preset.Normal, preset.RotationDeg);
-        float sink = PreviewSinkOffset;
-        float overshoot = PreviewOvershootOffset;
-        float maxEdge = Math.Max(MinPreviewEdgeLength, capHeight / PreviewCapHeightDivisor);
-        IMesh? surfaceTarget = TargetMesh;
+        var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)preset.Position.X, (float)preset.Position.Y, (float)preset.Position.Z), new System.Numerics.Vector3((float)preset.Normal.X, (float)preset.Normal.Y, (float)preset.Normal.Z), preset.RotationDeg);
 
-        var prismResult = _engine.Generators.BuildTextPrism(outlineResult.Value, frame, decal.Depth, sink, overshoot, maxEdge, surfaceTarget);
+        var surfaceResult = DecalSurface.For(_engine, TargetMesh);
+        if (surfaceResult.IsFailure)
+        {
+            ClearPresetHoverPreview();
+            return;
+        }
+
+        // Cached per preset, so hovering back and forth between spheres builds each once.
+        var request = PreviewRequest(decal, text, capHeight, preset.Position, preset.Normal, preset.RotationDeg);
+        var prismResult = surfaceResult.Value.GetOrBuildPrism(_engine, outlineSource, request);
         if (prismResult.IsFailure)
         {
             ClearPresetHoverPreview();
@@ -512,6 +547,7 @@ public sealed class DecalSceneManager : ISceneManager
         }
         _decalVisuals.Clear();
         _visualToDecalId.Clear();
+        _shownPrisms.Clear();
 
         if (_gizmoLineId != Guid.Empty)
         {
@@ -629,9 +665,9 @@ public sealed class DecalSceneManager : ISceneManager
         // Length is checked before normalising, not after: normalising a zero vector yields NaN,
         // and every comparison against NaN is false, so a post-normalise guard never fires.
         var rawNormal = new Vector3((float)targetHit.NormalAtHit.X, (float)targetHit.NormalAtHit.Y, (float)targetHit.NormalAtHit.Z);
-        var n = rawNormal.LengthSquared() < MinNormalLengthSquared
+        var n = rawNormal.LengthSquared < MinNormalLengthSquared
             ? Vector3.UnitZ
-            : Vector3.Normalize(rawNormal);
+            : rawNormal.Normalize();
 
         DecalMoved?.Invoke(_dragDecalId, p, n);
         return true;
@@ -656,3 +692,4 @@ public sealed class DecalSceneManager : ISceneManager
         return false;
     }
 }
+

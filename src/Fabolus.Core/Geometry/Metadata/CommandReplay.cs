@@ -1,4 +1,4 @@
-using Fabolus.Core.Common;
+using BasicResults;
 using Fabolus.Core.Geometry;
 
 namespace Fabolus.Core.Geometry.Metadata;
@@ -7,15 +7,16 @@ namespace Fabolus.Core.Geometry.Metadata;
 /// Reconstructs a mesh by replaying an ordered list of commands against a base mesh. Used to
 /// revert a mesh after removing one of its commands (Reset/Clear features), and eventually to
 /// rebuild a mesh from a save file (base mesh geometry + its Commands list).
-/// Ownership contract: every mesh returned from here is owned by the caller and must be
-/// disposed - shared instances never cross this boundary.
+///
+/// Meshes are immutable values, so nothing here copies defensively and a caller is free to hold
+/// whatever it gets back. Where there is nothing to replay the input is returned as-is, which is
+/// safe for the same reason - this used to matter a great deal, when a mesh owned native memory
+/// and handing out a shared instance let a caller dispose the workspace's own geometry.
 /// </summary>
 public static class CommandReplay {
     /// <summary>
-    /// Replays commands against <paramref name="baseMesh"/>, taking ownership of it: it is
-    /// either consumed (disposed once the first command produces a new mesh) or returned as
-    /// the result (when there are no commands to apply). Intermediates are disposed as the
-    /// chain advances. Pass an owned copy (e.g. from GetBaseMeshCopy), never a shared instance.
+    /// Replays commands against <paramref name="baseMesh"/>, returning it unchanged when there is
+    /// nothing to apply.
     /// </summary>
     public static Result<IMesh> Apply(IGeometryEngine engine, IMesh baseMesh, IEnumerable<IMeshCommand> commands) {
         IMesh current = baseMesh;
@@ -32,29 +33,26 @@ public static class CommandReplay {
     }
 
     /// <summary>
-    /// Computes the mesh exactly as it was at the specified pipeline stage, by replaying only
-    /// commands up to that priority level against a copy of the base mesh. Always returns a
-    /// mesh the caller owns and must dispose - never the input mesh or the stored BaseMesh.
+    /// The mesh exactly as it was at the given pipeline stage, by replaying only the commands up
+    /// to that priority level against <paramref name="record"/>'s base mesh. Returns
+    /// <paramref name="currentMesh"/> itself when nothing outranks the requested stage, and the
+    /// record's base mesh when the stage admits no commands at all; both are immutable values
+    /// that the caller may hold freely.
     /// </summary>
-    public static Result<IMesh> GetMeshAtStage(IGeometryEngine engine, IMesh currentMesh, int priorityLevel) {
-        if (!currentMesh.Metadata.Commands.Any(c => c.Priority > priorityLevel)) {
+    public static Result<IMesh> GetMeshAtStage(
+        IGeometryEngine engine,
+        IMesh currentMesh,
+        MeshRecord record,
+        int priorityLevel) {
+        if (!record.Commands.Any(c => c.Priority > priorityLevel)) {
             return Result<IMesh>.Success(currentMesh);
         }
 
-        var baseCopy = currentMesh.Metadata.GetBaseMesh();
-        if (baseCopy.HasNoValue) {
+        if (record.BaseMesh is null) {
             return MetadataErrors.MissingBaseMesh;
         }
 
-        var allowedCommands = currentMesh.Metadata.Commands.Where(c => c.Priority <= priorityLevel).ToList();
-        
-        var cloneResult = engine.CloneMesh(baseCopy.Value);
-        if (cloneResult.IsFailure) return cloneResult.Error;
-
-        var applyResult = Apply(engine, cloneResult.Value, allowedCommands);
-        if (applyResult.IsFailure) return applyResult;
-
-        var stagedMetadata = currentMesh.Metadata.WithProperty(CoreKeys.Commands, (IReadOnlyList<IMeshCommand>)allowedCommands);
-        return Result<IMesh>.Success(applyResult.Value.WithMetadata(stagedMetadata));
+        var allowed = record.Commands.Where(c => c.Priority <= priorityLevel).ToList();
+        return Apply(engine, record.BaseMesh, allowed);
     }
 }

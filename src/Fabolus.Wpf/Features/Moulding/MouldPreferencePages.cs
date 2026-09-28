@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Features.Moulds;
+using Fabolus.Core.Features.Moulds;
 using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Moulding;

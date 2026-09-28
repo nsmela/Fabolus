@@ -1,4 +1,4 @@
-﻿using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.CutSplit;
 

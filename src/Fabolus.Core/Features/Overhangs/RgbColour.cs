@@ -1,4 +1,4 @@
-﻿
+
 namespace Fabolus.Core.Features.Overhangs;
 
 /// <summary>An RGB colour with channels in the [0, 1] range.</summary>

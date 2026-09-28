@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Features.CutSplit;
+using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Main;
@@ -71,7 +72,7 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         };
     }
 
-    public CutSplitViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), new GeometryMeshLib.GeometryEngine(new FileSystem()), new DialogueSystem(WeakReferenceMessenger.Default)) { }
+    public CutSplitViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), GeometryEngine.BspGeometryEngine.Create(), new DialogueSystem(WeakReferenceMessenger.Default)) { }
 
     public ISceneManager SceneManager => _sceneManager;
 
@@ -84,22 +85,22 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
             var statsResult = _engine.Evaluators.GetStatistics(ActiveMesh);
             if (statsResult.IsSuccess) {
                 var stats = statsResult.Value;
-                var sizeX = (float)(stats.MaxX - stats.MinX);
-                var sizeY = (float)(stats.MaxY - stats.MinY);
-                var sizeZ = (float)(stats.MaxZ - stats.MinZ);
+                var sizeX = (float)(stats.BoundsMax.X - stats.BoundsMin.X);
+                var sizeY = (float)(stats.BoundsMax.Y - stats.BoundsMin.Y);
+                var sizeZ = (float)(stats.BoundsMax.Z - stats.BoundsMin.Z);
 
                 // Give 50% extra bounds on either side
-                PlaneMinX = (float)stats.MinX - sizeX * 0.5f;
-                PlaneMaxX = (float)stats.MaxX + sizeX * 0.5f;
-                PlaneMinY = (float)stats.MinY - sizeY * 0.5f;
-                PlaneMaxY = (float)stats.MaxY + sizeY * 0.5f;
-                PlaneMinZ = (float)stats.MinZ - sizeZ * 0.5f;
-                PlaneMaxZ = (float)stats.MaxZ + sizeZ * 0.5f;
+                PlaneMinX = (float)stats.BoundsMin.X - sizeX * 0.5f;
+                PlaneMaxX = (float)stats.BoundsMax.X + sizeX * 0.5f;
+                PlaneMinY = (float)stats.BoundsMin.Y - sizeY * 0.5f;
+                PlaneMaxY = (float)stats.BoundsMax.Y + sizeY * 0.5f;
+                PlaneMinZ = (float)stats.BoundsMin.Z - sizeZ * 0.5f;
+                PlaneMaxZ = (float)stats.BoundsMax.Z + sizeZ * 0.5f;
 
                 _isUpdatingFromScene = true;
-                PlaneX = (float)stats.Centre.X;
-                PlaneY = (float)stats.Centre.Y;
-                PlaneZ = (float)stats.Centre.Z;
+                PlaneX = (float)((stats.BoundsMin.X + stats.BoundsMax.X) / 2.0);
+                PlaneY = (float)((stats.BoundsMin.Y + stats.BoundsMax.Y) / 2.0);
+                PlaneZ = (float)((stats.BoundsMin.Z + stats.BoundsMax.Z) / 2.0);
                 PlanePitch = 0f;
                 PlaneYaw = 0f;
                 _isUpdatingFromScene = false;
@@ -120,8 +121,13 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
                 _isUpdatingFromScene = false;
             }
 
-            IsMould = ActiveMesh.Metadata.Name.Contains("Mould");
-            
+            // A generated mould is one carrying a MouldDefinition, which is what the Mould feature
+            // records. Matching on the mesh's name used to stand in for this, and could not work:
+            // the name on the geometry is whatever the boolean that built the mould called it.
+            var recordResult = Workspace.GetActiveRecord();
+            IsMould = recordResult.IsSuccess && recordResult.Value.MouldDefinition() is not null;
+
+
             _sceneManager.UpdateMesh(ActiveMesh);
             UpdatePlane();
         }
@@ -138,10 +144,11 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         if (_isUpdatingFromScene) return;
 
         var origin = new Vector3(PlaneX, PlaneY, PlaneZ);
-        var rotation = Quaternion.CreateFromYawPitchRoll(PlaneYaw * (float)(System.Math.PI / 180.0), PlanePitch * (float)(System.Math.PI / 180.0), 0);
-        var normal = Vector3.Transform(Vector3.UnitZ, rotation);
+        var rotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(PlaneYaw * (float)(System.Math.PI / 180.0), PlanePitch * (float)(System.Math.PI / 180.0), 0);
+        var snNormal = global::System.Numerics.Vector3.Transform(global::System.Numerics.Vector3.UnitZ, rotation);
+        var normal = new Vector3(snNormal.X, snNormal.Y, snNormal.Z);
         
-        _sceneManager.UpdatePlane(origin, normal);
+        _sceneManager.UpdatePlane(new System.Numerics.Vector3((float)origin.X, (float)origin.Y, (float)origin.Z), new System.Numerics.Vector3((float)normal.X, (float)normal.Y, (float)normal.Z));
     }
 
     [RelayCommand]
@@ -155,10 +162,19 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         _messenger.Send(new IsLoadingMessage(true));
 
         var origin = new Vector3(PlaneX, PlaneY, PlaneZ);
-        var rotation = Quaternion.CreateFromYawPitchRoll(PlaneYaw * (float)(System.Math.PI / 180.0), PlanePitch * (float)(System.Math.PI / 180.0), 0);
-        var normal = Vector3.Transform(Vector3.UnitZ, rotation);
+        var rotation = System.Numerics.Quaternion.CreateFromYawPitchRoll(PlaneYaw * (float)(System.Math.PI / 180.0), PlanePitch * (float)(System.Math.PI / 180.0), 0);
+        var snNormal = global::System.Numerics.Vector3.Transform(global::System.Numerics.Vector3.UnitZ, rotation);
+        var normal = new Vector3(snNormal.X, snNormal.Y, snNormal.Z);
 
-        var result = await Task.Run(() => _cutFeature.Execute(ActiveMesh, origin, normal));
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure) {
+            _alert.ShowError(recordResult.Error.Description);
+            _messenger.Send(new IsLoadingMessage(false));
+            return;
+        }
+
+        var record = recordResult.Value;
+        var result = await Task.Run(() => _cutFeature.Execute(ActiveMesh, record, origin, normal));
         if (result.IsFailure) {
             _alert.ShowError(result.Error.Description);
             _messenger.Send(new IsLoadingMessage(false));
@@ -166,12 +182,12 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         }
 
         var (top, bottom) = result.Value;
-        
-        // Add to workspace
-        var topWsResult = Workspace.AddMesh(top, setActive: false);
+
+        // Add to workspace - each half is its own entry, with the identity the cut gave it.
+        var topWsResult = Workspace.AddMesh(top.Mesh, top.Record, setActive: false);
         if (topWsResult.IsSuccess) Workspace = topWsResult.Value;
 
-        var botWsResult = Workspace.AddMesh(bottom, setActive: false);
+        var botWsResult = Workspace.AddMesh(bottom.Mesh, bottom.Record, setActive: false);
         if (botWsResult.IsSuccess) Workspace = botWsResult.Value;
 
         // Clear active mesh selection so none is selected
@@ -190,9 +206,10 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
         if (statsResult.IsSuccess) {
             var stats = statsResult.Value;
             _isUpdatingFromScene = true;
-            PlaneX = (float)stats.Centre.X;
-            PlaneY = (float)stats.Centre.Y;
-            PlaneZ = (float)stats.Centre.Z;
+            var centre = (stats.BoundsMin + stats.BoundsMax) / 2.0;
+            PlaneX = (float)centre.X;
+            PlaneY = (float)centre.Y;
+            PlaneZ = (float)centre.Z;
             PlanePitch = 0f;
             PlaneYaw = 0f;
             _isUpdatingFromScene = false;

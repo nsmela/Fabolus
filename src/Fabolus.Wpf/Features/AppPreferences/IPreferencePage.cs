@@ -1,4 +1,4 @@
-﻿namespace Fabolus.Wpf.Features.AppPreferences;
+namespace Fabolus.Wpf.Features.AppPreferences;
 
 /// <summary>
 /// One page in the preferences sidebar, contributed by the feature that owns those settings.

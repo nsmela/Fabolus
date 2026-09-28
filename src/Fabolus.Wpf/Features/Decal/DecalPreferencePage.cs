@@ -1,4 +1,4 @@
-﻿using Fabolus.Core.Features.Decal;
+using Fabolus.Core.Features.Decal;
 using Fabolus.Wpf.Features.AppPreferences;
 
 namespace Fabolus.Wpf.Features.Decal;
@@ -100,7 +100,7 @@ public sealed class DecalPreferencePage : IPreferencePage {
                 Write = value => vm.Update<DecalPreferences>(settings => settings with { Depth = (float)value }),
             }.EnabledWhen(Enabled),
             new NoteRow {
-                Caption = "Cap height is a starting point only — a decal snapped to an anchor is still "
+                Caption = "Cap height is a starting point only � a decal snapped to an anchor is still "
                         + "scaled to fit the room available there.",
             }.EnabledWhen(Enabled),
         ];

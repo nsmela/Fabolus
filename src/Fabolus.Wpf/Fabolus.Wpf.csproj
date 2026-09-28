@@ -44,7 +44,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Fabolus.Core\Fabolus.Core.csproj" />
-    <ProjectReference Include="..\Geometry.MeshLib\Geometry.MeshLib.csproj" />
   </ItemGroup>
 
 </Project>
