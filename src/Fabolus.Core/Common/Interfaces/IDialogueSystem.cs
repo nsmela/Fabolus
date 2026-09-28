@@ -40,5 +40,10 @@ public interface IDialogueSystem
     /// </summary>
     /// <param name="filter">Win32-style filter string, e.g. "STL Files (*.stl)|*.stl|All Files (*.*)|*.*"</param>
     /// <param name="defaultExtension">Extension appended when the user omits one, e.g. ".stl"</param>
-    Maybe<string> ShowSaveFileDialog(string filter, string defaultExtension);
+    /// <param name="defaultFileName">
+    /// Name to pre-fill, without an extension. Callers exporting a mesh pass its record name, so
+    /// the save dialog opens on the name the mesh was imported under rather than empty.
+    /// Characters the filesystem rejects are stripped by the implementation.
+    /// </param>
+    Maybe<string> ShowSaveFileDialog(string filter, string defaultExtension, string defaultFileName = "");
 }

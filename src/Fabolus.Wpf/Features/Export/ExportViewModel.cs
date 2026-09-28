@@ -51,6 +51,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
     {
         UpdateInfoPanelAsync();
     }
+
     [ObservableProperty] private string _fileExtension = ".3mf";
     [ObservableProperty] private int _fileCount;
     [ObservableProperty] private string _exportButtonText = "Export 0 files";
@@ -63,6 +64,40 @@ public partial class ExportViewModel : ObservableObject, IViewState
     public ObservableCollection<OperationItem> BakedOperations { get; } = new();
 
     public ISceneManager SceneManager => _sceneManager;
+
+    /// <summary>
+    /// The two extensions this panel writes. Both import paths hand over a name that has already
+    /// been through Path.GetFileNameWithoutExtension, so a freshly imported mesh never carries
+    /// one - but the name box is free text and the user can type "bolus.stl" into it.
+    /// </summary>
+    private static readonly string[] ExportExtensions = [".stl", ".3mf"];
+
+    /// <summary>
+    /// <see cref="FileName"/> without a trailing export extension, so appending
+    /// <see cref="FileExtension"/> cannot produce "bolus.stl.stl".
+    /// </summary>
+    /// <remarks>
+    /// Only the two extensions above are stripped, rather than whatever Path.GetExtension finds:
+    /// a bolus named "ear_v1.5" has a suffix that looks like an extension and is not one, and
+    /// taking it off would quietly rename the user's file.
+    /// </remarks>
+    private string BaseFileName
+    {
+        get
+        {
+            var name = FileName?.Trim() ?? string.Empty;
+
+            foreach (var extension in ExportExtensions)
+            {
+                if (name.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                {
+                    return name[..^extension.Length];
+                }
+            }
+
+            return name;
+        }
+    }
 
     public ExportViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine, IDialogueSystem dialogueSystem)
     {
@@ -174,7 +209,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
             fileSize = $"{sizeMb:F1} MB";
         }
 
-        string filename = $"{FileName}{FileExtension}";
+        string filename = $"{BaseFileName}{FileExtension}";
 
         items.Add(new FileDetailsInfoItem { FileName = filename, FileSize = fileSize });
         items.Add(new SeparatorInfoItem());
@@ -228,7 +263,12 @@ public partial class ExportViewModel : ObservableObject, IViewState
         var filter = Is3mfSelected ? "3D Manufacturing Format (*.3mf)|*.3mf" : "STL Files (*.stl)|*.stl";
         var defaultExt = Is3mfSelected ? ".3mf" : ".stl";
         
-        var saveResult = _dialogueSystem.ShowSaveFileDialog(filter, defaultExt);
+        // FileName starts as the active record's name - the one the mesh was imported under - and
+        // tracks whatever the user has since typed into the export panel, so the dialog opens on
+        // the name shown there rather than blank. Stripped of any extension the user typed, because
+        // SaveFileDialog appends the filter's own when what is there does not match it: "bolus.stl"
+        // exported as a package would otherwise be saved as "bolus.stl.3mf".
+        var saveResult = _dialogueSystem.ShowSaveFileDialog(filter, defaultExt, BaseFileName);
         if (saveResult.HasNoValue) return;
 
         var exportRecordResult = Workspace.GetActiveRecord();
