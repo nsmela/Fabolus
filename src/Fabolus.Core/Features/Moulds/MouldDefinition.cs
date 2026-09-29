@@ -31,7 +31,36 @@ public abstract record MouldDefinition : IMeshCommand
     /// mould doesn't silently grow taller for a basin that can't be carved.
     /// </summary>
     private bool HasTrough =>
-        TroughHeight > 0 && (TroughShape != TroughShapeType.Channels || AirChannels.Count > 0);
+        CarvesTrough
+        && TroughHeight > 0
+        && (TroughShape != TroughShapeType.Channels || AirChannels.Count > 0);
+
+    /// <summary>
+    /// Whether this shape has a flat top to recess a basin into at all.
+    /// </summary>
+    protected virtual bool CarvesTrough => true;
+
+    /// <summary>
+    /// The XY outline the mould body is extruded from, already grown by the wall thickness and
+    /// taking the air channels in. The trough is cut from this, so measuring the basin and
+    /// carving it work from the same polygon rather than two that could drift apart.
+    /// </summary>
+    protected abstract Result<Polygon2D> BuildFootprint(IGeometryEngine engine, IMesh mesh);
+
+    /// <summary>
+    /// How much silicone the trough holds, in cubic millimetres, or zero when this mould has no
+    /// trough - the depth is zero, the shape has no top to cut into, or a channel trough has no
+    /// channels to pool around.
+    /// </summary>
+    public Result<double> TroughCapacity(IGeometryEngine engine, IMesh mesh)
+    {
+        if (!HasTrough) return 0.0;
+
+        var footprintResult = BuildFootprint(engine, mesh);
+        if (footprintResult.IsFailure) return footprintResult.Error;
+
+        return MouldTrough.Capacity(engine, footprintResult.Value, this);
+    }
 
     public int Priority => CommandPriority.Mould;
 
@@ -125,6 +154,14 @@ public abstract record MouldDefinition : IMeshCommand
 
 public sealed record ConvexMouldDefinition(double OffsetXY = 2.0, double OffsetBottom = 2.0, double OffsetTop = 2.0) : MouldDefinition
 {
+    protected override Result<Polygon2D> BuildFootprint(IGeometryEngine engine, IMesh mesh)
+    {
+        var hull = engine.Polygons.ProjectConvexHull(mesh);
+        if (hull.IsFailure) return hull.Error;
+
+        return MouldFootprint.Build(engine, hull.Value, OffsetXY, AirChannels);
+    }
+
     public override Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh)
     {
         var statsResult = engine.Evaluators.GetStatistics(mesh);
@@ -132,14 +169,11 @@ public sealed record ConvexMouldDefinition(double OffsetXY = 2.0, double OffsetB
             return statsResult.Error;
 
         var bounds = statsResult.Value;
-        
-        var hull = engine.Polygons.ProjectConvexHull(mesh);
-        if (hull.IsFailure) return hull.Error;
-        
-        var offset = MouldFootprint.Build(engine, hull.Value, OffsetXY, AirChannels);
-        if (offset.IsFailure) return offset.Error;
 
-        return ExtrudeBody(engine, offset.Value,
+        var footprint = BuildFootprint(engine, mesh);
+        if (footprint.IsFailure) return footprint.Error;
+
+        return ExtrudeBody(engine, footprint.Value,
             (float)bounds.BoundsMin.Z - (float)OffsetBottom,
             (float)bounds.BoundsMax.Z + (float)OffsetTop);
     }
@@ -147,6 +181,14 @@ public sealed record ConvexMouldDefinition(double OffsetXY = 2.0, double OffsetB
 
 public sealed record ConcaveMouldDefinition(double OffsetXY = 2.0, double OffsetBottom = 2.0, double OffsetTop = 2.0) : MouldDefinition
 {
+    protected override Result<Polygon2D> BuildFootprint(IGeometryEngine engine, IMesh mesh)
+    {
+        var shadow = engine.Polygons.ProjectOutline(mesh);
+        if (shadow.IsFailure) return shadow.Error;
+
+        return MouldFootprint.Build(engine, shadow.Value, OffsetXY, AirChannels);
+    }
+
     public override Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh)
     {
         var statsResult = engine.Evaluators.GetStatistics(mesh);
@@ -155,13 +197,10 @@ public sealed record ConcaveMouldDefinition(double OffsetXY = 2.0, double Offset
 
         var bounds = statsResult.Value;
 
-        var shadow = engine.Polygons.ProjectOutline(mesh);
-        if (shadow.IsFailure) return shadow.Error;
-        
-        var offset = MouldFootprint.Build(engine, shadow.Value, OffsetXY, AirChannels);
-        if (offset.IsFailure) return offset.Error;
+        var footprint = BuildFootprint(engine, mesh);
+        if (footprint.IsFailure) return footprint.Error;
 
-        return ExtrudeBody(engine, offset.Value,
+        return ExtrudeBody(engine, footprint.Value,
             (float)bounds.BoundsMin.Z - (float)OffsetBottom,
             (float)bounds.BoundsMax.Z + (float)OffsetTop);
     }
@@ -171,6 +210,13 @@ public sealed record ContouredMouldDefinition(double OffsetXY = 2.0) : MouldDefi
 {
     // No trough here: this shell follows the bolus surface, so there's no flat top face to
     // recess a basin into - a cut would just open a hole through the shell.
+    protected override bool CarvesTrough => false;
+
+    // Never reached while CarvesTrough is false, and there is no honest answer to give: this
+    // shell is offset straight off the mesh rather than extruded from any outline.
+    protected override Result<Polygon2D> BuildFootprint(IGeometryEngine engine, IMesh mesh) =>
+        TroughErrors.ContouredHasNoFootprint;
+
     public override Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh)
     {
         return engine.Modifiers.Offset(mesh, (float)OffsetXY, 0);

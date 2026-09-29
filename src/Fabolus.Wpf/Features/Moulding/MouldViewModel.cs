@@ -296,10 +296,38 @@ public partial class MouldViewModel : ObservableObject, IViewState
         ? "How far the pool spreads past the channel exits."
         : "Rim left standing between the pool and the mould wall.";
 
+    /// <summary>
+    /// How much silicone the trough holds, in millilitres. Measured alongside each shell rebuild,
+    /// so it follows the depth and margin sliders as they are dragged.
+    /// </summary>
+    /// <remarks>
+    /// Millilitres, not the cubic millimetres the geometry is measured in: this is a quantity of
+    /// silicone somebody has to pour, and a basin of any useful size runs to five or six digits
+    /// in mm3.
+    /// </remarks>
+    [ObservableProperty] private double _troughVolume;
+
+    partial void OnTroughVolumeChanged(double value)
+    {
+        OnPropertyChanged(nameof(HasTroughVolume));
+
+        // Republished rather than bound, because the info panel takes a list rather than
+        // individual properties - so a new capacity means sending the whole set again.
+        PublishMeshInfo();
+    }
+
+    /// <summary>
+    /// Whether there is a measured capacity worth showing. A trough whose parameters do not
+    /// currently describe a basin - a margin that has eaten the whole footprint, say - measures
+    /// nothing, and a blank row says more than "0.0 mL" would.
+    /// </summary>
+    public bool HasTroughVolume => HasTrough && TroughVolume > 0;
+
     partial void OnSelectedMouldTypeChanged(MouldShapeType value)
     {
         OnPropertyChanged(nameof(SupportsTrough));
         OnPropertyChanged(nameof(HasTrough));
+        OnPropertyChanged(nameof(HasTroughVolume));
         UpdateMouldHeight();
     }
 
@@ -311,6 +339,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     partial void OnTroughHeightChanged(double value)
     {
         OnPropertyChanged(nameof(HasTrough));
+        OnPropertyChanged(nameof(HasTroughVolume));
         UpdateMouldHeight();
     }
 
@@ -483,6 +512,42 @@ public partial class MouldViewModel : ObservableObject, IViewState
             _mouldPending = true;
             await RebuildMouldAsync();
         }
+        else
+        {
+            // Nothing is rebuilt for a mould that is already baked, so its trough would otherwise
+            // go unmeasured and the panel would report none for a mould that plainly has one.
+            await MeasureGeneratedTroughAsync();
+        }
+    }
+
+    /// <summary>
+    /// Measures the trough of an already-generated mould, for the panel to report on re-entry.
+    /// </summary>
+    /// <remarks>
+    /// The mould is the active mesh by this point, and the trough was cut from the bolus's
+    /// footprint rather than the mould's - measuring against the mould would inset an outline
+    /// that has already been grown by the wall thickness, giving a rim that never existed. The
+    /// mesh is rewound to the stage the mould was generated from instead: everything below
+    /// <see cref="CommandPriority.Mould"/> replayed, which is exactly what the definition was
+    /// handed when it built the shell.
+    /// </remarks>
+    private async Task MeasureGeneratedTroughAsync()
+    {
+        var meshResult = Workspace.GetActiveMesh();
+        var recordResult = Workspace.GetActiveRecord();
+        if (meshResult.IsFailure || recordResult.IsFailure) return;
+
+        var record = recordResult.Value;
+        if (record.MouldDefinition() is not { } definition) return;
+
+        var sourceResult = CommandReplay.GetMeshAtStage(
+            _engine, meshResult.Value, record, CommandPriority.TextEmboss);
+        if (sourceResult.IsFailure) return;
+
+        var source = sourceResult.Value;
+        var capacity = await Task.Run(() => definition.TroughCapacity(_engine, source));
+
+        TroughVolume = capacity.IsSuccess ? Measure.ToMillilitres(capacity.Value) : 0.0;
     }
 
     public Task<Workspace> DeactivateAsync()
@@ -502,10 +567,54 @@ public partial class MouldViewModel : ObservableObject, IViewState
     private void SetSceneTarget(IMesh mesh)
     {
         _targetStats = mesh.Stats();
+        PublishMeshInfo();
 
         var result = _sceneManager.UpdateMesh(mesh);
         if (result.IsFailure)
             _alert.ShowError(result.Error.Description);
+    }
+
+    /// <summary>
+    /// Fills the viewport's info panel.
+    /// </summary>
+    /// <remarks>
+    /// The mould view was the one tool that published nothing to it, so the panel sat empty here
+    /// while every other view filled it. MainViewModel clears the panel as the view changes and
+    /// this runs from ActivateAsync afterwards, so the order works out without any coordination
+    /// between the two.
+    /// </remarks>
+    private void PublishMeshInfo()
+    {
+        var items = new List<MeshInfoItem>();
+
+        if (_targetStats is not null)
+        {
+            // Once generated, the active mesh IS the mould, so from then on these describe the
+            // mould itself rather than the bolus it was built around.
+            items.Add(new TitleInfoItem { Label = IsGenerated ? "MOULD STATISTICS" : "MESH STATISTICS" });
+            items.Add(new TextInfoItem { Label = "Triangles", Value = _targetStats.TriangleCount.ToString("N0") });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{Measure.ToSquareCentimetres(_targetStats.SurfaceArea):F2} cm²" });
+
+            // Named for what it is measuring rather than just "Volume", so it cannot be mistaken
+            // for the trough's. Which mesh that is changes once the mould is generated: from then
+            // on the active mesh is the mould, not the bolus it was built around.
+            items.Add(new TextInfoItem {
+                Label = IsGenerated ? "Mould Volume" : "Bolus Volume",
+                Value = $"{Measure.ToMillilitres(_targetStats.Volume):F2} mL"
+            });
+
+            var size = _targetStats.BoundsSize;
+            items.Add(new TextInfoItem { Label = "Dimensions", Value = $"{size.X:F1} x {size.Y:F1} x {size.Z:F1} mm" });
+        }
+
+        // One line among the rest rather than a section of its own. Left out entirely when the
+        // settings carve no basin, rather than shown as a zero.
+        if (HasTroughVolume)
+        {
+            items.Add(new TextInfoItem { Label = "Trough Volume", Value = $"{TroughVolume:F1} mL" });
+        }
+
+        _messenger.Send(new UpdateMeshInfoMessage(items));
     }
 
     // The mould/channel settings only live here in the ViewModel until Generate is
@@ -627,11 +736,19 @@ public partial class MouldViewModel : ObservableObject, IViewState
                 MouldRebuildCount++;
 
                 var definition = BuildMouldDefinition();
-                var built = await Task.Run(() => _sceneManager.BuildMould(definition));
+
+                // Measured in the same pass as the shell, off the UI thread, so the figure on
+                // screen always describes the mould on screen rather than lagging a rebuild
+                // behind it.
+                var (built, capacity) = await Task.Run(() => (
+                    _sceneManager.BuildMould(definition),
+                    _sceneManager.MeasureTroughCapacity(definition)));
 
                 // Parameters that do not describe a mould come back empty, which is routine
                 // part-way through a drag - the shell is cleared rather than reported.
                 _sceneManager.ShowMould(built);
+
+                TroughVolume = capacity.HasValue ? Measure.ToMillilitres(capacity.Value) : 0.0;
             }
         }
         finally
@@ -643,6 +760,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // The channel must vent above the mould, not stay sealed inside it: its top always
     // ends 2.0mm above the mould's bounding box, regardless of where its base is placed.
     private const float MouldClearance = 2.0f;
+
 
     private float ComputeTotalLength(float startZ)
     {
