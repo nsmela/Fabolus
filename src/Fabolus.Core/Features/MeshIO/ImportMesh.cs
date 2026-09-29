@@ -133,12 +133,19 @@ public sealed class ImportMesh {
 
         var mesh = contents.Model.WithMeasurements(_geometryEngine);
 
+        // Measured on the way past, the way the geometry import measures the base mesh it keeps.
+        // Stats() is a cache read rather than a measurement, so a base mesh restored unmeasured
+        // answers null to everything asked of it - which left the smoothing panel's "Original
+        // Mesh" figures missing entirely for every mesh opened from a 3MF.
+        var baseMesh = (contents.Reference.HasValue ? contents.Reference.Value : contents.Model)
+            .WithMeasurements(_geometryEngine);
+
         var record = MeshRecord.ForImport(name) with {
             Commands = commands.Value,
             // Falls back to the model when the package carries no reference object: the history
             // then replays from the saved geometry, which is wrong for undo but better than an
             // entry that cannot replay at all.
-            BaseMesh = contents.Reference.HasValue ? contents.Reference.Value : contents.Model,
+            BaseMesh = baseMesh,
         };
 
         var added = workspace.AddMesh(mesh, record);
