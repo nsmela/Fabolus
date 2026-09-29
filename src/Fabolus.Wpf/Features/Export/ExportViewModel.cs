@@ -235,8 +235,19 @@ public partial class ExportViewModel : ObservableObject, IViewState
             return;
         }
 
-        items.Add(new TextInfoItem { Label = "Volume", Value = $"{(stats.Volume):N1} mL" });
-        items.Add(new TextInfoItem { Label = "Surface area", Value = $"{(stats.SurfaceArea / 100):N1} cm²" });
+        // The transform-stage mesh, so this is the bolus itself whether or not a mould was cut
+        // around it afterwards.
+        items.Add(new TextInfoItem { Label = "Bolus volume", Value = $"{Measure.ToMillilitres(stats.Volume):N1} mL" });
+
+        // Once a mould has been generated the active mesh IS the mould, so its volume is the
+        // mould's. The two answer different questions - how much silicone the bolus takes against
+        // how much resin the mould does - and an export is where both matter.
+        if (record.MouldDefinition() is not null && activeStats is not null)
+        {
+            items.Add(new TextInfoItem { Label = "Mould volume", Value = $"{Measure.ToMillilitres(activeStats.Volume):N1} mL" });
+        }
+
+        items.Add(new TextInfoItem { Label = "Surface area", Value = $"{Measure.ToSquareCentimetres(stats.SurfaceArea):N1} cm²" });
         
         _messenger.Send(new UpdateMeshInfoMessage(items));
 

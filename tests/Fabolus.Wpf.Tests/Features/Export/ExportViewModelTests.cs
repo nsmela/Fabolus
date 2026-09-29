@@ -1,10 +1,14 @@
+using System.Collections.Generic;
+using System.Linq;
 using BasicResults;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Common.Interfaces;
+using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.Export;
+using Fabolus.Wpf.Features.Main;
 using Moq;
 using Xunit;
 
@@ -83,6 +87,84 @@ public class ExportViewModelTests
         dialogue.Verify(d => d.ShowSaveFileDialog(
             It.IsAny<string>(), It.IsAny<string>(), "ear_v1.5"), Times.Once);
     });
+
+    /// <summary>
+    /// A bolus and the mould around it are two different quantities of two different materials,
+    /// and an export is where both matter. Without a mould there is only the one.
+    /// </summary>
+    [Fact]
+    public void WithoutAMould_OnlyTheBolusVolumeIsReported() => UiThread.Run(async () =>
+    {
+        var items = await InfoPanelFor(WorkspaceWith("bolus"));
+
+        Assert.Contains(items.OfType<TextInfoItem>(), i => i.Label == "Bolus volume");
+        Assert.DoesNotContain(items.OfType<TextInfoItem>(), i => i.Label == "Mould volume");
+    });
+
+    [Fact]
+    public void WithAMould_BothVolumesAreReported() => UiThread.Run(async () =>
+    {
+        var items = await InfoPanelFor(WorkspaceWith("bolus", new ConcaveMouldDefinition()));
+
+        var bolus = Assert.Single(items.OfType<TextInfoItem>(), i => i.Label == "Bolus volume");
+        var mould = Assert.Single(items.OfType<TextInfoItem>(), i => i.Label == "Mould volume");
+
+        Assert.EndsWith("mL", bolus.Value);
+        Assert.EndsWith("mL", mould.Value);
+
+        // Two readings off two different meshes, which is the whole point of the pair: the same
+        // number twice would mean both had been read off the active mesh.
+        //
+        // Not a size comparison. A mould encases the bolus but is hollowed out by it - Apply
+        // subtracts the bolus from the shell - so the mould is only the material around the
+        // cavity and is routinely the smaller figure of the two.
+        Assert.True(MillilitresIn(bolus.Value) > 0, $"bolus reads {bolus.Value}");
+        Assert.True(MillilitresIn(mould.Value) > 0, $"mould reads {mould.Value}");
+        Assert.NotEqual(bolus.Value, mould.Value);
+    });
+
+    private static double MillilitresIn(string value) =>
+        double.Parse(value.Replace(" mL", string.Empty), System.Globalization.CultureInfo.CurrentCulture);
+
+    private static async Task<List<MeshInfoItem>> InfoPanelFor(Workspace workspace)
+    {
+        var messenger = new StrongReferenceMessenger();
+
+        var published = new List<MeshInfoItem>();
+        messenger.Register<UpdateMeshInfoMessage>(new object(), (_, m) =>
+        {
+            published.Clear();
+            published.AddRange(m.Items);
+        });
+
+        var vm = new ExportViewModel(
+            messenger, Mock.Of<IAlertDialog>(), Engine, Mock.Of<IDialogueSystem>());
+
+        await vm.ActivateAsync(workspace);
+        return published;
+    }
+
+    private static Workspace WorkspaceWith(string name, params IMeshCommand[] commands)
+    {
+        var mesh = Engine.Generators.GenerateBox(new Vector3(-20, -30, 0), new Vector3(20, 30, 50)).Value
+            .WithMeasurements(Engine);
+
+        var record = MeshRecord.ForImport(name);
+        var workspace = Workspace.CreateEmpty().AddMesh(mesh, record).Value;
+
+        foreach (var command in commands)
+        {
+            var applied = command.Apply(Engine, workspace.GetActiveMesh().Value);
+            Assert.True(applied.IsSuccess, applied.IsFailure ? applied.Error.Description : "");
+
+            workspace = workspace.UpdateMesh(
+                record.Id,
+                applied.Value.WithMeasurements(Engine),
+                workspace.GetActiveRecord().Value.WithCommand(command)).Value;
+        }
+
+        return workspace;
+    }
 
     /// <summary>
     /// An activated export panel over a one-mesh workspace, with a dialogue system that cancels
