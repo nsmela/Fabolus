@@ -21,9 +21,21 @@ internal class RotateSceneManager : ISceneManager {
     private readonly PrintBedGrid _grid;
     private readonly ComputeOverhangColors _overhangFeature;
 
+    // The +X and +Y axes drawn on the bed. Rotation is the one view where which way the model is
+    // facing is the whole question, and the bed grid alone is symmetric enough to give no answer.
+    // They follow the grid's own visibility: they are bed furniture, and a user who turned the
+    // grid off is asking for a bare bed.
+    private IReadOnlyList<Element3D> _axes = [];
+
     // Unlit material: renders per-vertex Colors directly, with no lighting term.
     // (A PhongMaterial would shade to black in a scene with no lights.)
-    private static readonly HelixToolkit.Wpf.SharpDX.Material _skin = new VertColorMaterial();
+    //
+    // Per instance, not static. A Material is a WPF DependencyObject and so belongs to the thread
+    // that created it; assigning one to a model on any other thread throws inside
+    // AddInheritanceContext. The app only ever has one UI thread and one of these managers, so a
+    // static worked there, but it made the field an accidental rendezvous between threads - which
+    // is exactly what the tests are, since each runs its body on an STA thread of its own.
+    private readonly HelixToolkit.Wpf.SharpDX.Material _skin = new VertColorMaterial();
 
     private MeshGeometryModel3D _mesh = new();
     private LineGeometryModel3D _activeGizmo;
@@ -46,7 +58,13 @@ internal class RotateSceneManager : ISceneManager {
         _grid.Replaced += (replacedId, grid) => {
             VisualRemovedById?.Invoke(replacedId);
             VisualAddedOrUpdated?.Invoke(grid);
+
+            // The grid is only ever replaced because the bed preferences changed, so the axes are
+            // the wrong length now too.
+            RebuildAxes();
         };
+
+        _axes = BuildAxes();
 
         _overhangFeature = new ComputeOverhangColors(_engine);
         OverhangSettings = new OverhangSettings(
@@ -73,6 +91,25 @@ internal class RotateSceneManager : ISceneManager {
     public void OnActivated() {
         VisualsCleared?.Invoke();
         VisualAddedOrUpdated?.Invoke(_grid.Current);
+
+        foreach (var axis in _axes) {
+            VisualAddedOrUpdated?.Invoke(axis);
+        }
+    }
+
+    private IReadOnlyList<Element3D> BuildAxes() =>
+        SceneHelpers.GenerateBedAxes(_grid.Bed.Width, _grid.Bed.Depth, _grid.Bed.ShowGrid);
+
+    private void RebuildAxes() {
+        foreach (var axis in _axes) {
+            VisualRemovedById?.Invoke(axis.GUID);
+        }
+
+        _axes = BuildAxes();
+
+        foreach (var axis in _axes) {
+            VisualAddedOrUpdated?.Invoke(axis);
+        }
     }
 
     public void ApplyTempRotation(Vector3D axis, float degree) {

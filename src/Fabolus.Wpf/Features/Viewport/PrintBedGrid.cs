@@ -20,6 +20,12 @@ internal sealed class PrintBedGrid {
     public Element3D Current => _grid;
 
     /// <summary>
+    /// The preferences <see cref="Current"/> was built from. Exposed for scene managers that draw
+    /// their own bed-sized furniture alongside the grid and have to resize it in step.
+    /// </summary>
+    public PrintBedPreferences Bed { get; private set; }
+
+    /// <summary>
     /// Raised after the preferences change, with the id of the grid to drop and the one to add
     /// in its place.
     /// </summary>
@@ -27,7 +33,8 @@ internal sealed class PrintBedGrid {
 
     public PrintBedGrid(IMessenger messenger) {
         _messenger = messenger;
-        _grid = Build(_messenger.GetSection(PrintBedPreferences.Default));
+        Bed = _messenger.GetSection(PrintBedPreferences.Default);
+        _grid = Build(Bed);
 
         _messenger.Register<PrintBedGrid, PreferenceSectionUpdateMessage<PrintBedPreferences>>(
             this, (recipient, message) => recipient.Rebuild(message.Section));
@@ -35,6 +42,7 @@ internal sealed class PrintBedGrid {
 
     private void Rebuild(PrintBedPreferences bed) {
         var replacedId = _grid.GUID;
+        Bed = bed;
         _grid = Build(bed);
         Replaced?.Invoke(replacedId, _grid);
     }

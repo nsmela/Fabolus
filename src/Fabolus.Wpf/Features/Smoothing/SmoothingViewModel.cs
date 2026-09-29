@@ -176,7 +176,14 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, _record, CommandPriority.Transform);
         if (stageResult.IsFailure) return;
-        _stagedMesh = stageResult.Value;
+
+        // Replaying commands hands back a fresh mesh that has never been measured, and Stats() is
+        // a cache read rather than a measurement. Measured once here so the info panel has
+        // something to report - it costs nothing when the stage is the active mesh itself, which
+        // arrives already measured.
+        _stagedMesh = stageResult.Value.Stats() is null
+            ? stageResult.Value.WithRefreshedStats(_engine)
+            : stageResult.Value;
 
         // The base mesh's stats were cached on it at import time and it never changes
         // afterward - nothing to measure to read them.
@@ -229,20 +236,20 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
 
         if (_originalStats is not null) {
             items.Add(new TitleInfoItem { Label = "Original Mesh" });
-            items.Add(new TextInfoItem { Label = "Volume", Value = $"{_originalStats.Volume:N2} mL" });
-            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(_originalStats.SurfaceArea/100):N2} mm²" });
+            items.Add(new TextInfoItem { Label = "Volume", Value = $"{Measure.ToMillilitres(_originalStats.Volume):N2} mL" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{Measure.ToSquareCentimetres(_originalStats.SurfaceArea):N2} cm²" });
             items.Add(new TextInfoItem { Label = "Triangles", Value = _originalStats.TriangleCount.ToString("N0") });
         }
 
-        var activeResult = Workspace.GetActiveMesh();
-        if (_record?.Smoothing() is not null && activeResult.IsSuccess)
-        {
-            if (activeResult.Value.Stats() is { } stats) {
-                items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
-                items.Add(new TextInfoItem { Label = "Volume", Value = $"{stats.Volume:N2} mL" });
-                items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{(stats.SurfaceArea / 100):N2} mm²" });
-                items.Add(new TextInfoItem { Label = "Triangles", Value = stats.TriangleCount.ToString("N0") });
-            }
+        // The staged mesh rather than the active one. Both rows here are about the bolus - as it
+        // was imported, and as smoothing left it - and once a mould has been generated the active
+        // mesh IS the mould. Reading it reported the mould's shell material under a "Smoothed
+        // Mesh" heading: 24.8mL of resin where the bolus it was cut around is 121.2mL.
+        if (_record?.Smoothing() is not null && _stagedMesh?.Stats() is { } stats) {
+            items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
+            items.Add(new TextInfoItem { Label = "Volume", Value = $"{Measure.ToMillilitres(stats.Volume):N2} mL" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{Measure.ToSquareCentimetres(stats.SurfaceArea):N2} cm²" });
+            items.Add(new TextInfoItem { Label = "Triangles", Value = stats.TriangleCount.ToString("N0") });
         }
 
         _messenger.Send(new UpdateMeshInfoMessage(items));

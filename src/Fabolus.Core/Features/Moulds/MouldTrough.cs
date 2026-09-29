@@ -32,12 +32,60 @@ internal static class MouldTrough
         float bodyTopZ,
         MouldDefinition definition)
     {
+        var cutterResult = BuildCutter(engine, footprint, definition, floorZ, bodyTopZ + Overshoot);
+        if (cutterResult.IsFailure) return cutterResult.Error;
+
+        return engine.Booleans.Subtract(body, cutterResult.Value);
+    }
+
+    /// <summary>
+    /// How much the basin holds, in cubic millimetres - the material <see cref="Carve"/> takes out
+    /// of the mould top, and so the extra silicone needed to fill it.
+    /// </summary>
+    /// <remarks>
+    /// Measured from a cutter built over the basin's true depth rather than from the carved body,
+    /// which would mean generating the mould twice and differencing the two. The cutter Carve uses
+    /// overshoots the top of the mould on purpose, so its own volume is not the answer; this one
+    /// is built between the floor and the top exactly.
+    ///
+    /// The result is the capacity of the empty basin. Air channels surfacing through it are not
+    /// discounted - they are thin next to the pool, and they are the mould's business rather than
+    /// the trough's.
+    /// </remarks>
+    public static Result<double> Capacity(
+        IGeometryEngine engine,
+        Polygon2D footprint,
+        MouldDefinition definition)
+    {
+        var depth = (float)definition.TroughHeight;
+        if (depth <= 0) return 0.0;
+
+        var cutterResult = BuildCutter(engine, footprint, definition, 0f, depth);
+        if (cutterResult.IsFailure) return cutterResult.Error;
+
+        var statsResult = engine.Evaluators.GetStatistics(cutterResult.Value);
+        if (statsResult.IsFailure) return statsResult.Error;
+
+        return statsResult.Value.Volume;
+    }
+
+    /// <summary>
+    /// The solid the basin is cut with, spanning <paramref name="floorZ"/> to
+    /// <paramref name="topZ"/>.
+    /// </summary>
+    private static Result<IMesh> BuildCutter(
+        IGeometryEngine engine,
+        Polygon2D footprint,
+        MouldDefinition definition,
+        float floorZ,
+        float topZ)
+    {
         // Every trough stops short of the mould wall - that rim is what holds the silicone.
         var rimResult = engine.Polygons.Offset(footprint, -(float)definition.TroughOffset);
         if (rimResult.IsFailure)
             return TroughErrors.RimTooWide;
 
-        var cutterResult = engine.Polygons.Extrude(rimResult.Value, floorZ, bodyTopZ + Overshoot);
+        var cutterResult = engine.Polygons.Extrude(rimResult.Value, floorZ, topZ);
         if (cutterResult.IsFailure) return cutterResult.Error;
 
         var cutter = cutterResult.Value;
@@ -47,11 +95,12 @@ internal static class MouldTrough
             var localResult = ChannelFootprint(engine, definition);
             if (localResult.IsFailure) return localResult.Error;
 
-            var localCutterResult = engine.Polygons.Extrude(localResult.Value, floorZ, bodyTopZ + Overshoot);
+            var localCutterResult = engine.Polygons.Extrude(localResult.Value, floorZ, topZ);
             if (localCutterResult.IsFailure) return localCutterResult.Error;
 
             // Clipped against the full-footprint basin so a channel painted out near the
-            // edge can't open the rim and let the silicone escape.
+            // edge can't open the rim and let the silicone escape. Done in 3D because the
+            // engine offers no polygon intersection to do it in 2D.
             var clippedResult = engine.Booleans.Intersect(cutter, localCutterResult.Value);
             if (clippedResult.IsFailure) return clippedResult.Error;
 
@@ -60,7 +109,7 @@ internal static class MouldTrough
                 return TroughErrors.ChannelsOutsideRim;
         }
 
-        return engine.Booleans.Subtract(body, cutter);
+        return Result<IMesh>.Success(cutter);
     }
 
     /// <summary>
@@ -169,6 +218,10 @@ internal static class TroughErrors
     public static readonly Error NoChannelExits = new(
         "Mould.TroughNoChannels",
         "A channel trough needs at least one air channel to pool around.");
+
+    public static readonly Error ContouredHasNoFootprint = new(
+        "Mould.ContouredHasNoFootprint",
+        "A contoured mould is offset from the bolus surface, not extruded from an outline.");
 
     public static readonly Error ChannelsOutsideRim = new(
         "Mould.TroughChannelsOutsideRim",

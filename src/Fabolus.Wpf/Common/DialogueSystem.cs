@@ -52,18 +52,34 @@ public sealed class DialogueSystem : IDialogueSystem {
         return Maybe<string>.None();
     }
 
-    public Maybe<string> ShowSaveFileDialog(string filter, string defaultExtension) {
+    public Maybe<string> ShowSaveFileDialog(string filter, string defaultExtension, string defaultFileName = "") {
         var defaultFolder = General.ExportFolder;
 
         var dialog = new SaveFileDialog {
             Filter = filter,
             DefaultExt = defaultExtension,
-            InitialDirectory = defaultFolder
+            InitialDirectory = defaultFolder,
+            FileName = SanitiseFileName(defaultFileName)
         };
 
         if (dialog.ShowDialog() == true) {
             return Maybe<string>.Some(dialog.FileName);
         }
         return Maybe<string>.None();
+    }
+
+    // A mesh name is not guaranteed to be a legal filename: it comes from whatever the engine
+    // read out of the file, and for a multi-component 3MF that is a component name the format
+    // lets contain anything at all. SaveFileDialog does not reject an illegal name up front - it
+    // shows it, and the user only finds out when saving fails - so the offending characters are
+    // dropped here. An empty result leaves the dialog blank, which is the old behaviour.
+    private static string SanitiseFileName(string name) {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+
+        var cleaned = new string(name
+            .Where(c => !System.IO.Path.GetInvalidFileNameChars().Contains(c))
+            .ToArray());
+
+        return cleaned.Trim();
     }
 }

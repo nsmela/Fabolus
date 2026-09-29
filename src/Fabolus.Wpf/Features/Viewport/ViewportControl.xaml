@@ -46,7 +46,7 @@
             CoordinateSystemLabelForeground="#E2E7EA"
             CoordinateSystemLabelX="X" CoordinateSystemLabelY="Y" CoordinateSystemLabelZ="Z"
             
-            ShowViewCube="False"
+            ShowViewCube="True"
             
             MouseDown3D="MainViewport_MouseDown3D"
             MouseDown="MainViewport_MouseDown"

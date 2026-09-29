@@ -145,6 +145,32 @@ public class MouldSceneManager : ISceneManager
     }
 
     /// <summary>
+    /// How much silicone the mould's trough holds, in cubic millimetres. Zero when the
+    /// definition describes no trough, and nothing at all when there is no target or the basin
+    /// could not be measured - which, like <see cref="BuildMould"/>, happens routinely part-way
+    /// through a drag.
+    /// </summary>
+    /// <remarks>
+    /// Same threading contract as <see cref="BuildMould"/>: pure geometry over an immutable mesh,
+    /// so it belongs off the UI thread. It rebuilds the mould's footprint rather than borrowing
+    /// the one BuildMould just made, which is the price of keeping the two independent; it costs
+    /// nothing when there is no trough, since the definition answers zero before computing
+    /// anything.
+    /// </remarks>
+    public Maybe<double> MeasureTroughCapacity(MouldDefinition mouldDefinition)
+    {
+        var target = TargetMesh;
+        if (target is null)
+            return Maybe<double>.None();
+
+        var capacityResult = mouldDefinition.TroughCapacity(_engine, target);
+
+        return capacityResult.IsFailure
+            ? Maybe<double>.None()
+            : Maybe<double>.Some(capacityResult.Value);
+    }
+
+    /// <summary>
     /// Puts a shell from <see cref="BuildMould"/> on screen in place of the one showing, or
     /// clears it when there is nothing to show. UI thread.
     /// </summary>

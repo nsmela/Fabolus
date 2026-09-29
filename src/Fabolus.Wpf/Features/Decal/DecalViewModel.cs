@@ -759,13 +759,18 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     }
 
     /// <summary>The base mesh volume in cc, for the automatic volume decal.</summary>
+    /// <remarks>
+    /// The engine measures in the mesh's own units - millimetres - so its volume is mm3, and a cc
+    /// is a thousand of those. This went out unconverted, so the figure embossed onto the bolus
+    /// was a thousand times the real volume: a 107cc bolus was labelled "106882.6 cc".
+    /// </remarks>
     private string ResolveVolumeText()
     {
         double volume = 0.0;
         if (_baseMesh is not null)
         {
             var baseStats = _engine.Evaluators.GetStatistics(_baseMesh);
-            if (baseStats.IsSuccess) { volume = baseStats.Value.Volume; }
+            if (baseStats.IsSuccess) { volume = Measure.ToMillilitres(baseStats.Value.Volume); }
         }
         return volume > 0 ? $"{volume:0.0} cc" : "0.0 cc";
     }

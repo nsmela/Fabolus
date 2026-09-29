@@ -128,6 +128,32 @@
                                 Margin="0,4,0,0" />
                 </StackPanel>
 
+                <!-- What the basin holds, measured from the same shell the viewport is showing
+                     and updated as the depth and margin sliders move. Hidden rather than shown
+                     as "0.0 mL" when the current settings carve no basin at all - a margin wide
+                     enough to eat the whole footprint, say - because a blank row says that more
+                     honestly than a zero does. -->
+                <StackPanel Margin="0,0,0,15">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasTroughVolume}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Grid>
+                        <TextBlock Text="Trough holds" Style="{StaticResource FieldLabel}"
+                                    HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding TroughVolume, StringFormat={}{0:F1} mL}"
+                                    Style="{StaticResource Text.Value}" HorizontalAlignment="Right" />
+                    </Grid>
+                    <TextBlock Text="Extra silicone the pool takes to fill."
+                                Style="{StaticResource FieldHint}" Margin="0,4,0,0" />
+                </StackPanel>
+
             </StackPanel>
         </Expander>
 

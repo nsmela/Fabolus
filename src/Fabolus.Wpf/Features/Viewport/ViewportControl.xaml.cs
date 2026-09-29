@@ -23,9 +23,22 @@ public partial class ViewportControl : UserControl, IDisposable {
         // and never recovers if it happens to resolve while they are still null.
         EffectsManager = new DefaultEffectsManager();
         Camera = new HelixToolkit.Wpf.SharpDX.PerspectiveCamera {
-            Position = new Point3D(0, 0, 100),
-            LookDirection = new Vector3D(0, 0, -100),
-            UpDirection = new Vector3D(0, 1, 0),
+            // A front three-quarter view of the print bed: 45 degrees round from the -Y axis and
+            // 30 degrees up, aimed at the origin the bed grid is centred on. The old start point
+            // sat at (0,0,100) looking straight down -Z with Up at +Y, which in this Z-up scene
+            // (ModelUpDirection is 0,0,1) is a dead-on top-down view - the up axis points at the
+            // eye, so nothing has any height, and the orientation widget shows Z as a dot. It was
+            // also only 100mm out, so the default 250mm bed ran off all four edges before a model
+            // was even loaded.
+            //
+            // 400mm of standoff fits that bed with room to spare. The camera's default 45 degree
+            // field of view spans +-166mm vertically at this range; the bed's 353mm diagonal runs
+            // across the screen, and the one running up it is foreshortened by the 30 degree tilt
+            // to ~176mm. The camera is left here when a model arrives rather than zooming to it,
+            // so the view never jumps under the user; Ctrl+E zooms to extents on demand.
+            Position = new Point3D(-245, -245, 200),
+            LookDirection = new Vector3D(245, 245, -200),
+            UpDirection = new Vector3D(0, 0, 1),
 
             // HelixToolkit defaults these to 0.01 and 1000. Depth buffer precision is governed by
             // the near plane, and a near plane that close to the eye spends nearly the whole
