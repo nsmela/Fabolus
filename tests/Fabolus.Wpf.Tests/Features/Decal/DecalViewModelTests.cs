@@ -477,6 +477,26 @@ public class DecalViewModelTests
         Assert.Equal(0, vm.Rotation);
     }
 
+    /// <summary>
+    /// The automatic volume decal gets embossed onto the bolus, so the number on it has to be the
+    /// real volume.
+    /// </summary>
+    /// <remarks>
+    /// The engine measures in the mesh's own units - millimetres - so its volume is mm3, and a cc
+    /// is a thousand of those. This went out unconverted: the box below is 40 x 60 x 50mm, which
+    /// is 120cc, and the decal read "120000.0 cc".
+    /// </remarks>
+    [Fact]
+    public async Task TheAutomaticVolumeDecal_ReadsInCubicCentimetres()
+    {
+        var (vm, _) = CreateViewModel();
+        await vm.ActivateAsync(WorkspaceWith("MouldMesh", new ConcaveMouldDefinition()));
+
+        var volumeDecal = vm.Decals.Single(d => d.Text.Contains("cc"));
+
+        Assert.Equal("120.0 cc", volumeDecal.Text);
+    }
+
     [Fact]
     public async Task AddDecal_GeneratesOnFirstFreeAnchorInViewedTarget()
     {
