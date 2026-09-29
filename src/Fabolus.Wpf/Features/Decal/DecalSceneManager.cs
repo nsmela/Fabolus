@@ -67,6 +67,13 @@ public sealed class DecalSceneManager : ISceneManager
     private readonly Material _mouldSkin;
     private readonly Material _embossSkin;
     private readonly Material _engraveSkin;
+
+    // The selected decal is lifted and the rest are held back, so the live one is the brightest
+    // thing on screen and nothing else competes with it. See SkinFor.
+    private readonly Material _embossSelectedSkin;
+    private readonly Material _engraveSelectedSkin;
+    private readonly Material _embossMutedSkin;
+    private readonly Material _engraveMutedSkin;
     private readonly Material _presetSkin;
     private readonly Material _presetHoverSkin;
     private readonly Material _presetHoverDecalSkin;
@@ -102,6 +109,10 @@ public sealed class DecalSceneManager : ISceneManager
         _mouldSkin = Skins.Surface.TranslucentGray;
         _embossSkin = Skins.Primitive.Emerald;
         _engraveSkin = Skins.Primitive.Ruby;
+        _embossSelectedSkin = Skins.Primitive.BrightEmerald;
+        _engraveSelectedSkin = Skins.Primitive.BrightRuby;
+        _embossMutedSkin = Skins.Primitive.MutedEmerald;
+        _engraveMutedSkin = Skins.Primitive.MutedRuby;
         _presetSkin = Skins.Primitive.TranslucentCyan;
         _presetHoverSkin = Skins.Primitive.TranslucentAmber;
         _presetHoverDecalSkin = Skins.Primitive.TranslucentAmber;
@@ -205,14 +216,23 @@ public sealed class DecalSceneManager : ISceneManager
             if (prismResult.IsFailure) continue;
 
             var prism = prismResult.Value;
-            var skin = decal.Operation == EmbossOperation.Emboss ? _embossSkin : _engraveSkin;
+            var skin = SkinFor(decal, selectedId);
 
-            // Unchanged since the last refresh: the visual already shows exactly this.
-            if (_decalVisuals.ContainsKey(decal.Id)
+            // Same geometry as last time, so the glyphs do not need rebuilding. Selecting a
+            // different decal changes only which skin each one wears, and re-uploading every
+            // label's prism for that would make clicking through a list of decals cost as much as
+            // editing them.
+            if (_decalVisuals.TryGetValue(decal.Id, out var unchanged)
                 && _shownPrisms.TryGetValue(decal.Id, out var shown)
-                && ReferenceEquals(shown.Prism, prism)
-                && ReferenceEquals(shown.Skin, skin))
+                && ReferenceEquals(shown.Prism, prism))
             {
+                if (!ReferenceEquals(shown.Skin, skin))
+                {
+                    unchanged.Material = skin;
+                    _shownPrisms[decal.Id] = (prism, skin);
+                    VisualAddedOrUpdated?.Invoke(unchanged);
+                }
+
                 continue;
             }
 
@@ -271,6 +291,14 @@ public sealed class DecalSceneManager : ISceneManager
                     Geometry = lineGeometry,
                     Color = System.Windows.Media.Colors.Cyan,
                     Thickness = 1.5,
+                    // The box is a flat rectangle standing a fixed distance along the decal's own
+                    // normal, so over a curved bolus its corners lean back into the surface and
+                    // the mesh wins the depth test - the marker for the selected decal would
+                    // vanish in pieces exactly where the surface curves most. The prisms carry
+                    // the same bias for the same reason. It is a depth-test nudge, not a
+                    // draw-on-top: a decal genuinely round the far side stays hidden.
+                    DepthBias = -50,
+                    SlopeScaledDepthBias = -1.0f,
                     IsHitTestVisible = false
                 };
                 _gizmoLineId = _gizmoLineModel.GUID;
@@ -338,6 +366,10 @@ public sealed class DecalSceneManager : ISceneManager
                 Geometry = lineGeometry,
                 Color = System.Windows.Media.Colors.Cyan,
                 Thickness = 2.0,
+                // As above: without this the box breaks up against a curved surface mid-drag,
+                // which is the moment it is most needed.
+                DepthBias = -50,
+                SlopeScaledDepthBias = -1.0f,
                 IsHitTestVisible = false
             };
             _gizmoLineId = _gizmoLineModel.GUID;
@@ -349,6 +381,30 @@ public sealed class DecalSceneManager : ISceneManager
             _gizmoLineModel.Visibility = Visibility.Visible;
             VisualAddedOrUpdated?.Invoke(_gizmoLineModel);
         }
+    }
+
+    /// <summary>
+    /// The skin a decal wears given what is selected: brightened when it is the selected one,
+    /// muted when a different decal is, and its plain emboss or engrave colour when nothing is
+    /// selected at all.
+    /// </summary>
+    /// <remarks>
+    /// Three states rather than two. With nothing selected there is no selection to point at, so
+    /// no decal is brightened and none is held back - muting the whole set would only repeat what
+    /// the empty side panel says, and brightening them all would say something false.
+    /// </remarks>
+    private Material SkinFor(TextDecal decal, Guid selectedId)
+    {
+        var isEmboss = decal.Operation == EmbossOperation.Emboss;
+
+        if (selectedId == Guid.Empty)
+        {
+            return isEmboss ? _embossSkin : _engraveSkin;
+        }
+
+        return decal.Id == selectedId
+            ? (isEmboss ? _embossSelectedSkin : _engraveSelectedSkin)
+            : (isEmboss ? _embossMutedSkin : _engraveMutedSkin);
     }
 
     private static DecalPrismRequest PreviewRequest(TextDecal decal, string text, float capHeight, Vector3 anchor, Vector3 normal, float rotationDeg) =>
