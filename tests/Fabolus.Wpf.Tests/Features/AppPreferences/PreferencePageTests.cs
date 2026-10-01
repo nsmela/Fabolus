@@ -167,7 +167,7 @@ public class PreferencePageTests : IDisposable
     public void EditingARow_ReachesTheStore()
     {
         var channels = PreferencePageCatalog.Default.Single(s => s.Key == "channels");
-        var diameter = RowsOf(_viewModel, channels).OfType<NumberRow>().Single();
+        var diameter = RowsOf(_viewModel, channels).OfType<NumberRow>().Single(r => r.Label == "Default channel diameter");
 
         diameter.Value = 6.5;
 
@@ -247,7 +247,7 @@ public class PreferencePageTests : IDisposable
     public void RestoringDefaults_IsVisibleOnTheRows()
     {
         _viewModel.SelectedPage = _viewModel.Pages.Single(s => s.Key == "channels");
-        var diameter = _viewModel.Rows.OfType<NumberRow>().Single();
+        var diameter = _viewModel.Rows.OfType<NumberRow>().Single(r => r.Label == "Default channel diameter");
 
         diameter.Value = 9.0;
         Assert.Equal(9.0, diameter.Value);
