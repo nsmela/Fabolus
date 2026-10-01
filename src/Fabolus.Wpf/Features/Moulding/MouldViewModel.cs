@@ -1,3 +1,4 @@
+using BasicResults;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -23,6 +24,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     private readonly MouldSceneManager _sceneManager;
     private readonly GenerateMould _generateMouldFeature;
     private readonly ClearMould _clearMouldFeature;
+    private readonly DetectAirPockets _detectAirPocketsFeature;
 
     private Workspace Workspace { get; set; }
 
@@ -33,6 +35,24 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // (ComputeTotalLength runs on every mouse-move over the target) reads a value instead
     // of fetching a mesh and recomputing statistics per event.
     private MeshStatistics? _targetStats;
+
+    // The mesh handed to the scene manager, kept for finding air pockets on. Immutable, so
+    // sharing it with the scene manager is safe.
+    private IMesh? _targetMesh;
+
+    // The air pocket analysis of _targetMesh. Walking the mesh is the slow part and only the
+    // mesh decides it, so it is done once per target; asking which pockets the channels leave
+    // unvented is cheap and is asked again on every channel edit. Reset when the target changes.
+    private Task<Result<AirPocketMap>>? _pocketMapTask;
+
+    // Automatic placement works from the saved preferences rather than the panel, which may
+    // be showing a selected channel's values.
+    private PrintBedPreferences _printBed = PrintBedPreferences.Default;
+
+    // What a channel starts out as before the user changes anything.
+    private const float DefaultTipDiameter = 3.0f;
+    private const float DefaultTipLength = 3.0f;
+    private const float DefaultTipDepth = 1.0f;
 
     /// <summary>
     /// Rebuilding the mould shell costs about as much as the bolus is big - most of a second at a
@@ -160,11 +180,16 @@ public partial class MouldViewModel : ObservableObject, IViewState
         ApplyChannelEdits();
     }
 
-    [ObservableProperty] private float _tipDiameter = 3.0f;
-    [ObservableProperty] private float _tipLength = 3.0f;
-    [ObservableProperty] private float _tipDepth = 1.0f;
+    [ObservableProperty] private float _tipDiameter = DefaultTipDiameter;
+    [ObservableProperty] private float _tipLength = DefaultTipLength;
+    [ObservableProperty] private float _tipDepth = DefaultTipDepth;
     [ObservableProperty] private float _channelDiameter = 5.0f;
     [ObservableProperty] private bool _autodetectChannels = true;
+
+    // Markers on the bolus at each air pocket no channel vents yet.
+    [ObservableProperty] private bool _showAirPockets = true;
+
+    partial void OnShowAirPocketsChanged(bool value) => _ = RefreshAirPocketsAsync();
 
     partial void OnTipDiameterChanged(float value)
     {
@@ -238,6 +263,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
         Channels = Channels.Select(c => c.Id == SelectedChannelId ? updated : c).ToList();
 
         _sceneManager.UpdateChannels(Channels);
+        _ = RefreshAirPocketsAsync(); // turning a channel into a painted one changes what it vents
         UpdateMould();
     }
 
@@ -363,6 +389,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         _generateMouldFeature = new GenerateMould(_engine);
         _clearMouldFeature = new ClearMould(_engine);
+        _detectAirPocketsFeature = new DetectAirPockets(_engine);
         _sceneManager = new MouldSceneManager(_engine, _messenger);
         _sceneManager.ChannelPlaced += OnChannelPlaced;
         _sceneManager.ChannelSelected += id => SelectedChannelId = id;
@@ -399,8 +426,13 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // change in preferences shows up here without reopening the view.
     private void ApplyPrintBedPreferences(PrintBedPreferences bed)
     {
+        _printBed = bed;
         ChannelDiameter = bed.ChannelDiameter;
         AutodetectChannels = bed.AutodetectChannels;
+
+        // The pocket depth and spacing decide which markers show.
+        if (_targetMesh is not null)
+            _ = RefreshAirPocketsAsync();
     }
 
     private void OnStrokeUpdated(IReadOnlyList<Vector3> points)
@@ -489,6 +521,20 @@ public partial class MouldViewModel : ObservableObject, IViewState
         // the Workspace itself stays here in the view model.
         SetSceneTarget(mesh);
 
+        // With the preference on, a mesh that arrives here with no channels gets them placed at
+        // its air pockets - on every entry, so clearing them all and coming back places them
+        // again. Done before the shell is first built so it is cut with them.
+        if (!IsGenerated && Channels.Count == 0 && AutodetectChannels)
+        {
+            var placed = await FindPocketChannelsAsync();
+            if (placed.IsFailure)
+                _alert.ShowError(placed.Error.Description);
+            else
+                Channels = [.. placed.Value];
+
+            OnPropertyChanged(nameof(ChannelCount));
+        }
+
         if (!IsGenerated)
         {
             _sceneManager.UpdateChannels(Channels);
@@ -498,6 +544,9 @@ public partial class MouldViewModel : ObservableObject, IViewState
         {
             _sceneManager.ClearPreviews();
         }
+
+        // Before the shell is first built, so the markers sit ahead of it in the scene.
+        await RefreshAirPocketsAsync();
         }
         finally
         {
@@ -559,6 +608,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         PersistUncommittedMouldState();
         _sceneManager.ReleaseMesh();
+        _targetMesh = null;
+        _pocketMapTask = null;
         return Task.FromResult(Workspace);
     }
 
@@ -566,6 +617,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
     // stats the hover path needs.
     private void SetSceneTarget(IMesh mesh)
     {
+        _targetMesh = mesh;
+        _pocketMapTask = null;
         _targetStats = mesh.Stats();
         PublishMeshInfo();
 
@@ -817,8 +870,129 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         _sceneManager.UpdateChannels(Channels);
         _sceneManager.SelectChannel(channel.Id);
+        _ = RefreshAirPocketsAsync();
         UpdateMould();
     }
+
+    /// <summary>
+    /// Adds a channel at every air pocket no channel vents yet. The channels already placed are
+    /// left alone, and each new one can be selected and edited like one placed by hand.
+    /// </summary>
+    [RelayCommand]
+    public async Task AutoPlaceChannelsAsync()
+    {
+        EnsureNotGenerated();
+
+        Result<IReadOnlyList<AirChannelModel>> placed;
+        using (_busy.Enter())
+        {
+            placed = await FindPocketChannelsAsync();
+        }
+
+        if (placed.IsFailure)
+        {
+            _alert.ShowError(placed.Error.Description);
+            return;
+        }
+
+        if (placed.Value.Count == 0)
+        {
+            _alert.ShowInfo("No air pockets were found that aren't already vented by a channel.");
+            return;
+        }
+
+        Channels = [.. Channels, .. placed.Value];
+        OnPropertyChanged(nameof(ChannelCount));
+
+        _sceneManager.UpdateChannels(Channels);
+        _ = RefreshAirPocketsAsync();
+        UpdateMould();
+    }
+
+    /// <summary>
+    /// An angled channel for each air pocket in the target that the current channels do not
+    /// already vent, built to the preference defaults rather than the panel's values.
+    /// </summary>
+    private async Task<Result<IReadOnlyList<AirChannelModel>>> FindPocketChannelsAsync()
+    {
+        var pockets = await UnventedAirPocketsAsync();
+        if (pockets.IsFailure)
+            return pockets.Error;
+
+        var diameter = _printBed.ChannelDiameter;
+        var tipDiameter = Math.Min(DefaultTipDiameter, diameter);
+
+        var channels = pockets.Value
+            .Select(pocket => new AirChannelModel(
+                Guid.NewGuid(), AirChannelType.Angled, tipDiameter, diameter, DefaultTipLength,
+                new AngledAirChannel(
+                    pocket.Point, pocket.Normal, DefaultTipLength, ComputeTotalLength((float)pocket.Point.Z),
+                    tipDiameter, diameter / 2f, DefaultTipDepth)))
+            .ToList();
+
+        return Result<IReadOnlyList<AirChannelModel>>.Success(channels);
+    }
+
+    /// <summary>
+    /// The air pockets in the target that no current channel vents, under the preference
+    /// settings. Analyses the target on first use, off the UI thread; quick after that.
+    /// </summary>
+    private async Task<Result<IReadOnlyList<AirPocket>>> UnventedAirPocketsAsync()
+    {
+        var mesh = _targetMesh;
+        if (mesh is null)
+            return Result<IReadOnlyList<AirPocket>>.Success(Array.Empty<AirPocket>());
+
+        // A pass over every vertex - quick, but not something to hold the UI thread for on a
+        // large bolus, and the same mesh is only ever analysed once.
+        _pocketMapTask ??= Task.Run(() => _detectAirPocketsFeature.Analyze(mesh));
+        var map = await _pocketMapTask;
+        if (map.IsFailure)
+            return map.Error;
+
+        var settings = new AirPocketSettings(_printBed.PocketDepth, _printBed.ChannelSpacing);
+        return map.Value.Unvented(settings, Channels.SelectMany(VentPoints).ToList());
+    }
+
+    /// <summary>
+    /// Puts a marker on each air pocket the channels leave unvented - the places Auto-place
+    /// would add a channel. Hidden while the toggle is off or once the mould is generated.
+    /// </summary>
+    private async Task RefreshAirPocketsAsync()
+    {
+        if (IsGenerated || !ShowAirPockets || _targetMesh is null)
+        {
+            ShowAirPocketMarkers([]);
+            return;
+        }
+
+        var target = _targetMesh;
+        var pockets = await UnventedAirPocketsAsync();
+
+        // The first analysis of a mesh is awaited, and in that time the view can have moved on.
+        if (target != _targetMesh || IsGenerated || !ShowAirPockets)
+            return;
+
+        ShowAirPocketMarkers(pockets.IsSuccess
+            ? pockets.Value.Select(p => p.Point).ToList()
+            : []);
+    }
+
+    private void ShowAirPocketMarkers(IReadOnlyList<Vector3> points)
+    {
+        AirPocketMarkerCount = points.Count;
+        _sceneManager.ShowAirPockets(points);
+    }
+
+    /// <summary>How many air pocket markers are on screen, for tests to read.</summary>
+    internal int AirPocketMarkerCount { get; private set; }
+
+    // Where a channel meets the surface - all along its path, for a painted one.
+    private static IEnumerable<Vector3> VentPoints(AirChannelModel channel) => channel.DomainModel switch
+    {
+        PaintedAirChannel painted => painted.Path,
+        _ => [channel.Position]
+    };
 
     [RelayCommand]
     public void SetChannelType(string channelType)
@@ -843,6 +1017,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         _sceneManager.UpdateChannels(Channels);
         _sceneManager.SelectChannel(Guid.Empty);
+        _ = RefreshAirPocketsAsync();
         UpdateMould();
     }
 
@@ -855,6 +1030,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
 
         _sceneManager.UpdateChannels(Channels);
         _sceneManager.SelectChannel(Guid.Empty);
+        _ = RefreshAirPocketsAsync();
         UpdateMould();
     }
 
@@ -916,6 +1092,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
         _sceneManager.UpdateChannels(Channels);
         if (SelectedChannelId != Guid.Empty)
             _sceneManager.SelectChannel(SelectedChannelId);
+        _ = RefreshAirPocketsAsync();
         UpdateMould();
 
         _messenger.Send(new WorkspaceChangedMessage(Workspace));

@@ -28,6 +28,15 @@ public class MouldSceneManager : ISceneManager
     private readonly Material _selectedChannelSkin = Skins.Primitive.Pearl;
     private readonly Material _previewChannelSkin = Skins.Primitive.Pearl;
 
+    // Air pockets still waiting for a channel: a warning colour, apart from the channels' green.
+    private readonly Material _airPocketSkin = Skins.Primitive.Amber;
+    private const float AirPocketMarkerRadius = 1.5f;
+    private const int AirPocketMarkerTessellation = 16;
+
+    // One model carrying every marker, updated in place - see UpdateChannels for why a visual
+    // re-added under a new GUID would stop drawing inside the mould.
+    private MeshGeometryModel3D? _airPocketMarkers;
+
     private IMesh? TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];
     private IAirChannel PreviewChannel { get; set; }
@@ -244,6 +253,48 @@ public class MouldSceneManager : ISceneManager
         // A stroke whose release was never observed (left the viewport) must not survive
         // mould generation - it would commit as a surprise channel on a later mouse move.
         _strokePoints = null;
+
+        ShowAirPockets([]);
+    }
+
+    /// <summary>
+    /// Marks each point with a small sphere: the air pockets that still need a channel. An empty
+    /// list hides the markers.
+    /// </summary>
+    /// <remarks>
+    /// <para>Not hit-testable, so a click on a marker falls through to the mesh under it and places
+    /// a channel right there.</para>
+    ///
+    /// <para>Call it once on activation even with nothing to show, before the mould is first built:
+    /// that puts the model in the scene ahead of the mould, where it keeps drawing inside it.</para>
+    /// </remarks>
+    public void ShowAirPockets(IReadOnlyList<Vector3> points)
+    {
+        if (_airPocketMarkers is null)
+        {
+            _airPocketMarkers = new MeshGeometryModel3D
+            {
+                Material = _airPocketSkin,
+                IsHitTestVisible = false,
+                CullMode = SharpDX.Direct3D11.CullMode.Back,
+            };
+        }
+
+        if (points.Count > 0)
+        {
+            var builder = new MeshBuilder();
+            foreach (var point in points)
+            {
+                builder.AddSphere(
+                    new SharpDX.Vector3((float)point.X, (float)point.Y, (float)point.Z),
+                    AirPocketMarkerRadius, AirPocketMarkerTessellation, AirPocketMarkerTessellation);
+            }
+            _airPocketMarkers.Geometry = builder.ToMeshGeometry3D();
+        }
+
+        // Hidden rather than removed, so the model keeps its place in the scene.
+        _airPocketMarkers.Visibility = points.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        VisualAddedOrUpdated?.Invoke(_airPocketMarkers);
     }
 
     private void SetMouldHiddenForHover(bool hidden)

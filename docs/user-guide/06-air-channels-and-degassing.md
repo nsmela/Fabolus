@@ -27,7 +27,7 @@ The channel controls in the mould tab include:
 | **Tip Length** | `3.0 mm` | Length of the tapered tip. |
 | **Tip Depth** | `1.0 mm` | How far the tip penetrates into the mesh. |
 
-A default channel diameter and an **autodetect channels** option are also stored in `PrintBedPreferences` (see [Configuration & Preferences](../reference/configuration-and-preferences.md)).
+A default channel diameter and the automatic placement settings below are stored in `PrintBedPreferences` (see [Configuration & Preferences](../reference/configuration-and-preferences.md)).
 
 ---
 
@@ -43,3 +43,24 @@ Air channels must be placed before generating the mould:
 Placed channels are stored with the mould definition, so they are subtracted from the shell when you click **Generate Mould** and are preserved in the saved project.
 
 <!-- IMAGE_PLACEHOLDER: [Figure 6.2: Placing a channel, with the live preview following the cursor.] -->
+
+---
+
+## Automatic placement
+
+When the mould is poured, silicone rises through the cavity and pushes air up ahead of it. Every local high point of the bolus surface traps a bubble unless a channel vents it. Fabolus can find these pockets and place a channel at each one.
+
+- **Show air pockets** (on by default) puts an amber marker on the bolus at every pocket no channel vents yet. Markers disappear as you vent them, and come back if you delete the channel that vented them.
+- **Auto-place channels** (in the channels panel) adds an **Angled** channel at every pocket that isn't already vented. Channels already placed are kept, and the new ones can be selected, edited or deleted like any other.
+- With **Generate air channels automatically** turned on in Preferences (the default), this also runs each time the mould tab opens and no channels have been placed yet.
+
+Auto-placed channels use the **default channel diameter** from Preferences, not the values currently in the panel. On a flat top, the channel goes in the middle rather than at an edge.
+
+Two preferences control which pockets get a channel:
+
+| Preference | Default | What it does |
+| :--- | :--- | :--- |
+| **Minimum pocket depth** | `1.0 mm` | How far below its peak a pocket has to hold air before it could spill over towards somewhere higher. Raise it to ignore small bumps. The highest point of the bolus always counts. |
+| **Minimum channel spacing** | `6.0 mm` | Pockets closer than this share one channel, at the higher of them. No new channel is placed this close to an existing one. |
+
+An existing channel only vents a pocket if it enters within the minimum pocket depth of the peak. A channel lower down is covered by silicone before the air above it can escape, so that pocket still gets a channel of its own.

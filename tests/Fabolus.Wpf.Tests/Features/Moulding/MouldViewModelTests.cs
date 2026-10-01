@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.Moulding;
 using Moq;
@@ -109,6 +110,101 @@ public class MouldViewModelTests
         Assert.Equal(before, vm.MouldRebuildCount);
     });
 
+    // ---- automatic channel placement ------------------------------------------------------
+
+    [Fact]
+    public void OpeningTheView_WithAutodetectOn_PlacesAChannelAtThePocket() => UiThread.Run(async () =>
+    {
+        var (vm, _) = await ActivatedViewModel();
+
+        // A box traps air in one place: under the middle of its flat top.
+        Assert.Equal(1, vm.ChannelCount);
+    });
+
+    [Fact]
+    public void OpeningTheView_WithAutodetectOff_PlacesNothing() => UiThread.Run(async () =>
+    {
+        var (vm, _) = await ActivatedViewModel(PrintBedPreferences.Default with { AutodetectChannels = false });
+
+        Assert.Equal(0, vm.ChannelCount);
+    });
+
+    [Fact]
+    public void ReopeningTheView_AfterClearingEveryChannel_PlacesThemAgain() => UiThread.Run(async () =>
+    {
+        var (vm, loading) = await ActivatedViewModel();
+
+        vm.ClearChannels();
+        var workspace = await vm.DeactivateAsync();
+        await vm.ActivateAsync(workspace);
+        await SettledAsync(vm, loading);
+
+        Assert.Equal(1, vm.ChannelCount);
+    });
+
+    [Fact]
+    public void AutoPlacing_WhenEveryPocketIsVented_KeepsTheChannelsAndSaysSo() => UiThread.Run(async () =>
+    {
+        var alert = new Mock<IAlertDialog>();
+        var (vm, loading) = await ActivatedViewModel(alert: alert.Object);
+
+        await vm.AutoPlaceChannelsAsync();
+        await SettledAsync(vm, loading);
+
+        Assert.Equal(1, vm.ChannelCount);
+        alert.Verify(a => a.ShowInfo(It.IsAny<string>()), Times.Once);
+    });
+
+    [Fact]
+    public void AutoPlacing_WithAutodetectOff_AddsTheChannel() => UiThread.Run(async () =>
+    {
+        var (vm, loading) = await ActivatedViewModel(PrintBedPreferences.Default with { AutodetectChannels = false });
+
+        await vm.AutoPlaceChannelsAsync();
+        await SettledAsync(vm, loading);
+
+        Assert.Equal(1, vm.ChannelCount);
+    });
+
+    // ---- air pocket markers ---------------------------------------------------------------
+
+    [Fact]
+    public void UnventedPocket_IsMarked_UntilAChannelVentsIt() => UiThread.Run(async () =>
+    {
+        var (vm, loading) = await ActivatedViewModel(PrintBedPreferences.Default with { AutodetectChannels = false });
+
+        Assert.Equal(1, vm.AirPocketMarkerCount);
+
+        await vm.AutoPlaceChannelsAsync();
+        await SettledAsync(vm, loading);
+
+        Assert.Equal(0, vm.AirPocketMarkerCount);
+    });
+
+    [Fact]
+    public void ClearingTheChannels_MarksThePocketAgain() => UiThread.Run(async () =>
+    {
+        var (vm, loading) = await ActivatedViewModel();
+        Assert.Equal(0, vm.AirPocketMarkerCount);
+
+        vm.ClearChannels();
+        await SettledAsync(vm, loading);
+
+        Assert.Equal(1, vm.AirPocketMarkerCount);
+    });
+
+    [Fact]
+    public void TurningTheMarkersOff_HidesThem() => UiThread.Run(async () =>
+    {
+        var (vm, _) = await ActivatedViewModel(PrintBedPreferences.Default with { AutodetectChannels = false });
+
+        vm.ShowAirPockets = false;
+        Assert.Equal(0, vm.AirPocketMarkerCount);
+
+        vm.ShowAirPockets = true;
+        Assert.Equal(1, vm.AirPocketMarkerCount); // the analysis is kept, so no wait to come back
+    });
+
     // ---- plumbing -------------------------------------------------------------------------
 
     /// <summary>
@@ -145,12 +241,16 @@ public class MouldViewModelTests
         Assert.True(quiet >= 12, "the mould never stopped rebuilding");
     }
 
-    private static async Task<(MouldViewModel Vm, LoadingLog Loading)> ActivatedViewModel()
+    private static async Task<(MouldViewModel Vm, LoadingLog Loading)> ActivatedViewModel(
+        PrintBedPreferences? printBed = null, IAlertDialog? alert = null)
     {
         var messenger = new StrongReferenceMessenger();
         var loading = LoadingLog.Watching(messenger);
 
-        var vm = new MouldViewModel(messenger, Mock.Of<IAlertDialog>(), Engine);
+        var vm = new MouldViewModel(messenger, alert ?? Mock.Of<IAlertDialog>(), Engine);
+        if (printBed is not null)
+            messenger.Send(new PreferenceSectionUpdateMessage<PrintBedPreferences>(printBed));
+
         await vm.ActivateAsync(WorkspaceWithBox());
 
         return (vm, loading);

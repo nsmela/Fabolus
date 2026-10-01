@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Fabolus.Wpf.Features.Moulding"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              mc:Ignorable="d"
              d:DesignHeight="620" d:DesignWidth="260"
              Background="Transparent">
@@ -200,6 +201,25 @@
                                             Value="{Binding ChannelDiameter, Mode=TwoWay}"
                                             SmallChange="0.1" LargeChange="1" VerticalAlignment="Center" />
                 </StackPanel>
+
+                <!-- air pockets: show the unvented ones, and vent them all in one go -->
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Show air pockets" Style="{StaticResource FieldLabel}"
+                                               VerticalAlignment="Center" />
+                    <mah:ToggleSwitch Grid.Column="1" VerticalAlignment="Center"
+                                                      IsOn="{Binding ShowAirPockets, Mode=TwoWay}" />
+                </Grid>
+                <TextBlock Text="Amber markers show where air would be trapped with no channel to escape through."
+                                           Style="{StaticResource FieldHint}" Margin="0,0,0,10" />
+                <Button Command="{Binding AutoPlaceChannelsCommand}"
+                                        Content="Auto-place channels" Style="{StaticResource Button.Secondary}"
+                                        HorizontalAlignment="Stretch" />
+                <TextBlock Text="Adds an angled channel at every marked pocket. Placed channels are kept."
+                                           Style="{StaticResource FieldHint}" Margin="0,6,0,12" />
 
                 <!-- delete / clear actions -->
                 <Grid>

@@ -73,6 +73,10 @@ Types marked *enum* are written as their value name. Ranges, where shown, are th
 | `show_bed_grid` | bool | `true` | — |
 | `autodetect_channels` | bool | `true` | — |
 | `channel_diameter` | float | `4.0` | `1`–`20` |
+| `channel_pocket_depth` | float | `1.0` | `0.1`–`10` |
+| `channel_spacing` | float | `6.0` | `1`–`50` |
+
+`autodetect_channels` places channels at trapped-air pockets whenever the mould view opens with no channels; `channel_pocket_depth` and `channel_spacing` tune that placement and the **Auto-place channels** button (see [Air Channels](../user-guide/06-air-channels-and-degassing.md#automatic-placement)).
 
 The print bed stores width and depth only; there is no stored bed-height preference.
 

@@ -13,16 +13,36 @@ public sealed class AirChannelPreferencePage : IPreferencePage {
     public string Key => "channels";
     public string Name => "Air Channels";
     public string Description => "Automatic channel detection and defaults.";
-    public string Keywords => "autodetect diameter vent";
+    public string Keywords => "autodetect automatic diameter vent pocket depth spacing";
     public string IconKey => "Icon.Preferences.Channels";
     public int Order => 140;
 
     public IReadOnlyList<PreferenceRow> BuildRows(PreferencesViewModel vm) => [
         new ToggleRow {
             Label = "Generate air channels automatically",
-            Caption = "Detect and place channels when a mesh is imported.",
+            Caption = "Place channels at trapped-air pockets whenever the mould view opens with none placed.",
             Read = () => vm.Get<PrintBedPreferences>().AutodetectChannels,
             Write = value => vm.Update<PrintBedPreferences>(settings => settings with { AutodetectChannels = value }),
+        },
+        new NumberRow {
+            Label = "Minimum pocket depth",
+            Unit = "mm",
+            Caption = "How deep a pocket has to hold air before it gets a channel. Raise it to ignore small bumps.",
+            Minimum = PrintBedPreferences.Ranges.PocketDepthMin,
+            Maximum = PrintBedPreferences.Ranges.PocketDepthMax,
+            Interval = 0.1,
+            Read = () => vm.Get<PrintBedPreferences>().PocketDepth,
+            Write = value => vm.Update<PrintBedPreferences>(settings => settings with { PocketDepth = (float)value }),
+        },
+        new NumberRow {
+            Label = "Minimum channel spacing",
+            Unit = "mm",
+            Caption = "Pockets closer than this share one channel, at the higher of them.",
+            Minimum = PrintBedPreferences.Ranges.ChannelSpacingMin,
+            Maximum = PrintBedPreferences.Ranges.ChannelSpacingMax,
+            Interval = 0.5,
+            Read = () => vm.Get<PrintBedPreferences>().ChannelSpacing,
+            Write = value => vm.Update<PrintBedPreferences>(settings => settings with { ChannelSpacing = (float)value }),
         },
         new NumberRow {
             Label = "Default channel diameter",
