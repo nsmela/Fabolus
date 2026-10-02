@@ -259,8 +259,11 @@ paket-files/
 # Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
-/Fabolus.Core.Tests/TestAssets/desktop.ini
 .vscode/settings.json
+
+# Windows Explorer folder metadata
+desktop.ini
+Thumbs.db
 
 # Publish artifacts produced by build/publish.ps1
 artifacts/
