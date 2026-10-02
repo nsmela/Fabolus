@@ -166,14 +166,14 @@ public class DecalSelectionHighlightTests
     }
 
     private static void Refresh(DecalSceneManager scene, IReadOnlyList<TextDecal> decals, Guid selectedId) =>
-        scene.UpdateDecals(decals, selectedId, new WpfGlyphOutlineSource(), EmbossTarget.Base);
+        scene.UpdateDecals(decals, selectedId, new WpfGlyphOutlineSource(Engine), EmbossTarget.Base);
 
     private static DecalSceneManager NewScene(out List<TextDecal> decals)
     {
         var scene = new DecalSceneManager(Engine, new StrongReferenceMessenger());
 
         var mesh = Engine.Generators.GenerateBox(new Vector3(-40, -40, 0), new Vector3(40, 40, 20)).Value
-            .WithMeasurements(Engine);
+            .Measured(Engine);
         Assert.True(scene.UpdateMesh(mesh).IsSuccess);
 
         // Three on the top face: two embossed, so the same-operation case is covered, and one

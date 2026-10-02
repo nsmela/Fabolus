@@ -27,7 +27,7 @@ public sealed class RepairMesh {
 
         // Repair changes geometry (fills holes, removes degenerate faces), so both the topology
         // audit and the bounds have to be read again - consumers size UI from them.
-        var repairedMesh = repairResult.Value.WithMeasurements(_geometryEngine);
+        var repairedMesh = repairResult.Value.Measured(_geometryEngine);
 
         return workspace.UpdateMesh(meshId, repairedMesh);
     }

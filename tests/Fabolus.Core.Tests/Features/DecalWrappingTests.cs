@@ -6,8 +6,6 @@ using FluentAssertions;
 using GeometryEngine.Core.Geometry;
 using Xunit;
 
-using SnVector3 = System.Numerics.Vector3;
-
 namespace Fabolus.Tests.Features;
 
 /// <summary>
@@ -30,20 +28,8 @@ public class DecalWrappingTests
         _fixture = fixture;
     }
 
-    private static SurfaceFrame FrameAt(Vector3 origin)
-    {
-        // Built through DecalFrame so the basis is the one the decal feature actually uses.
-        var frame = DecalFrame.FromHit(
-            new SnVector3((float)origin.X, (float)origin.Y, (float)origin.Z),
-            SnVector3.UnitZ,
-            rotationDeg: 0f);
-
-        return new SurfaceFrame(
-            new Vector3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z),
-            new Vector3(frame.U.X, frame.U.Y, frame.U.Z),
-            new Vector3(frame.V.X, frame.V.Y, frame.V.Z),
-            new Vector3(frame.N.X, frame.N.Y, frame.N.Z));
-    }
+    // Built the way the decal feature builds its frames, so the basis is the one it actually uses.
+    private static SurfaceFrame FrameAt(Vector3 origin) => SurfaceFrame.FromNormal(origin, Vector3.UnitZ);
 
     private static ImmutableArray<Polygon2D> Bar(double halfWidth, double halfHeight) =>
     [

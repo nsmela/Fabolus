@@ -30,7 +30,7 @@ public sealed class ClearMould {
         var replayResult = CommandReplay.Apply(_engine, reverted.BaseMesh, reverted.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var mesh = replayResult.Value.WithMeasurements(_engine);
+        var mesh = replayResult.Value.Measured(_engine);
         return workspace.UpdateMesh(reverted.Id, mesh, reverted);
     }
 }

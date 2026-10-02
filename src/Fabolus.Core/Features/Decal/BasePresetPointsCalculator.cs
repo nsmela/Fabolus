@@ -22,10 +22,10 @@ public static class BasePresetPointsCalculator
         if (statsResult.IsFailure)
             return Array.Empty<DecalPresetPoint>();
 
-        var surfaceResult = DecalSurface.For(engine, baseMesh);
-        if (surfaceResult.IsFailure)
+        var indexResult = engine.Spatial.IndexFor(baseMesh);
+        if (indexResult.IsFailure)
             return Array.Empty<DecalPresetPoint>();
-        var index = surfaceResult.Value.Index;
+        var index = indexResult.Value;
 
         var s = statsResult.Value;
         float zMid = (float)(s.BoundsMin.Z + s.BoundsMax.Z) * 0.5f;

@@ -8,6 +8,8 @@ using System;
 using System.Windows.Input;
 using System.Windows.Media;
 using Fabolus.Wpf.Common.Helpers;
+using Direction = GeometryEngine.Core.Geometry.Primitives.Direction;
+using Rotation = GeometryEngine.Core.Geometry.Primitives.Rotation;
 
 namespace Fabolus.Wpf.Features.CutSplit;
 
@@ -130,12 +132,9 @@ public class CutSplitSceneManager : ISceneManager
             VisualAddedOrUpdated?.Invoke(_planeGridVisual);
         }
 
-        var axis = System.Numerics.Vector3.Cross(System.Numerics.Vector3.UnitZ, normal);
-        float dot = System.Numerics.Vector3.Dot(System.Numerics.Vector3.UnitZ, normal);
-        System.Numerics.Quaternion q;
-        if (dot < -0.9999f) q = System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitX, (float)Math.PI);
-        else if (dot > 0.9999f) q = System.Numerics.Quaternion.Identity;
-        else q = System.Numerics.Quaternion.Normalize(new System.Numerics.Quaternion(axis, 1 + dot));
+        // The visuals are built lying in XY, so they turn from Z onto the plane's normal.
+        var facing = Direction.From(new Vector3(normal.X, normal.Y, normal.Z)).GetValueOrDefault(Direction.Z);
+        var q = Rotation.Between(Direction.Z, facing);
 
         var transform = new System.Windows.Media.Media3D.Transform3DGroup();
         transform.Children.Add(new System.Windows.Media.Media3D.RotateTransform3D(new System.Windows.Media.Media3D.QuaternionRotation3D(new System.Windows.Media.Media3D.Quaternion(q.X, q.Y, q.Z, q.W))));

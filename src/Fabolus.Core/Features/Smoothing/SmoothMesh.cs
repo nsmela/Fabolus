@@ -28,7 +28,7 @@ public sealed class SmoothMesh(IGeometryEngine Engine) {
         var replayResult = CommandReplay.Apply(Engine, record.BaseMesh, record.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var mesh = replayResult.Value.WithMeasurements(Engine);
+        var mesh = replayResult.Value.Measured(Engine);
         return workspace.UpdateMesh(record.Id, mesh, record);
     }
 }

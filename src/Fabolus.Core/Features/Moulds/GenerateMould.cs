@@ -25,10 +25,10 @@ public sealed class GenerateMould
         if (applyResult.IsFailure) return applyResult.Error;
 
         // The mould is built with booleans, so the geometry that comes back is neither operand and
-        // carries no annotations - it is measured fresh below. The entry it fills is unchanged:
+        // nothing has been measured of it yet - it is measured below. The entry it fills is unchanged:
         // its identity, name and history all live on the record, which is why this replaces the
         // entry's geometry in place rather than forking a new one.
-        var mouldMesh = applyResult.Value.WithMeasurements(_geometryEngine);
+        var mouldMesh = applyResult.Value.Measured(_geometryEngine);
 
         var record = recordResult.Value.WithCommand(mouldDefinition with { TargetMeshId = meshId });
 

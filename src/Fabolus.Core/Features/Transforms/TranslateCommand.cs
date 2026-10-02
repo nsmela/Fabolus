@@ -12,7 +12,7 @@ namespace Fabolus.Core.Features.Transforms;
 public sealed record TranslateCommand(Vector3 Translation) : IMeshCommand {
     public int Priority => CommandPriority.Transform;
 
-    public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) => engine.Transforms.Translate(mesh, Translation.X, Translation.Y, Translation.Z);
+    public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) => engine.Transforms.Translate(mesh, Translation);
 
     /// <summary>
     /// Not shown: translation is automatic placement, not an operation the user asked for.

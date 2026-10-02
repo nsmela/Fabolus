@@ -15,6 +15,7 @@ public static class MouldPresetPointsCalculator
     private const float CharacterAspectSafetyFactor = 1.15f;
     private const float CardinalOverlapDistanceThreshold = 5.0f;
     private const float DefaultCapHeight = 6.0f;
+    private const int CurveSamples = 72;
 
     public static IReadOnlyList<DecalPresetPoint> Calculate(IGeometryEngine engine, IMesh mouldMesh)
     {
@@ -25,11 +26,11 @@ public static class MouldPresetPointsCalculator
         if (statsResult.IsFailure)
             return Array.Empty<DecalPresetPoint>();
 
-        // One index for all 76 rays. Each ray used to build its own, over the whole mould.
-        var surfaceResult = DecalSurface.For(engine, mouldMesh);
-        if (surfaceResult.IsFailure)
+        // The mould's own index, shared with the decal preview that is about to query it too.
+        var indexResult = engine.Spatial.IndexFor(mouldMesh);
+        if (indexResult.IsFailure)
             return Array.Empty<DecalPresetPoint>();
-        var index = surfaceResult.Value.Index;
+        var index = indexResult.Value;
 
         var s = statsResult.Value;
         float zMid = (float)(s.BoundsMin.Z + s.BoundsMax.Z) * 0.5f;
@@ -97,7 +98,7 @@ public static class MouldPresetPointsCalculator
         }
 
         // 5 & 6. Analyze 2D contour to find strong curves that don't overlap cardinals
-        CalculateCurvePresets(index, s, mouldHeight, presets, out var curve1, out var curve2);
+        CalculateCurvePresets(engine, mouldMesh, index, s, mouldHeight, presets, out var curve1, out var curve2);
         if (curve1 is not null) presets.Add(curve1);
         if (curve2 is not null) presets.Add(curve2);
 
@@ -119,6 +120,8 @@ public static class MouldPresetPointsCalculator
     }
 
     private static void CalculateCurvePresets(
+        IGeometryEngine engine,
+        IMesh mouldMesh,
         GeometryEngine.Core.Geometry.ISpatialIndex index,
         MeshStatistics stats,
         float mouldHeight,
@@ -130,34 +133,30 @@ public static class MouldPresetPointsCalculator
         curve2 = null;
 
         float zMid = (float)(stats.BoundsMin.Z + stats.BoundsMax.Z) * 0.5f;
-        float xCenter = (float)(stats.BoundsMin.X + stats.BoundsMax.X) * 0.5f;
-        float yCenter = (float)(stats.BoundsMin.Y + stats.BoundsMax.Y) * 0.5f;
-        float minX = (float)stats.BoundsMin.X;
-        float maxX = (float)stats.BoundsMax.X;
-        float minY = (float)stats.BoundsMin.Y;
-        float maxY = (float)stats.BoundsMax.Y;
 
-        const int samples = 72; // 5-degree increments
-        var points = new List<Vector3>(samples);
-        var normals = new List<Vector3>(samples);
+        // The mould's outside wall at mid-height is the largest outline of the slice there. A mould
+        // is hollow, so the slice also carries the bolus cavity - as a hole, which is no place for
+        // a label and is left out by taking the outline alone.
+        var slice = engine.Polygons.Slice(mouldMesh, zMid);
+        if (slice.IsFailure || slice.Value.IsEmpty)
+            return;
 
-        float radius = MathF.Max(maxX - minX, maxY - minY) * 0.5f + RaycastOffsetDistance;
+        var outline = slice.Value.MaxBy(polygon => polygon.Area)!.Outer;
 
-        for (int i = 0; i < samples; i++)
+        // Evenly spaced along the wall, so a long straight side and a tight corner are sampled
+        // alike and the turn between neighbours measures the wall's curvature, not its distance
+        // from the middle.
+        var points = new List<Vector3>(CurveSamples);
+        var normals = new List<Vector3>(CurveSamples);
+        foreach (var sample in SampleEvenly(outline, CurveSamples))
         {
-            float angle = i * (MathF.PI * 2f / samples);
-            float cos = MathF.Cos(angle);
-            float sin = MathF.Sin(angle);
+            var point = new Vector3(sample.X, sample.Y, zMid);
+            var surface = index.ClosestPoint(point);
+            if (!surface.HasValue)
+                continue;
 
-            var rayOrigin = new Vector3(xCenter + cos * radius, yCenter + sin * radius, zMid);
-            var rayDir = new Vector3(-cos, -sin, 0f);
-
-            var hitResult = index.Raycast(rayOrigin, GeometryEngine.Core.Geometry.Primitives.Direction.From(rayDir).Value);
-            if (hitResult.HasValue)
-            {
-                points.Add(hitResult.Value.Point);
-                normals.Add(hitResult.Value.Normal);
-            }
+            points.Add(point);
+            normals.Add(surface.Value.Normal);
         }
 
         if (points.Count < 8)
@@ -239,5 +238,38 @@ public static class MouldPresetPointsCalculator
         {
             curve2 = new DecalPresetPoint("Curve 2", points[bestIdx2], normals[bestIdx2], 90f, mouldHeight, EmbossTarget.Mould);
         }
+    }
+
+    /// <summary><paramref name="count"/> points spaced evenly by distance around a closed ring.</summary>
+    private static List<Vector2> SampleEvenly(IReadOnlyList<Vector2> ring, int count)
+    {
+        var lengths = new double[ring.Count];
+        double perimeter = 0;
+        for (int i = 0; i < ring.Count; i++)
+        {
+            lengths[i] = ring[i].DistanceTo(ring[(i + 1) % ring.Count]);
+            perimeter += lengths[i];
+        }
+
+        var samples = new List<Vector2>(count);
+        if (perimeter <= 0)
+            return samples;
+
+        int edge = 0;
+        double edgeStart = 0;
+        for (int s = 0; s < count; s++)
+        {
+            double along = perimeter * s / count;
+            while (edge < ring.Count - 1 && edgeStart + lengths[edge] < along)
+            {
+                edgeStart += lengths[edge];
+                edge++;
+            }
+
+            double t = lengths[edge] > 0 ? (along - edgeStart) / lengths[edge] : 0;
+            samples.Add(ring[edge].LerpTo(ring[(edge + 1) % ring.Count], Math.Clamp(t, 0, 1)));
+        }
+
+        return samples;
     }
 }

@@ -12,8 +12,8 @@ namespace Fabolus.Core.Geometry;
 /// None of this rides on the mesh. A boolean hands back geometry that is neither operand, an
 /// import hands back geometry the engine named itself, and in both cases anything travelling on
 /// the mesh would be describing something that no longer exists - which is exactly what used to
-/// happen. Derived facts about the geometry itself travel on the mesh instead, as
-/// <see cref="FabolusAnnotations"/>.
+/// happen. Derived facts about the geometry itself - its bounds, volume, topology - are the
+/// engine's to remember, and it keeps them on the mesh (see <see cref="MeshMeasurementExtensions"/>).
 /// </summary>
 public sealed record MeshRecord {
     public required Guid Id { get; init; }

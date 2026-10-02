@@ -619,7 +619,7 @@ public partial class MouldViewModel : ObservableObject, IViewState
     {
         _targetMesh = mesh;
         _pocketMapTask = null;
-        _targetStats = mesh.Stats();
+        _targetStats = mesh.Stats(_engine);
         PublishMeshInfo();
 
         var result = _sceneManager.UpdateMesh(mesh);

@@ -122,12 +122,6 @@ public class TroughCapacityTests
         var rim = Engine.Polygons.Offset(footprint.Value, -mould.TroughOffset);
         rim.IsSuccess.Should().BeTrue();
 
-        var area = Math.Abs(Polygon2D.SignedAreaOf(rim.Value.Outer));
-        foreach (var hole in rim.Value.Holes)
-        {
-            area -= Math.Abs(Polygon2D.SignedAreaOf(hole));
-        }
-
-        return area;
+        return rim.Value.Area;
     }
 }

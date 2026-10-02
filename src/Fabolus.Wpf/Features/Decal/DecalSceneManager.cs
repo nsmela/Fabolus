@@ -276,7 +276,7 @@ public sealed class DecalSceneManager : ISceneManager
         // Update cyan bounding box around the selected decal
         if (selectedDecal is not null)
         {
-            var selFrame = DecalFrame.FromHit(new System.Numerics.Vector3((float)selectedDecal.Anchor.X, (float)selectedDecal.Anchor.Y, (float)selectedDecal.Anchor.Z), new System.Numerics.Vector3((float)selectedDecal.AnchorNormal.X, (float)selectedDecal.AnchorNormal.Y, (float)selectedDecal.AnchorNormal.Z), selectedDecal.RotationDeg);
+            var selFrame = SurfaceFrame.FromNormal(selectedDecal.Anchor, selectedDecal.AnchorNormal, float.DegreesToRadians(selectedDecal.RotationDeg));
             var metrics = outlineSource.MeasureText(selectedDecal.Text, selectedDecal.Font, selectedDecal.CapHeight, selectedDecal.Tracking);
             float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
             float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
@@ -326,7 +326,7 @@ public sealed class DecalSceneManager : ISceneManager
     {
         if (TargetMesh is null) return;
 
-        var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)decal.Anchor.X, (float)decal.Anchor.Y, (float)decal.Anchor.Z), new System.Numerics.Vector3((float)decal.AnchorNormal.X, (float)decal.AnchorNormal.Y, (float)decal.AnchorNormal.Z), decal.RotationDeg);
+        var frame = SurfaceFrame.FromNormal(decal.Anchor, decal.AnchorNormal, float.DegreesToRadians(decal.RotationDeg));
         float halfW = metrics.WidthMm * 0.5f + DefaultBoxPaddingMm;
         float halfH = metrics.HeightMm * 0.5f + DefaultBoxPaddingMm;
         float zOff = DragPreviewZOffset;
@@ -423,24 +423,20 @@ public sealed class DecalSceneManager : ISceneManager
         }
     }
 
-    private static LineGeometry3D GenerateContouredBoundingBox(DecalFrame frame, float halfW, float halfH, float zOff)
+    private static LineGeometry3D GenerateContouredBoundingBox(SurfaceFrame frame, float halfW, float halfH, float zOff)
     {
-        var linePositions = new Vector3Collection();
-        var p0 = frame.ToWorld(-halfW, -halfH, zOff);
-        var p1 = frame.ToWorld(halfW, -halfH, zOff);
-        var p2 = frame.ToWorld(halfW, halfH, zOff);
-        var p3 = frame.ToWorld(-halfW, halfH, zOff);
+        SharpDX.Vector3 Corner(float u, float v)
+        {
+            var p = frame.ToWorld(u, v, zOff);
+            return new SharpDX.Vector3((float)p.X, (float)p.Y, (float)p.Z);
+        }
 
-        linePositions.Add(new SharpDX.Vector3(p0.X, p0.Y, p0.Z));
-        linePositions.Add(new SharpDX.Vector3(p1.X, p1.Y, p1.Z));
-        linePositions.Add(new SharpDX.Vector3(p1.X, p1.Y, p1.Z));
-        linePositions.Add(new SharpDX.Vector3(p2.X, p2.Y, p2.Z));
-        linePositions.Add(new SharpDX.Vector3(p2.X, p2.Y, p2.Z));
-        linePositions.Add(new SharpDX.Vector3(p3.X, p3.Y, p3.Z));
-        linePositions.Add(new SharpDX.Vector3(p3.X, p3.Y, p3.Z));
-        linePositions.Add(new SharpDX.Vector3(p0.X, p0.Y, p0.Z));
+        var p0 = Corner(-halfW, -halfH);
+        var p1 = Corner(halfW, -halfH);
+        var p2 = Corner(halfW, halfH);
+        var p3 = Corner(-halfW, halfH);
 
-        return new LineGeometry3D { Positions = linePositions };
+        return new LineGeometry3D { Positions = [p0, p1, p1, p2, p2, p3, p3, p0] };
     }
 
     public void UpdatePresetPoints(IReadOnlyList<DecalPresetPoint> presetPoints, bool isVisible)
@@ -491,7 +487,7 @@ public sealed class DecalSceneManager : ISceneManager
             return;
         }
 
-        var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)preset.Position.X, (float)preset.Position.Y, (float)preset.Position.Z), new System.Numerics.Vector3((float)preset.Normal.X, (float)preset.Normal.Y, (float)preset.Normal.Z), preset.RotationDeg);
+        var frame = SurfaceFrame.FromNormal(preset.Position, preset.Normal, float.DegreesToRadians(preset.RotationDeg));
 
         var surfaceResult = DecalSurface.For(_engine, TargetMesh);
         if (surfaceResult.IsFailure)

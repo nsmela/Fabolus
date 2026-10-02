@@ -36,7 +36,7 @@ public sealed class ClearDecals
         var replayResult = CommandReplay.Apply(_engine, reverted.BaseMesh, reverted.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var cleared = replayResult.Value.WithMeasurements(_engine);
+        var cleared = replayResult.Value.Measured(_engine);
         return Result<(IMesh, MeshRecord)>.Success((cleared, reverted));
     }
 

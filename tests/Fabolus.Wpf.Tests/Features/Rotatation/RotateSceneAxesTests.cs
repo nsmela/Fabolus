@@ -139,7 +139,7 @@ public class RotateSceneAxesTests
     private static Workspace WorkspaceWithBox()
     {
         var mesh = Engine.Generators.GenerateBox(new Vector3(-20, -30, 0), new Vector3(20, 30, 50)).Value
-            .WithMeasurements(Engine);
+            .Measured(Engine);
         return Workspace.CreateEmpty().AddMesh(mesh, MeshRecord.ForImport("box")).Value;
     }
 }

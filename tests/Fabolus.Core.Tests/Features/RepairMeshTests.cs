@@ -20,27 +20,28 @@ public class RepairMeshTests
     }
 
     [Fact]
-    public void Execute_RefreshesCachedStatsAndTopology()
+    public void Execute_MeasurementsDescribeTheRepairedGeometry()
     {
         var mesh = _fixture.LoadStl("sphere.stl");
-        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
+        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh.Measured(_fixture.Engine));
 
         var result = _repairFeature.Execute(workspace, id);
 
         result.IsSuccess.Should().BeTrue();
         var repaired = result.Value.GetActiveMesh().Value;
 
-        // Repair rebuilds geometry, so the engine drops the annotations on the way through and
-        // the feature has to measure again - UI consumers (hover paths, info panels) read these
-        // instead of re-deriving them.
-        var cachedStats = repaired.Stats();
-        cachedStats.Should().NotBeNull();
+        // The input was measured first, so anything the engine wrongly carried through a repair
+        // would show here as figures for the old surface. They are checked against the same
+        // geometry built afresh, which nothing has measured.
+        var unmeasured = GeometryEngine.Core.Geometry.ImmutableMesh.Create(repaired.Vertices, repaired.Triangles, MeshMetadata.Named("fresh")).Value;
+        var fresh = _fixture.Engine.Evaluators.GetStatistics(unmeasured).Value;
 
-        var freshStats = _fixture.Engine.Evaluators.GetStatistics(repaired).Value;
-        cachedStats!.TriangleCount.Should().Be(freshStats.TriangleCount);
-        cachedStats.Volume.Should().BeApproximately(freshStats.Volume, 1e-3);
+        var stats = repaired.Stats(_fixture.Engine);
+        stats.Should().NotBeNull();
+        stats!.TriangleCount.Should().Be(fresh.TriangleCount);
+        stats.Volume.Should().BeApproximately(fresh.Volume, 1e-9);
 
-        repaired.Topology().Should().NotBeNull();
+        repaired.Topology(_fixture.Engine).Should().Be(_fixture.Engine.Evaluators.ValidateTopology(unmeasured).Value);
     }
 
     [Fact]

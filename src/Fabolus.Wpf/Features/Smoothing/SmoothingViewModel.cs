@@ -177,17 +177,13 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, _record, CommandPriority.Transform);
         if (stageResult.IsFailure) return;
 
-        // Replaying commands hands back a fresh mesh that has never been measured, and Stats() is
-        // a cache read rather than a measurement. Measured once here so the info panel has
-        // something to report - it costs nothing when the stage is the active mesh itself, which
-        // arrives already measured.
-        _stagedMesh = stageResult.Value.Stats() is null
-            ? stageResult.Value.WithRefreshedStats(_engine)
-            : stageResult.Value;
+        // Read through the engine, which remembers measurements on the mesh: free when the stage
+        // is the active mesh itself, or a rigid move of the measured base, and one measurement
+        // when replay rebuilt the surface.
+        _stagedMesh = stageResult.Value;
 
-        // The base mesh's stats were cached on it at import time and it never changes
-        // afterward - nothing to measure to read them.
-        _originalStats = _record.BaseMesh?.Stats();
+        // The base mesh was measured at import time and never changes - a lookup.
+        _originalStats = _record.BaseMesh?.Stats(_engine);
     }
 
     private void RenderViewport() {
@@ -245,7 +241,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
         // was imported, and as smoothing left it - and once a mould has been generated the active
         // mesh IS the mould. Reading it reported the mould's shell material under a "Smoothed
         // Mesh" heading: 24.8mL of resin where the bolus it was cut around is 121.2mL.
-        if (_record?.Smoothing() is not null && _stagedMesh?.Stats() is { } stats) {
+        if (_record?.Smoothing() is not null && _stagedMesh?.Stats(_engine) is { } stats) {
             items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
             items.Add(new TextInfoItem { Label = "Volume", Value = $"{Measure.ToMillilitres(stats.Volume):N2} mL" });
             items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{Measure.ToSquareCentimetres(stats.SurfaceArea):N2} cm²" });
@@ -292,11 +288,10 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     {
         if (current is null || original is null) return Fabolus.Core.Geometry.MeshErrors.NullSource;
 
-        var indexResult = _engine.Spatial.BuildIndex(original);
-        if (indexResult.IsFailure) return BasicResults.Result<double[]>.Failure(indexResult.Error);
+        var deviation = _engine.Evaluators.MeasureDeviation(current, original);
+        if (deviation.IsFailure) return BasicResults.Result<double[]>.Failure(deviation.Error);
 
-        var index = indexResult.Value;
-        var distances = index.SignedDistances([.. current.Vertices]);
+        var distances = deviation.Value.Distances;
 
         var gradient = Fabolus.Core.Features.Overhangs.ColourGradient.SmoothingDeviation;
         var scale = Math.Max(maxDeviation, 0.001);

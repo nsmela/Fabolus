@@ -114,7 +114,7 @@ public class MouldInfoPanelTests
     private static Workspace WorkspaceWithBox()
     {
         var mesh = Engine.Generators.GenerateBox(new Vector3(-30, -30, 0), new Vector3(30, 30, 20)).Value
-            .WithMeasurements(Engine);
+            .Measured(Engine);
         return Workspace.CreateEmpty().AddMesh(mesh, MeshRecord.ForImport("box")).Value;
     }
 }

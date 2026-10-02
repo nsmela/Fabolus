@@ -73,28 +73,8 @@ public class MeshIORoundTripTests
     }
 
     /// <summary>
-    /// The restored base mesh has to come back already measured.
-    /// </summary>
-    /// <remarks>
-    /// Stats() is a cache read, not a measurement - a mesh that was never measured answers null.
-    /// The plain geometry import caches the stats onto the base mesh on the way past, naming the
-    /// smoothing panel's "Original Mesh" figures as the reason; the package import did not, so
-    /// every mesh restored from a 3MF reported no original volume at all.
-    /// </remarks>
-    [Fact]
-    public void TheRestoredBaseMesh_KnowsItsOwnVolume()
-    {
-        var restored = RoundTrip(new TranslateCommand(new Vector3(1f, 0f, 0f)));
-
-        restored.BaseMesh.Should().NotBeNull();
-        restored.BaseMesh!.Stats().Should().NotBeNull(
-            "the smoothing panel reads the original volume straight off this cache");
-        restored.BaseMesh.Stats()!.Volume.Should().BeGreaterThan(0);
-    }
-
-    /// <summary>
-    /// And it has to be the volume of the mesh the entry started from, not of whatever it has
-    /// since become.
+    /// The restored base mesh is the one the entry started from, not whatever it has since
+    /// become - the smoothing panel's "Original Mesh" figures are read off it.
     /// </summary>
     [Fact]
     public void TheRestoredBaseMeshVolume_IsTheOriginalOne()
@@ -104,7 +84,7 @@ public class MeshIORoundTripTests
 
         var restored = RoundTrip(new SmoothSettings());
 
-        restored.BaseMesh!.Stats()!.Volume.Should().BeApproximately(expected, expected * 0.001);
+        restored.BaseMesh!.Stats(_fixture.Engine)!.Volume.Should().BeApproximately(expected, expected * 0.001);
     }
 
     [Fact]

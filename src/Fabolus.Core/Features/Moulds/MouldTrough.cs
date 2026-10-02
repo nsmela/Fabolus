@@ -15,10 +15,6 @@ internal static class MouldTrough
     // boolean can leave a zero-thickness skin over the basin.
     private const float Overshoot = 1.0f;
 
-    // A single channel (or two in a line) has no 2D hull to offset - it gets padded into a
-    // polygon this small first, so the round offset turns it into a disc/stadium.
-    private const float DegenerateHullPad = 0.05f;
-
     /// <summary>
     /// Subtracts the basin from an already-extruded mould body. <paramref name="floorZ"/> is
     /// where the basin bottoms out (the top of the cover over the bolus) and
@@ -32,10 +28,20 @@ internal static class MouldTrough
         float bodyTopZ,
         MouldDefinition definition)
     {
-        var cutterResult = BuildCutter(engine, footprint, definition, floorZ, bodyTopZ + Overshoot);
-        if (cutterResult.IsFailure) return cutterResult.Error;
+        var basinResult = BasinOutline(engine, footprint, definition);
+        if (basinResult.IsFailure) return basinResult.Error;
 
-        return engine.Booleans.Subtract(body, cutterResult.Value);
+        // Usually one region; a channel trough clipped by a concave rim can leave several.
+        var cutters = new List<IMesh>(basinResult.Value.Count);
+        foreach (var region in basinResult.Value)
+        {
+            var cutterResult = engine.Polygons.Extrude(region, floorZ, bodyTopZ + Overshoot);
+            if (cutterResult.IsFailure) return cutterResult.Error;
+
+            cutters.Add(cutterResult.Value);
+        }
+
+        return engine.Booleans.Subtract(body, [.. cutters]);
     }
 
     /// <summary>
@@ -43,10 +49,8 @@ internal static class MouldTrough
     /// of the mould top, and so the extra silicone needed to fill it.
     /// </summary>
     /// <remarks>
-    /// Measured from a cutter built over the basin's true depth rather than from the carved body,
-    /// which would mean generating the mould twice and differencing the two. The cutter Carve uses
-    /// overshoots the top of the mould on purpose, so its own volume is not the answer; this one
-    /// is built between the floor and the top exactly.
+    /// The basin is a prism with vertical walls, so this is its outline's area times its depth -
+    /// exact, and with no need to build the cutter, let alone the mould.
     ///
     /// The result is the capacity of the empty basin. Air channels surfacing through it are not
     /// discounted - they are thin next to the pool, and they are the mould's business rather than
@@ -57,59 +61,43 @@ internal static class MouldTrough
         Polygon2D footprint,
         MouldDefinition definition)
     {
-        var depth = (float)definition.TroughHeight;
+        var depth = definition.TroughHeight;
         if (depth <= 0) return 0.0;
 
-        var cutterResult = BuildCutter(engine, footprint, definition, 0f, depth);
-        if (cutterResult.IsFailure) return cutterResult.Error;
+        var basinResult = BasinOutline(engine, footprint, definition);
+        if (basinResult.IsFailure) return basinResult.Error;
 
-        var statsResult = engine.Evaluators.GetStatistics(cutterResult.Value);
-        if (statsResult.IsFailure) return statsResult.Error;
-
-        return statsResult.Value.Volume;
+        return basinResult.Value.Sum(region => region.Area) * depth;
     }
 
     /// <summary>
-    /// The solid the basin is cut with, spanning <paramref name="floorZ"/> to
-    /// <paramref name="topZ"/>.
+    /// The outline of the basin seen from above: the regions the trough is recessed over.
     /// </summary>
-    private static Result<IMesh> BuildCutter(
+    private static Result<IReadOnlyList<Polygon2D>> BasinOutline(
         IGeometryEngine engine,
         Polygon2D footprint,
-        MouldDefinition definition,
-        float floorZ,
-        float topZ)
+        MouldDefinition definition)
     {
         // Every trough stops short of the mould wall - that rim is what holds the silicone.
         var rimResult = engine.Polygons.Offset(footprint, -(float)definition.TroughOffset);
         if (rimResult.IsFailure)
             return TroughErrors.RimTooWide;
 
-        var cutterResult = engine.Polygons.Extrude(rimResult.Value, floorZ, topZ);
-        if (cutterResult.IsFailure) return cutterResult.Error;
+        if (definition.TroughShape != TroughShapeType.Channels)
+            return Result<IReadOnlyList<Polygon2D>>.Success([rimResult.Value]);
 
-        var cutter = cutterResult.Value;
+        var localResult = ChannelFootprint(engine, definition);
+        if (localResult.IsFailure) return localResult.Error;
 
-        if (definition.TroughShape == TroughShapeType.Channels)
-        {
-            var localResult = ChannelFootprint(engine, definition);
-            if (localResult.IsFailure) return localResult.Error;
+        // Clipped against the rim so a channel painted out near the edge can't open it and let
+        // the silicone escape.
+        var clippedResult = engine.Polygons.Intersect(rimResult.Value, localResult.Value);
+        if (clippedResult.IsFailure) return clippedResult.Error;
 
-            var localCutterResult = engine.Polygons.Extrude(localResult.Value, floorZ, topZ);
-            if (localCutterResult.IsFailure) return localCutterResult.Error;
+        if (clippedResult.Value.IsEmpty)
+            return TroughErrors.ChannelsOutsideRim;
 
-            // Clipped against the full-footprint basin so a channel painted out near the
-            // edge can't open the rim and let the silicone escape. Done in 3D because the
-            // engine offers no polygon intersection to do it in 2D.
-            var clippedResult = engine.Booleans.Intersect(cutter, localCutterResult.Value);
-            if (clippedResult.IsFailure) return clippedResult.Error;
-
-            cutter = clippedResult.Value;
-            if (cutter.IsEmpty)
-                return TroughErrors.ChannelsOutsideRim;
-        }
-
-        return Result<IMesh>.Success(cutter);
+        return Result<IReadOnlyList<Polygon2D>>.Success(clippedResult.Value);
     }
 
     /// <summary>
@@ -121,10 +109,13 @@ internal static class MouldTrough
         if (exits.Count == 0)
             return TroughErrors.NoChannelExits;
 
-        var hull = ConvexHull(exits);
-        var polygon = new Polygon2D([.. Pad(hull)], []);
+        var hull = engine.Polygons.ConvexHull([.. exits]);
+        if (hull.IsSuccess)
+            return engine.Polygons.Offset(hull.Value, definition.TroughOffset);
 
-        return engine.Polygons.Offset(polygon, definition.TroughOffset);
+        // A single channel, or several in a line, have no hull with area. Buffering the exits
+        // gives what offsetting a hull would have: a disc round one, a stadium along a line.
+        return engine.Polygons.BufferPath([.. exits], definition.TroughOffset);
     }
 
     /// <summary>
@@ -134,79 +125,6 @@ internal static class MouldTrough
         channels
             .SelectMany(channel => AirChannelFootprints.ExitPoints(engine, channel.DomainModel))
             .ToList();
-
-    /// <summary>
-    /// Andrew's monotone chain. Channels placed in a line (or all at one point) have no hull
-    /// with area, so those collapse to the two extremes for <see cref="Pad"/> to widen.
-    /// </summary>
-    private static IReadOnlyList<Vector2> ConvexHull(IReadOnlyList<Vector2> points)
-    {
-        if (points.Count < 3)
-            return points;
-
-        var sorted = points
-            .OrderBy(p => p.X)
-            .ThenBy(p => p.Y)
-            .ToList();
-
-        var lower = BuildChain(sorted);
-        var upper = BuildChain(Enumerable.Reverse(sorted).ToList());
-
-        // Each chain ends on the point the other one starts from.
-        lower.RemoveAt(lower.Count - 1);
-        upper.RemoveAt(upper.Count - 1);
-        lower.AddRange(upper);
-
-        return lower.Count >= 3 ? lower : new[] { sorted[0], sorted[^1] };
-    }
-
-    private static List<Vector2> BuildChain(IReadOnlyList<Vector2> ordered)
-    {
-        var chain = new List<Vector2>();
-
-        foreach (var point in ordered)
-        {
-            while (chain.Count >= 2 && Cross(chain[^2], chain[^1], point) <= 0)
-                chain.RemoveAt(chain.Count - 1);
-
-            chain.Add(point);
-        }
-
-        return chain;
-    }
-
-    private static double Cross(Vector2 origin, Vector2 a, Vector2 b) =>
-        (a.X - origin.X) * (b.Y - origin.Y) - (a.Y - origin.Y) * (b.X - origin.X);
-
-    /// <summary>
-    /// Widens a one- or two-point "hull" into a polygon with area, so the offset that
-    /// follows has something to grow.
-    /// </summary>
-    private static IReadOnlyList<Vector2> Pad(IReadOnlyList<Vector2> hull)
-    {
-        if (hull.Count >= 3)
-            return hull;
-
-        if (hull.Count == 1 || hull[0].DistanceSquared(hull[^1]) < DegenerateHullPad * DegenerateHullPad)
-        {
-            var p = hull[0];
-            return new[]
-            {
-                new Vector2(p.X - DegenerateHullPad, p.Y - DegenerateHullPad),
-                new Vector2(p.X + DegenerateHullPad, p.Y - DegenerateHullPad),
-                new Vector2(p.X + DegenerateHullPad, p.Y + DegenerateHullPad),
-                new Vector2(p.X - DegenerateHullPad, p.Y + DegenerateHullPad),
-            };
-        }
-
-        var (a, b) = (hull[0], hull[1]);
-        var along = b - a;
-        var side = along.LengthSquared > 0
-            ? new Vector2(-along.Y, along.X).Normalize() * DegenerateHullPad
-            : new Vector2(DegenerateHullPad, 0);
-
-        return new[] { a - side, b - side, b + side, a + side };
-    }
 }
 
 internal static class TroughErrors

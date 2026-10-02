@@ -33,7 +33,7 @@ public sealed class TransformMesh {
             vector += existing; // add vectors to stack
         }
 
-        return Replay(workspace, record.WithTranslate(vector), rigid: true);
+        return Replay(workspace, record.WithTranslate(vector));
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ public sealed class TransformMesh {
             quaternion = quaternion * existing;
         }
 
-        return Replay(workspace, record.WithRotation(quaternion), rigid: true);
+        return Replay(workspace, record.WithRotation(quaternion));
     }
 
     /// <summary>
@@ -77,34 +77,25 @@ public sealed class TransformMesh {
         }
 
         // Dropping a command can drop higher-priority ones with it (a generated Mould), so the
-        // result is not merely the old geometry un-rotated and the topology has to be re-read.
-        return Replay(workspace, record.WithoutRotation(), rigid: false);
+        // result is not merely the old geometry un-rotated.
+        return Replay(workspace, record.WithoutRotation());
     }
 
     /// <summary>
     /// Rebuilds an entry's geometry from its base mesh and updated command list, and stores both.
+    ///
+    /// Measuring the result is free while the history is rigid motions alone: the base mesh is
+    /// measured at import, and the engine hands its topology audit and statistics through every
+    /// translation and rotation. Only a command that rebuilds the surface - which replay re-runs
+    /// anyway, at far greater cost - leaves anything to measure.
     /// </summary>
-    /// <param name="rigid">
-    /// True when the only thing that changed is a rigid transform. Every other command in the list
-    /// is then unchanged and the new one leaves connectivity alone, so the topology audit taken
-    /// before this call still reads the same and is carried across rather than recomputed - it
-    /// would walk every edge to learn what the entry already knew. Only the bounds move.
-    /// </param>
-    private Result<Workspace> Replay(Workspace workspace, MeshRecord record, bool rigid) {
+    private Result<Workspace> Replay(Workspace workspace, MeshRecord record) {
         if (record.BaseMesh is null)
             return MetadataErrors.MissingBaseMesh;
-
-        var previous = workspace.GetMesh(record.Id);
 
         var replayResult = CommandReplay.Apply(_engine, record.BaseMesh, record.Commands);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var mesh = replayResult.Value;
-
-        mesh = rigid && previous.IsSuccess && previous.Value.Topology() is { } topology
-            ? mesh.WithAnnotations(new FabolusAnnotations(Topology: topology)).WithRefreshedStats(_engine)
-            : mesh.WithMeasurements(_engine);
-
-        return workspace.UpdateMesh(record.Id, mesh, record);
+        return workspace.UpdateMesh(record.Id, replayResult.Value.Measured(_engine), record);
     }
 }
