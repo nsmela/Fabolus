@@ -1,0 +1,64 @@
+name: Bug report
+description: Something in Fabolus doesn't work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not attach real patient data.** Meshes exported from a treatment planning system
+        must never be posted here, even cropped or renamed. If the problem only happens with a
+        patient's mesh, describe it and say so; we will find another way to reproduce it.
+
+        Security problems go through a private report instead; see SECURITY.md.
+
+  - type: input
+    id: version
+    attributes:
+      label: Fabolus version
+      description: Shown in the About window (the ⓘ button over the viewport).
+      placeholder: "0.9.4"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build
+    attributes:
+      label: Which download
+      options:
+        - Installer (setup.exe)
+        - Portable zip (needs .NET)
+        - Self-contained zip
+        - Built from source
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: The steps that lead to the problem, as precisely as you can.
+      placeholder: |
+        1. Import a mesh
+        2. Smooth with ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Include any error message, and screenshots if they help.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 23H2"
