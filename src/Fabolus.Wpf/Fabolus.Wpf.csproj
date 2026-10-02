@@ -34,6 +34,18 @@
     <Content Include="Fabolus icon resized.ico" />
   </ItemGroup>
 
+  <!-- The licence and notices ship beside Fabolus.exe in every build, so all three release
+       artifacts carry them; the installer packages the same folder. -->
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <!-- The About window's medical disclaimer. Embedded, not copied, so it cannot go missing. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\DISCLAIMER.txt" LogicalName="Fabolus.Disclaimer.txt" Visible="false" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
