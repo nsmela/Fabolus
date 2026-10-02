@@ -4,6 +4,9 @@ name: Release
 #
 # All build logic lives in build/publish.ps1 so a local run and a CI run produce
 # identical output. This workflow only supplies the version and uploads the results.
+#
+# Fabolus and GeometryEngine are checked out side by side (Fabolus/ and GeometryEngine/),
+# the layout the project files expect, with GeometryEngine pinned to build/geometryengine.sha.
 
 on:
   push:
@@ -23,9 +26,27 @@ jobs:
   release:
     runs-on: windows-latest
 
+    defaults:
+      run:
+        working-directory: Fabolus
+
     steps:
-      - name: Checkout
+      - name: Checkout Fabolus
         uses: actions/checkout@v4
+        with:
+          path: Fabolus
+
+      - name: Read pinned GeometryEngine commit
+        id: geometryengine
+        shell: pwsh
+        run: '"sha=$((Get-Content build/geometryengine.sha -Raw).Trim())" >> $env:GITHUB_OUTPUT'
+
+      - name: Checkout GeometryEngine
+        uses: actions/checkout@v4
+        with:
+          repository: nsmela/GeometryEngine
+          ref: ${{ steps.geometryengine.outputs.sha }}
+          path: GeometryEngine
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -64,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Fabolus-${{ steps.version.outputs.version }}
-          path: artifacts/*
+          path: Fabolus/artifacts/*
           if-no-files-found: error
 
       - name: Create draft release
@@ -73,7 +94,7 @@ jobs:
         with:
           draft: true
           name: Fabolus ${{ steps.version.outputs.version }}
-          files: artifacts/*
+          files: Fabolus/artifacts/*
           body: |
             ## Downloads
 

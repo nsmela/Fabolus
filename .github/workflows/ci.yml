@@ -1,0 +1,73 @@
+name: CI
+
+# Builds Fabolus and runs both test projects on every push to the main branches and on every
+# pull request.
+#
+# Fabolus.Core references GeometryEngine as a sibling checkout, so both repositories are
+# checked out side by side - Fabolus/ and GeometryEngine/ under the workspace - which is the
+# layout the project files and Fabolus.sln already expect. GeometryEngine is pinned to the
+# commit in build/geometryengine.sha so a change there cannot break this build unannounced.
+
+on:
+  push:
+    branches:
+      - main
+      - v1
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: Fabolus
+
+    steps:
+      - name: Checkout Fabolus
+        uses: actions/checkout@v4
+        with:
+          path: Fabolus
+
+      - name: Read pinned GeometryEngine commit
+        id: geometryengine
+        run: '"sha=$((Get-Content build/geometryengine.sha -Raw).Trim())" >> $env:GITHUB_OUTPUT'
+
+      - name: Checkout GeometryEngine
+        uses: actions/checkout@v4
+        with:
+          repository: nsmela/GeometryEngine
+          ref: ${{ steps.geometryengine.outputs.sha }}
+          path: GeometryEngine
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Fabolus.sln
+
+      # x64 is the solution's only platform; naming it keeps build and test on the same output paths.
+      - name: Build
+        run: dotnet build Fabolus.sln -c Release -p:Platform=x64 --no-restore --nologo
+
+      - name: Test
+        run: dotnet test Fabolus.sln -c Release -p:Platform=x64 --no-build --nologo --logger "trx;LogFilePrefix=results"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: Fabolus/tests/**/TestResults/*.trx
+          if-no-files-found: ignore

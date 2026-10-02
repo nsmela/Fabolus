@@ -61,6 +61,10 @@ and creates no release — useful for checking the pipeline without tagging.
 ## Prerequisites for a local build
 
 - .NET SDK capable of targeting `net8.0-windows`.
+- [GeometryEngine](https://github.com/nsmela/GeometryEngine) checked out beside this
+  repository (`<folder>/Fabolus` and `<folder>/GeometryEngine`), at the commit in
+  [`geometryengine.sha`](geometryengine.sha). `Fabolus.sln` and `Fabolus.Core.csproj` both
+  expect that layout, and the release and CI workflows recreate it on the runner.
 - [Inno Setup 6.3+](https://jrsoftware.org/isinfo.php), for the installer only:
 
 ```bash
@@ -129,7 +133,8 @@ group, and the Add/Remove Programs entry.
 
 Every project declares `<Platforms>x64</Platforms>` and the solution has exactly two
 configurations, `Debug|x64` and `Release|x64`. Fabolus depends on 64-bit native libraries
-through MeshLib, so there is no meaningful AnyCPU or x86 build.
+through GeometryEngine (`manifold.dll`, `geometryengine_native.dll`), so there is no
+meaningful AnyCPU or x86 build.
 
 `publish.ps1` passes `-p:Platform=x64` explicitly. It publishes the csproj rather than the
 solution, and MSBuild would otherwise default to AnyCPU regardless of what `<Platforms>`
@@ -149,6 +154,10 @@ Beyond the automated test gate, worth checking by hand when something changes:
 - The framework-dependent zip has **no** `hostfxr.dll` or `PresentationFramework.dll`; the
   self-contained one has both. That's the actual difference between them.
 - Neither zip contains `cs/`, `de/`, `fr/` … satellite folders.
+- Both zips contain `LICENSE`, `THIRD-PARTY-NOTICES.md` and GeometryEngine's
+  `LICENSE.manifold.txt`, `LICENSE.oneTBB.txt` and `LICENSE.oneTBB-third-party-programs.txt`.
+- The installer shows the medical disclaimer before installing, and the app's About window
+  shows the disclaimer and the right version.
 - Install the setup exe, confirm no elevation prompt, launch from the Start Menu, change a
   preference, restart the app, and confirm the preference stuck.
 - Run the installer a second time and confirm you get one Add/Remove entry, not two.
@@ -161,6 +170,5 @@ Things a future change should probably address, none of which block a release to
   writability constraint and let a machine-wide install work properly.
 - **net8.0-windows leaves support in November 2026.** The framework-dependent zip's audience
   shrinks as .NET 8 ages out.
-- **CUDA natives ship in every build.** `MRCuda-*.dll` and `MeshLibC2Cuda.dll` come from
-  MeshLib and are dead weight on machines without an NVIDIA card. Excluding them needs
-  testing that MeshLib doesn't probe for them at startup.
+- **The builds are not code-signed,** so SmartScreen warns about an unknown publisher until
+  a build has earned reputation. The README tells users how to get past it.
