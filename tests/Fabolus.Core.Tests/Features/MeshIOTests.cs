@@ -52,8 +52,8 @@ public class MeshIOTests
         var mesh = updatedWorkspace.GetActiveMesh().Value;
 
         // Ensure topology is validated
-        mesh.Topology().Should().NotBeNull();
-        mesh.Topology()!.IsWatertight.Should().BeTrue();
+        mesh.Topology(_fixture.Engine).Should().NotBeNull();
+        mesh.Topology(_fixture.Engine)!.IsWatertight.Should().BeTrue();
 
         // Ensure centered
         var stats = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
@@ -87,10 +87,6 @@ public class MeshIOTests
         baseCentre.X.Should().BeApproximately(rawCentre.X, 0.001);
         baseCentre.Y.Should().BeApproximately(rawCentre.Y, 0.001);
         baseCentre.Z.Should().BeApproximately(rawCentre.Z, 0.001);
-
-        // The base mesh also carries the stats measured for the centring, so the Smoothing
-        // panel's "Original Mesh" figures have something to read without measuring again.
-        record.BaseMesh!.Stats().Should().NotBeNull();
 
         var replayed = CommandReplay.Apply(_fixture.Engine, record.BaseMesh!, record.Commands).Value;
         var replayedCentre = Centre(_fixture.Engine.Evaluators.GetStatistics(replayed).Value);
@@ -165,7 +161,7 @@ public class MeshIOTests
         result.IsSuccess.Should().BeTrue();
         var repairedMesh = result.Value.GetActiveMesh().Value;
 
-        repairedMesh.Topology().Should().NotBeNull();
-        repairedMesh.Topology()!.IsWatertight.Should().BeTrue();
+        repairedMesh.Topology(_fixture.Engine).Should().NotBeNull();
+        repairedMesh.Topology(_fixture.Engine)!.IsWatertight.Should().BeTrue();
     }
 }

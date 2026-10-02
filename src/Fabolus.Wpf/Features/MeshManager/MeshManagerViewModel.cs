@@ -95,7 +95,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
                 record.Name,
                 record.Id == id,
                 Workspace.GetMesh(record.Id) is { IsSuccess: true } entry
-                    && entry.Value.Topology()?.HasCorruptTopology == true))
+                    && entry.Value.Topology(_engine)?.HasCorruptTopology == true))
             .ToList();
 
         SetActiveMesh();
@@ -115,8 +115,8 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
             // The measurements are cached on the geometry by whichever feature last changed it,
             // so filling the info panel still costs no measuring.
             var mesh = Workspace.GetActiveMesh();
-            ActiveStats = mesh.IsSuccess ? mesh.Value.Stats() : null;
-            ActiveTopology = mesh.IsSuccess ? mesh.Value.Topology() : null;
+            ActiveStats = mesh.IsSuccess ? mesh.Value.Stats(_engine) : null;
+            ActiveTopology = mesh.IsSuccess ? mesh.Value.Topology(_engine) : null;
         } else {
             SelectedMesh = null;
             ActiveRecord = null;

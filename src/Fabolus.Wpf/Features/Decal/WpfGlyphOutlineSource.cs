@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Numerics;
 using System.Windows;
@@ -8,7 +9,11 @@ using Fabolus.Core.Geometry;
 
 namespace Fabolus.Wpf.Features.Decal;
 
-public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
+/// <summary>
+/// Glyph outlines from WPF's font stack. The font work - shaping, flattening curves into loops -
+/// is done here; telling a glyph's outlines from its holes is geometry, and goes to the engine.
+/// </summary>
+public sealed class WpfGlyphOutlineSource(IGeometryEngine engine) : IGlyphOutlineSource
 {
     /// <summary>
     /// Flattening tolerance floor, in millimetres.
@@ -91,7 +96,7 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
         _ => (SansFontFamily, FontWeights.SemiBold)
     };
 
-    private static Result<IReadOnlyList<Polygon2D>> BuildOutlines(string text, DecalFont font, float capHeight, float tracking)
+    private Result<IReadOnlyList<Polygon2D>> BuildOutlines(string text, DecalFont font, float capHeight, float tracking)
     {
         if (string.IsNullOrWhiteSpace(text))
             return Result.Success<IReadOnlyList<Polygon2D>>(Array.Empty<Polygon2D>());
@@ -144,7 +149,7 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
         double centerY = (bounds.Top + bounds.Bottom) / 2.0;
 
         // Extract raw loops in Cartesian local coordinates (+U right, +V up)
-        var rawLoops = new List<List<Vector2>>();
+        var rawLoops = new List<ImmutableArray<Vector2>>();
         foreach (PathFigure figure in flattened.Figures)
         {
             var points = new List<Vector2>
@@ -169,13 +174,12 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
                 points.RemoveAt(points.Count - 1);
 
             if (points.Count >= 3)
-                rawLoops.Add(points);
+                rawLoops.Add([.. points]);
         }
 
-        if (rawLoops.Count == 0)
-            return Result.Success<IReadOnlyList<Polygon2D>>(Array.Empty<Polygon2D>());
-
-        return Result.Success(OrganizeIntoPolygons(rawLoops));
+        // Which loops are outlines and which are holes - the counter of an 'O', the dot inside
+        // a '%' - is read from how they nest, not from the order or winding the font used.
+        return Result.Success<IReadOnlyList<Polygon2D>>(engine.Polygons.FromLoops([.. rawLoops]));
     }
 
     private static TextMetrics ComputeMetrics(string text, DecalFont font, float capHeight, float tracking)
@@ -213,100 +217,5 @@ public sealed class WpfGlyphOutlineSource : IGlyphOutlineSource
         }
 
         return new TextMetrics((float)totalWidth, capHeight, advances);
-    }
-
-    private static IReadOnlyList<Polygon2D> OrganizeIntoPolygons(List<List<Vector2>> loops)
-    {
-        int n = loops.Count;
-        var parent = new int[n];
-        for (int i = 0; i < n; i++) parent[i] = -1;
-
-        for (int i = 0; i < n; i++)
-        {
-            var testPt = loops[i][0];
-            int bestContainer = -1;
-            float smallestArea = float.MaxValue;
-
-            for (int j = 0; j < n; j++)
-            {
-                if (i == j) continue;
-                if (IsPointInsidePolygon(testPt, loops[j]))
-                {
-                    float area = Math.Abs(ComputeSignedArea(loops[j]));
-                    if (area < smallestArea)
-                    {
-                        smallestArea = area;
-                        bestContainer = j;
-                    }
-                }
-            }
-
-            parent[i] = bestContainer;
-        }
-
-        var polygons = new List<Polygon2D>();
-
-        for (int i = 0; i < n; i++)
-        {
-            int depth = 0;
-            int curr = parent[i];
-            while (curr != -1)
-            {
-                depth++;
-                curr = parent[curr];
-            }
-
-            if (depth % 2 == 0)
-            {
-                var outer = loops[i];
-                if (ComputeSignedArea(outer) < 0)
-                    outer.Reverse();
-
-                var holes = new List<IReadOnlyList<Vector2>>();
-                for (int j = 0; j < n; j++)
-                {
-                    if (parent[j] == i)
-                    {
-                        var hole = loops[j];
-                        if (ComputeSignedArea(hole) > 0)
-                            hole.Reverse();
-                        holes.Add(hole);
-                    }
-                }
-
-                polygons.Add(new Polygon2D(
-                    [.. outer], 
-                    [.. holes.Select(h => System.Collections.Immutable.ImmutableArray.CreateRange(h))]
-                ));
-            }
-        }
-
-        return polygons;
-    }
-
-    private static float ComputeSignedArea(List<Vector2> ring)
-    {
-        double area = 0.0;
-        for (int i = 0; i < ring.Count; i++)
-        {
-            var p1 = ring[i];
-            var p2 = ring[(i + 1) % ring.Count];
-            area += (p1.X * p2.Y - p2.X * p1.Y);
-        }
-        return (float)(area * 0.5);
-    }
-
-    private static bool IsPointInsidePolygon(Vector2 point, List<Vector2> ring)
-    {
-        bool inside = false;
-        for (int i = 0, j = ring.Count - 1; i < ring.Count; j = i++)
-        {
-            if (((ring[i].Y > point.Y) != (ring[j].Y > point.Y)) &&
-                (point.X < (ring[j].X - ring[i].X) * (point.Y - ring[i].Y) / (ring[j].Y - ring[i].Y) + ring[i].X))
-            {
-                inside = !inside;
-            }
-        }
-        return inside;
     }
 }

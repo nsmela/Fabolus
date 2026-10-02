@@ -4,7 +4,7 @@
 
 `Fabolus.Core` is built with a focus on clinical safety, predictable data flow, and **immutability** (data that cannot be changed once created). Rather than modifying existing 3D models in place, every operation produces a clean new state. This prevents data corruption, ensures safe multi-threading (so intensive 3D calculations do not freeze or disrupt the user interface), and maintains a reliable history of every patient model.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 13.1: Domain Architecture Diagram. Component diagram illustrating the Workspace container, its entries pairing IMesh with MeshRecord, and the FabolusAnnotations carried on the geometry. Dimensions: 900x500px.] -->
+<!-- IMAGE_PLACEHOLDER: [Figure 13.1: Domain Architecture Diagram. Component diagram illustrating the Workspace container, its entries pairing IMesh with MeshRecord, and the measurements the engine remembers on the geometry. Dimensions: 900x500px.] -->
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -20,12 +20,13 @@
 │  - Name        : string      │ │  - Triangles : int[]       │
 │  - Commands    : IMeshCommand│ │  - Metadata  : MeshMetadata│
 │  - BaseMesh    : IMesh?      │ └─────────────┬──────────────┘
-│  - PendingMould: MouldDef?   │               │ carries
+│  - PendingMould: MouldDef?   │               │ remembered by the engine
 └──────────────────────────────┘               ▼
                                  ┌────────────────────────────┐
-                                 │    FabolusAnnotations      │
-                                 │  - Stats    : MeshStatistics│
-                                 │  - Topology : TopologyValid.│
+                                 │   measurements (engine)    │
+                                 │  - statistics              │
+                                 │  - topology audit          │
+                                 │  - vertex normals          │
                                  └────────────────────────────┘
 ```
 
@@ -33,7 +34,7 @@ The split between the two halves is the central idea, and it is worth stating pl
 
 A boolean returns geometry that is neither of its operands. An import returns geometry the engine named itself. In both cases anything travelling on the mesh would, a moment later, be describing something that no longer exists — which is exactly what used to happen, silently, every time a mould was generated. So the workspace owns who an entry *is*, and the geometry is only what currently fills it.
 
-What genuinely does describe the geometry — the measurements the engine computed from it — travels with it instead, as annotations.
+What genuinely does describe the geometry — the measurements the engine computed from it — stays with the geometry instead, and the engine keeps it there.
 
 ---
 
@@ -101,31 +102,28 @@ record.TextDecals();        // every decal across both decal commands
 
 ---
 
-## `FabolusAnnotations`: what the geometry knows about itself
+## Measurements: what the geometry knows about itself
 
-Stats and topology are measurements of the geometry in hand, so they travel with it, in a single typed slot the engine carries but never reads ([`IMeshAnnotations`](https://github.com/nsmela/GeometryEngine)).
+Statistics, the topology audit and vertex normals are measurements of the geometry in hand. GeometryEngine's meshes cannot change, so the engine remembers each measurement on the mesh the first time it is asked and answers every later request from there. Fabolus keeps no copy of its own; it reads them through the engine ([`MeshMeasurementExtensions.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/MeshMeasurementExtensions.cs)):
 
 ```csharp
-public sealed record FabolusAnnotations(
-    MeshStatistics? Stats = null,
-    TopologyValidation? Topology = null) : IMeshAnnotations
-{
-    public IMeshAnnotations? Carry(MeshOperation operation) => operation switch {
-        MeshOperation.Transform when Topology is not null => new FabolusAnnotations(Topology: Topology),
-        _ => null,
-    };
-}
+mesh.Stats(engine);      // MeshStatistics?, null only for an empty mesh
+mesh.Topology(engine);   // TopologyValidation?
+mesh.Measured(engine);   // takes both now and returns the same mesh
 ```
 
-`Carry` is the whole contract. Every engine operation that derives one mesh from another asks it what survives:
+Features call `Measured` on the background thread that produced the geometry, so the panels reading it afterwards on the UI thread find the answers already there.
 
-| Operation | What survives | Why |
+What the engine hands on from one mesh to the next:
+
+| Operation | What carries over | Why |
 |---|---|---|
-| `Transform` | Topology only | Moving vertices leaves connectivity alone, so the audit still reads the same. The bounds do not, and a scale changes the volume too. |
-| `Rebuild` | Nothing | Offset, decimate, smooth and repair all replace the surface. |
-| `Combine` | Nothing | A boolean's result is neither operand, so nothing either of them measured describes it. |
+| `WithMetadata` | Everything | Same vertices and triangles. |
+| Translate, rotate | Everything, bounds and normals moved | A rigid motion keeps every distance and area, so the audit and the volume read the same. Base-mesh replays of a history of moves therefore measure nothing. |
+| Scale | Nothing | Volume and area change, and slivers stretch across the audit's tolerance. |
+| Offset, decimate, smooth, repair, booleans | Nothing | The surface is replaced, so it is measured again when next asked. |
 
-Both values are caches. Losing one costs a recomputation, never correctness.
+These are caches. Losing one costs a recomputation, never correctness.
 
 ---
 

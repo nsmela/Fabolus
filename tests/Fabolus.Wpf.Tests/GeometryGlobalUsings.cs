@@ -10,3 +10,4 @@ global using MeshStatistics = GeometryEngine.Core.Geometry.MeshStatistics;
 global using TopologyValidation = GeometryEngine.Core.Geometry.TopologyValidation;
 global using MeshMetadata = GeometryEngine.Core.Geometry.MeshMetadata;
 global using MeshOperation = GeometryEngine.Core.Geometry.MeshOperation;
+global using SurfaceFrame = GeometryEngine.Core.Geometry.SurfaceFrame;

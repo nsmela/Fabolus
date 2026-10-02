@@ -47,9 +47,6 @@ public class TransformMeshTests
         (stats.BoundsMin.X - originalStats.BoundsMin.X).Should().BeApproximately(10, 0.01);
         (stats.BoundsMin.Y - originalStats.BoundsMin.Y).Should().BeApproximately(20, 0.01);
         (stats.BoundsMin.Z - originalStats.BoundsMin.Z).Should().BeApproximately(30, 0.01);
-
-        // The cached Stats must track the move too - UI elements are sized from them.
-        translatedMesh.Stats()!.BoundsMin.X.Should().BeApproximately(stats.BoundsMin.X, 0.01);
     }
 
     [Fact]
@@ -58,12 +55,13 @@ public class TransformMeshTests
         var cube = _fixture.UnitCube();
         var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), cube);
 
-        // 45 degrees about Z: the unit cube's XY footprint grows from 1.0 to sqrt(2). The cached
-        // Stats must reflect that - the rotation axis gizmo is sized from them, and stale
-        // import-time bounds left it too small after committed rotations.
+        // 45 degrees about Z: the unit cube's XY footprint grows from 1.0 to sqrt(2). The stats
+        // must reflect that - the rotation axis gizmo is sized from them, and stale import-time
+        // bounds once left it too small after committed rotations. The engine carries a rotated
+        // mesh's measurements across, so this checks it moved the bounds rather than copying them.
         workspace = _transformFeature.Rotate(workspace, id, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
 
-        var stats = workspace.GetActiveMesh().Value.Stats();
+        var stats = workspace.GetActiveMesh().Value.Stats(_fixture.Engine);
         stats.Should().NotBeNull();
 
         (stats!.BoundsMax.X - stats.BoundsMin.X).Should().BeApproximately(System.Math.Sqrt(2), 0.01);
@@ -74,19 +72,18 @@ public class TransformMeshTests
     [Fact]
     public void Rotate_KeepsTheTopologyAuditRatherThanRecomputingIt()
     {
-        // A rigid transform moves vertices without touching connectivity, so the audit taken
-        // before the rotation still reads the same afterwards. This is the Transform carry rule
-        // arriving through a real feature rather than in isolation.
+        // A rigid transform moves vertices without touching connectivity, so the engine hands
+        // the audit of the base mesh through the replay. The very same instance coming back is
+        // what shows it was carried rather than taken again.
         var cube = _fixture.UnitCube();
         var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), cube);
-        workspace = workspace.UpdateMesh(id, workspace.GetMesh(id).Value.WithMeasurements(_fixture.Engine)).Value;
 
-        var before = workspace.GetMesh(id).Value.Topology();
+        var before = workspace.GetMesh(id).Value.Topology(_fixture.Engine);
         before.Should().NotBeNull();
 
         workspace = _transformFeature.Rotate(workspace, id, (float)(System.Math.PI / 4), Vector3.UnitZ).Value;
 
-        workspace.GetActiveMesh().Value.Topology().Should().Be(before);
+        workspace.GetActiveMesh().Value.Topology(_fixture.Engine).Should().BeSameAs(before);
     }
 
     [Fact]

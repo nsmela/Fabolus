@@ -88,7 +88,7 @@ public partial class MainViewModel : ObservableObject
         // singleton, which matters once the source starts caching glyph outlines.
         _glyphOutlineSource = glyphOutlineSource
             ?? GlyphOutlineSourceProvider.Default
-            ?? new WpfGlyphOutlineSource();
+            ?? new WpfGlyphOutlineSource(engine);
         _messenger = messenger;
         _engine = engine;
         _dialogueSystem = dialogueSystem;

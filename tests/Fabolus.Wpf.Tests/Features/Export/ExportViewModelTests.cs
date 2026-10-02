@@ -147,7 +147,7 @@ public class ExportViewModelTests
     private static Workspace WorkspaceWith(string name, params IMeshCommand[] commands)
     {
         var mesh = Engine.Generators.GenerateBox(new Vector3(-20, -30, 0), new Vector3(20, 30, 50)).Value
-            .WithMeasurements(Engine);
+            .Measured(Engine);
 
         var record = MeshRecord.ForImport(name);
         var workspace = Workspace.CreateEmpty().AddMesh(mesh, record).Value;
@@ -159,7 +159,7 @@ public class ExportViewModelTests
 
             workspace = workspace.UpdateMesh(
                 record.Id,
-                applied.Value.WithMeasurements(Engine),
+                applied.Value.Measured(Engine),
                 workspace.GetActiveRecord().Value.WithCommand(command)).Value;
         }
 
@@ -189,7 +189,7 @@ public class ExportViewModelTests
         // Measured, because activating the panel reads statistics off the mesh to fill the info
         // panel and an unmeasured mesh has none.
         var mesh = Engine.Generators.GenerateBox(new Vector3(-20, -30, 0), new Vector3(20, 30, 50)).Value
-            .WithMeasurements(Engine);
+            .Measured(Engine);
         return Workspace.CreateEmpty().AddMesh(mesh, MeshRecord.ForImport(meshName)).Value;
     }
 }

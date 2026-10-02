@@ -1,5 +1,8 @@
+using System.Collections.Immutable;
 using BasicResults;
 using Fabolus.Core.Geometry;
+using GeometryEngine.Core.Geometry;
+using GeometryEngine.Core.Geometry.Primitives;
 
 namespace Fabolus.Core.Features.AirChannels;
 
@@ -30,10 +33,9 @@ public readonly record struct AirPocket(Vector3 Point, Vector3 Normal, double De
 /// up ahead of it, so every local peak ends up holding a bubble unless a channel vents it.
 /// </summary>
 /// <remarks>
-/// <para>A peak's depth is its topographic prominence. Sweeping a level down from the top of the
-/// mesh, each peak starts its own region of surface above the level; when two regions meet, the
-/// lower peak's pocket has just spilled into the higher one, and the distance from that peak down
-/// to the level is how much air it held. Only the highest peak of each shell never spills.</para>
+/// <para>A pocket's depth is its peak's topographic prominence, which the engine finds
+/// (<see cref="IGeometryEvaluators.FindPeaks"/>): how far the surface drops below the peak before
+/// it joins somewhere higher, which is how far the trapped air reaches down before it can spill.</para>
 ///
 /// <para>A pocket already vented by an existing channel is skipped. A channel only vents the part
 /// of a pocket above where it enters - once the silicone rises past its tip, whatever air is left
@@ -69,217 +71,11 @@ public sealed class DetectAirPockets(IGeometryEngine Engine)
         if (mesh.IsEmpty)
             return Result<AirPocketMap>.Success(AirPocketMap.Empty);
 
-        var normalsResult = Engine.Evaluators.ComputeVertexNormals(mesh);
-        if (normalsResult.IsFailure)
-            return normalsResult.Error;
+        var peaks = Engine.Evaluators.FindPeaks(mesh, Direction.Z);
+        if (peaks.IsFailure)
+            return peaks.Error;
 
-        var surface = Surface.Weld(mesh, normalsResult.Value);
-
-        // A local peak facing down is the top of something poking up into the cavity from
-        // below - the silicone flows over it, and air has nowhere to collect.
-        // Highest first, so when two peaks crowd each other the higher one keeps its channel.
-        var peaks = FindPeaks(surface)
-            .Where(p => surface.Normals[p.Vertex].Z > 0)
-            .OrderByDescending(p => surface.Positions[p.Vertex].Z)
-            .ToList();
-
-        return Result<AirPocketMap>.Success(new AirPocketMap(surface, peaks));
-    }
-
-    /// <summary>
-    /// Every local peak of the surface, with its prominence: the elder-rule sweep described on
-    /// the class, run over a union-find of vertices in descending height.
-    /// </summary>
-    private static List<(int Vertex, double Depth)> FindPeaks(Surface surface)
-    {
-        var count = surface.Positions.Length;
-
-        // Descending height; ties broken by index so the sweep has one fixed order.
-        var order = Enumerable.Range(0, count)
-            .OrderByDescending(v => surface.Positions[v].Z)
-            .ThenBy(v => v)
-            .ToArray();
-
-        var rank = new int[count];
-        for (var i = 0; i < order.Length; i++)
-            rank[order[i]] = i;
-
-        var parent = new int[count];
-        var peakOf = new int[count];
-        var visited = new bool[count];
-        var peaks = new List<(int Vertex, double Depth)>();
-
-        int Find(int v)
-        {
-            while (parent[v] != v)
-            {
-                parent[v] = parent[parent[v]];
-                v = parent[v];
-            }
-            return v;
-        }
-
-        foreach (var v in order)
-        {
-            visited[v] = true;
-            parent[v] = v;
-            peakOf[v] = v;
-
-            var root = -1;
-            foreach (var n in surface.Neighbours(v))
-            {
-                if (!visited[n]) continue;
-
-                var other = Find(n);
-                if (root == -1)
-                {
-                    root = other;
-                    continue;
-                }
-                if (other == root) continue;
-
-                // Two pockets meet at v: the one with the lower peak spills into the other here.
-                var (elder, younger) = rank[peakOf[root]] < rank[peakOf[other]] ? (root, other) : (other, root);
-                var spilled = peakOf[younger];
-                peaks.Add((spilled, surface.Positions[spilled].Z - surface.Positions[v].Z));
-
-                parent[younger] = elder;
-                root = elder;
-            }
-
-            if (root == -1)
-                continue; // nothing above v touches it: v is a peak, and starts its own pocket
-
-            parent[v] = root;
-        }
-
-        // Whatever is left never spilled anywhere: the top of each shell.
-        for (var v = 0; v < count; v++)
-        {
-            if (Find(v) == v)
-                peaks.Add((peakOf[v], double.PositiveInfinity));
-        }
-
-        return peaks;
-    }
-
-    /// <summary>
-    /// The mesh as a graph of welded vertices. An imported STL repeats every corner once per
-    /// triangle, and unwelded it would be a soup of separate triangles, each one its own peak.
-    /// </summary>
-    internal sealed class Surface
-    {
-        public required Vector3[] Positions { get; init; }
-        public required Vector3[] Normals { get; init; }
-        public required List<(int A, int B, int C)> Triangles { get; init; }
-
-        // Compressed adjacency: the neighbours of v are _adjacency[_offsets[v] .. _offsets[v + 1]].
-        private int[] _offsets = [];
-        private int[] _adjacency = [];
-
-        public ReadOnlySpan<int> Neighbours(int v) => _adjacency.AsSpan(_offsets[v], _offsets[v + 1] - _offsets[v]);
-
-        public static Surface Weld(IMesh mesh, IReadOnlyList<Vector3> vertexNormals)
-        {
-            var ids = new Dictionary<Vector3, int>();
-            var remap = new int[mesh.VertexCount];
-            var positions = new List<Vector3>();
-            var normalSums = new List<Vector3>();
-
-            for (var i = 0; i < mesh.VertexCount; i++)
-            {
-                var position = mesh.Vertices[i];
-                if (!ids.TryGetValue(position, out var id))
-                {
-                    id = positions.Count;
-                    ids[position] = id;
-                    positions.Add(position);
-                    normalSums.Add(Vector3.Zero);
-                }
-
-                remap[i] = id;
-                normalSums[id] += vertexNormals[i];
-            }
-
-            var triangles = new List<(int, int, int)>(mesh.TriangleCount);
-            var degree = new int[positions.Count + 1];
-            for (var t = 0; t < mesh.TriangleCount; t++)
-            {
-                var a = remap[mesh.Triangles[t * 3]];
-                var b = remap[mesh.Triangles[(t * 3) + 1]];
-                var c = remap[mesh.Triangles[(t * 3) + 2]];
-                if (a == b || b == c || c == a) continue;
-
-                triangles.Add((a, b, c));
-                degree[a] += 2;
-                degree[b] += 2;
-                degree[c] += 2;
-            }
-
-            // Each edge is listed once per triangle using it, so neighbours repeat - harmless for
-            // both the sweep and the flood fill, and cheaper than removing them.
-            var offsets = new int[positions.Count + 1];
-            for (var v = 0; v < positions.Count; v++)
-                offsets[v + 1] = offsets[v] + degree[v];
-
-            var adjacency = new int[offsets[^1]];
-            var fill = (int[])offsets.Clone();
-            foreach (var (a, b, c) in triangles)
-            {
-                adjacency[fill[a]++] = b; adjacency[fill[a]++] = c;
-                adjacency[fill[b]++] = c; adjacency[fill[b]++] = a;
-                adjacency[fill[c]++] = a; adjacency[fill[c]++] = b;
-            }
-
-            var normals = normalSums
-                .Select(n => n.LengthSquared > 0 ? n.Normalize() : Vector3.Zero)
-                .ToArray();
-
-            return new Surface
-            {
-                Positions = [.. positions],
-                Normals = normals,
-                Triangles = triangles,
-                _offsets = offsets,
-                _adjacency = adjacency,
-            };
-        }
-
-        /// <summary>The vertices connected to <paramref name="start"/> through surface no lower than <paramref name="floor"/>.</summary>
-        public HashSet<int> RegionAbove(int start, double floor)
-        {
-            var region = new HashSet<int> { start };
-            var queue = new Queue<int>();
-            queue.Enqueue(start);
-
-            while (queue.Count > 0)
-            {
-                var v = queue.Dequeue();
-                foreach (var n in Neighbours(v))
-                {
-                    if (Positions[n].Z >= floor && region.Add(n))
-                        queue.Enqueue(n);
-                }
-            }
-
-            return region;
-        }
-
-        public int NearestVertex(Vector3 point)
-        {
-            var best = 0;
-            var bestDistance = double.MaxValue;
-            for (var v = 0; v < Positions.Length; v++)
-            {
-                var distance = Positions[v].DistanceSquared(point);
-                if (distance < bestDistance)
-                {
-                    bestDistance = distance;
-                    best = v;
-                }
-            }
-            return best;
-        }
+        return Result<AirPocketMap>.Success(new AirPocketMap(peaks.Value));
     }
 }
 
@@ -296,20 +92,22 @@ public sealed class AirPocketMap
     private const double SummitTolerance = 0.05;
 
     /// <summary>A map with no pockets in it, as of an empty mesh.</summary>
-    public static readonly AirPocketMap Empty = new(null, []);
+    public static readonly AirPocketMap Empty = new(null);
 
-    private readonly DetectAirPockets.Surface? _surface;
+    private readonly ISurfacePeaks? _peaks;
 
-    // Every upward-facing peak, highest first, with how far its pocket holds air.
-    private readonly IReadOnlyList<(int Vertex, double Depth)> _peaks;
+    // Every peak facing up, highest first. A local peak facing down is the top of something
+    // poking up into the cavity from below - the silicone flows over it, and air has nowhere to
+    // collect.
+    private readonly IReadOnlyList<SurfacePeak> _upward;
 
     // Where the channel for each peak goes; depends only on the mesh, so worked out once.
     private readonly Dictionary<int, (Vector3 Point, Vector3 Normal)> _summits = [];
 
-    internal AirPocketMap(DetectAirPockets.Surface? surface, IReadOnlyList<(int Vertex, double Depth)> peaks)
+    internal AirPocketMap(ISurfacePeaks? peaks)
     {
-        _surface = surface;
         _peaks = peaks;
+        _upward = peaks?.Peaks.Where(peak => peak.Normal.Z > 0).ToList() ?? [];
     }
 
     /// <summary>
@@ -328,34 +126,30 @@ public sealed class AirPocketMap
         if (settings.MinimumDepth <= 0)
             return new Error("AirPockets.InvalidDepth", "The minimum pocket depth must be greater than zero.");
 
-        var surface = _surface;
-        if (surface is null)
+        if (_peaks is null)
             return Result<IReadOnlyList<AirPocket>>.Success(Array.Empty<AirPocket>());
 
-        var ventVertices = existingVents.Select(surface.NearestVertex).ToList();
+        ImmutableArray<Vector3> vents = [.. existingVents];
         var placed = new List<AirPocket>();
 
-        foreach (var (peak, depth) in _peaks)
+        foreach (var peak in _upward)
         {
-            if (depth < settings.MinimumDepth)
+            if (peak.Prominence < settings.MinimumDepth)
                 continue;
-
-            var floor = surface.Positions[peak].Z - settings.MinimumDepth;
-            var cap = surface.RegionAbove(peak, floor);
 
             // Both tests are needed: the vent has to stand high enough, and on this pocket rather
             // than on some other surface at that height. Its nearest vertex can sit higher than it
             // on a coarse mesh, so the height comes from the vent itself.
-            var vented = existingVents
-                .Where((vent, i) => vent.Z >= floor && cap.Contains(ventVertices[i]))
-                .Any();
+            var floor = peak.Point.Z - settings.MinimumDepth;
+            var onCap = _peaks.WithinReach(peak, settings.MinimumDepth, vents);
+            var vented = vents.Where((vent, i) => vent.Z >= floor && onCap[i]).Any();
             if (vented)
                 continue;
 
-            var (point, normal) = Summit(surface, peak);
-            var pocket = new AirPocket(point, normal, depth);
+            var (point, normal) = Summit(peak);
+            var pocket = new AirPocket(point, normal, peak.Prominence);
 
-            var crowded = existingVents.Concat(placed.Select(p => p.Point))
+            var crowded = vents.Concat(placed.Select(p => p.Point))
                 .Any(other => other.DistanceTo(pocket.Point) < settings.MinimumSpacing);
             if (crowded)
                 continue;
@@ -366,72 +160,13 @@ public sealed class AirPocketMap
         return Result<IReadOnlyList<AirPocket>>.Success(placed);
     }
 
-    /// <summary>
-    /// Where the channel goes: the middle of the summit when the top of the pocket is flat, so a
-    /// channel on a level top sits in the centre rather than on its edge, otherwise the peak.
-    /// </summary>
-    private (Vector3 Point, Vector3 Normal) Summit(DetectAirPockets.Surface surface, int peak)
+    private (Vector3 Point, Vector3 Normal) Summit(SurfacePeak peak)
     {
-        if (_summits.TryGetValue(peak, out var cached))
+        if (_summits.TryGetValue(peak.Id, out var cached))
             return cached;
 
-        var summit = FindSummit(surface, peak);
-        _summits[peak] = summit;
+        var summit = _peaks!.Summit(peak, SummitTolerance);
+        _summits[peak.Id] = summit;
         return summit;
-    }
-
-    private static (Vector3 Point, Vector3 Normal) FindSummit(DetectAirPockets.Surface surface, int peak)
-    {
-        var peakPosition = surface.Positions[peak];
-        var fallback = (peakPosition, surface.Normals[peak]);
-
-        var inSummit = surface.RegionAbove(peak, peakPosition.Z - SummitTolerance);
-        if (inSummit.Count < 3)
-            return fallback;
-
-        var centreX = inSummit.Average(v => surface.Positions[v].X);
-        var centreY = inSummit.Average(v => surface.Positions[v].Y);
-
-        foreach (var (a, b, c) in surface.Triangles)
-        {
-            if (!inSummit.Contains(a) || !inSummit.Contains(b) || !inSummit.Contains(c))
-                continue;
-
-            var pa = surface.Positions[a];
-            var pb = surface.Positions[b];
-            var pc = surface.Positions[c];
-
-            if (!Barycentric(pa, pb, pc, centreX, centreY, out var u, out var w, out var t))
-                continue;
-
-            var point = new Vector3(centreX, centreY, (u * pa.Z) + (w * pb.Z) + (t * pc.Z));
-            var normal = (pb - pa).Cross(pc - pa);
-
-            // A summit shaped like a ring has its middle over the hole; the triangle under the
-            // centre then faces down or sits well below the top, and the peak is the better spot.
-            if (normal.Z <= 0 || point.Z < peakPosition.Z - SummitTolerance)
-                continue;
-
-            return (point, normal.Normalize());
-        }
-
-        return fallback;
-    }
-
-    // Barycentric coordinates of (x, y) in the triangle's XY shadow; false when outside it.
-    private static bool Barycentric(Vector3 a, Vector3 b, Vector3 c, double x, double y, out double u, out double w, out double t)
-    {
-        u = w = t = 0;
-
-        var area = ((b.X - a.X) * (c.Y - a.Y)) - ((c.X - a.X) * (b.Y - a.Y));
-        if (Math.Abs(area) < 1e-12)
-            return false;
-
-        w = (((x - a.X) * (c.Y - a.Y)) - ((c.X - a.X) * (y - a.Y))) / area;
-        t = (((b.X - a.X) * (y - a.Y)) - ((x - a.X) * (b.Y - a.Y))) / area;
-        u = 1 - w - t;
-
-        const double slack = -1e-9;
-        return u >= slack && w >= slack && t >= slack;
     }
 }

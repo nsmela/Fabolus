@@ -42,7 +42,7 @@ public sealed class ResetSmoothing {
         var replayResult = ComputeUnsmoothedMesh(record);
         if (replayResult.IsFailure) return replayResult.Error;
 
-        var mesh = replayResult.Value.WithMeasurements(_engine);
+        var mesh = replayResult.Value.Measured(_engine);
         return workspace.UpdateMesh(record.Id, mesh, record.WithoutCommand<SmoothSettings>());
     }
 }

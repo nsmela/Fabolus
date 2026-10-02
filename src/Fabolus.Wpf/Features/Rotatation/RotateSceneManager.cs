@@ -240,9 +240,9 @@ internal class RotateSceneManager : ISceneManager {
         }
     }
 
-    private static LineGeometryModel3D GenerateAxisGizmo(Vector3 axis, IMesh activeMesh) {
+    private LineGeometryModel3D GenerateAxisGizmo(Vector3 axis, IMesh activeMesh) {
 
-        var stats = activeMesh.Stats()
+        var stats = activeMesh.Stats(_engine)
             ?? throw new InvalidOperationException("The rotation gizmo is sized from the mesh's bounds, which have not been measured.");
  
         // Calculate radius based on bounding box

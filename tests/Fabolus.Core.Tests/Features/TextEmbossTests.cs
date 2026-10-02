@@ -6,11 +6,6 @@ using Fabolus.Tests.Fixtures;
 using FluentAssertions;
 using Xunit;
 
-// DecalFrame is expressed in System.Numerics vectors while the geometry around it uses the
-// engine's Vec3, and this file touches both. Spelling the numerics one out keeps which is which
-// obvious rather than leaving it to whichever alias won.
-using SnVector3 = System.Numerics.Vector3;
-
 namespace Fabolus.Tests.Features;
 
 public sealed class TestGlyphOutlineSource : IGlyphOutlineSource
@@ -51,35 +46,6 @@ public class TextEmbossTests
     {
         _fixture = fixture;
         _outlineSource = new TestGlyphOutlineSource();
-    }
-
-    [Fact]
-    public void DecalFrame_FromHit_ComputesOrthonormalBasis()
-    {
-        var anchor = new SnVector3(10, 20, 30);
-        var normal = new SnVector3(0, 0, 1);
-
-        var frame = DecalFrame.FromHit(anchor, normal, rotationDeg: 0f);
-
-        frame.Origin.Should().Be(anchor);
-        frame.N.Should().Be(SnVector3.UnitZ);
-        SnVector3.Dot(frame.U, frame.N).Should().BeApproximately(0f, 1e-5f);
-        SnVector3.Dot(frame.V, frame.N).Should().BeApproximately(0f, 1e-5f);
-        SnVector3.Dot(frame.U, frame.V).Should().BeApproximately(0f, 1e-5f);
-        frame.U.Length().Should().BeApproximately(1f, 1e-5f);
-        frame.V.Length().Should().BeApproximately(1f, 1e-5f);
-    }
-
-    [Fact]
-    public void DecalFrame_WithRotation_RotatesAroundNormal()
-    {
-        var anchor = SnVector3.Zero;
-        var normal = SnVector3.UnitZ;
-
-        var frame0 = DecalFrame.FromHit(anchor, normal, rotationDeg: 0f);
-        var frame90 = DecalFrame.FromHit(anchor, normal, rotationDeg: 90f);
-
-        SnVector3.Dot(frame0.V, frame90.U).Should().BeApproximately(1f, 1e-4f);
     }
 
     [Fact]

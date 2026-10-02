@@ -6,8 +6,6 @@ using Fabolus.Wpf.Features.Decal;
 using GeometryEngine.Core.Geometry;
 using Xunit;
 
-using SnVector3 = System.Numerics.Vector3;
-
 namespace Fabolus.Wpf.Tests.Features.Decal;
 
 /// <summary>
@@ -47,15 +45,9 @@ public class GlyphMeshTests
 
     private static Result<IMesh> BuildPrism(IReadOnlyList<Polygon2D> outlines)
     {
-        var frame = DecalFrame.FromHit(SnVector3.Zero, SnVector3.UnitZ, 0f);
-
         return Engine.Decals.BuildPrism(new DecalPrismSpec(
             outlines.ToImmutableArray(),
-            new SurfaceFrame(
-                new Vector3(frame.Origin.X, frame.Origin.Y, frame.Origin.Z),
-                new Vector3(frame.U.X, frame.U.Y, frame.U.Z),
-                new Vector3(frame.V.X, frame.V.Y, frame.V.Z),
-                new Vector3(frame.N.X, frame.N.Y, frame.N.Z)),
+            SurfaceFrame.FromNormal(Vector3.Zero, Vector3.UnitZ),
             Depth: 0.8,
             Sink: -0.05,
             Overshoot: 0.05,
@@ -102,7 +94,7 @@ public class GlyphMeshTests
     {
         RunInSta(() =>
         {
-            var outlineSource = new WpfGlyphOutlineSource();
+            var outlineSource = new WpfGlyphOutlineSource(Engine);
 
             foreach (char c in characters)
             {
@@ -127,7 +119,7 @@ public class GlyphMeshTests
     {
         RunInSta(() =>
         {
-            var outlineSource = new WpfGlyphOutlineSource();
+            var outlineSource = new WpfGlyphOutlineSource(Engine);
 
             var outlines = outlineSource.GetOutlines("FABOLUS", DecalFont.Sans, capHeight: 6.0f, tracking: 0.4f);
             Assert.True(outlines.IsSuccess);

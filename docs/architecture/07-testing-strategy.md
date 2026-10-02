@@ -81,7 +81,7 @@ Geometry that belongs to the engine is tested in the engine's own suite rather t
 2. **Command replay & base-mesh lifetime**: `CommandReplayTests` verify that `GetMeshAtStage` returns the expected mesh for a given priority and that the stored base stays reusable across repeated replays.
 3. **Non-destructive transforms & smoothing**: transform tests assert translation moves bounds by the exact offset; smoothing tests assert smoothing applies in place, does not stack when applied twice, and preserves an earlier translation in the final geometry.
 4. **Round-tripping a saved project**: `MeshIORoundTripTests` exports and re-imports every command type — transforms, smoothing, all three mould shapes, air channels with their polymorphic domain models, and both decal commands — and asserts each comes back with its values and its place in the order intact.
-5. **Annotation carry rules**: `FabolusAnnotationsTests` pins what survives each kind of operation, since the engine asks and trusts the answer.
+5. **Measurements describe the geometry in hand**: `RepairMeshTests` checks the figures read off a rebuilt mesh against the same geometry measured afresh, and `TransformMeshTests` that a rotation carries the base mesh's topology audit rather than taking it again. What carries over each kind of operation is the engine's to pin, in its own suite.
 
 ---
 

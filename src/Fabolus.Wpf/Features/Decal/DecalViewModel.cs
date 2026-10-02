@@ -624,8 +624,8 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     {
         if (_targetMesh is null) return;
         var diff = Anchor - _meshCenter;
-        var frame = DecalFrame.FromHit(new System.Numerics.Vector3((float)Anchor.X, (float)Anchor.Y, (float)Anchor.Z), new System.Numerics.Vector3((float)AnchorNormal.X, (float)AnchorNormal.Y, (float)AnchorNormal.Z), Rotation);
-        _uv = new Vector2(diff.Dot(new Vector3(frame.U.X, frame.U.Y, frame.U.Z)), diff.Dot(new Vector3(frame.V.X, frame.V.Y, frame.V.Z)));
+        var frame = SurfaceFrame.FromNormal(Anchor, AnchorNormal, float.DegreesToRadians(Rotation));
+        _uv = new Vector2(diff.Dot(frame.U), diff.Dot(frame.V));
         OnPropertyChanged(nameof(PositionU));
         OnPropertyChanged(nameof(PositionV));
         OnPropertyChanged(nameof(PositionUv));
@@ -952,7 +952,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
             }
 
             updatedRecord = record.WithCommand(new DecalCommand(baseDecals));
-            appliedBaseMesh = baseApplyResult.Value.WithMeasurements(_engine);
+            appliedBaseMesh = baseApplyResult.Value.Measured(_engine);
         }
 
         IMesh meshToSave = appliedBaseMesh;
@@ -999,7 +999,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
                 updatedRecord = updatedRecord.WithCommand(new MouldDecalCommand(mouldDecals));
             }
 
-            appliedMouldMesh = appliedMouldMesh.WithMeasurements(_engine);
+            appliedMouldMesh = appliedMouldMesh.Measured(_engine);
             meshToSave = appliedMouldMesh;
             _mouldMesh = appliedMouldMesh;
             _baseMesh = appliedBaseMesh;

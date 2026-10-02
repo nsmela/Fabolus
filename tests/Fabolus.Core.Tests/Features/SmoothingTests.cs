@@ -129,10 +129,9 @@ public class SmoothingTests
         record.BaseMesh.Should().NotBeNull();
         record.Smoothing().Should().NotBeNull();
 
-        // Smoothing rebuilds the surface, so the engine drops the annotations and the feature
-        // measures again rather than leaving stale numbers behind.
-        updatedWorkspace.GetActiveMesh().Value.Stats().Should().NotBeNull();
-        updatedWorkspace.GetActiveMesh().Value.Topology().Should().NotBeNull();
+        // Smoothing rebuilds the surface, so the figures read off it are the smoothed mesh's own.
+        updatedWorkspace.GetActiveMesh().Value.Stats(_fixture.Engine)!.TriangleCount
+            .Should().Be(updatedWorkspace.GetActiveMesh().Value.TriangleCount);
     }
 
     [Fact]

@@ -51,9 +51,13 @@ public sealed class ImportMesh {
             // within it when one file held several.
             var record = MeshRecord.ForImport(mesh.Metadata.Name);
 
-            var statsResult = _geometryEngine.Evaluators.GetStatistics(mesh);
-            if (statsResult.IsSuccess) {
-                var stats = statsResult.Value;
+            // Measured before anything is derived from it. This is the base mesh every replay
+            // starts from, and the engine hands its measurements through each translation and
+            // rotation - so a history of moves alone never measures anything again, and the
+            // Smoothing panel's "Original Mesh" figures are read rather than computed.
+            mesh = mesh.Measured(_geometryEngine);
+
+            if (mesh.Stats(_geometryEngine) is { } stats) {
                 var centre = (stats.BoundsMin + stats.BoundsMax) / 2.0;
                 var centring = new TranslateCommand(new Vector3((float)-centre.X, (float)-centre.Y, (float)-centre.Z));
 
@@ -62,20 +66,12 @@ public sealed class ImportMesh {
                     // Recorded rather than baked in: BaseMesh stays the pristine imported
                     // geometry, replay reproduces the centred mesh, and the offset from the
                     // authored position is persisted with the entry for later features to read.
-                    // The stats measured just above are cached on it on the way past - the
-                    // base mesh never changes, so anything comparing against it (the Smoothing
-                    // panel's "Original Mesh" figures) reads them rather than measuring again.
                     record = record
-                        .WithBaseMesh(mesh.WithAnnotations(new FabolusAnnotations(stats)))
+                        .WithBaseMesh(mesh)
                         .WithCommand(centring);
                     mesh = transformResult.Value;
                 }
             }
-
-            // Measured once here so every consumer sees a mesh that already knows its own bounds
-            // and topology; IO validates on the way in, but the centring above invalidates the
-            // bounds it measured.
-            mesh = mesh.WithMeasurements(_geometryEngine);
 
             var addResult = currentWorkspace.AddMesh(mesh, record);
             if (addResult.IsFailure)
@@ -131,14 +127,12 @@ public sealed class ImportMesh {
         var commands = MeshCommandSerializer.Deserialize(json);
         if (commands.IsFailure) return Maybe<Result<Workspace>>.Some(commands.Error);
 
-        var mesh = contents.Model.WithMeasurements(_geometryEngine);
+        var mesh = contents.Model.Measured(_geometryEngine);
 
-        // Measured on the way past, the way the geometry import measures the base mesh it keeps.
-        // Stats() is a cache read rather than a measurement, so a base mesh restored unmeasured
-        // answers null to everything asked of it - which left the smoothing panel's "Original
-        // Mesh" figures missing entirely for every mesh opened from a 3MF.
+        // Measured on the way past, the way the geometry import measures the base mesh it keeps,
+        // so replays from it start with the measurements already taken.
         var baseMesh = (contents.Reference.HasValue ? contents.Reference.Value : contents.Model)
-            .WithMeasurements(_geometryEngine);
+            .Measured(_geometryEngine);
 
         var record = MeshRecord.ForImport(name) with {
             Commands = commands.Value,

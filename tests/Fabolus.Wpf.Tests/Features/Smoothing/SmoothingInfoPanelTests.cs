@@ -106,7 +106,7 @@ public class SmoothingInfoPanelTests
     private static Workspace WorkspaceWith(params IMeshCommand[] commands)
     {
         var mesh = Engine.Generators.GenerateBox(new Vector3(-20, -30, 0), new Vector3(20, 30, 50)).Value
-            .WithMeasurements(Engine);
+            .Measured(Engine);
 
         var record = MeshRecord.ForImport("bolus").WithBaseMesh(mesh);
         var workspace = Workspace.CreateEmpty().AddMesh(mesh, record).Value;
@@ -118,7 +118,7 @@ public class SmoothingInfoPanelTests
 
             workspace = workspace.UpdateMesh(
                 record.Id,
-                applied.Value.WithMeasurements(Engine),
+                applied.Value.Measured(Engine),
                 workspace.GetActiveRecord().Value.WithCommand(command)).Value;
         }
 

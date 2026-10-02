@@ -107,7 +107,7 @@ public class RotateViewModelTests
         // Measured, because the rotation gizmo is sized from the mesh's bounds and refuses a
         // mesh that has never been measured.
         var mesh = Engine.Generators.GenerateBox(new Vector3(-20, -30, 0), new Vector3(20, 30, 50)).Value
-            .WithMeasurements(Engine);
+            .Measured(Engine);
         return Workspace.CreateEmpty().AddMesh(mesh, MeshRecord.ForImport("box")).Value;
     }
 }

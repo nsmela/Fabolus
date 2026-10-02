@@ -72,11 +72,6 @@ public abstract record MouldDefinition : IMeshCommand
     public abstract Result<IMesh> Generate(IGeometryEngine engine, IMesh mesh);
 
     /// <summary>
-    /// The full committed pipeline: the shell from <see cref="Generate"/>, then subtract the
-    /// target mesh, then subtract each air channel. Does not take ownership of
-    /// <paramref name="mesh"/>; intermediates created along the way are disposed here.
-    /// </summary>
-    /// <summary>
     /// The shell for a shape, with its walls and base set. Trough settings and air channels are
     /// applied by the caller with a `with` expression, since not every caller has both.
     ///
@@ -103,17 +98,17 @@ public abstract record MouldDefinition : IMeshCommand
         return $"Mould ({shape})";
     }
 
+    /// <summary>
+    /// The full committed pipeline: the shell from <see cref="Generate"/>, less the target mesh
+    /// and every air channel. They all come out in one batch subtraction, which reads the shell
+    /// once, rather than one subtraction each against a shell that changes every time.
+    /// </summary>
     public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh)
     {
         var generateResult = Generate(engine, mesh);
         if (generateResult.IsFailure) return generateResult.Error;
 
-        var mouldMesh = generateResult.Value;
-
-        var targetSubtractedResult = engine.Booleans.Subtract(mouldMesh, mesh);
-        if (targetSubtractedResult.IsFailure) return targetSubtractedResult.Error;
-
-        mouldMesh = targetSubtractedResult.Value;
+        var cavities = new List<IMesh>(AirChannels.Count + 1) { mesh };
 
         foreach (var channel in AirChannels)
         {
@@ -125,14 +120,10 @@ public abstract record MouldDefinition : IMeshCommand
                 return channelMeshResult.Error;
             }
 
-            var channelMesh = channelMeshResult.Value;
-            var subtractedResult = engine.Booleans.Subtract(mouldMesh, channelMesh);
-            if (subtractedResult.IsFailure) return subtractedResult.Error;
-
-            mouldMesh = subtractedResult.Value;
+            cavities.Add(channelMeshResult.Value);
         }
 
-        return Result<IMesh>.Success(mouldMesh);
+        return engine.Booleans.Subtract(generateResult.Value, [.. cavities]);
     }
 
     /// <summary>

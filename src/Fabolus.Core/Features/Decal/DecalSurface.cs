@@ -7,20 +7,19 @@ using GE = GeometryEngine.Core.Geometry;
 namespace Fabolus.Core.Features.Decal;
 
 /// <summary>
-/// Everything a decal needs from the mesh it is placed on, prepared once per mesh: the spatial
-/// index prisms are contoured against, and the prisms already built on it.
+/// Everything a decal needs from the mesh it is placed on: the spatial index prisms are
+/// contoured against, and the prisms already built on it.
 /// </summary>
 /// <remarks>
 /// <para>
-/// This restores what 29413a7 added to the adapter and e75c9cd lost when the adapter was deleted.
-/// Since then every prism, every preset raycast (79 of them for a mould) and every drag frame has
-/// rebuilt the index of the whole mesh from scratch.
+/// The index is the mesh's own, kept with it by the engine (<c>ISpatialQueries.IndexFor</c>), so
+/// the presets' raycasts, every drag frame and every prism share one - as does anything else in
+/// the app that queries the same mesh.
 /// </para>
 /// <para>
-/// Meshes are immutable, so the instance identifies the surface. The table is weak on the mesh:
-/// when nothing else holds a mesh, its index and its prisms go with it, and nothing has to be
-/// invalidated by hand. A surface is never disposed, because a build on another thread may still
-/// be reading it; it holds managed memory the collector reclaims.
+/// The prisms are what this adds. Meshes are immutable, so the instance identifies the surface,
+/// and the table is weak on the mesh: when nothing else holds a mesh, its prisms go with it, and
+/// nothing has to be invalidated by hand.
 /// </para>
 /// </remarks>
 public sealed class DecalSurface
@@ -69,7 +68,7 @@ public sealed class DecalSurface
 
     private static Result<DecalSurface> Prepare(IGeometryEngine engine, IMesh mesh)
     {
-        var index = engine.Spatial.BuildIndex(mesh);
+        var index = engine.Spatial.IndexFor(mesh);
         if (index.IsFailure)
             return index.Error;
 
@@ -111,7 +110,7 @@ public sealed class DecalSurface
     public Result<IMesh> BuildPrism(
         IGeometryEngine engine,
         IReadOnlyList<Polygon2D> outlines,
-        DecalFrame frame,
+        SurfaceFrame frame,
         float depth,
         float sink,
         float overshoot,
@@ -119,7 +118,7 @@ public sealed class DecalSurface
     {
         var spec = new GE.DecalPrismSpec(
             [.. outlines],
-            new GE.SurfaceFrame(ToVec3(frame.Origin), ToVec3(frame.U), ToVec3(frame.V), ToVec3(frame.N)),
+            frame,
             Depth: depth,
             Sink: sink,
             Overshoot: overshoot,
@@ -128,8 +127,6 @@ public sealed class DecalSurface
 
         return engine.Decals.BuildPrism(spec);
     }
-
-    private static GE.Primitives.Vec3 ToVec3(System.Numerics.Vector3 v) => new(v.X, v.Y, v.Z);
 }
 
 /// <summary>
@@ -155,10 +152,7 @@ public readonly record struct DecalPrismRequest(
     private const float MinMaxEdgeLength = 0.4f;
     private const float CapHeightToEdgeLengthDivisor = 8.0f;
 
-    public DecalFrame Frame => DecalFrame.FromHit(
-        new System.Numerics.Vector3((float)Anchor.X, (float)Anchor.Y, (float)Anchor.Z),
-        new System.Numerics.Vector3((float)AnchorNormal.X, (float)AnchorNormal.Y, (float)AnchorNormal.Z),
-        RotationDeg);
+    public SurfaceFrame Frame => SurfaceFrame.FromNormal(Anchor, AnchorNormal, float.DegreesToRadians(RotationDeg));
 
     /// <summary>
     /// The prism that is actually cut into or joined onto the mesh: an emboss sinks a little

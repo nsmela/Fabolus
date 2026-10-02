@@ -199,7 +199,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
             };
 
         string fileSize = "Unknown MB";
-        var activeStats = mesh.Stats();
+        var activeStats = mesh.Stats(_engine);
         if (activeStats is not null)
         {
             // Roughly estimate file size for display using the final mesh

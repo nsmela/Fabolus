@@ -23,11 +23,11 @@ public sealed class GenerateDecals
     /// <para>
     /// A Boolean against the target costs in proportion to the target, which is tens of
     /// thousands of triangles, while a text prism is a few thousand. So rather than one Boolean
-    /// against the target per decal, the prisms are merged first and the target is operated on
-    /// once per run of decals that share an operation - usually once in all. Merging is a union
-    /// of the small prisms, so overlapping labels still merge correctly. Union and subtraction
-    /// are associative, so T - A - B = T - (A U B) and the result is the same set as before.
-    /// Runs are kept in list order, so an engrave that follows an emboss still cuts into it.
+    /// against the target per decal, each run of decals sharing an operation - usually every
+    /// decal - goes to the engine as one batch, which reads the target once. Overlapping labels
+    /// still combine correctly, and since T - A - B = T - (A U B) the result is the same set as
+    /// applying them one at a time. Runs are kept in list order, so an engrave that follows an
+    /// emboss still cuts into it.
     /// </para>
     /// <para>
     /// Every prism is contoured to the untouched target, through one spatial index, rather than
@@ -103,29 +103,32 @@ public sealed class GenerateDecals
             : Execute(engine, target, [decal], warnings);
 
     /// <summary>
-    /// Joins or cuts one run of same-operation prisms with a single Boolean against the target.
-    /// Falls back to one Boolean per prism - the old behaviour - if merging them, or the merged
-    /// Boolean, fails, so a label that used to apply still does.
+    /// Joins or cuts one run of same-operation prisms with a single batch Boolean against the
+    /// target. Falls back to one Boolean per prism if the batch fails, so a label that applies on
+    /// its own still does when another one in the run cannot.
     /// </summary>
     private static Result<IMesh> ApplyRun(IGeometryEngine engine, IMesh target, EmbossOperation operation, IReadOnlyList<IMesh> prisms)
     {
-        if (prisms.Count > 1)
-        {
-            var tool = MergePrisms(engine, prisms);
-            if (tool.IsSuccess)
-            {
-                var merged = Combine(engine, target, tool.Value, operation);
-                if (merged.IsSuccess)
-                    return merged;
-            }
-        }
+        var batched = operation == EmbossOperation.Emboss
+            ? engine.Booleans.Union([target, .. prisms])
+            : engine.Booleans.Subtract(target, [.. prisms]);
+
+        if (batched.IsSuccess)
+            return batched;
+
+        // One prism is a batch of one: retrying it alone would only fail the same way.
+        if (prisms.Count == 1)
+            return BooleanFailed(batched.Error);
 
         var current = target;
         foreach (var prism in prisms)
         {
-            var result = Combine(engine, current, prism, operation);
+            var result = operation == EmbossOperation.Emboss
+                ? engine.Booleans.Union(current, prism)
+                : engine.Booleans.Subtract(current, prism);
+
             if (result.IsFailure)
-                return new Error("Decal.BooleanFailed", $"Boolean operation failed: {result.Error.Description}");
+                return BooleanFailed(result.Error);
 
             current = result.Value;
         }
@@ -133,41 +136,8 @@ public sealed class GenerateDecals
         return Result.Success(current);
     }
 
-    /// <summary>
-    /// Unions the prisms pairwise, level by level, so each Boolean joins two meshes of similar
-    /// size rather than folding every prism into one ever-growing accumulator.
-    /// </summary>
-    private static Result<IMesh> MergePrisms(IGeometryEngine engine, IReadOnlyList<IMesh> prisms)
-    {
-        var level = new List<IMesh>(prisms);
-        while (level.Count > 1)
-        {
-            var next = new List<IMesh>((level.Count + 1) / 2);
-            for (int i = 0; i < level.Count; i += 2)
-            {
-                if (i + 1 == level.Count)
-                {
-                    next.Add(level[i]);
-                    continue;
-                }
-
-                var union = engine.Booleans.Union(level[i], level[i + 1]);
-                if (union.IsFailure)
-                    return union.Error;
-
-                next.Add(union.Value);
-            }
-
-            level = next;
-        }
-
-        return Result.Success(level[0]);
-    }
-
-    private static Result<IMesh> Combine(IGeometryEngine engine, IMesh target, IMesh tool, EmbossOperation operation) =>
-        operation == EmbossOperation.Emboss
-            ? engine.Booleans.Union(target, tool)
-            : engine.Booleans.Subtract(target, tool);
+    private static Error BooleanFailed(Error cause) =>
+        new("Decal.BooleanFailed", $"Boolean operation failed: {cause.Description}");
 
     /// <summary>
     /// Refuses a decal result that is not a printable solid, and accepts one that is merely untidy.
