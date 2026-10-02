@@ -143,7 +143,7 @@ public class GlyphMeshTests
     {
         RunInSta(() =>
         {
-            var outlineSource = new WpfGlyphOutlineSource();
+            var outlineSource = new WpfGlyphOutlineSource(Engine);
             var scan = Engine.IO.Import(PathTo("scalp_bolus.stl")).Value;
             var surface = DecalSurface.For(Engine, scan).Value;
 
