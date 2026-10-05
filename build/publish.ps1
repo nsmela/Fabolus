@@ -15,9 +15,15 @@
     workflow calls it unchanged, so a local run and a CI run produce identical
     artifacts.
 
+    Fabolus builds against a GeometryEngine checkout. Pass -GeometryEngineRoot to choose
+    one; otherwise the script uses the nearest GeometryEngine folder beside this
+    repository or beside any folder above it, so the standard side-by-side layout, and a
+    worktree nested inside the Fabolus checkout, both work without arguments.
+
 .EXAMPLE
     pwsh ./build/publish.ps1
     pwsh ./build/publish.ps1 -Version 0.9.4 -SkipInstaller
+    pwsh ./build/publish.ps1 -GeometryEngineRoot D:\src\GeometryEngine
 #>
 [CmdletBinding()]
 param(
@@ -25,6 +31,7 @@ param(
     [string] $Configuration = 'Release',
     [string] $Runtime = 'win-x64',
     [string] $OutputDir,
+    [string] $GeometryEngineRoot,
     [switch] $SkipInstaller,
     [switch] $SkipTests
 )
@@ -36,8 +43,14 @@ $ErrorActionPreference = 'Stop'
 # ------------------------------------------------------------------
 $repoRoot   = Split-Path -Parent $PSScriptRoot
 $appProject = Join-Path $repoRoot 'src\Fabolus.Wpf\Fabolus.Wpf.csproj'
-$solution   = Join-Path $repoRoot 'Fabolus.sln'
 $issScript  = Join-Path $PSScriptRoot 'installer\Fabolus.iss'
+
+# The test projects rather than Fabolus.sln: the solution refers to ..\GeometryEngine\
+# directly, so it only builds in the side-by-side layout. Projects take GeometryEngineRoot.
+$testProjects = @(
+    (Join-Path $repoRoot 'tests\Fabolus.Core.Tests\Fabolus.Core.Tests.csproj'),
+    (Join-Path $repoRoot 'tests\Fabolus.Wpf.Tests\Fabolus.Wpf.Tests.csproj')
+)
 
 if (-not (Test-Path $appProject)) {
     throw "Could not find the application project at '$appProject'."
@@ -45,6 +58,55 @@ if (-not (Test-Path $appProject)) {
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {
     $OutputDir = Join-Path $repoRoot 'artifacts'
+}
+
+# ------------------------------------------------------------------
+#  GeometryEngine: parameter wins, otherwise the nearest sibling checkout
+# ------------------------------------------------------------------
+$geProjectRelative = 'src\GeometryEngine\GeometryEngine.csproj'
+
+if ([string]::IsNullOrWhiteSpace($GeometryEngineRoot)) {
+    # CI checks the two repositories out side by side, which the first step up finds. A
+    # worktree under Fabolus\.claude\worktrees\ finds the checkout beside Fabolus further up.
+    $dir = Split-Path -Parent $repoRoot
+    while ($dir) {
+        $candidate = Join-Path $dir 'GeometryEngine'
+        if (Test-Path (Join-Path $candidate $geProjectRelative)) {
+            $GeometryEngineRoot = $candidate
+            break
+        }
+        $dir = Split-Path -Parent $dir
+    }
+
+    if ([string]::IsNullOrWhiteSpace($GeometryEngineRoot)) {
+        throw @"
+GeometryEngine was not found beside this repository or any folder above it.
+
+Clone it next to Fabolus:
+
+    git clone https://github.com/nsmela/GeometryEngine.git
+
+or point at an existing checkout with -GeometryEngineRoot <path>.
+"@
+    }
+}
+
+$GeometryEngineRoot = (Resolve-Path -LiteralPath $GeometryEngineRoot).Path.TrimEnd('\') + '\'
+if (-not (Test-Path (Join-Path $GeometryEngineRoot $geProjectRelative))) {
+    throw "'$GeometryEngineRoot' is not a GeometryEngine checkout: $geProjectRelative is missing."
+}
+
+# CI builds the pinned commit. A local build may deliberately use another one, so a mismatch
+# is reported rather than refused.
+$pinFile = Join-Path $PSScriptRoot 'geometryengine.sha'
+$pinnedSha = (Get-Content -LiteralPath $pinFile -Raw).Trim()
+# Windows PowerShell turns a native command's stderr into a terminating error under 'Stop',
+# so a checkout without git history must not end the build here.
+try { $geSha = (git -C $GeometryEngineRoot rev-parse HEAD 2>$null) } catch { $geSha = $null }
+if ([string]::IsNullOrWhiteSpace($geSha)) {
+    Write-Warning "Could not read the GeometryEngine commit; the release pins $pinnedSha."
+} elseif ($geSha.Trim() -ne $pinnedSha) {
+    Write-Warning "GeometryEngine is at $($geSha.Trim().Substring(0, 7)), but build/geometryengine.sha pins $($pinnedSha.Substring(0, 7)). This build will not match CI."
 }
 
 # ------------------------------------------------------------------
@@ -70,6 +132,7 @@ Write-Host "  version       : $Version"
 Write-Host "  configuration : $Configuration"
 Write-Host "  runtime       : $Runtime"
 Write-Host "  output        : $OutputDir"
+Write-Host "  geometry      : $GeometryEngineRoot"
 
 # ------------------------------------------------------------------
 #  Clean output
@@ -87,8 +150,10 @@ if ($SkipTests) {
     Write-Step 'Skipping tests (-SkipTests)'
 } else {
     Write-Step 'Running tests'
-    dotnet test $solution -c $Configuration --nologo
-    if ($LASTEXITCODE -ne 0) { throw "Tests failed (exit code $LASTEXITCODE); aborting publish." }
+    foreach ($testProject in $testProjects) {
+        dotnet test $testProject -c $Configuration -p:Platform=x64 "-p:GeometryEngineRoot=$GeometryEngineRoot" --nologo
+        if ($LASTEXITCODE -ne 0) { throw "Tests failed (exit code $LASTEXITCODE); aborting publish." }
+    }
 }
 
 # ------------------------------------------------------------------
@@ -110,6 +175,7 @@ function Invoke-Publish {
         '-c', $Configuration,
         '-r', $Runtime,
         '-p:Platform=x64',
+        "-p:GeometryEngineRoot=$GeometryEngineRoot",
         '--self-contained', $selfContainedArg,
         "-p:Version=$Version",
         '-p:PublishSingleFile=false',

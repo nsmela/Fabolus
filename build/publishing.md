@@ -63,8 +63,9 @@ and creates no release — useful for checking the pipeline without tagging.
 - .NET 10 SDK (targets `net10.0-windows`).
 - [GeometryEngine](https://github.com/nsmela/GeometryEngine) checked out beside this
   repository (`<folder>/Fabolus` and `<folder>/GeometryEngine`), at the commit in
-  [`geometryengine.sha`](geometryengine.sha). `Fabolus.sln` and `Fabolus.Core.csproj` both
-  expect that layout, and the release and CI workflows recreate it on the runner.
+  [`geometryengine.sha`](geometryengine.sha). The release and CI workflows recreate that
+  layout on the runner. `publish.ps1` also finds a checkout further up, so it runs from a
+  worktree nested inside Fabolus; anywhere else, pass `-GeometryEngineRoot`.
 - [Inno Setup 6.3+](https://jrsoftware.org/isinfo.php), for the installer only:
 
 ```bash
@@ -84,6 +85,7 @@ installer.
 | `-Configuration` | `Release` | |
 | `-Runtime` | `win-x64` | Fabolus is x64-only today |
 | `-OutputDir` | `<repo>/artifacts` | Wiped at the start of every run |
+| `-GeometryEngineRoot` | nearest `GeometryEngine` folder beside the repo or any folder above it | Warns if it isn't at the commit in `geometryengine.sha` |
 | `-SkipInstaller` | off | Build just the two zips, no Inno Setup needed |
 | `-SkipTests` | off | Skips the test gate. Don't use for a real release |
 
