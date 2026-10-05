@@ -51,7 +51,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Ensure Inno Setup
         shell: pwsh
@@ -101,7 +101,7 @@ jobs:
             | File | Who it's for | Requires |
             |---|---|---|
             | `Fabolus-${{ steps.version.outputs.version }}-setup.exe` | Most people. Installs to your user folder, adds a Start Menu shortcut, uninstalls cleanly. | Nothing |
-            | `Fabolus-${{ steps.version.outputs.version }}-win-x64.zip` | Portable use if you already have .NET. Extract and run `Fabolus.exe`. | [.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) |
+            | `Fabolus-${{ steps.version.outputs.version }}-win-x64.zip` | Portable use if you already have .NET. Extract and run `Fabolus.exe`. | [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) |
             | `Fabolus-${{ steps.version.outputs.version }}-win-x64-self-contained.zip` | Portable use on a machine with no .NET installed. Larger download. | Nothing |
 
             Windows 10 or later, 64-bit.

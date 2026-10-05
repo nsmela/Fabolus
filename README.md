@@ -18,14 +18,14 @@ Grab the latest files from the [Releases page](https://github.com/nsmela/Fabolus
 | File | Who it's for | Requires |
 |---|---|---|
 | `Fabolus-<version>-setup.exe` | **Most people.** Installs to your user folder, adds a Start Menu shortcut, and uninstalls cleanly. No admin rights needed. | Nothing |
-| `Fabolus-<version>-win-x64.zip` | Portable use if you already have .NET. Extract anywhere and run `Fabolus.exe`. Smallest download. | [.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) |
+| `Fabolus-<version>-win-x64.zip` | Portable use if you already have .NET. Extract anywhere and run `Fabolus.exe`. Smallest download. | [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) |
 | `Fabolus-<version>-win-x64-self-contained.zip` | Portable use on a machine with no .NET installed. Everything is bundled, so the download is much larger. | Nothing |
 
 The builds are not code-signed yet, so Windows SmartScreen may warn that the publisher is unknown the first time you run the installer or `Fabolus.exe`. Choose **More info**, then **Run anyway**. Only do this for files downloaded from the Releases page above.
 
 ## Building from source
 
-Fabolus needs the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) and its geometry library, [GeometryEngine](https://github.com/nsmela/GeometryEngine), checked out **beside** this repository:
+Fabolus needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and its geometry library, [GeometryEngine](https://github.com/nsmela/GeometryEngine), checked out **beside** this repository:
 
 ```
 <any folder>/

@@ -15,7 +15,7 @@ and we will work out how to reproduce it without the data.
 
 ## Getting set up
 
-You need Windows 10 or later, the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0),
+You need Windows 10 or later, the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0),
 and [GeometryEngine](https://github.com/nsmela/GeometryEngine), Fabolus's geometry library,
 checked out beside this repository:
 

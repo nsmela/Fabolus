@@ -17,7 +17,7 @@ Takes a few minutes, most of it compressing the self-contained payload.
 
 | Artifact | Contents | User needs |
 |---|---|---|
-| `Fabolus-<version>-win-x64.zip` | Framework-dependent build. Extract and run `Fabolus.exe`. | [.NET 8 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) |
+| `Fabolus-<version>-win-x64.zip` | Framework-dependent build. Extract and run `Fabolus.exe`. | [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) |
 | `Fabolus-<version>-win-x64-self-contained.zip` | Same app with the .NET runtime bundled in. | Nothing |
 | `Fabolus-<version>-setup.exe` | Inno Setup installer wrapping the **self-contained** payload. | Nothing |
 
@@ -60,7 +60,7 @@ and creates no release — useful for checking the pipeline without tagging.
 
 ## Prerequisites for a local build
 
-- .NET SDK capable of targeting `net8.0-windows`.
+- .NET 10 SDK (targets `net10.0-windows`).
 - [GeometryEngine](https://github.com/nsmela/GeometryEngine) checked out beside this
   repository (`<folder>/Fabolus` and `<folder>/GeometryEngine`), at the commit in
   [`geometryengine.sha`](geometryengine.sha). `Fabolus.sln` and `Fabolus.Core.csproj` both
@@ -141,7 +141,7 @@ solution, and MSBuild would otherwise default to AnyCPU regardless of what `<Pla
 says.
 
 One consequence worth knowing: setting a platform adds a directory to the output path
-(`bin/x64/Release/net8.0` instead of `bin/Release/net8.0`). Anything that walks up from
+(`bin/x64/Release/net10.0` instead of `bin/Release/net10.0`). Anything that walks up from
 `AppContext.BaseDirectory` by a fixed number of levels will break. `GeometryEngineFixture`
 searches upward for a `files` folder instead of counting levels, for exactly this reason.
 
@@ -168,7 +168,5 @@ Things a future change should probably address, none of which block a release to
 
 - **Preferences live next to the exe.** Moving them to `%APPDATA%\Fabolus\` would remove the
   writability constraint and let a machine-wide install work properly.
-- **net8.0-windows leaves support in November 2026.** The framework-dependent zip's audience
-  shrinks as .NET 8 ages out.
 - **The builds are not code-signed,** so SmartScreen warns about an unknown publisher until
   a build has earned reputation. The README tells users how to get past it.

@@ -6,7 +6,7 @@
     Produces, into the output directory:
 
       Fabolus-<version>-win-x64.zip                 framework-dependent, needs the
-                                                    .NET 8 Desktop Runtime (x64)
+                                                    .NET 10 Desktop Runtime (x64)
       Fabolus-<version>-win-x64-self-contained.zip  self-contained, no prerequisites
       Fabolus-<version>-setup.exe                   Inno Setup installer wrapping the
                                                     self-contained payload

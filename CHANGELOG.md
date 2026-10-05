@@ -31,6 +31,8 @@ for public use.
 - All geometry now comes from [GeometryEngine](https://github.com/nsmela/GeometryEngine),
   replacing MeshLib and geometry3Sharp.
 - Long-running tools stay responsive while they work.
+- Runs on .NET 10 (LTS). The portable zip now needs the .NET 10 Desktop Runtime; the
+  installer and the self-contained zip still need nothing.
 
 ## [0.9.3] and earlier
 

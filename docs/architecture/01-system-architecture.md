@@ -91,7 +91,7 @@ In Fabolus, modifications are never permanently "baked" into the base mesh durin
 
 The codebase is split into three focused projects:
 
-### 1. `Fabolus.Core` (`net8.0`)
+### 1. `Fabolus.Core` (`net10.0`)
 - **Role**: The core domain library containing all business logic, feature commands, and data models.
 - **Dependencies**: None. It has zero references to Windows, WPF, DirectX, or native DLLs. It can run on any platform (Windows, macOS, Linux).
 - **Key Components**:
@@ -101,13 +101,13 @@ The codebase is split into three focused projects:
   - **`IMeshCommand` & Replay Pipeline**: Manages and stores all non-destructive editing commands.
   - **`IGeometryEngine`**: The shared interface defining all 3D operations (smoothing, booleans, transforms, repair, and file import/export) without depending on how they are implemented.
 
-### 2. `GeometryEngine` (`net8.0`, [separate repository](https://github.com/nsmela/GeometryEngine))
+### 2. `GeometryEngine` (`net10.0`, [separate repository](https://github.com/nsmela/GeometryEngine))
 - **Role**: Every geometric operation Fabolus performs — booleans, offsets, smoothing, decimation, spatial queries, polygon work and mesh files.
 - **Dependencies**: the **Manifold** kernel (native C++, shipped with the library alongside oneTBB) with a fully managed BSP fallback, plus `Clipper2` and `NetTopologySuite` for planar work.
 - **Why it is a separate library**: it has no idea what a bolus or a mould is. That lets its geometry be tested on its own terms — against analytic volume identities and real clinical meshes — without a workspace or a window involved, and keeps Fabolus from growing geometry code of its own.
 - **Meshes are values, not resources**: `ImmutableMesh` cannot be constructed in an invalid state and is not `IDisposable`. No marshalling boundary, no ownership contract, no disposal for callers to get wrong.
 
-### 3. `Fabolus.Wpf` (`net8.0-windows7.0`, target `win-x64`)
+### 3. `Fabolus.Wpf` (`net10.0-windows`, target `win-x64`)
 - **Role**: The desktop user interface application for Windows.
 - **Dependencies & Why They Are Used**:
   - **`CommunityToolkit.Mvvm`**: Provides the standard MVVM (Model-View-ViewModel) architecture. It automatically connects screen controls (buttons, sliders, inputs) to background logic without messy event code, keeping the UI responsive and clean.
