@@ -60,17 +60,36 @@ Fabolus is released under the [MIT License](LICENSE). The third-party components
 
 ## Screenshots
 
-<img width="800" height="550" alt="2025-09-08_10-14-45" src="https://github.com/user-attachments/assets/8306ff5e-0518-4c20-bc2e-e50954c238e8" />
+The workflow on a synthetic chin bolus, from import to export.
 
-<img width="800" height="550" alt="imported" src="https://github.com/user-attachments/assets/b9eb92b3-5191-40fd-b808-65a4aa4d5f90" />
+**Import and inspect.** Fabolus reports the mesh's volume, area and dimensions, and checks it is manifold and watertight before anything else happens.
 
-<img width="800" height="550" alt="smoothing applied" src="https://github.com/user-attachments/assets/61004e7e-e7c0-42b9-9042-b3107f069a23" />
-<img width="800" height="550" alt="smoothing-distanceheatmap" src="https://github.com/user-attachments/assets/0471b267-2de9-4a28-bdc9-30946c2592ca" />
-<img width="800" height="550" alt="smoothing-contouring" src="https://github.com/user-attachments/assets/3a7f4bd2-242a-43c2-88a2-cf3075aeeb36" />
-<img width="800" height="550" alt="rotation" src="https://github.com/user-attachments/assets/c7bff6a4-fafd-4dd1-9a08-3d7bf2a30134" />
-<img width="800" height="550" alt="rotation-preview" src="https://github.com/user-attachments/assets/273b12c5-0a7e-4207-85f9-d4c6ed1907be" />
-<img width="800" height="550" alt="channels" src="https://github.com/user-attachments/assets/2782c3dd-2aba-4952-929a-95c475b78b4c" />
-<img width="800" height="550" alt="channels-channel types" src="https://github.com/user-attachments/assets/18f2d77f-271f-4f1b-8e7e-f21c1e69ba3b" />
-<img width="800" height="550" alt="mould" src="https://github.com/user-attachments/assets/0649474a-f204-4fd8-b13f-8a29d0943ca2" />
-<img width="800" height="550" alt="wiremesh display" src="https://github.com/user-attachments/assets/f04d4154-5d1a-48bc-8cdf-2a664a1019ed" />
-<img width="246" height="363" alt="app preferences" src="https://github.com/user-attachments/assets/d644f3e0-389b-4261-b3a6-a7b51f2bc003" />
+<img src="docs/images/screenshots/01-import.png" width="800" alt="An imported chin bolus in the meshes view, with its mesh statistics and topology checks" />
+
+**Smooth without losing volume.** The heat map shows how far the smoothed surface moved from the original, and the section view cuts through both to compare them.
+
+<img src="docs/images/screenshots/02-smooth-heatmap.png" width="800" alt="The smoothed bolus coloured by its distance from the original, with original and smoothed volumes side by side" />
+
+<img src="docs/images/screenshots/03-smooth-section.png" width="800" alt="A cutting plane through the original and smoothed bolus" />
+
+**Orient for printing.** Overhangs are coloured as you rotate, so you can find the orientation that needs the least support.
+
+<img src="docs/images/screenshots/04-rotate-overhangs.png" width="800" alt="The bolus coloured by overhang angle in the rotate view" />
+
+**Place air channels and build the mould.** Channels let trapped air escape while the silicone fills; the mould is generated around the bolus with the channels cut through it.
+
+<img src="docs/images/screenshots/05-air-channels.png" width="800" alt="Air channels placed on the bolus in the mould view" />
+
+<img src="docs/images/screenshots/06-mould.png" width="800" alt="The generated mould around the bolus, with its volume and dimensions" />
+
+**Label it.** Decals emboss a patient ID, volume or alignment marks into the mould or the bolus.
+
+<img src="docs/images/screenshots/07-decals.png" width="800" alt="Embossed text decals previewed on the mould" />
+
+**Export.** The mould is exported as STL, or as a 3MF that keeps the full editing history so the project can be reopened and adjusted.
+
+<img src="docs/images/screenshots/08-export.png" width="800" alt="The finished mould in the export view, ready to save as 3MF" />
+
+**Preferences and About.** Each tool's starting values are set in Preferences; the About window carries the version, the medical disclaimer and the licences.
+
+<img src="docs/images/screenshots/09-preferences.png" width="420" alt="The Preferences window on the Mould page" /> <img src="docs/images/screenshots/10-about.png" width="300" alt="The About window with the medical disclaimer" />
