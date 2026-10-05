@@ -24,7 +24,7 @@ Both `nsmela/Fabolus` and `nsmela/GeometryEngine` are **already public**, so the
   - **Pages:** deploy from the `gh-pages` branch. The docs are built there, but `nsmela.github.io/Fabolus` returns 404, and the README, About window and issue forms all link to it.
   - **Private vulnerability reporting:** enable it (Security → Settings). `SECURITY.md` points to it.
   - **Default branch:** stays `main`. `v1` is merged into `main` when it is ready, which brings all of this with it.
-- [ ] **End-to-end release-build test on a clean machine.** *Needs you.* Already verified locally: `publish.ps1` builds all three artifacts, and the zips contain the licences. Still to do: on a machine with **no .NET installed**, run the installer (check the disclaimer page), run the self-contained zip, and open About.
+- [x] **End-to-end release-build test.** `publish.ps1` builds all three artifacts on .NET 10, with the licences in both zips. The maintainer verified the installer works as intended (2026-10-05).
 - [x] **Move off .NET 8.** Fabolus and GeometryEngine now target .NET 10 (LTS); .NET 8 leaves support on 10 November 2026. GeometryEngine's change merged as nsmela/GeometryEngine#4, and [`build/geometryengine.sha`](build/geometryengine.sha) pins that merge commit (`39b31c2`), which also carries GeometryEngine's MIT licence.
 
 ## P2 — Polish & professionalism
@@ -38,4 +38,4 @@ Both `nsmela/Fabolus` and `nsmela/GeometryEngine` are **already public**, so the
 
 ---
 
-_Generated 2026-09-08; revised 2026-10-02 after GeometryEngine replaced Geometry.MeshLib; updated 2026-10-05. All P0 items are done. What remains is a clean-machine test, the GitHub settings, CI's first green run, and the 1.0.0 tag and code signing when `v1` merges into `main`._
+_Generated 2026-09-08; revised 2026-10-02 after GeometryEngine replaced Geometry.MeshLib; updated 2026-10-05. All P0 items are done. What remains is the GitHub settings, CI's first green run, and the 1.0.0 tag and code signing when `v1` merges into `main`._
