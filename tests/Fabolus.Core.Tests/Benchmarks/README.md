@@ -75,10 +75,16 @@ against either checkout unchanged.
   also declares its native memory to the collector, which makes native allocations trigger full
   collections inside the steps that made them. The pause says how much of a difference between
   two engines is collection: subtract it from each before concluding the step itself changed.
+  On a rebuild row the pause is for five rebuilds and the time for one, so divide the pause by
+  five first, and treat the result as rough: the middle rebuild need not be one that paused.
 - **For a small difference you still doubt**, run both engines with `DOTNET_TieredCompilation=0`,
   which compiles everything fully the first time. Treat the result as a diagnostic only: it also
   turns off profile-guided optimisation, which the shipped app has, so those timings are not
   what a user sees.
 - **"managed heap" at the end is a snapshot** of whatever had not been collected at that moment,
   so it depends on where the last collection happened to fall. Compare "after collecting".
+- **Treat any difference under about a millisecond as noise.** With two runs an engine, steps
+  that small pass a spread test in one round and pass it the other way in the next.
 - Run each engine at least twice, alternating, on an idle machine. One run is one sample.
+  Smoothing is the longest step and the first to show background load: if it differs between
+  engines, suspect the machine before the engine, and run another pair.
