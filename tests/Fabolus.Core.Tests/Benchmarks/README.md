@@ -53,5 +53,16 @@ against either checkout unchanged.
 - "move a channel, rebuild" is the middle of five rebuilds, each with one channel in a slightly
   different place and the bolus unchanged. It is the step a user repeats most.
 - Run each engine at least twice, alternating, on an idle machine. One run is one sample.
+- `gc 2/1/1` after a step means two collections of the youngest generation, one of the middle
+  and one full collection fell inside it. A collection is charged to whatever step it lands in,
+  so a step that is slower on one engine and shows a collection the other does not was probably
+  interrupted, not slowed.
+- A step can also differ between two engines only because the runtime had not finished
+  recompiling it yet. The first time this benchmark compared engines, finding air pockets on one
+  scan took 3.4 ms on one and 9 ms on the other, through code neither engine had changed. With
+  `DOTNET_TieredCompilation=0` set, which compiles everything fully the first time, the two came
+  out at 2.4 and 2.0 ms. Before believing a small step got slower, run both engines that way.
+- "managed heap" at the end is whatever had not been collected yet, so it rises when an engine
+  allocates less and is collected less often. "after collecting" is what was really still in use.
 - The memory lines are for the whole process at the end: what the sessions left it holding,
   and what remains after a full collection.

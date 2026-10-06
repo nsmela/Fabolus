@@ -205,17 +205,21 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
 
     private static Result<T> Time<T>(List<Step> steps, string label, Func<Result<T>> work)
     {
+        var before = Collections.Now();
         var watch = Stopwatch.StartNew();
         var result = work();
-        steps.Add(new Step(label, watch.Elapsed.TotalMilliseconds, result.IsSuccess ? null : result.Error.Code));
+        steps.Add(new Step(
+            label, watch.Elapsed.TotalMilliseconds, Collections.Since(before), result.IsSuccess ? null : result.Error.Code));
         return result;
     }
 
     private static void Time(List<Step> steps, string label, Func<Result> work)
     {
+        var before = Collections.Now();
         var watch = Stopwatch.StartNew();
         var result = work();
-        steps.Add(new Step(label, watch.Elapsed.TotalMilliseconds, result.IsSuccess ? null : result.Error.Code));
+        steps.Add(new Step(
+            label, watch.Elapsed.TotalMilliseconds, Collections.Since(before), result.IsSuccess ? null : result.Error.Code));
     }
 
     private void Report(string scan, string? about, List<Step> steps, Stopwatch session)
@@ -224,7 +228,11 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         Print($"{scan}{(about is null ? "" : $": {about}")}");
         foreach (var step in steps)
         {
-            Print($"  {step.Label,-36} {step.Milliseconds,10:N1} ms{(step.Failure is null ? "" : $"   FAILED: {step.Failure}")}");
+            // A collection that happens to fall in a step is charged to it. Saying how many fell
+            // where - youngest generation first - lets a step that looks slower be told from one
+            // that was only interrupted.
+            var interrupted = step.Collected.Any ? $"   gc {step.Collected.Gen0}/{step.Collected.Gen1}/{step.Collected.Gen2}" : "";
+            Print($"  {step.Label,-36} {step.Milliseconds,10:N1} ms{interrupted}{(step.Failure is null ? "" : $"   FAILED: {step.Failure}")}");
         }
 
         Print($"  {"the whole session",-36} {session.Elapsed.TotalMilliseconds,10:N1} ms");
@@ -294,12 +302,30 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         throw new FileNotFoundException($"Could not find '{name}' in any 'files' folder above '{AppContext.BaseDirectory}'.");
     }
 
-    private sealed record Step(string Label, double Milliseconds, string? Failure)
+    /// <summary>Garbage collections of each generation, counted since the process started or between two moments.</summary>
+    private readonly record struct Collections(int Gen0, int Gen1, int Gen2)
     {
-        /// <summary>One line for a step taken several times: its middle time, and any failure among them.</summary>
-        public static Step MiddleOf(string label, List<Step> taken) => new(
-            label,
-            taken.Select(step => step.Milliseconds).Order().ElementAt(taken.Count / 2),
-            taken.FirstOrDefault(step => step.Failure is not null)?.Failure);
+        public bool Any => Gen0 > 0;
+
+        public static Collections Now() => new(GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
+
+        public static Collections Since(Collections earlier)
+        {
+            var now = Now();
+            return new Collections(now.Gen0 - earlier.Gen0, now.Gen1 - earlier.Gen1, now.Gen2 - earlier.Gen2);
+        }
+    }
+
+    private sealed record Step(string Label, double Milliseconds, Collections Collected, string? Failure)
+    {
+        /// <summary>
+        /// One line for a step taken several times: the one whose time was in the middle, with the
+        /// collections that fell in that one, and any failure among them all.
+        /// </summary>
+        public static Step MiddleOf(string label, List<Step> taken)
+        {
+            var middle = taken.OrderBy(step => step.Milliseconds).ElementAt(taken.Count / 2);
+            return new Step(label, middle.Milliseconds, middle.Collected, taken.FirstOrDefault(step => step.Failure is not null)?.Failure);
+        }
     }
 }
