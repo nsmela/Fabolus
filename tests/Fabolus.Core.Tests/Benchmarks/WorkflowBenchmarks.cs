@@ -81,18 +81,18 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
             ? chosen.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : Scans;
 
-        // One session nobody times, on the smallest scan, before any that are. A cold process
-        // compiles each method quickly at first and properly only once it has run for a while,
-        // so the first session of a run otherwise measures the runtime settling as much as the
-        // engine - and two engines settle at different moments, which showed up as steps that
-        // differed between them through code neither had changed.
+        // One session nobody times, on the smallest scan, before any that are. The first call of
+        // anything in a cold process pays for compiling it, so the first session of a run
+        // otherwise measures the compiler as much as the engine. One session is not enough for
+        // the runtime to optimise everything - that takes dozens of calls - but it is the first
+        // call that costs, and this takes it out of the timings.
         var cold = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FABOLUS_BENCH_COLD"));
         Print(cold
             ? "No warm-up (FABOLUS_BENCH_COLD): the first scan also pays for everything being compiled."
             : $"Warmed up on {WarmUpScan} first, untimed; set FABOLUS_BENCH_COLD to time a cold start instead.");
-        if (!cold)
+        if (!cold && Session(engine, WarmUpScan, timed: false).FirstOrDefault(step => step.Failure is not null) is { } failed)
         {
-            Session(engine, WarmUpScan, timed: false);
+            Print($"  the warm-up did not get through \"{failed.Label.Trim()}\": {failed.Failure}");
         }
 
         var whole = Stopwatch.StartNew();
@@ -103,7 +103,7 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
 
         Print("");
         Print($"every session: {whole.Elapsed.TotalMilliseconds,10:N0} ms");
-        DescribeMemory();
+        DescribeMemory(warmedUp: !cold);
 
         if (Environment.GetEnvironmentVariable("FABOLUS_BENCH_OUT") is { Length: > 0 } file)
         {
@@ -112,7 +112,7 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
     }
 
     /// <param name="timed">False for the warm-up, which does everything and reports nothing.</param>
-    private void Session(IGeometryEngine engine, string scan, bool timed)
+    private List<Step> Session(IGeometryEngine engine, string scan, bool timed)
     {
         var steps = new List<Step>();
         var session = Stopwatch.StartNew();
@@ -127,7 +127,7 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
                 Report(scan, null, steps, session);
             }
 
-            return;
+            return steps;
         }
 
         workspace = opened.Value;
@@ -201,6 +201,8 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         {
             Report(scan, $"{scanTriangles:N0} triangles as scanned, {bolus.TriangleCount:N0} as smoothed, {vents.Count} channel(s)", steps, session);
         }
+
+        return steps;
     }
 
     /// <summary>What the mould view builds for a preview: the mould, measured, ready to show.</summary>
@@ -256,8 +258,11 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         {
             // A collection that falls in a step is charged to it, whether the step caused it or
             // not. The three counts nest - see Collections - so "gc 2/1/1" is two collections,
-            // one of them full.
-            var interrupted = step.Collected.Any ? $"   gc {step.Collected.Gen0}/{step.Collected.Gen1}/{step.Collected.Gen2}" : "";
+            // one of them full. The pause is how long they stopped the step for, which is what
+            // says whether a slower step was slower or only stopped more.
+            var interrupted = step.Collected.Any
+                ? $"   gc {step.Collected.Gen0}/{step.Collected.Gen1}/{step.Collected.Gen2}{(step.Over > 1 ? $" over {step.Over}" : "")}, paused {step.Collected.PausedMilliseconds:N1} ms"
+                : "";
             Print($"  {step.Label,-36} {step.Milliseconds,10:N1} ms{interrupted}{(step.Failure is null ? "" : $"   FAILED: {step.Failure}")}");
         }
 
@@ -287,14 +292,16 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         return cut.IsSuccess ? cut.Value.Metadata.CreatedBy : $"none ({cut.Error.Code})";
     }
 
-    private void DescribeMemory()
+    private void DescribeMemory(bool warmedUp)
     {
         using var process = Process.GetCurrentProcess();
         const double Megabyte = 1024 * 1024;
 
         // Before anything is collected: what the sessions left the process holding.
         Print($"memory at the end:  managed heap {GC.GetTotalMemory(false) / Megabyte,8:N0} MB, process private {process.PrivateMemorySize64 / Megabyte,8:N0} MB, peak working set {process.PeakWorkingSet64 / Megabyte,8:N0} MB");
-        Print($"collections:        {GC.CollectionCount(0)} in all, {GC.CollectionCount(1)} reaching generation 1, {GC.CollectionCount(2)} full (warm-up included)");
+        Print(
+            $"collections:        {GC.CollectionCount(0)} in all, {GC.CollectionCount(1)} reaching generation 1, {GC.CollectionCount(2)} full, " +
+            $"{GC.GetTotalPauseDuration().TotalMilliseconds:N0} ms paused{(warmedUp ? " (warm-up included)" : "")}");
 
         for (var i = 0; i < 3; i++)
         {
@@ -331,36 +338,43 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
     /// Garbage collections between two moments, as the runtime counts them, which is nested: a
     /// collection of a generation is also a collection of every younger one. So
     /// <paramref name="Gen0"/> is every collection there was, <paramref name="Gen1"/> those that
-    /// reached generation 1 or further, and <paramref name="Gen2"/> the full ones. The counts are
-    /// the whole process's, so a collection another thread provoked is counted too.
+    /// reached generation 1 or further, and <paramref name="Gen2"/> the full ones.
+    /// <paramref name="PausedMilliseconds"/> is how long they held the program stopped. All of
+    /// it is the whole process's, so a collection another thread provoked is counted too.
     /// </summary>
-    private readonly record struct Collections(int Gen0, int Gen1, int Gen2)
+    private readonly record struct Collections(int Gen0, int Gen1, int Gen2, double PausedMilliseconds)
     {
         /// <summary>Because the counts nest, none of any kind means none of the youngest.</summary>
         public bool Any => Gen0 > 0;
 
         public static Collections operator +(Collections a, Collections b) =>
-            new(a.Gen0 + b.Gen0, a.Gen1 + b.Gen1, a.Gen2 + b.Gen2);
+            new(a.Gen0 + b.Gen0, a.Gen1 + b.Gen1, a.Gen2 + b.Gen2, a.PausedMilliseconds + b.PausedMilliseconds);
 
-        public static Collections Now() => new(GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
+        public static Collections Now() => new(
+            GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2), GC.GetTotalPauseDuration().TotalMilliseconds);
 
         public static Collections Since(Collections earlier)
         {
             var now = Now();
-            return new Collections(now.Gen0 - earlier.Gen0, now.Gen1 - earlier.Gen1, now.Gen2 - earlier.Gen2);
+            return new Collections(
+                now.Gen0 - earlier.Gen0, now.Gen1 - earlier.Gen1, now.Gen2 - earlier.Gen2,
+                now.PausedMilliseconds - earlier.PausedMilliseconds);
         }
     }
 
-    private sealed record Step(string Label, double Milliseconds, Collections Collected, string? Failure)
+    /// <param name="Over">How many takings of the step the collections are added up over.</param>
+    private sealed record Step(string Label, double Milliseconds, Collections Collected, string? Failure, int Over = 1)
     {
         /// <summary>
         /// One line for a step taken several times: the middle of their times, with the
-        /// collections that fell in all of them together and any failure among them.
+        /// collections and pauses of all of them together - marked as such - and any failure
+        /// among them.
         /// </summary>
         public static Step MiddleOf(string label, List<Step> taken) => new(
             label,
             taken.Select(step => step.Milliseconds).Order().ElementAt(taken.Count / 2),
             taken.Aggregate(default(Collections), (sum, step) => sum + step.Collected),
-            taken.FirstOrDefault(step => step.Failure is not null)?.Failure);
+            taken.FirstOrDefault(step => step.Failure is not null)?.Failure,
+            Over: taken.Count);
     }
 }
