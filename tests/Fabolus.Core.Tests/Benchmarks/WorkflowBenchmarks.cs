@@ -35,6 +35,7 @@ namespace Fabolus.Tests.Benchmarks;
 /// Environment: FABOLUS_BENCH=1 to run at all. FABOLUS_BENCH_SCANS, a comma-separated list of
 /// file names, to run other scans than the four below. FABOLUS_BENCH_LABEL, a name for the engine
 /// under test, printed in the header. FABOLUS_BENCH_OUT, a file to append everything printed to.
+/// FABOLUS_BENCH_COLD, to skip the untimed warm-up session and time a cold start.
 /// </summary>
 public sealed class WorkflowBenchmarks(ITestOutputHelper output)
 {
@@ -64,6 +65,9 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         "test_smoothed_bolus.stl",
     ];
 
+    /// <summary>The scan the untimed warm-up session runs on: the smallest, so it costs least.</summary>
+    private const string WarmUpScan = "eye_bolus.stl";
+
     private readonly StringBuilder _printed = new();
 
     [BenchmarkFact]
@@ -77,10 +81,24 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
             ? chosen.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : Scans;
 
+        // One session nobody times, on the smallest scan, before any that are. A cold process
+        // compiles each method quickly at first and properly only once it has run for a while,
+        // so the first session of a run otherwise measures the runtime settling as much as the
+        // engine - and two engines settle at different moments, which showed up as steps that
+        // differed between them through code neither had changed.
+        var cold = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("FABOLUS_BENCH_COLD"));
+        Print(cold
+            ? "No warm-up (FABOLUS_BENCH_COLD): the first scan also pays for everything being compiled."
+            : $"Warmed up on {WarmUpScan} first, untimed; set FABOLUS_BENCH_COLD to time a cold start instead.");
+        if (!cold)
+        {
+            Session(engine, WarmUpScan, timed: false);
+        }
+
         var whole = Stopwatch.StartNew();
         foreach (var scan in scans)
         {
-            Session(engine, scan);
+            Session(engine, scan, timed: true);
         }
 
         Print("");
@@ -93,7 +111,8 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         }
     }
 
-    private void Session(IGeometryEngine engine, string scan)
+    /// <param name="timed">False for the warm-up, which does everything and reports nothing.</param>
+    private void Session(IGeometryEngine engine, string scan, bool timed)
     {
         var steps = new List<Step>();
         var session = Stopwatch.StartNew();
@@ -103,7 +122,11 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         var opened = Time(steps, "open the scan", () => new ImportMesh(engine).Execute(workspace, AssetPath(scan)));
         if (opened.IsFailure)
         {
-            Report(scan, null, steps, session);
+            if (timed)
+            {
+                Report(scan, null, steps, session);
+            }
+
             return;
         }
 
@@ -174,7 +197,10 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
             }
         }
 
-        Report(scan, $"{scanTriangles:N0} triangles as scanned, {bolus.TriangleCount:N0} as smoothed, {vents.Count} channel(s)", steps, session);
+        if (timed)
+        {
+            Report(scan, $"{scanTriangles:N0} triangles as scanned, {bolus.TriangleCount:N0} as smoothed, {vents.Count} channel(s)", steps, session);
+        }
     }
 
     /// <summary>What the mould view builds for a preview: the mould, measured, ready to show.</summary>
@@ -228,9 +254,9 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         Print($"{scan}{(about is null ? "" : $": {about}")}");
         foreach (var step in steps)
         {
-            // A collection that happens to fall in a step is charged to it. Saying how many fell
-            // where - youngest generation first - lets a step that looks slower be told from one
-            // that was only interrupted.
+            // A collection that falls in a step is charged to it, whether the step caused it or
+            // not. The three counts nest - see Collections - so "gc 2/1/1" is two collections,
+            // one of them full.
             var interrupted = step.Collected.Any ? $"   gc {step.Collected.Gen0}/{step.Collected.Gen1}/{step.Collected.Gen2}" : "";
             Print($"  {step.Label,-36} {step.Milliseconds,10:N1} ms{interrupted}{(step.Failure is null ? "" : $"   FAILED: {step.Failure}")}");
         }
@@ -250,7 +276,6 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         Print($"  can describe a boolean before running it: {(core.GetType("GeometryEngine.Core.Geometry.Solid") is null ? "no" : "yes")}");
         Print($"  native kernel behind a boolean: {KernelOf(engine)}");
         Print($"{RuntimeInformation.FrameworkDescription} on {RuntimeInformation.OSDescription}, {Environment.ProcessorCount} logical processors");
-        Print("The first scan also pays for everything being compiled; read trends from the later ones.");
     }
 
     /// <summary>Which kernel a boolean actually runs on here, read off a result's own record.</summary>
@@ -269,7 +294,7 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
 
         // Before anything is collected: what the sessions left the process holding.
         Print($"memory at the end:  managed heap {GC.GetTotalMemory(false) / Megabyte,8:N0} MB, process private {process.PrivateMemorySize64 / Megabyte,8:N0} MB, peak working set {process.PeakWorkingSet64 / Megabyte,8:N0} MB");
-        Print($"collections:        gen 0 {GC.CollectionCount(0)}, gen 1 {GC.CollectionCount(1)}, gen 2 {GC.CollectionCount(2)}");
+        Print($"collections:        {GC.CollectionCount(0)} in all, {GC.CollectionCount(1)} reaching generation 1, {GC.CollectionCount(2)} full (warm-up included)");
 
         for (var i = 0; i < 3; i++)
         {
@@ -302,10 +327,20 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         throw new FileNotFoundException($"Could not find '{name}' in any 'files' folder above '{AppContext.BaseDirectory}'.");
     }
 
-    /// <summary>Garbage collections of each generation, counted since the process started or between two moments.</summary>
+    /// <summary>
+    /// Garbage collections between two moments, as the runtime counts them, which is nested: a
+    /// collection of a generation is also a collection of every younger one. So
+    /// <paramref name="Gen0"/> is every collection there was, <paramref name="Gen1"/> those that
+    /// reached generation 1 or further, and <paramref name="Gen2"/> the full ones. The counts are
+    /// the whole process's, so a collection another thread provoked is counted too.
+    /// </summary>
     private readonly record struct Collections(int Gen0, int Gen1, int Gen2)
     {
+        /// <summary>Because the counts nest, none of any kind means none of the youngest.</summary>
         public bool Any => Gen0 > 0;
+
+        public static Collections operator +(Collections a, Collections b) =>
+            new(a.Gen0 + b.Gen0, a.Gen1 + b.Gen1, a.Gen2 + b.Gen2);
 
         public static Collections Now() => new(GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
 
@@ -319,13 +354,13 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
     private sealed record Step(string Label, double Milliseconds, Collections Collected, string? Failure)
     {
         /// <summary>
-        /// One line for a step taken several times: the one whose time was in the middle, with the
-        /// collections that fell in that one, and any failure among them all.
+        /// One line for a step taken several times: the middle of their times, with the
+        /// collections that fell in all of them together and any failure among them.
         /// </summary>
-        public static Step MiddleOf(string label, List<Step> taken)
-        {
-            var middle = taken.OrderBy(step => step.Milliseconds).ElementAt(taken.Count / 2);
-            return new Step(label, middle.Milliseconds, middle.Collected, taken.FirstOrDefault(step => step.Failure is not null)?.Failure);
-        }
+        public static Step MiddleOf(string label, List<Step> taken) => new(
+            label,
+            taken.Select(step => step.Milliseconds).Order().ElementAt(taken.Count / 2),
+            taken.Aggregate(default(Collections), (sum, step) => sum + step.Collected),
+            taken.FirstOrDefault(step => step.Failure is not null)?.Failure);
     }
 }

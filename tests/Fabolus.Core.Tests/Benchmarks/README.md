@@ -21,6 +21,7 @@ dotnet test tests/Fabolus.Core.Tests -c Release --filter "FullyQualifiedName~Wor
 | `FABOLUS_BENCH_LABEL` | A name for the engine under test, printed in the header. |
 | `FABOLUS_BENCH_SCANS` | Comma-separated file names from `tests/files`, in place of the default four. |
 | `FABOLUS_BENCH_OUT` | A file to append the whole report to. |
+| `FABOLUS_BENCH_COLD` | Any value skips the untimed warm-up session, to time a cold start. |
 
 ## Comparing two versions of GeometryEngine
 
@@ -49,20 +50,29 @@ against either checkout unchanged.
 
 ## Reading it
 
-- The first scan also pays for everything being compiled. Read trends from the later ones.
-- "move a channel, rebuild" is the middle of five rebuilds, each with one channel in a slightly
-  different place and the bolus unchanged. It is the step a user repeats most.
+- **One session runs untimed first**, on `eye_bolus.stl`, so the runtime has compiled the code
+  properly before anything is measured. Without it the first scan of a run pays for compilation
+  (its first convex mould took about 270 ms with tiering off, against about 52 ms afterwards),
+  and small steps differ between engines for no reason of the engines'. Set
+  `FABOLUS_BENCH_COLD` to measure that cold start on purpose.
+- **"move a channel, rebuild"** is the middle of five rebuilds, each with one channel in a
+  slightly different place and the bolus unchanged. It is the step a user repeats most.
+- **`gc a/b/c` after a step counts the collections that fell inside it, and the three numbers
+  nest:** every collection / those that reached generation 1 or further / the full ones. So
+  `gc 2/1/1` is two collections, one of them full, and `gc 4/4/4` is four full collections. On a
+  rebuild row the counts are for all five rebuilds together. They are counted for the whole
+  process, so a collection another thread provoked is included.
+- **A collection in a step is a reason to look closer, not to discount it.** A step may have been
+  interrupted by a collection it did not cause, or may have caused it by allocating more. The
+  engine also declares its native memory to the collector, which makes native allocations
+  trigger full collections inside the steps that made them. Run it again before deciding.
+- **A small step can differ between engines because of compilation, not code.** In the first
+  comparison, on a Windows laptop, finding air pockets on `chin_bolus` took 3.4 ms on `main` and
+  9 ms on the branch, through code neither had changed. With `DOTNET_TieredCompilation=0` the
+  gap closed, there and on a Linux machine (2.4 ms and 2.0 ms). The warm-up session is there to
+  prevent this. If you still doubt a small difference, run both engines with that variable set,
+  and treat the result as a diagnostic only: it also turns off profile-guided optimisation,
+  which the shipped app has, so those timings are not what a user sees.
+- **"managed heap" at the end is a snapshot** of whatever had not been collected at that moment,
+  so it depends on where the last collection happened to fall. Compare "after collecting".
 - Run each engine at least twice, alternating, on an idle machine. One run is one sample.
-- `gc 2/1/1` after a step means two collections of the youngest generation, one of the middle
-  and one full collection fell inside it. A collection is charged to whatever step it lands in,
-  so a step that is slower on one engine and shows a collection the other does not was probably
-  interrupted, not slowed.
-- A step can also differ between two engines only because the runtime had not finished
-  recompiling it yet. The first time this benchmark compared engines, finding air pockets on one
-  scan took 3.4 ms on one and 9 ms on the other, through code neither engine had changed. With
-  `DOTNET_TieredCompilation=0` set, which compiles everything fully the first time, the two came
-  out at 2.4 and 2.0 ms. Before believing a small step got slower, run both engines that way.
-- "managed heap" at the end is whatever had not been collected yet, so it rises when an engine
-  allocates less and is collected less often. "after collecting" is what was really still in use.
-- The memory lines are for the whole process at the end: what the sessions left it holding,
-  and what remains after a full collection.
