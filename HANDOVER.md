@@ -12,12 +12,11 @@ cutter, severed components - works end to end on the test scans.
 | | |
 |---|---|
 | Fabolus branch | `claude/parting-split-port` (from `v1` 67680b5), pushed to origin, no PR yet |
-| Worktree | `Fabolus/.claude/worktrees/branch-review-0fb9e4` |
+| Worktree | `Fabolus/.claude/worktrees/branch-review-0fb9e4` (the name is historical; it has the port branch checked out) |
 | Source of the old code | `claude/branch-review-0fb9e4` @ 91b4f83 = `feat/split-mesh` 44eb4e6 + three review fixes |
-| GeometryEngine, merged | PR #5 triangulator fix -> `main` 3ec73b8 |
-| GeometryEngine, pushed, PR not yet opened | `claude/surface-geodesic` d8bcaa1 (`ISpatialQueries.ShortestPath`), on top of 3ec73b8 |
-| GeometryEngine worktree to build against | `GeometryEngine/.claude/worktrees/surface-geodesic` |
-| Fabolus GE pin | `build/geometryengine.sha` still 39b31c2 - **the port does not build at the pin** (needs `ShortestPath`) |
+| GeometryEngine, merged | PR #5 triangulator fix -> `main` 3ec73b8; PR #6 `ISpatialQueries.ShortestPath` -> `main` 5e8f7cd |
+| GeometryEngine worktree to build against | `GeometryEngine/.claude/worktrees/surface-geodesic` (d8bcaa1, the same tree as 5e8f7cd) |
+| Fabolus GE pin | `build/geometryengine.sha` = 5e8f7cd (was 39b31c2, which lacks `ShortestPath`) |
 
 ## Build and test
 
@@ -29,7 +28,8 @@ dotnet test tests/Fabolus.Core.Tests -p:GeometryEngineRoot="$G"
 dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
 ```
 
-- Core: **293 passed, 10 failed, 32 skipped** (31 diagnostics + 1 skipped on v1).
+- Core: **293-294 passed, 9-10 failed, 32 skipped** (31 diagnostics + 1 skipped on v1); the chin
+  offset case is flaky (see open issues).
 - Wpf: **173 passed, 9 skipped, 0 failed**.
 - Diagnostics run only with `FABOLUS_DIAGNOSTICS=1` (like benchmarks with `FABOLUS_BENCH=1`).
 - GeometryEngine's tests: `dotnet run --project tests/GeometryEngine.Tests -- <word>` in its
@@ -67,6 +67,8 @@ dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
 - **Diagnostics** open saved moulds via `Diagnostics/SavedMoulds.cs` (through `ImportMesh`, so the
   record and history come back). `FlangeSelfIntersection` locates crossings with its own
   `SelfIntersectingFaces` rather than widening GE.
+- **New packages.** Core references Clipper2 directly (GE already uses it; it is in
+  `THIRD-PARTY-NOTICES.md`). Core's tests add SkiaSharp for the diagnostics' images; it does not ship.
 - **Not carried over**: three `Fabolus.Wpf_*_wpftmp.csproj` build leftovers the branch committed.
 
 ## Open issues, most important first
@@ -76,26 +78,25 @@ dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
    trace refuses them. On the branch they traced. The body has twice the base mesh's triangles, so
    the suspect is v1's smoothing replay (now GE, was MeshLib). This hits real saved projects - start
    here. Reproduce: `FABOLUS_DIAGNOSTICS=1`, run `EditLoopCoverage`.
-2. **GE `ShortestPath` PR** - open it from
-   https://github.com/nsmela/GeometryEngine/pull/new/claude/surface-geodesic, merge, then bump
-   `build/geometryengine.sha`. Until then CI cannot build the port.
-3. **Known Core failures (none on the app's recipe):**
+2. **Known Core failures (none on the app's recipe):**
    - Half-space split (5) - halves not watertight / overlapping; GE boolean quality. Two of these
      also failed on MeshLib.
    - Offset thickening (2-3) - GE `Offset` returns a cutter with ~1,700 crossings on scalp, and is
      **not deterministic**: crossing counts differ run to run, so the chin case is flaky.
    - Wavefront cutter crossings (2) - nose 3, scalp 12; MeshLib's were 0.
-4. **`InspectCutContours`** returns `NotImplemented` - GE cannot order intersection contours. It
+3. **`InspectCutContours`** returns `NotImplemented` - GE cannot order intersection contours. It
    only adds detail to an error message.
-5. **The app has not been run.** Everything is verified by tests only; nobody has opened the
+4. **The app has not been run.** Everything is verified by tests only; nobody has opened the
    parting split view or the dark theme on screen.
-6. **No PR yet** for `claude/parting-split-port` - open one from
-   https://github.com/nsmela/Fabolus/pull/new/claude/parting-split-port once the GE pin can move.
-7. Local `feat/split-mesh` is still at 44eb4e6 - the review fixes live on
+5. **No PR yet** for `claude/parting-split-port` - open one against `v1` from
+   https://github.com/nsmela/Fabolus/pull/new/claude/parting-split-port. Before it merges: drop or
+   move this `HANDOVER.md` (it sits at the repo root and would ship), and add the parting split to
+   the Unreleased section of `CHANGELOG.md`.
+6. Local `feat/split-mesh` is still at 44eb4e6 - the review fixes live on
    `claude/branch-review-0fb9e4` (91b4f83) and were carried into the port.
 
 ## Suggested next steps
 
 1. Investigate issue 1 (smoothing replay -> non-manifold body).
-2. Open/merge the GE geodesic PR, bump the pin, and open the port's PR against `v1`.
+2. Open the port's PR against `v1` (see issue 5).
 3. Smoke-test the app: import a scan, build a mould, run the parting split, toggle the theme.
