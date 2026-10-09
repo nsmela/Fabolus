@@ -1,6 +1,6 @@
 # Handover: parting split ported onto v1 / GeometryEngine
 
-*2026-10-09. Not committed - working notes for whoever picks this up next.*
+*2026-10-09. Notes for whoever picks this up next.*
 
 ## Where things stand
 
@@ -11,7 +11,7 @@ cutter, severed components - works end to end on the test scans.
 
 | | |
 |---|---|
-| Fabolus branch | `claude/parting-split-port` (from `v1` 67680b5), **local only, not pushed** |
+| Fabolus branch | `claude/parting-split-port` (from `v1` 67680b5), pushed to origin, no PR yet |
 | Worktree | `Fabolus/.claude/worktrees/branch-review-0fb9e4` |
 | Source of the old code | `claude/branch-review-0fb9e4` @ 91b4f83 = `feat/split-mesh` 44eb4e6 + three review fixes |
 | GeometryEngine, merged | PR #5 triangulator fix -> `main` 3ec73b8 |
@@ -89,12 +89,13 @@ dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
    only adds detail to an error message.
 5. **The app has not been run.** Everything is verified by tests only; nobody has opened the
    parting split view or the dark theme on screen.
-6. **Not pushed**: `claude/parting-split-port` has no remote branch or PR.
+6. **No PR yet** for `claude/parting-split-port` - open one from
+   https://github.com/nsmela/Fabolus/pull/new/claude/parting-split-port once the GE pin can move.
 7. Local `feat/split-mesh` is still at 44eb4e6 - the review fixes live on
    `claude/branch-review-0fb9e4` (91b4f83) and were carried into the port.
 
 ## Suggested next steps
 
 1. Investigate issue 1 (smoothing replay -> non-manifold body).
-2. Open/merge the GE geodesic PR, bump the pin, push the port and open a PR against `v1`.
+2. Open/merge the GE geodesic PR, bump the pin, and open the port's PR against `v1`.
 3. Smoke-test the app: import a scan, build a mould, run the parting split, toggle the theme.
