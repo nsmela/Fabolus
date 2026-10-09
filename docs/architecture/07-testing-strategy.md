@@ -4,7 +4,7 @@
 
 In clinical radiation oncology software, automated software verification cannot rely solely on synthetic unit tests with mocked return values. A subtle algorithmic drift or numerical instability in a boolean subtraction can create a non-manifold hole in a casting mould, causing a clinical bolus to leak or fail prior to a scheduled patient treatment.
 
-Fabolus enforces a **pragmatic, multi-tier testing strategy** combining pure domain unit tests with native geometric integration benchmarks executed against real, calibrated patient boluses.
+Fabolus enforces a **pragmatic, multi-tier testing strategy** combining pure domain unit tests with native geometric integration benchmarks executed against real clinical bolus geometry: boluses designed for patient phantoms, and patient boluses with all identifiers removed.
 
 <!-- IMAGE_PLACEHOLDER: [Figure 16.1: Test Pyramid for Fabolus. Diagram illustrating pure domain unit tests (fast, in-memory), geometry engine integration tests with clinical STLs, and MVVM presentation tests. Dimensions: 800x400px.] -->
 

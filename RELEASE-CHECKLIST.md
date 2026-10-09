@@ -13,7 +13,7 @@ Both `nsmela/Fabolus` and `nsmela/GeometryEngine` are **already public**, so the
 - [x] **Add a medical disclaimer.** One wording, in [`DISCLAIMER.txt`](DISCLAIMER.txt): shown by the installer before it installs anything, embedded in the new in-app **About** window (ⓘ button over the viewport), and repeated at the top of the README, on the docs home page, and in the user guide overview.
 - [x] **Add `THIRD-PARTY-NOTICES.md` covering everything the installer ships.** Lists every redistributed component, with the MIT, Boost and BSD-3 texts in full. The Apache-2.0 texts ship as GeometryEngine's `LICENSE.*.txt` files, and the MPL-2.0 source locations are included. `LICENSE` and the notices are copied beside `Fabolus.exe`, so all three artifacts carry them (verified in both zips).
 - [x] **Make the repo buildable outside this machine.** CI and release workflows check out Fabolus and GeometryEngine side by side, with GeometryEngine pinned in [`build/geometryengine.sha`](build/geometryengine.sha). Verified locally in that layout: the solution builds, all tests pass, and `publish.ps1` produces all three artifacts. The setup is documented in the README and CONTRIBUTING.
-- [x] **Verify the tracked test meshes are not real patient data (PHI).** Confirmed by the maintainer (2026-10-05): the 15 `tests/files/*.stl` files and `chin_legacy_smooth.3mf` contain no patient data.
+- [x] **Verify the tracked test meshes are not real patient data (PHI).** Confirmed by the maintainer (2026-10-05, 2026-10-09): the 15 `tests/files/*.stl` files and `chin_legacy_smooth.3mf` hold no identifiable patient data. They are boluses designed for patient phantoms, and patient boluses with all identifiers removed.
 
 ## P1 — Release infrastructure & hygiene
 

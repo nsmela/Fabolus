@@ -60,7 +60,7 @@ Fabolus is released under the [MIT License](LICENSE). The third-party components
 
 ## Screenshots
 
-The workflow on a synthetic chin bolus, from import to export.
+The workflow on one of the test boluses in `tests/files`, from import to export.
 
 **Import and inspect.** Fabolus reports the mesh's volume, area and dimensions, and checks it is manifold and watertight before anything else happens.
 

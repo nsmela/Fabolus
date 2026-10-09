@@ -9,9 +9,11 @@ before features.
 ## Never share patient data
 
 Do not attach real patient meshes, or anything exported from a treatment planning system, to
-issues or pull requests, and never commit them. Test meshes in `tests/files/` must be
-synthetic or fully de-identified. If a bug only shows up with a patient's mesh, describe it
-and we will work out how to reproduce it without the data.
+issues or pull requests, and never commit them. Test meshes in `tests/files/` are boluses
+designed for patient phantoms and patient boluses with all identifiers removed; anything added
+there must be one of those, or synthetic. Check that a mesh carries no identifier in its file
+name or, for 3MF, its metadata. If a bug only shows up with a patient's mesh, describe it and
+we will work out how to reproduce it without the data.
 
 ## Getting set up
 
