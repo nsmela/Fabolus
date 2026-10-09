@@ -79,21 +79,21 @@ public class PartingSplitViewModelTests
     /// groups that used to carry them are gone from the view, so this is the only thing pinning them.
     ///
     /// <para>
-    /// Held on the planar wavefront. The surface sweep was tried here and rejected on how the parting
-    /// mesh looked, so it is not enough for a replacement to divide the mould - it has to be looked at.
+    /// Lofted to the mould by default, so the mating face takes its shape from the mould rather than
+    /// carrying the body's undulation; the marching sweep stays one switch away for comparison. Either
+    /// way the cut is the thin severing one, which is what step two shows.
     /// </para>
     /// </summary>
     [Fact]
-    public void LeavesThePartingLineAlongTheBodyNormals()
+    public void LoftsTheFlangeToTheMouldByDefault()
     {
         var viewModel = CreateViewModel();
-        Assert.Equal(PartingMeshSweep.TangentLaunch, viewModel.MeshSweep);
+        Assert.Equal(PartingMeshSweep.MouldLoft, viewModel.MeshSweep);
         Assert.Equal(PartingSplitMethod.SeveredComponents, viewModel.SplitMethod);
 
-        // The launch is capped by the overhang relaxation, so a slope ceiling at the printable 40
-        // degrees would undo most of it - see FlangeMaxSlopeDeg.
-        Assert.True(viewModel.MeshParameters.FlangeMaxSlopeDeg > 45.0,
-            "a ceiling at the support-free limit caps the launch straight back off");
+        viewModel.UseMouldLoft = false;
+        Assert.Equal(PartingMeshSweep.SurfaceSweep, viewModel.MeshSweep);
+        Assert.Equal(PartingMeshSweep.SurfaceSweep, viewModel.MeshParameters.Sweep);
     }
 
     /// <summary>

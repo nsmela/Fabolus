@@ -126,126 +126,116 @@ public class PartingSplitRecipeEndToEndTests
 
         Assert.Equal(PartingMeshThickening.Extrude, p.Thickening);
         Assert.Equal(0.1, p.Depth);
-        Assert.Equal(PartingMeshSweep.TangentLaunch, p.Sweep);
+        Assert.Equal(PartingMeshSweep.MouldLoft, p.Sweep);
         Assert.Equal(PartingSplitMethod.SeveredComponents, p.SplitMethod);
         Assert.Equal(PartingMeshAxisSource.PartingLine, p.AxisSource);
         Assert.Equal(PartingLineSource.ExtrusionBorder, Recipe().LineParameters.Source);
     }
 
     /// <summary>
-    /// The flange leaves the parting line going the way the body's surface normal goes - the thing the
-    /// pink arrows in step one promise and, until the launch was made to survive the height
-    /// propagation, did not deliver.
-    ///
-    /// <para>
-    /// Measured as a slope comparison, which is the fair test for a planar footprint: the outward
-    /// direction is fixed by the 2D offsetting, but the rise per mm of outward travel is free, and it
-    /// is exactly what the launch sets. On the planar sweep this sat at 3-6 degrees against normals
-    /// asking for 17-48, a mean disagreement of 33-43 degrees; the bar below is set where the launch
-    /// puts it with room to spare rather than at the measured value, so ordinary drift does not fail it.
-    /// </para>
+    /// The flange the view builds, on the body it is traced on, with the recipe resolved as the view
+    /// resolves it - what the two tests below measure.
     /// </summary>
-    [Theory]
-    [InlineData("scalp_bolus.stl")]
-    [InlineData("chin_bolus.stl")]
-    [InlineData("nose_bolus.stl")]
-    public void TheFlangeLeavesAlongTheNormalsTheViewDraws(string file)
+    private static (IMesh Flange, PartingLine Line, BodyMesh Body, PartingMeshParameters Parameters, PartingMeshFeature Feature)
+        ViewsFlange(string file, bool loft = true)
     {
         var engine = global::GeometryEngine.BspGeometryEngine.Create();
         var imported = engine.IO.Import(AssetPath(file));
         Assert.True(imported.IsSuccess);
 
-        // Recorded as its own base, as an import does, so the mould's history can be replayed back
-        // to the body the line is traced on.
         var record = MeshRecord.ForImport(file).WithBaseMesh(imported.Value);
         var workspace = Workspace.CreateEmpty().AddMesh(imported.Value, record).Value;
-        var bodyId = record.Id;
         var mould = new GenerateMould(engine).Execute(
-            workspace, bodyId, new ConvexMouldDefinition(3.0, 3.0, 3.0) { TargetMeshId = bodyId });
-        var validated = MouldMesh.Create(mould.Value.GetMesh(bodyId).Value, mould.Value.GetRecord(bodyId).Value).Value;
+            workspace, record.Id, new ConvexMouldDefinition(3.0, 3.0, 3.0) { TargetMeshId = record.Id });
+        var validated = MouldMesh.Create(mould.Value.GetMesh(record.Id).Value, mould.Value.GetRecord(record.Id).Value).Value;
 
         var view = Recipe();
+        view.UseMouldLoft = loft;
         var feature = new PartingMeshFeature(engine);
         var body = feature.GetBodyMesh(validated).Value;
         var line = feature.GeneratePartingLineFromBody(body, view.LineParameters).Value;
-        var loop = line.Loops[0];
-        var normals = feature.SampleSurfaceNormals(body, loop).Value;
+        var parameters = PartingMeshFeature.ResolveAxis(line, view.MeshParameters).Value;
+        var contour = feature.GenerateOuterContour(validated, parameters).Value;
+        var flange = feature.GenerateFlangeSurface(line, contour, parameters, body);
+        Assert.True(flange.IsSuccess, flange.IsFailure ? flange.Error.Description : "");
 
-        var p = PartingMeshFeature.ResolveAxis(line, view.MeshParameters).Value;
-        var contour = feature.GenerateOuterContour(validated, p).Value;
-        var flange = feature.GenerateFlangeSurface(line, contour, p, body).Value;
-
-        // Sampled at several distances out, not just next to the line. A flange that leaves along the
-        // normal and then peels off further out reads as perfect at 5mm - which is exactly what the
-        // first version of this test did, and it passed while the flange was 30 degrees adrift by
-        // 40mm. Every distance has to hold.
-        foreach (double outMm in new[] { 5.0, 10.0, 20.0, 40.0 })
-        {
-            double error = MeanSlopeDisagreementDeg(flange, loop, normals, p.Axis, outMm);
-            if (error < 0)
-            {
-                _out.WriteLine($"{file}: at {outMm,2:F0}mm out - flange does not reach, skipped");
-                continue;
-            }
-
-            _out.WriteLine($"{file}: at {outMm,2:F0}mm out, mean disagreement with the drawn normals = {error:F1} deg");
-
-            Assert.True(error < 25.0,
-                $"{outMm}mm out the flange departs {error:F1} deg from the normals the view draws - " +
-                "the launch is being flattened, most likely by the height propagation, the slope " +
-                "ceiling, or a normal-follow distance shorter than the flange");
-        }
+        return (flange.Value, line, body, parameters, feature);
     }
 
     /// <summary>
-    /// Mean angle between the slope the flange actually leaves at and the slope the body's normal
-    /// implies, sampled around the parting line. Vertices are matched in the FOOTPRINT so a neighbour
-    /// along the rim can never be mistaken for one further out.
+    /// What the loft is for: a mating face that lies close to the parting plane rather than carrying
+    /// the body's undulation out to the mould's wall. Measured as each face's angle off that plane -
+    /// the median, area-weighted so a swarm of slivers cannot outvote the face they sit on - and held
+    /// both against the marching sweep beside it, which it has to beat, and against the 40 degrees the
+    /// parameters already declare as the flange's slope ceiling, which it has to keep under.
     /// </summary>
-    private static double MeanSlopeDisagreementDeg(
-        IMesh flange, IReadOnlyList<Vector3> loop,
-        IReadOnlyList<Vector3> normals, Vector3 axis, double outMm)
+    [Theory]
+    [InlineData("chin_bolus.stl")]
+    [InlineData("scalp_bolus.stl")]
+    [InlineData("nose_bolus.stl")]
+    public void TheMatingFaceLiesCloseToThePartingPlane(string file)
     {
-        var centre = Vector2.Zero;
-        foreach (var q in loop) centre += PartingFrame.ToPlane(q, axis);
-        centre /= loop.Count;
+        double lofted = MedianSlopeDeg(ViewsFlange(file, loft: true));
+        double marched = MedianSlopeDeg(ViewsFlange(file, loft: false));
+        _out.WriteLine($"{file}: median face off the parting plane - loft {lofted:F1} deg, marching sweep {marched:F1} deg");
 
-        var (bu, bv) = PartingFrame.Basis(axis);
-        var fv = flange.Vertices;
-        double sum = 0; int n = 0;
+        Assert.True(lofted < marched, $"the loft ({lofted:F1} deg) is no flatter than the sweep it replaced ({marched:F1} deg)");
+        Assert.True(lofted < 40, $"the median face is {lofted:F1} deg off the parting plane");
+    }
 
-        for (int i = 0; i < loop.Count; i += Math.Max(1, loop.Count / 60))
+    private static double MedianSlopeDeg(
+        (IMesh Flange, PartingLine Line, BodyMesh Body, PartingMeshParameters Parameters, PartingMeshFeature Feature) built)
+    {
+        var (flange, _, _, parameters, _) = built;
+        var axis = parameters.Axis.Normalize();
+        var vertices = flange.Vertices;
+        var triangles = flange.Triangles;
+
+        var slopes = new List<(double Degrees, double Area)>(triangles.Length / 3);
+        double total = 0;
+        for (int f = 0; f + 2 < triangles.Length; f += 3)
         {
-            var fp0 = PartingFrame.ToPlane(loop[i], axis);
-            double h0 = loop[i].Dot(axis);
+            var (a, b, c) = (vertices[triangles[f]], vertices[triangles[f + 1]], vertices[triangles[f + 2]]);
+            var cross = (b - a).Cross(c - a);
+            if (cross.Length < 1e-12) continue;
 
-            var outward = fp0 - centre;
-            if (outward.LengthSquared < 1e-6) continue;
-            outward = outward.Normalize();
-
-            var target = fp0 + (outward * outMm);
-            double best = double.MaxValue, hAt = 0; bool found = false;
-            foreach (var v in fv)
-            {
-                double d = PartingFrame.ToPlane(v, axis).DistanceSquared(target);
-                if (d < best) { best = d; hAt = v.Dot(axis); found = true; }
-            }
-            if (!found || best > 9.0) continue;
-
-            double actual = (hAt - h0) / outMm;
-            var nrm = normals[i];
-            var inPlane = new Vector2(
-                nrm.Dot(bu), nrm.Dot(bv));
-            if (inPlane.Length < 1e-3) continue;
-            double wanted = nrm.Dot(axis) / inPlane.Length;
-
-            sum += Math.Abs(Math.Atan(actual) - Math.Atan(wanted)) * 180 / Math.PI;
-            n++;
+            double area = cross.Length / 2;
+            double degrees = Math.Acos(Math.Clamp(Math.Abs((cross / cross.Length).Dot(axis)), 0, 1)) * 180 / Math.PI;
+            slopes.Add((degrees, area));
+            total += area;
         }
 
-        // Negative means nothing was in range at this distance - a body whose flange simply does
-        // not reach that far. The caller skips those rather than failing on them.
-        return n == 0 ? -1 : sum / n;
+        slopes.Sort((x, y) => x.Degrees.CompareTo(y.Degrees));
+        double running = 0, median = slopes[^1].Degrees;
+        foreach (var (degrees, area) in slopes)
+        {
+            running += area;
+            if (running >= total / 2) { median = degrees; break; }
+        }
+
+        return median;
+    }
+
+    /// <summary>
+    /// And it still has to seal. A flatter face is only worth having if the flange still meets the
+    /// body inside it all the way round: a rim point left outside is a hairline bridge of mould the
+    /// cut leaves standing, holding the halves together.
+    /// </summary>
+    [Theory]
+    [InlineData("chin_bolus.stl")]
+    [InlineData("scalp_bolus.stl")]
+    [InlineData("nose_bolus.stl")]
+    public void TheFlangeStillSealsIntoTheBody(string file)
+    {
+        var (flange, line, body, parameters, feature) = ViewsFlange(file);
+
+        var seal = feature.InspectFlangeSeal(flange, body, line, parameters);
+        Assert.True(seal.IsSuccess, seal.IsFailure ? seal.Error.Description : "");
+
+        int breached = seal.Value.Count(p => !p.IsSealed);
+        _out.WriteLine($"{file}: {breached} of {seal.Value.Count} rim points outside the body");
+        Assert.True(seal.Value.Count > 0, "no rim was found to inspect");
+        Assert.Equal(0, breached);
     }
 
     private static double Volume(IMesh mesh)
