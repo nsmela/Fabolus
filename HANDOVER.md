@@ -15,7 +15,7 @@ cutter, severed components - works end to end on the test scans.
 | Worktree | `Fabolus/.claude/worktrees/branch-review-0fb9e4` (the name is historical; it has the port branch checked out) |
 | Source of the old code | `claude/branch-review-0fb9e4` @ 91b4f83 = `feat/split-mesh` 44eb4e6 + three review fixes |
 | GeometryEngine, merged | PR #5 triangulator fix -> `main` 3ec73b8; PR #6 `ISpatialQueries.ShortestPath` -> `main` 5e8f7cd |
-| GeometryEngine, local only, not pushed | `claude/decimate-seam-weld` 26eeea3 on 5e8f7cd - `Decimate` welds only seams (open issue 1) |
+| GeometryEngine, pushed, PR not yet opened | `claude/decimate-seam-weld` 26eeea3 on 5e8f7cd - `Decimate` welds only seams (open issue 1) |
 | GeometryEngine worktree to build against | `GeometryEngine/.claude/worktrees/offset-pinches` (the name is historical; it has `claude/decimate-seam-weld`). `surface-geodesic` (d8bcaa1) is the same tree as the pin |
 | Fabolus GE pin | `build/geometryengine.sha` = 5e8f7cd (was 39b31c2, which lacks `ShortestPath`) |
 
@@ -82,14 +82,14 @@ dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
 
 ## Open issues, most important first
 
-1. **Saved chin and larynx moulds: fixed, but the GE half is not pushed.** Their replayed bodies
+1. **Saved chin and larynx moulds: fixed, but the GE half is not merged.** Their replayed bodies
    came back with non-manifold edges and the trace refused them. Cause: the smoothing's GE `Offset`
    (Manifold's level set) emits a point once per sheet where the surface touches itself, and then
    both GE `Decimate` and Fabolus's parting code welded by position, fusing the sheets. Fixed by
    welding only seams in both: Fabolus 7f8bf19 here, GE 26eeea3 on `claude/decimate-seam-weld`.
    Each half alone still fails. With both, all eight saved moulds trace, 3 runs out of 3
-   (`FABOLUS_DIAGNOSTICS=1`, `EditLoopCoverage`). **To finish:** push the GE branch, open and merge
-   its PR, then move `build/geometryengine.sha` to the merge commit. Until then the pin builds,
+   (`FABOLUS_DIAGNOSTICS=1`, `EditLoopCoverage`). **To finish:** open and merge the GE PR from
+   https://github.com/nsmela/GeometryEngine/pull/new/claude/decimate-seam-weld, then move `build/geometryengine.sha` to the merge commit. Until then the pin builds,
    but those moulds still fail.
    - Rejected: nudging the copies apart in `Offset`. Any step, in any direction, made crossings
      (2-4 on the bodies; 1,800 -> 5,400 on scalp's offset cutter).
@@ -114,6 +114,6 @@ dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
 
 ## Suggested next steps
 
-1. Push GE `claude/decimate-seam-weld`, open and merge its PR, and bump the pin (issue 1).
+1. Open and merge the GE `claude/decimate-seam-weld` PR, and bump the pin (issue 1).
 2. Open the port's PR against `v1` (see issue 5).
 3. Smoke-test the app: import a scan, build a mould, run the parting split, toggle the theme.
