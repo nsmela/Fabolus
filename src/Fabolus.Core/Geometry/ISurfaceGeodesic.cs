@@ -7,8 +7,8 @@ namespace Fabolus.Core.Geometry;
 /// A type rather than a bare function for the same reason <see cref="ISurfaceProjector"/> is: the cost
 /// is in the setup. Answering one query needs a spatial index to find the two ends on the surface and a
 /// topology to walk between them, and building those per call would dwarf every caller here - a handle
-/// dragged across the rim asks for two paths per frame against a mesh that does not change. Holding the
-/// geodesic holds both, and disposing it releases the native mesh behind them.
+/// dragged across the rim asks for two paths per frame against a mesh that does not change. The engine
+/// keeps both with the mesh, so an implementation can hold nothing; disposing is for one that does.
 /// </para>
 ///
 /// <para>

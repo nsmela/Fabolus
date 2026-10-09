@@ -82,8 +82,7 @@ public interface IPartingTools
     /// <summary>
     /// A shortest-path finder across <paramref name="mesh"/>, for callers that need to join two points
     /// on a surface by the route the surface itself allows. The returned handle must be disposed; see
-    /// <see cref="ISurfaceGeodesic"/>. Not yet available on GeometryEngine, so this currently fails
-    /// and callers fall back to walking the band.
+    /// <see cref="ISurfaceGeodesic"/>.
     /// </summary>
     Result<ISurfaceGeodesic> CreateSurfaceGeodesic(IMesh mesh);
 

@@ -371,11 +371,29 @@ public sealed class PartingTools : IPartingTools
         public void Dispose() { }
     }
 
+    public Result<ISurfaceGeodesic> CreateSurfaceGeodesic(IMesh mesh)
+    {
+        if (mesh is null) return MeshErrors.NullSource;
+        if (mesh.IsEmpty) return MeshErrors.InvalidMesh;
+
+        return Result.Success<ISurfaceGeodesic>(new SurfaceGeodesic(_engine, mesh));
+    }
+
     /// <summary>
-    /// Not yet available: GeometryEngine has no geodesic path finder. Callers already treat this as
-    /// optional - the line editor walks the band instead when it has no geodesic.
+    /// GeometryEngine's shortest path across the surface. The face graph it walks and the index it
+    /// finds the two ends with are both kept with the mesh by the engine, so this holds nothing of its
+    /// own and has nothing to release.
     /// </summary>
-    public Result<ISurfaceGeodesic> CreateSurfaceGeodesic(IMesh mesh) => MeshErrors.NotImplemented;
+    private sealed class SurfaceGeodesic(IGeometryEngine engine, IMesh mesh) : ISurfaceGeodesic
+    {
+        public IReadOnlyList<Vector3>? Path(Vector3 from, Vector3 to)
+        {
+            var path = engine.Spatial.ShortestPath(mesh, from, to);
+            return path.IsSuccess ? path.Value : null;
+        }
+
+        public void Dispose() { }
+    }
 
     public Result<IReadOnlyList<Vector3>> GenerateInnerConcaveContour(IMesh referenceMesh, PartingLine partingLine, double offset = 0)
     {
