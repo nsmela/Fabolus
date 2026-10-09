@@ -15,7 +15,8 @@ cutter, severed components - works end to end on the test scans.
 | Worktree | `Fabolus/.claude/worktrees/branch-review-0fb9e4` (the name is historical; it has the port branch checked out) |
 | Source of the old code | `claude/branch-review-0fb9e4` @ 91b4f83 = `feat/split-mesh` 44eb4e6 + three review fixes |
 | GeometryEngine, merged | PR #5 triangulator fix -> `main` 3ec73b8; PR #6 `ISpatialQueries.ShortestPath` -> `main` 5e8f7cd |
-| GeometryEngine worktree to build against | `GeometryEngine/.claude/worktrees/surface-geodesic` (d8bcaa1, the same tree as 5e8f7cd) |
+| GeometryEngine, local only, not pushed | `claude/decimate-seam-weld` 26eeea3 on 5e8f7cd - `Decimate` welds only seams (open issue 1) |
+| GeometryEngine worktree to build against | `GeometryEngine/.claude/worktrees/offset-pinches` (the name is historical; it has `claude/decimate-seam-weld`). `surface-geodesic` (d8bcaa1) is the same tree as the pin |
 | Fabolus GE pin | `build/geometryengine.sha` = 5e8f7cd (was 39b31c2, which lacks `ShortestPath`) |
 
 ## Build and test
@@ -23,17 +24,18 @@ cutter, severed components - works end to end on the test scans.
 Build the two test projects, not the `.sln` (it hard-codes sibling paths a worktree breaks):
 
 ```
-G='C:\Users\nsmel\source\repos\nsmela\GeometryEngine\.claude\worktrees\surface-geodesic\'
+G='C:\Users\nsmel\source\repos\nsmela\GeometryEngine\.claude\worktrees\offset-pinches\'
 dotnet test tests/Fabolus.Core.Tests -p:GeometryEngineRoot="$G"
 dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
 ```
 
-- Core: **293-294 passed, 9-10 failed, 32 skipped** (31 diagnostics + 1 skipped on v1); the chin
-  offset case is flaky (see open issues).
+- Core: **296-297 passed, 9-10 failed, 32 skipped** (31 diagnostics + 1 skipped on v1); the chin
+  offset case is flaky (see open issues). The same against the pin and against the GE branch.
 - Wpf: **173 passed, 9 skipped, 0 failed**.
 - Diagnostics run only with `FABOLUS_DIAGNOSTICS=1` (like benchmarks with `FABOLUS_BENCH=1`).
 - GeometryEngine's tests: `dotnet run --project tests/GeometryEngine.Tests -- <word>` in its
-  worktree (custom runner; the filter matches a word of the humanised test name). 306/306.
+  worktree (custom runner; the filter matches a single word of the humanised test name). 310/310
+  on `claude/decimate-seam-weld`.
 
 ## Commits on the port branch
 
@@ -48,6 +50,9 @@ dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
 | b191507 | View tests hold the `MouldLoft` recipe (level face, still seals) |
 | 131c49c | Dark theme from the branch, dark by default (user's choice) |
 | 8e1cba3 | Diagnostics + the branch's saved `.3mf` moulds |
+| 2e36767 | GE pin -> 5e8f7cd |
+| 03576c6 | `docs/parting-strategy-report.md`, the branch's agent notes (kept off the docs site) |
+| 7f8bf19 | `SeamWeld`: the parting code welds only seams (half of open issue 1's fix) |
 
 ## Design decisions worth knowing
 
@@ -69,15 +74,27 @@ dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
   `SelfIntersectingFaces` rather than widening GE.
 - **New packages.** Core references Clipper2 directly (GE already uses it; it is in
   `THIRD-PARTY-NOTICES.md`). Core's tests add SkiaSharp for the diagnostics' images; it does not ship.
+- **Welding is by seam, not by position.** `RidgeDetection` and `ThicknessParting` build adjacency
+  through `SeamWeld`: only vertices on an edge with one triangle are matched by position. A GE offset
+  emits a self-touching point once per sheet; welding those fused sheets the mesh holds apart. GE's
+  `Decimate` follows the same rule on `claude/decimate-seam-weld`.
 - **Not carried over**: three `Fabolus.Wpf_*_wpftmp.csproj` build leftovers the branch committed.
 
 ## Open issues, most important first
 
-1. **Saved chin and larynx moulds no longer trace a parting line on v1.** Their bodies, rebuilt by
-   replaying the saved history, come back with non-manifold edges (chin 6, both larynx 2), and the
-   trace refuses them. On the branch they traced. The body has twice the base mesh's triangles, so
-   the suspect is v1's smoothing replay (now GE, was MeshLib). This hits real saved projects - start
-   here. Reproduce: `FABOLUS_DIAGNOSTICS=1`, run `EditLoopCoverage`.
+1. **Saved chin and larynx moulds: fixed, but the GE half is not pushed.** Their replayed bodies
+   came back with non-manifold edges and the trace refused them. Cause: the smoothing's GE `Offset`
+   (Manifold's level set) emits a point once per sheet where the surface touches itself, and then
+   both GE `Decimate` and Fabolus's parting code welded by position, fusing the sheets. Fixed by
+   welding only seams in both: Fabolus 7f8bf19 here, GE 26eeea3 on `claude/decimate-seam-weld`.
+   Each half alone still fails. With both, all eight saved moulds trace, 3 runs out of 3
+   (`FABOLUS_DIAGNOSTICS=1`, `EditLoopCoverage`). **To finish:** push the GE branch, open and merge
+   its PR, then move `build/geometryengine.sha` to the merge commit. Until then the pin builds,
+   but those moulds still fail.
+   - Rejected: nudging the copies apart in `Offset`. Any step, in any direction, made crossings
+     (2-4 on the bodies; 1,800 -> 5,400 on scalp's offset cutter).
+   - Still true: GE `Offset` is not deterministic (vertex order varies run to run), and a pinched
+     body exported as STL is non-manifold to a slicer, which welds by position. Neither is new on v1.
 2. **Known Core failures (none on the app's recipe):**
    - Half-space split (5) - halves not watertight / overlapping; GE boolean quality. Two of these
      also failed on MeshLib.
@@ -97,6 +114,6 @@ dotnet test tests/Fabolus.Wpf.Tests  -p:GeometryEngineRoot="$G"
 
 ## Suggested next steps
 
-1. Investigate issue 1 (smoothing replay -> non-manifold body).
+1. Push GE `claude/decimate-seam-weld`, open and merge its PR, and bump the pin (issue 1).
 2. Open the port's PR against `v1` (see issue 5).
 3. Smoke-test the app: import a scan, build a mould, run the parting split, toggle the theme.
