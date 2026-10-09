@@ -19,7 +19,7 @@
 #endif
 
 #define AppName        "Fabolus"
-#define AppPublisher   "nsmela"
+#define AppPublisher   "Provincial Health Services Authority"
 #define AppUrl         "https://github.com/nsmela/Fabolus"
 #define AppExeName     "Fabolus.exe"
 #define IconSource     "..\..\src\Fabolus.Wpf\Fabolus icon resized.ico"
@@ -54,6 +54,10 @@ SetupIconFile={#IconSource}
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName} {#AppVersion}
 WizardStyle=modern
+
+; The medical disclaimer, shown before anything is installed. The same file is embedded in
+; the app's About window. LICENSE and THIRD-PARTY-NOTICES.md arrive with the payload.
+InfoBeforeFile=..\..\DISCLAIMER.txt
 
 ; If Fabolus is running, its files are locked and the install would fail part-way.
 ; Let the Restart Manager detect and close it first rather than erroring out.

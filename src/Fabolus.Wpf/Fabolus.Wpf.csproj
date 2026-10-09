@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Platforms>x64</Platforms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -20,7 +20,8 @@
          InformationalVersion are all derived from it. CI overrides with -p:Version=<tag>. -->
     <Version>0.9.4</Version>
     <Product>Fabolus</Product>
-    <Company>nsmela</Company>
+    <Company>Provincial Health Services Authority</Company>
+    <Copyright>© 2017–2026 Provincial Health Services Authority</Copyright>
 
     <!-- Drop the MahApps/HelixToolkit localisation subfolders from published output -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
@@ -32,6 +33,18 @@
 
   <ItemGroup>
     <Content Include="Fabolus icon resized.ico" />
+  </ItemGroup>
+
+  <!-- The licence and notices ship beside Fabolus.exe in every build, so all three release
+       artifacts carry them; the installer packages the same folder. -->
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <!-- The About window's medical disclaimer. Embedded, not copied, so it cannot go missing. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\DISCLAIMER.txt" LogicalName="Fabolus.Disclaimer.txt" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>

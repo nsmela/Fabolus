@@ -7,6 +7,7 @@ using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.About;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Export;
 using Fabolus.Wpf.Features.MeshManager;
@@ -237,6 +238,13 @@ public partial class MainViewModel : ObservableObject
         preferences.WindowState = WindowState.Normal;
         preferences.Activate();
 
+    }
+
+    [RelayCommand]
+    public void OpenAbout()
+    {
+        var about = new AboutView(new AboutViewModel()) { Owner = Application.Current.MainWindow };
+        about.ShowDialog();
     }
 
     /// <summary>

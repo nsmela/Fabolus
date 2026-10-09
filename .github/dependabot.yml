@@ -1,0 +1,31 @@
+version: 2
+
+updates:
+  # NuGet packages. Grouped so a month's updates arrive as one pull request rather than a
+  # dozen. Test-only packages are grouped separately: they never ship, so they are low risk.
+  - package-ecosystem: nuget
+    directory: /
+    target-branch: v1
+    schedule:
+      interval: monthly
+    groups:
+      test-dependencies:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet*"
+          - "FluentAssertions"
+          - "Moq"
+      app-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: v1
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns:
+          - "*"

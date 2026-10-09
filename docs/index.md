@@ -2,6 +2,14 @@
 
 Welcome to the **Fabolus** project documentation. Fabolus is an open-source, specialized CAD/CAM application engineered for radiation oncology to assist medical physicists, radiation therapists, and clinical 3D printing engineers in designing patient-specific radiotherapy boluses and sacrificial silicone casting moulds.
 
+!!! danger "Medical disclaimer"
+
+    **Fabolus is not a medical device.** It has not been cleared, approved or certified by any medical device regulator, and it is not intended to diagnose, treat or plan treatment for any patient.
+
+    Fabolus is provided "as is", without warranty of any kind. Every bolus and mould it produces must be independently verified by qualified clinical staff (including its dimensions, thickness, volume and fit) under your institution's own quality-assurance procedures before it is used on a patient. The clinical workflow in this documentation describes how the software is used; it is not clinical guidance.
+
+    You use Fabolus entirely at your own risk. The authors accept no liability for any outcome of its use.
+
 <!-- IMAGE_PLACEHOLDER: [Figure 0.1: Fabolus Application Overview. Full-screen capture of the Fabolus main window displaying an anatomical bolus mesh loaded in the DirectX 3D viewport, with the step navigation header, interactive transform gizmo, and real-time physical properties panel.] -->
 
 ---

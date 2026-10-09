@@ -3,7 +3,7 @@ site_description: Specialized CAD/CAM Application for Radiotherapy Bolus Prepara
 site_author: Nathan Smela
 repo_name: nsmela/Fabolus
 repo_url: https://github.com/nsmela/Fabolus
-edit_uri: edit/feat/docs/docs/
+edit_uri: edit/v1/docs/
 
 exclude_docs: |
   README.md

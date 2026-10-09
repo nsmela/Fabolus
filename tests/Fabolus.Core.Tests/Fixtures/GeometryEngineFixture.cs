@@ -50,7 +50,7 @@ public class GeometryEngineFixture
 
         // Search upward for the shared asset folder rather than hopping a fixed number of
         // levels: the output layout gains a directory when a platform is set
-        // (bin/Release/net8.0 vs bin/x64/Release/net8.0), which a fixed count gets wrong.
+        // (bin/Release/net10.0 vs bin/x64/Release/net10.0), which a fixed count gets wrong.
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {

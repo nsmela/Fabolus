@@ -2,7 +2,7 @@
 
 ## MVVM with .NET CommunityToolkit
 
-The user interface of Fabolus is built using modern **WPF on .NET 8**, leveraging the **CommunityToolkit.Mvvm** framework. Through compile-time Roslyn source generators, boilerplate code is eliminated while maintaining high performance and zero reflection overhead:
+The user interface of Fabolus is built using modern **WPF on .NET 10**, leveraging the **CommunityToolkit.Mvvm** framework. Through compile-time Roslyn source generators, boilerplate code is eliminated while maintaining high performance and zero reflection overhead:
 
 ```csharp
 public partial class SmoothingViewModel : ObservableObject, IViewState 

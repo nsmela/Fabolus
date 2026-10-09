@@ -2,6 +2,10 @@
 
 Fabolus is used to prepare a 3D mesh for 3D printing either as a smoothed, solid plastic print or as a sacrificial mould for silicone casting. It takes a mesh exported from a Treatment Planning System (TPS) and turns it into a print-ready file, keeping the full editing history so a project can be re-opened and adjusted later.
 
+!!! danger "Not a medical device"
+
+    Fabolus has not been cleared or approved by any medical device regulator and is provided without warranty. Every bolus and mould it produces must be independently verified by qualified clinical staff before it is used on a patient. See the full medical disclaimer on the [documentation home page](../index.md).
+
 <!-- IMAGE_PLACEHOLDER: [Figure 1.1: Fabolus main window with a bolus mesh loaded in the 3D viewport, the step navigation header, and the info panel.] -->
 
 ---

@@ -378,6 +378,16 @@
                         </Viewbox>
                     </Button>
 
+                    <Button Command="{Binding OpenAboutCommand}" Width="33" Height="33" Margin="4"
+                    Style="{StaticResource Button.Secondary}" ToolTip="About Fabolus">
+                        <Viewbox Width="16" Height="16">
+                            <Path Data="{StaticResource Icon.About}"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.5" Fill="{x:Null}"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Viewbox>
+                    </Button>
+
                 </StackPanel>
 
                 <!-- Info Pane-->
