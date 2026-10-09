@@ -1,3 +1,4 @@
+using Fabolus.Core.Features.PartingSplit;
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
@@ -98,6 +99,48 @@ public class RidgeDetectionTests
         RidgeDetection.FindRidgeFaces(null!, RidgeDetectionOptions.Default).Should().BeEmpty();
     }
 
+
+    [Fact]
+    public void Execute_ShadesOnlyByDraft()
+    {
+        // The rim is drawn as a contour over the top of this shading, not mixed into it, so every
+        // face must come back as one of the three draft colours whatever the shape is doing.
+        var tent = Tent(foldDegrees: 90.0, spanMm: 60.0, panels: 12);
+        RidgeDetection.FindRidgeFaces(tent, RidgeDetectionOptions.Default).Should().Contain(true);
+
+        var result = new ComputePartingDirectionColors()
+            .Execute(tent, new PartingLineParameters { PullDirection = Vector3.UnitY });
+
+        result.IsSuccess.Should().BeTrue();
+        for (int t = 0; t < result.Value.Length / 3; t++)
+        {
+            var rgb = (result.Value[t * 3], result.Value[(t * 3) + 1], result.Value[(t * 3) + 2]);
+            rgb.Should().BeOneOf((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.8, 0.8, 0.8));
+        }
+    }
+
+    [Fact]
+    public void Execute_Sphere_SplitsEvenlyByDraft()
+    {
+        var sphere = _engine.Generators.GenerateSphere(Vector3.Zero, 30.0, 48);
+        var sut = new ComputePartingDirectionColors();
+
+        var result = sut.Execute(
+            sphere.Value, new PartingLineParameters { PullDirection = Vector3.UnitY });
+
+        result.IsSuccess.Should().BeTrue();
+
+        int red = 0, green = 0;
+        int faces = result.Value.Length / 3;
+        for (int t = 0; t < faces; t++)
+        {
+            if (result.Value[t * 3] > 0.9) red++;
+            if (result.Value[(t * 3) + 1] > 0.9) green++;
+        }
+
+        red.Should().BeGreaterThan(faces / 3);
+        green.Should().BeGreaterThan(faces / 3);
+    }
 
     // --- helpers --- //
 

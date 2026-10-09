@@ -1,4 +1,5 @@
 using BasicResults;
+using Fabolus.Core.Features.PartingSplit;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using System.Collections.Immutable;
@@ -42,9 +43,44 @@ public sealed class ExportMesh {
         if (record is null)
             return MeshErrors.ExportRecordIsNull;
 
-        return FabolusPackage.IsPackage(filePath)
-            ? ExportPackage(mesh, record, filePath, overwrite)
-            : _geometryEngine.IO.Export(mesh, filePath, overwrite);
+        if (FabolusPackage.IsPackage(filePath))
+            return ExportPackage(mesh, record, filePath, overwrite);
+
+        // A parting cut kept as one mesh can still have been asked for as separate pieces. The
+        // package carries that choice with the rest of the recipe, so it is only acted on here,
+        // when the cut leaves for a format that holds nothing but geometry.
+        var mode = record.Command<CutCommand>()?.Mode ?? PartingResultMode.Combined;
+        return mode == PartingResultMode.Combined
+            ? _geometryEngine.IO.Export(mesh, filePath, overwrite)
+            : ExportPieces(mesh, filePath, overwrite);
+    }
+
+    /// <summary>
+    /// Writes each disconnected piece of <paramref name="mesh"/> to a file of its own, lettered
+    /// beside <paramref name="filePath"/>. A mesh that is only one piece is written as it is rather
+    /// than as a lone "_A".
+    /// </summary>
+    private Result ExportPieces(IMesh mesh, string filePath, bool overwrite) {
+        var componentsResult = _geometryEngine.Evaluators.SeparateComponents(mesh);
+        if (componentsResult.IsFailure)
+            return componentsResult.Error;
+
+        var components = componentsResult.Value;
+        if (components.Length < 2)
+            return _geometryEngine.IO.Export(mesh, filePath, overwrite);
+
+        var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
+        var name = Path.GetFileNameWithoutExtension(filePath);
+        var extension = Path.GetExtension(filePath);
+
+        for (int i = 0; i < components.Length; i++) {
+            var partPath = Path.Combine(directory, $"{name}_{(char)('A' + i)}{extension}");
+            var export = _geometryEngine.IO.Export(components[i], partPath, overwrite);
+            if (export.IsFailure)
+                return export.Error;
+        }
+
+        return Result.Success();
     }
 
     private Result ExportPackage(IMesh mesh, MeshRecord record, string filePath, bool overwrite) {
