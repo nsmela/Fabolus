@@ -19,7 +19,7 @@
 #endif
 
 #define AppName        "Fabolus"
-#define AppPublisher   "nsmela"
+#define AppPublisher   "Provincial Health Services Authority"
 #define AppUrl         "https://github.com/nsmela/Fabolus"
 #define AppExeName     "Fabolus.exe"
 #define IconSource     "..\..\src\Fabolus.Wpf\Fabolus icon resized.ico"
