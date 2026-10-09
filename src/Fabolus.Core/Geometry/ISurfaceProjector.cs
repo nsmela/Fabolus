@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// Maps a point to the closest point on a surface, over and over, against one mesh.

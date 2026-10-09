@@ -1,12 +1,8 @@
-using System.Numerics;
 using Fabolus.Core.Geometry;
 using FluentAssertions;
 using Xunit;
 
 namespace Fabolus.Core.Tests.Features.PartingSplit;
-
-using Vector3 = System.Numerics.Vector3;
-using Vector2 = System.Numerics.Vector2;
 
 /// <summary>
 /// Guards the needle-spike removal in <see cref="PartingLineSmoother"/>. The marching-triangles
@@ -21,21 +17,21 @@ public class PartingLineSmootherTests
     private static List<Vector3> CircleWithNeedle()
     {
         const int n = 120;
-        const float radius = 40f;
+        const double radius = 40.0;
         var pts = new List<Vector3>(n + 4);
         for (int i = 0; i < n; i++)
         {
             double a = 2 * Math.PI * i / n;
-            pts.Add(new Vector3((float)(radius * Math.Cos(a)), 0f, (float)(radius * Math.Sin(a))));
+            pts.Add(new Vector3((double)(radius * Math.Cos(a)), 0.0, (double)(radius * Math.Sin(a))));
         }
 
         // Inject a needle at ~1/4 of the way round: a tiny back-and-forth wobble spanning < 1mm,
         // exactly the shape the isoline walk emits and that Taubin smoothing cannot flatten.
         int at = n / 4;
         var baseP = pts[at];
-        pts.Insert(at + 1, baseP + new Vector3(0.35f, 0f, 0.30f));
-        pts.Insert(at + 2, baseP + new Vector3(-0.20f, 0f, -0.15f));
-        pts.Insert(at + 3, baseP + new Vector3(0.15f, 0f, 0.10f));
+        pts.Insert(at + 1, baseP + new Vector3(0.35, 0.0, 0.30));
+        pts.Insert(at + 2, baseP + new Vector3(-0.20, 0.0, -0.15));
+        pts.Insert(at + 3, baseP + new Vector3(0.15, 0.0, 0.10));
         return pts;
     }
 
@@ -50,8 +46,8 @@ public class PartingLineSmootherTests
             var q = loop[(i + 1) % n];
             var a = new Vector2(c.X - p.X, c.Z - p.Z);
             var b = new Vector2(q.X - c.X, q.Z - c.Z);
-            if (a.Length() < 1e-6f || b.Length() < 1e-6f) continue;
-            double dot = Math.Clamp(Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b)), -1, 1);
+            if (a.Length < 1e-6 || b.Length < 1e-6) continue;
+            double dot = Math.Clamp(a.Normalize().Dot(b.Normalize()), -1, 1);
             worst = Math.Max(worst, Math.Acos(dot) * 180.0 / Math.PI);
         }
         return worst;
@@ -90,20 +86,20 @@ public class PartingLineSmootherTests
     private static List<Vector3> CircleWithFootprintHook()
     {
         const int n = 160;
-        const float radius = 40f;
+        const double radius = 40.0;
         var pts = new List<Vector3>(n + 4);
         for (int i = 0; i < n; i++)
         {
             double a = 2 * Math.PI * i / n;
-            pts.Add(new Vector3((float)(radius * Math.Cos(a)), 0f, (float)(radius * Math.Sin(a))));
+            pts.Add(new Vector3((double)(radius * Math.Cos(a)), 0.0, (double)(radius * Math.Sin(a))));
         }
 
         pts.InsertRange(n / 3 + 1, new[]
         {
-            new Vector3(28f, -4f, 22f),
-            new Vector3(14f, -6f, 30f),
-            new Vector3(20f, -5f, 38f),
-            new Vector3(34f, -3f, 26f),
+            new Vector3(28.0, -4.0, 22.0),
+            new Vector3(14.0, -6.0, 30.0),
+            new Vector3(20.0, -5.0, 38.0),
+            new Vector3(34.0, -3.0, 26.0),
         });
         return pts;
     }
@@ -128,12 +124,12 @@ public class PartingLineSmootherTests
 
         static bool Crosses(Vector2 a0, Vector2 a1, Vector2 b0, Vector2 b1)
         {
-            float d1 = Cross(b1 - b0, a0 - b0), d2 = Cross(b1 - b0, a1 - b0);
-            float d3 = Cross(a1 - a0, b0 - a0), d4 = Cross(a1 - a0, b1 - a0);
+            double d1 = Cross(b1 - b0, a0 - b0), d2 = Cross(b1 - b0, a1 - b0);
+            double d3 = Cross(a1 - a0, b0 - a0), d4 = Cross(a1 - a0, b1 - a0);
             return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0))
                 && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 
-            static float Cross(Vector2 p, Vector2 q) => (p.X * q.Y) - (p.Y * q.X);
+            static double Cross(Vector2 p, Vector2 q) => (p.X * q.Y) - (p.Y * q.X);
         }
     }
 

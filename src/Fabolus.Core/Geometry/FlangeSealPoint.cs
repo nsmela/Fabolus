@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// One point on a flange's inner rim, with how far inside the body it sits.
@@ -27,8 +23,8 @@ using Vector3 = System.Numerics.Vector3;
 /// <param name="SignedDistance">
 /// Distance to the body surface: negative inside, positive outside. Inside is what seals.
 /// </param>
-public readonly record struct FlangeSealPoint(Vector3 Position, float SignedDistance)
+public readonly record struct FlangeSealPoint(Vector3 Position, double SignedDistance)
 {
     /// <summary>True when the point is inside the body, i.e. it seals rather than bridges.</summary>
-    public bool IsSealed => SignedDistance < 0f;
+    public bool IsSealed => SignedDistance < 0.0;
 }

@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>Settings for <see cref="PartingLineTreatment"/>.</summary>
 public sealed record PartingLineTreatmentOptions
@@ -15,14 +11,14 @@ public sealed record PartingLineTreatmentOptions
     /// anchored on samples the line was actually happy at rather than on the last one that scraped past
     /// the floor.
     /// </summary>
-    public float Recovered { get; init; } = 0.40f;
+    public double Recovered { get; init; } = 0.40;
 
     /// <summary>
     /// How much of the loop one run may cover before it is left alone, as a fraction. A diagnosis
     /// covering a quarter of the rim is not a defect in the rim, and rebuilding that far replaces the
     /// parting line with a chord across the body.
     /// </summary>
-    public float LongestRun { get; init; } = 0.25f;
+    public double LongestRun { get; init; } = 0.25;
 
     /// <summary>
     /// Passes of circular averaging applied to the sideways correction before it is applied, which is
@@ -51,7 +47,7 @@ public sealed record PartingLineTreatmentOptions
     public int PolishPasses { get; init; } = 60;
 
     /// <summary>The clearance the finishing flow will not take the line below.</summary>
-    public float PolishFloor { get; init; } = 0.40f;
+    public double PolishFloor { get; init; } = 0.40;
 
     /// <summary>
     /// How many times the whole diagnose-and-treat cycle may run. More than one because a repair can
@@ -204,11 +200,11 @@ public static class PartingLineTreatment
         // How much of a move's across-the-band component survives. Not zero: the band twists, so the
         // across direction measured at a sample is never exactly square to the line, and forbidding the
         // component outright would fight the smoothing rather than only the drift.
-        const float AcrossFreedom = 0.2f;
+        const double AcrossFreedom = 0.2;
 
         // How hard the line is pulled back to the middle each pass. Gentle, because it is applied every
         // pass and over sixty of them a large one would overwhelm the smoothing entirely.
-        const float Centring = 0.15f;
+        const double Centring = 0.15;
 
         for (int pass = 0; pass < options.PolishPasses; pass++)
         {
@@ -220,22 +216,22 @@ public static class PartingLineTreatment
                 var second = PartingBand.Closest(loop[i], band.Second).Point;
 
                 var axis = second - first;
-                float span = axis.Length();
-                var across = span < 1e-6f ? Vector3.Zero : axis / span;
+                double span = axis.Length;
+                var across = span < 1e-6 ? Vector3.Zero : axis / span;
 
-                var midpoint = (loop[(((i - 1) % n) + n) % n] + loop[(i + 1) % n]) * 0.5f;
-                var move = (midpoint - loop[i]) * 0.5f;
+                var midpoint = (loop[(((i - 1) % n) + n) % n] + loop[(i + 1) % n]) * 0.5;
+                var move = (midpoint - loop[i]) * 0.5;
 
-                move -= across * Vector3.Dot(move, across) * (1f - AcrossFreedom);
+                move -= across * move.Dot(across) * (1.0 - AcrossFreedom);
 
-                float at = span < 1e-6f ? 0.5f : Vector3.Dot(loop[i] - first, axis) / (span * span);
-                move += across * ((0.5f - at) * span * Centring);
+                double at = span < 1e-6 ? 0.5 : (loop[i] - first).Dot(axis) / (span * span);
+                move += across * ((0.5 - at) * span * Centring);
 
                 var proposed = loop[i] + move;
                 if (projector is not null) proposed = projector.Project(proposed);
 
-                float was = MathF.Min(at, 1f - at);
-                float now = Clearance(proposed, band);
+                double was = Math.Min(at, 1.0 - at);
+                double now = Clearance(proposed, band);
 
                 // Allowed if it ends up inside, or if it was already outside and the move is an
                 // improvement. The second half matters: without it a sample that starts too near a
@@ -251,16 +247,16 @@ public static class PartingLineTreatment
         }
     }
 
-    private static float Clearance(Vector3 point, PartingBand band)
+    private static double Clearance(Vector3 point, PartingBand band)
     {
         var first = PartingBand.Closest(point, band.First).Point;
         var second = PartingBand.Closest(point, band.Second).Point;
 
         var axis = second - first;
-        float span = axis.LengthSquared();
-        float at = span < 1e-9f ? 0.5f : Vector3.Dot(point - first, axis) / span;
+        double span = axis.LengthSquared;
+        double at = span < 1e-9 ? 0.5 : (point - first).Dot(axis) / span;
 
-        return MathF.Min(at, 1f - at);
+        return Math.Min(at, 1.0 - at);
     }
 
     // ---------------------------------------------------------------- runs
@@ -272,7 +268,7 @@ public static class PartingLineTreatment
     /// its shape.
     /// </summary>
     private static List<(PartingLineCondition Condition, int Start, int Count)> Grow(
-        PartingLineReport read, float recovered)
+        PartingLineReport read, double recovered)
     {
         int n = read.Samples.Count;
         var condition = new PartingLineCondition[n];
@@ -362,7 +358,7 @@ public static class PartingLineTreatment
 
         for (int k = 0; k < count; k++)
         {
-            float t = (k + 1f) / (count + 1f);
+            double t = (k + 1.0) / (count + 1.0);
             var point = CatmullRom(beforeTangent, loop[before], loop[after], afterTangent, t);
             loop[(start + k) % n] = projector is null ? point : projector.Project(point);
         }
@@ -383,7 +379,7 @@ public static class PartingLineTreatment
         PartingLineTreatmentOptions options, ISurfaceProjector? projector)
     {
         int n = loop.Length;
-        var wanted = new float[n];
+        var wanted = new double[n];
 
         for (int k = 0; k < count; k++)
         {
@@ -392,17 +388,17 @@ public static class PartingLineTreatment
             var second = PartingBand.Closest(loop[at], band.Second).Point;
 
             var axis = second - first;
-            float span = axis.LengthSquared();
-            if (span < 1e-9f) continue;
+            double span = axis.LengthSquared;
+            if (span < 1e-9) continue;
 
-            wanted[at] = 0.5f - (Vector3.Dot(loop[at] - first, axis) / span);
+            wanted[at] = 0.5 - ((loop[at] - first).Dot(axis) / span);
         }
 
         Blend(wanted, options.BlendPasses);
 
         for (int i = 0; i < n; i++)
         {
-            if (MathF.Abs(wanted[i]) < 1e-4f) continue;
+            if (Math.Abs(wanted[i]) < 1e-4) continue;
 
             for (int step = 0; step < options.ShiftSteps; step++)
             {
@@ -410,7 +406,7 @@ public static class PartingLineTreatment
                 var second = PartingBand.Closest(loop[i], band.Second).Point;
 
                 var axis = second - first;
-                if (axis.LengthSquared() < 1e-9f) break;
+                if (axis.LengthSquared < 1e-9) break;
 
                 loop[i] += axis * (wanted[i] / options.ShiftSteps);
                 if (projector is not null) loop[i] = projector.Project(loop[i]);
@@ -428,61 +424,61 @@ public static class PartingLineTreatment
             for (int k = 0; k < count; k++)
             {
                 int at = (start + k) % n;
-                var midpoint = (loop[(((at - 1) % n) + n) % n] + loop[(at + 1) % n]) * 0.5f;
+                var midpoint = (loop[(((at - 1) % n) + n) % n] + loop[(at + 1) % n]) * 0.5;
 
-                loop[at] += (midpoint - loop[at]) * 0.5f;
+                loop[at] += (midpoint - loop[at]) * 0.5;
                 if (projector is not null) loop[at] = projector.Project(loop[at]);
             }
     }
 
     // ---------------------------------------------------------------- helpers
 
-    private static void Blend(float[] values, int passes)
+    private static void Blend(double[] values, int passes)
     {
         int n = values.Length;
         if (n < 3 || passes <= 0) return;
 
-        var scratch = new float[n];
+        var scratch = new double[n];
         for (int pass = 0; pass < passes; pass++)
         {
             for (int i = 0; i < n; i++)
-                scratch[i] = (values[(((i - 1) % n) + n) % n] + (values[i] * 2f) + values[(i + 1) % n])
-                    * 0.25f;
+                scratch[i] = (values[(((i - 1) % n) + n) % n] + (values[i] * 2.0) + values[(i + 1) % n])
+                    * 0.25;
             Array.Copy(scratch, values, n);
         }
     }
 
-    private static Vector3 CatmullRom(Vector3 a, Vector3 b, Vector3 c, Vector3 d, float t)
+    private static Vector3 CatmullRom(Vector3 a, Vector3 b, Vector3 c, Vector3 d, double t)
     {
-        float t2 = t * t;
-        float t3 = t2 * t;
+        double t2 = t * t;
+        double t3 = t2 * t;
 
-        return 0.5f * (
-            (2f * b) +
+        return 0.5 * (
+            (2.0 * b) +
             ((c - a) * t) +
-            ((((2f * a) - (5f * b)) + (4f * c) - d) * t2) +
-            ((-a + (3f * b) - (3f * c) + d) * t3));
+            ((((2.0 * a) - (5.0 * b)) + (4.0 * c) - d) * t2) +
+            ((-a + (3.0 * b) - (3.0 * c) + d) * t3));
     }
 
     private static PartingBand Nearest(IReadOnlyList<Vector3> loop, IReadOnlyList<PartingBand> bands)
     {
         var best = bands[0];
-        float bestDistance = float.MaxValue;
+        double bestDistance = double.MaxValue;
 
         foreach (var band in bands)
         {
-            float total = 0f;
+            double total = 0.0;
             int taken = 0;
 
             for (int i = 0; i < loop.Count; i += Math.Max(loop.Count / 16, 1))
             {
-                total += MathF.Min(
+                total += Math.Min(
                     PartingBand.Closest(loop[i], band.First).Distance,
                     PartingBand.Closest(loop[i], band.Second).Distance);
                 taken++;
             }
 
-            float mean = taken == 0 ? float.MaxValue : total / taken;
+            double mean = taken == 0 ? double.MaxValue : total / taken;
             if (mean >= bestDistance) continue;
 
             bestDistance = mean;

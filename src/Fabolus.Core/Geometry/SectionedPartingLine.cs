@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>Why an anchor is where it is, which decides how freely it may be moved or removed.</summary>
 public enum PartingAnchorOrigin
@@ -38,12 +34,12 @@ public sealed record PartingAnchor(Vector3 Position, PartingAnchorOrigin Origin)
 public sealed record PartingSpan(
     IReadOnlyList<Vector3> Points, PartingLineCondition Condition, bool IsRetraced)
 {
-    public float Length
+    public double Length
     {
         get
         {
-            float total = 0f;
-            for (int i = 1; i < Points.Count; i++) total += Vector3.Distance(Points[i - 1], Points[i]);
+            double total = 0.0;
+            for (int i = 1; i < Points.Count; i++) total += Points[i - 1].DistanceTo(Points[i]);
             return total;
         }
     }
@@ -168,7 +164,7 @@ public static class PartingLineEditor
     public static SectionedPartingLine Seed(
         IReadOnlyList<Vector3> loop, PartingBand band,
         PartingLineSectionOptions? options = null, int shortestSection = 6,
-        float longestSection = 45f)
+        double longestSection = 45.0)
     {
         var report = PartingLineSections.Analyse(loop, band, options);
         if (report.Samples.Count == 0 || loop.Count < 8) return SectionedPartingLine.Empty;
@@ -211,7 +207,7 @@ public static class PartingLineEditor
         }
 
         var seeded = new SectionedPartingLine(anchors, spans);
-        return longestSection <= 0f ? seeded : Divide(seeded, longestSection);
+        return longestSection <= 0.0 ? seeded : Divide(seeded, longestSection);
     }
 
     /// <summary>
@@ -219,7 +215,7 @@ public static class PartingLineEditor
     /// line is too long to take hold of. Cut out of the existing points rather than re-walked - see
     /// <see cref="Insert"/> for why adding a handle must never move the line.
     /// </summary>
-    private static SectionedPartingLine Divide(SectionedPartingLine line, float longest)
+    private static SectionedPartingLine Divide(SectionedPartingLine line, double longest)
     {
         var anchors = new List<PartingAnchor>(line.Anchors.Count);
         var spans = new List<PartingSpan>(line.Spans.Count);
@@ -229,7 +225,7 @@ public static class PartingLineEditor
             var span = line.Spans[s];
             anchors.Add(line.Anchors[s]);
 
-            int parts = (int)MathF.Ceiling(span.Length / longest);
+            int parts = (int)Math.Ceiling(span.Length / longest);
             if (parts <= 1 || span.Points.Count < parts * 2)
             {
                 spans.Add(span);
@@ -501,14 +497,14 @@ public static class PartingLineEditor
     /// </param>
     /// <param name="onlySpan">The section to divide, or -1 to take whichever is nearest.</param>
     private static bool TryPlace(
-        SectionedPartingLine line, Vector3 pinned, float wallSpan, int onlySpan,
+        SectionedPartingLine line, Vector3 pinned, double wallSpan, int onlySpan,
         out int span, out int point)
     {
         span = 0;
         point = 0;
 
-        float best = float.MaxValue;
-        float bestReach = 0f;
+        double best = double.MaxValue;
+        double bestReach = 0.0;
         bool found = false;
 
         for (int s = 0; s < line.Spans.Count; s++)
@@ -522,15 +518,15 @@ public static class PartingLineEditor
             // wide still has a middle that can be divided. Without that, the guard would refuse a short
             // section outright - and a section is short exactly when a user has already divided it once
             // and wants to again.
-            float room = MathF.Min(wallSpan, line.Spans[s].Length / 6f);
+            double room = Math.Min(wallSpan, line.Spans[s].Length / 6.0);
 
             for (int i = 1; i < points.Count - 1; i++)
             {
-                float d = Vector3.DistanceSquared(points[i], pinned);
+                double d = points[i].DistanceSquared(pinned);
                 if (d >= best) continue;
 
-                if (Vector3.Distance(points[i], points[0]) < room) continue;
-                if (Vector3.Distance(points[i], points[^1]) < room) continue;
+                if (points[i].DistanceTo(points[0]) < room) continue;
+                if (points[i].DistanceTo(points[^1]) < room) continue;
 
                 best = d;
                 bestReach = room;
@@ -598,9 +594,9 @@ public static class PartingLineEditor
     /// </param>
     public static SectionedPartingLine Smooth(
         SectionedPartingLine line, PartingBandGraph graph,
-        int passes = 12, float strength = 0.5f, float clearanceFloor = -1f)
+        int passes = 12, double strength = 0.5, double clearanceFloor = -1.0)
     {
-        if (clearanceFloor < 0f) clearanceFloor = PartingLineSectionOptions.Default.ClearanceFloor;
+        if (clearanceFloor < 0.0) clearanceFloor = PartingLineSectionOptions.Default.ClearanceFloor;
 
         if (line is null || graph is null || line.Spans.Count == 0 || passes <= 0) return line!;
 
@@ -630,7 +626,7 @@ public static class PartingLineEditor
 
         var work = ring.ToArray();
         var buffer = new Vector3[n];
-        float lambda = Math.Clamp(strength, 0f, 1f);
+        double lambda = Math.Clamp(strength, 0.0, 1.0);
 
         // Built once for the whole pass rather than per query. The guard measures every point against
         // both creases on every pass, and a crease is a polyline of thousands of points - walked
@@ -657,8 +653,8 @@ public static class PartingLineEditor
             {
                 if (anchored[i]) { buffer[i] = work[i]; continue; }
 
-                var average = (work[((i - 1) % n + n) % n] + work[(i + 1) % n]) * 0.5f;
-                var moved = Vector3.Lerp(work[i], average, lambda);
+                var average = (work[((i - 1) % n + n) % n] + work[(i + 1) % n]) * 0.5;
+                var moved = work[i].LerpTo(average, lambda);
 
                 buffer[i] = Pinned(
                     graph, first, second, work[i], moved, clearanceFloor,
@@ -692,12 +688,12 @@ public static class PartingLineEditor
     /// </summary>
     private static Vector3 Pinned(
         PartingBandGraph graph, CreaseIndex first, CreaseIndex second,
-        Vector3 was, Vector3 moved, float clearanceFloor,
+        Vector3 was, Vector3 moved, double clearanceFloor,
         ref int onBand, ref int onFirst, ref int onSecond)
     {
         var pinned = graph.Snap(moved, ref onBand);
 
-        float after = Clearance(first, second, pinned, ref onFirst, ref onSecond);
+        double after = Clearance(first, second, pinned, ref onFirst, ref onSecond);
         if (after >= clearanceFloor) return pinned;
 
         // The two positions are a fraction of an edge apart, so the hints carry from one to the other.
@@ -705,7 +701,7 @@ public static class PartingLineEditor
     }
 
     /// <summary>How far a point sits from the nearer crease, as a share of the way across the wall.</summary>
-    private static float Clearance(
+    private static double Clearance(
         CreaseIndex first, CreaseIndex second, Vector3 point,
         ref int firstHint, ref int secondHint)
     {
@@ -713,11 +709,11 @@ public static class PartingLineEditor
         var onSecond = second.Closest(point, ref secondHint);
 
         var axis = onSecond - onFirst;
-        float span = axis.LengthSquared();
-        if (span < 1e-9f) return 0.5f;
+        double span = axis.LengthSquared;
+        if (span < 1e-9) return 0.5;
 
-        float across = Vector3.Dot(point - onFirst, axis) / span;
-        return MathF.Min(across, 1f - across);
+        double across = (point - onFirst).Dot(axis) / span;
+        return Math.Min(across, 1.0 - across);
     }
 
     /// <summary>
@@ -738,7 +734,7 @@ public static class PartingLineEditor
         private readonly IReadOnlyList<Vector3> _points;
         private readonly bool _closed;
         private readonly Dictionary<(int, int, int), List<int>> _cells = new();
-        private readonly float _cell;
+        private readonly double _cell;
 
         public CreaseIndex(RidgeContour contour)
         {
@@ -749,9 +745,9 @@ public static class PartingLineEditor
             double total = 0d;
             int spans = Spans;
             for (int i = 0; i < spans; i++)
-                total += Vector3.Distance(_points[i], _points[(i + 1) % _points.Count]);
+                total += _points[i].DistanceTo(_points[(i + 1) % _points.Count]);
 
-            _cell = spans == 0 ? 1f : MathF.Max((float)(total / spans) * 4f, 1e-4f);
+            _cell = spans == 0 ? 1.0 : Math.Max((double)(total / spans) * 4.0, 1e-4);
 
             for (int i = 0; i < _points.Count; i++)
             {
@@ -764,7 +760,7 @@ public static class PartingLineEditor
         private int Spans => _points.Count == 0 ? 0 : _closed ? _points.Count : _points.Count - 1;
 
         private (int, int, int) Cell(Vector3 p) => (
-            (int)MathF.Floor(p.X / _cell), (int)MathF.Floor(p.Y / _cell), (int)MathF.Floor(p.Z / _cell));
+            (int)Math.Floor(p.X / _cell), (int)Math.Floor(p.Y / _cell), (int)Math.Floor(p.Z / _cell));
 
         /// <summary>
         /// <see cref="Closest(Vector3)"/> seeded with the crease vertex the last answer was near, for
@@ -779,7 +775,7 @@ public static class PartingLineEditor
             if (hint >= 0 && hint < _points.Count)
             {
                 int bestOffset = 0;
-                float bestDistance = float.MaxValue;
+                double bestDistance = double.MaxValue;
 
                 for (int k = -Window; k <= Window; k++)
                 {
@@ -787,7 +783,7 @@ public static class PartingLineEditor
                     if (_closed) i = ((i % _points.Count) + _points.Count) % _points.Count;
                     else if (i < 0 || i >= _points.Count) continue;
 
-                    float d = Vector3.DistanceSquared(_points[i], from);
+                    double d = _points[i].DistanceSquared(from);
                     if (d >= bestDistance) continue;
 
                     bestDistance = d;
@@ -797,7 +793,7 @@ public static class PartingLineEditor
                 // Accepted only when the winner is strictly inside the window, so it is flanked on both
                 // sides by vertices it beat. A winner at the edge means the point has moved further than
                 // the window covers, and the grid is the only thing that can say where to.
-                if (MathF.Abs(bestOffset) < Window)
+                if (Math.Abs(bestOffset) < Window)
                 {
                     int nearest = hint + bestOffset;
                     if (_closed) nearest = ((nearest % _points.Count) + _points.Count) % _points.Count;
@@ -819,7 +815,7 @@ public static class PartingLineEditor
             int nearest = Nearest(from);
             return nearest < 0
                 ? PartingBand.Closest(from, _contour).Point
-                : OnSegmentsAt(nearest, from, Vector3.DistanceSquared(_points[nearest], from));
+                : OnSegmentsAt(nearest, from, _points[nearest].DistanceSquared(from));
         }
 
         /// <summary>The crease vertex nearest a point, or -1 if the grid holds nothing within reach.</summary>
@@ -830,7 +826,7 @@ public static class PartingLineEditor
             var (cx, cy, cz) = Cell(from);
 
             int nearest = -1;
-            float nearestDistance = float.MaxValue;
+            double nearestDistance = double.MaxValue;
             int firstHit = -1;
 
             for (int radius = 1; radius <= 6; radius++)
@@ -845,7 +841,7 @@ public static class PartingLineEditor
 
                             foreach (int i in bucket)
                             {
-                                float d = Vector3.DistanceSquared(_points[i], from);
+                                double d = _points[i].DistanceSquared(from);
                                 if (d >= nearestDistance) continue;
 
                                 nearestDistance = d;
@@ -867,10 +863,10 @@ public static class PartingLineEditor
         /// on a polyline lies on one of the segments at its closest vertex, which is what the caller has
         /// found - so this is the whole of the answer, not a refinement of it.
         /// </summary>
-        private Vector3 OnSegmentsAt(int vertex, Vector3 from, float vertexDistance)
+        private Vector3 OnSegmentsAt(int vertex, Vector3 from, double vertexDistance)
         {
             var best = _points[vertex];
-            float bestDistance = vertexDistance;
+            double bestDistance = vertexDistance;
 
             for (int step = -1; step <= 0; step++)
             {
@@ -881,13 +877,13 @@ public static class PartingLineEditor
                 int b = (a + 1) % _points.Count;
 
                 var edge = _points[b] - _points[a];
-                float length = edge.LengthSquared();
-                float t = length < 1e-12f
-                    ? 0f
-                    : Math.Clamp(Vector3.Dot(from - _points[a], edge) / length, 0f, 1f);
+                double length = edge.LengthSquared;
+                double t = length < 1e-12
+                    ? 0.0
+                    : Math.Clamp((from - _points[a]).Dot(edge) / length, 0.0, 1.0);
 
                 var on = _points[a] + (edge * t);
-                float d = Vector3.DistanceSquared(on, from);
+                double d = on.DistanceSquared(from);
                 if (d >= bestDistance) continue;
 
                 bestDistance = d;
@@ -948,13 +944,13 @@ public static class PartingLineEditor
         // already snapped, so the walk's first point is that same point re-derived - equal to within
         // rounding, and prepending on top of it leaves a zero-length segment at every anchor, which is
         // what everything downstream divides by when it normalises a direction along the line.
-        float settled = graph.MeanEdge * 1e-3f;
+        double settled = graph.MeanEdge * 1e-3;
 
         var points = new List<Vector3>(walked.Count + 2) { anchors[from].Position };
         foreach (var point in walked)
-            if (Vector3.DistanceSquared(points[^1], point) > settled * settled) points.Add(point);
+            if (points[^1].DistanceSquared(point) > settled * settled) points.Add(point);
 
-        if (Vector3.DistanceSquared(points[^1], anchors[to].Position) > settled * settled)
+        if (points[^1].DistanceSquared(anchors[to].Position) > settled * settled)
             points.Add(anchors[to].Position);
         else
             points[^1] = anchors[to].Position;
@@ -990,32 +986,32 @@ public static class PartingLineEditor
     /// they are the anchors, and a span that does not meet its own handles leaves a step at the join.
     /// </para>
     /// </summary>
-    private static List<Vector3> Even(List<Vector3> points, float spacing)
+    private static List<Vector3> Even(List<Vector3> points, double spacing)
     {
-        if (points.Count < 3 || spacing <= 1e-4f) return points;
+        if (points.Count < 3 || spacing <= 1e-4) return points;
 
-        var cumulative = new float[points.Count];
+        var cumulative = new double[points.Count];
         for (int i = 1; i < points.Count; i++)
-            cumulative[i] = cumulative[i - 1] + Vector3.Distance(points[i - 1], points[i]);
+            cumulative[i] = cumulative[i - 1] + points[i - 1].DistanceTo(points[i]);
 
-        float total = cumulative[^1];
+        double total = cumulative[^1];
 
         // Nothing to divide: a span shorter than one step is already as even as it can be, and
         // resampling it would only round its two ends together.
         if (total <= spacing) return points;
 
-        int steps = Math.Max(2, (int)MathF.Round(total / spacing));
+        int steps = Math.Max(2, (int)Math.Round(total / spacing));
         var even = new List<Vector3>(steps + 1) { points[0] };
 
         int segment = 0;
         for (int k = 1; k < steps; k++)
         {
-            float target = total * k / steps;
+            double target = total * k / steps;
             while (segment < points.Count - 2 && cumulative[segment + 1] < target) segment++;
 
-            float span = cumulative[segment + 1] - cumulative[segment];
-            float t = span > 1e-6f ? Math.Clamp((target - cumulative[segment]) / span, 0f, 1f) : 0f;
-            even.Add(Vector3.Lerp(points[segment], points[segment + 1], t));
+            double span = cumulative[segment + 1] - cumulative[segment];
+            double t = span > 1e-6 ? Math.Clamp((target - cumulative[segment]) / span, 0.0, 1.0) : 0.0;
+            even.Add(points[segment].LerpTo(points[segment + 1], t));
         }
 
         even.Add(points[^1]);

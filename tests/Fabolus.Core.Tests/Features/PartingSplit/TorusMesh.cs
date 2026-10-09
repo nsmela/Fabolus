@@ -1,11 +1,8 @@
-using System.Numerics;
 using BasicResults;
 using Fabolus.Tests.Fixtures;
 using Fabolus.Core.Geometry;
 
 namespace Fabolus.Core.Tests.Features.PartingSplit;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// Builds a torus test mesh directly via IGeometryEngine.CreateMesh - there's no torus

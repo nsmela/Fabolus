@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// What <see cref="RidgeDetection"/>'s passes did, rather than only what they returned.
@@ -77,10 +73,10 @@ internal sealed record RidgeTerritoryReport(
 /// candidate, so no run contained it.</param>
 /// <param name="Final">Whether it is in the ridge after bridging and the percolation guard.</param>
 internal sealed record RidgeEdgeAdmission(
-    int A, int B, Vector3 Mid, float Length, int FaceA, int FaceB,
-    float Curvature, float AngleDegrees,
+    int A, int B, Vector3 Mid, double Length, int FaceA, int FaceB,
+    double Curvature, double AngleDegrees,
     bool Candidate, bool Seed,
-    RidgeRunVerdict? Verdict, int RunEdges, float RunLength,
+    RidgeRunVerdict? Verdict, int RunEdges, double RunLength,
     bool Final)
 {
     public (int, int) Key => (A, B);
@@ -98,18 +94,18 @@ internal sealed record RidgeEdgeAdmission(
 /// </para>
 /// </summary>
 internal sealed record RidgeBandProfileReport(
-    bool Available, float MedianWidth,
-    int BandFaces, int SuspectFaces, float SuspectArea, float BandArea,
+    bool Available, double MedianWidth,
+    int BandFaces, int SuspectFaces, double SuspectArea, double BandArea,
     RidgeDistribution Width,
-    float[] PerFaceWidth, float[] PerFaceExpected, bool[] PerFaceSuspect,
-    float[] PerFaceToFirst, float[] PerFaceToSecond)
+    double[] PerFaceWidth, double[] PerFaceExpected, bool[] PerFaceSuspect,
+    double[] PerFaceToFirst, double[] PerFaceToSecond)
 {
     public static RidgeBandProfileReport Empty { get; } = new(
         false, 0, 0, 0, 0, 0, RidgeDistribution.Empty,
-        Array.Empty<float>(), Array.Empty<float>(), Array.Empty<bool>(),
-        Array.Empty<float>(), Array.Empty<float>());
+        Array.Empty<double>(), Array.Empty<double>(), Array.Empty<bool>(),
+        Array.Empty<double>(), Array.Empty<double>());
 
-    public float SuspectAreaFraction => BandArea > 1e-6f ? SuspectArea / BandArea : 0f;
+    public double SuspectAreaFraction => BandArea > 1e-6 ? SuspectArea / BandArea : 0.0;
 }
 
 internal sealed record RidgeReport(
@@ -122,43 +118,43 @@ internal sealed record RidgeReport(
 /// <summary>Percentiles plus a fixed-width histogram. Values outside the range land in the end bins,
 /// so the counts always add up to <see cref="Count"/>.</summary>
 internal sealed record RidgeDistribution(
-    int Count, float Min, float P50, float P90, float P99, float Max, float Mean,
-    float BinLow, float BinWidth, IReadOnlyList<int> Histogram)
+    int Count, double Min, double P50, double P90, double P99, double Max, double Mean,
+    double BinLow, double BinWidth, IReadOnlyList<int> Histogram)
 {
     public static RidgeDistribution Empty { get; } =
         new(0, 0, 0, 0, 0, 0, 0, 0, 1, Array.Empty<int>());
 
-    public static RidgeDistribution From(IReadOnlyList<float> values, float low, float high, int bins)
+    public static RidgeDistribution From(IReadOnlyList<double> values, double low, double high, int bins)
     {
         if (values.Count == 0) return Empty;
 
         var sorted = values.ToArray();
         Array.Sort(sorted);
 
-        float width = (high - low) / bins;
+        double width = (high - low) / bins;
         var histogram = new int[bins];
         double total = 0d;
-        foreach (float value in values)
+        foreach (double value in values)
         {
             total += value;
-            int bin = (int)MathF.Floor((value - low) / width);
+            int bin = (int)Math.Floor((value - low) / width);
             histogram[Math.Clamp(bin, 0, bins - 1)]++;
         }
 
         return new RidgeDistribution(
             sorted.Length, sorted[0],
-            Percentile(sorted, 0.50f), Percentile(sorted, 0.90f), Percentile(sorted, 0.99f),
-            sorted[^1], (float)(total / sorted.Length), low, width, histogram);
+            Percentile(sorted, 0.50), Percentile(sorted, 0.90), Percentile(sorted, 0.99),
+            sorted[^1], (double)(total / sorted.Length), low, width, histogram);
     }
 
-    private static float Percentile(float[] sorted, float fraction) =>
-        sorted[Math.Clamp((int)MathF.Round(fraction * (sorted.Length - 1)), 0, sorted.Length - 1)];
+    private static double Percentile(double[] sorted, double fraction) =>
+        sorted[Math.Clamp((int)Math.Round(fraction * (sorted.Length - 1)), 0, sorted.Length - 1)];
 }
 
 internal sealed record RidgeSurfaceReport(
     int SourceVertices, int WeldedVertices, int Faces,
     int Edges, int InteriorEdges, int BoundaryEdges,
-    float Diagonal, float TotalArea, float MeanEdgeLength,
+    double Diagonal, double TotalArea, double MeanEdgeLength,
     RidgeDistribution FoldAngleDegrees,
     RidgeDistribution Curvature)
 {
@@ -180,14 +176,14 @@ internal sealed record RidgeSurfaceReport(
 internal enum RidgeRunVerdict { Kept, NoSeed, TooShort }
 
 internal sealed record RidgeRunReport(
-    int EdgeCount, float Length, float LengthOverDiagonal,
+    int EdgeCount, double Length, double LengthOverDiagonal,
     bool HasSeed, int SeedEdges, RidgeRunVerdict Verdict);
 
 internal sealed record RidgeThresholdReport(
     int CandidateEdges, int SeedEdges,
     int SeedByCurvature, int SeedByAngle, int GrowByCurvature, int GrowByAngle,
-    float MinRunLength, int RunCount, IReadOnlyList<RidgeRunReport> Runs,
-    int KeptEdgesBeforeGuard, float KeptEdgeFraction,
+    double MinRunLength, int RunCount, IReadOnlyList<RidgeRunReport> Runs,
+    int KeptEdgesBeforeGuard, double KeptEdgeFraction,
     bool PercolationGuardFired, int KeptEdges)
 {
     public static RidgeThresholdReport Empty { get; } =
@@ -195,18 +191,18 @@ internal sealed record RidgeThresholdReport(
 }
 
 internal sealed record RidgeBridgeReport(
-    bool Ran, string SkipReason, float MaxGap,
+    bool Ran, string SkipReason, double MaxGap,
     int RidgeEdgesBefore, int RidgeEdgesAfter,
     int LooseEndsBefore, int LooseEndsAfter,
-    int BridgesAdded, IReadOnlyList<float> BridgeLengths, IReadOnlyList<int> BridgeEdgeCounts)
+    int BridgesAdded, IReadOnlyList<double> BridgeLengths, IReadOnlyList<int> BridgeEdgeCounts)
 {
     public static RidgeBridgeReport Empty { get; } = new(
-        false, "not reached", 0, 0, 0, 0, 0, 0, Array.Empty<float>(), Array.Empty<int>());
+        false, "not reached", 0, 0, 0, 0, 0, 0, Array.Empty<double>(), Array.Empty<int>());
 }
 
 internal sealed record RidgeRegionReport(
-    int FaceCount, float Area, float AreaFraction,
-    float Perimeter, float MeanWidth, float MeanWidthFraction, bool Filled);
+    int FaceCount, double Area, double AreaFraction,
+    double Perimeter, double MeanWidth, double MeanWidthFraction, bool Filled);
 
 /// <summary>
 /// One candidate pocket in the band, and what became of it. Carries the rejected ones too: a pocket
@@ -214,14 +210,14 @@ internal sealed record RidgeRegionReport(
 /// the limit is wrong or the pocket is not the shape the closing assumes.
 /// </summary>
 internal sealed record RidgeHoleReport(
-    int Faces, float Area, float Perimeter, float Width, bool Enclosed, bool Closed, string Verdict);
+    int Faces, double Area, double Perimeter, double Width, bool Enclosed, bool Closed, string Verdict);
 
 internal sealed record RidgeFillReport(
     int RegionCount, IReadOnlyList<RidgeRegionReport> Regions,
-    float MaxAreaFraction, float MaxWidthFraction,
-    int FilledRegions, int FilledFaces, float FilledAreaFraction,
+    double MaxAreaFraction, double MaxWidthFraction,
+    int FilledRegions, int FilledFaces, double FilledAreaFraction,
     int BandGroups, int ClosedHoles,
-    float BandWidth, float MaxHoleWidth, IReadOnlyList<RidgeHoleReport> Holes)
+    double BandWidth, double MaxHoleWidth, IReadOnlyList<RidgeHoleReport> Holes)
 {
     public static RidgeFillReport Empty { get; } =
         new(0, Array.Empty<RidgeRegionReport>(), 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -231,13 +227,13 @@ internal sealed record RidgeFillReport(
 internal enum RidgeChainVerdict { Kept, TooShort, Degenerate }
 
 internal sealed record RidgeChainReport(
-    int MeshPoints, int ResampledPoints, float TracedLength, float TracedLengthOverDiagonal,
+    int MeshPoints, int ResampledPoints, double TracedLength, double TracedLengthOverDiagonal,
     bool Closed, RidgeChainVerdict Verdict);
 
 internal sealed record RidgeTraceReport(
     int RidgeEdges, int CreaseEdges, int BuriedEdges,
     int CreaseJunctions, int CreaseLooseEnds,
-    float MinContourLength, float Spacing, float Lift,
+    double MinContourLength, double Spacing, double Lift,
     int ChainCount, IReadOnlyList<RidgeChainReport> Chains)
 {
     public static RidgeTraceReport Empty { get; } =
@@ -259,10 +255,10 @@ internal sealed class RidgeDiagnostics
 
     private readonly List<RidgeRunReport> _runs = new();
     private readonly List<RidgeChainReport> _chains = new();
-    private readonly List<float> _bridgeLengths = new();
+    private readonly List<double> _bridgeLengths = new();
     private readonly List<int> _bridgeEdgeCounts = new();
 
-    private float _diagonal = 1f;
+    private double _diagonal = 1.0;
 
     /// <summary>
     /// Whether the passes should keep a <see cref="RidgeEdgeAdmission"/> per edge. Off by default
@@ -283,33 +279,33 @@ internal sealed class RidgeDiagnostics
     public void Surface(RidgeSurfaceReport report)
     {
         _surface = report;
-        _diagonal = report.Diagonal > 0f ? report.Diagonal : 1f;
+        _diagonal = report.Diagonal > 0.0 ? report.Diagonal : 1.0;
     }
 
-    public void Run(int edgeCount, float length, bool hasSeed, int seedEdges, RidgeRunVerdict verdict) =>
+    public void Run(int edgeCount, double length, bool hasSeed, int seedEdges, RidgeRunVerdict verdict) =>
         _runs.Add(new RidgeRunReport(edgeCount, length, length / _diagonal, hasSeed, seedEdges, verdict));
 
     public void Threshold(
         int candidateEdges, int seedEdges,
         int seedByCurvature, int seedByAngle, int growByCurvature, int growByAngle,
-        float minRunLength, int keptBeforeGuard, int totalEdges, bool guardFired) =>
+        double minRunLength, int keptBeforeGuard, int totalEdges, bool guardFired) =>
         _threshold = new RidgeThresholdReport(
             candidateEdges, seedEdges, seedByCurvature, seedByAngle, growByCurvature, growByAngle,
             minRunLength, _runs.Count, Array.Empty<RidgeRunReport>(),
-            keptBeforeGuard, totalEdges > 0 ? (float)keptBeforeGuard / totalEdges : 0f,
+            keptBeforeGuard, totalEdges > 0 ? (double)keptBeforeGuard / totalEdges : 0.0,
             guardFired, guardFired ? 0 : keptBeforeGuard);
 
-    public void BridgingSkipped(string reason, float maxGap, int ridgeEdges, int looseEnds) =>
+    public void BridgingSkipped(string reason, double maxGap, int ridgeEdges, int looseEnds) =>
         _bridging = new RidgeBridgeReport(
             false, reason, maxGap, ridgeEdges, ridgeEdges, looseEnds, looseEnds,
-            0, Array.Empty<float>(), Array.Empty<int>());
+            0, Array.Empty<double>(), Array.Empty<int>());
 
-    public void BridgingStart(float maxGap, int ridgeEdges, int looseEnds) =>
+    public void BridgingStart(double maxGap, int ridgeEdges, int looseEnds) =>
         _bridging = new RidgeBridgeReport(
             true, "", maxGap, ridgeEdges, ridgeEdges, looseEnds, looseEnds,
-            0, Array.Empty<float>(), Array.Empty<int>());
+            0, Array.Empty<double>(), Array.Empty<int>());
 
-    public void Bridge(int edgesAdded, float length)
+    public void Bridge(int edgesAdded, double length)
     {
         _bridgeEdgeCounts.Add(edgesAdded);
         _bridgeLengths.Add(length);
@@ -327,7 +323,7 @@ internal sealed class RidgeDiagnostics
 
     public void Trace(RidgeTraceReport report) => _trace = report;
 
-    public void Chain(int meshPoints, int resampledPoints, float length, bool closed, RidgeChainVerdict verdict) =>
+    public void Chain(int meshPoints, int resampledPoints, double length, bool closed, RidgeChainVerdict verdict) =>
         _chains.Add(new RidgeChainReport(
             meshPoints, resampledPoints, length, length / _diagonal, closed, verdict));
 

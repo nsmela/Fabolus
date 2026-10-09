@@ -1,7 +1,5 @@
 namespace Fabolus.Core.Geometry;
 
-using Vector3 = System.Numerics.Vector3;
-
 /// <summary>
 /// What the curves where a cutter crosses a mould look like, which is the actual precondition for
 /// cutting it.

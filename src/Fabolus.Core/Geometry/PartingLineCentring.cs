@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// The two creases bounding one rim wall, which between them say where the middle of that wall is.
@@ -16,47 +12,47 @@ using Vector3 = System.Numerics.Vector3;
 /// </summary>
 public sealed record PartingBand(RidgeContour First, RidgeContour Second)
 {
-    private float? _span;
+    private double? _span;
 
     /// <summary>
     /// How wide the band runs, as the median distance from one crease to the other. The median rather
     /// than the mean because a rim that pinches somewhere along its length has a handful of samples
     /// near zero, and those move a mean enough to loosen every comparison made against it.
     /// </summary>
-    public float Span => _span ??= MedianSpan();
+    public double Span => _span ??= MedianSpan();
 
-    private float MedianSpan()
+    private double MedianSpan()
     {
         var points = First.Points;
-        if (points.Count == 0 || Second.Points.Count == 0) return 0f;
+        if (points.Count == 0 || Second.Points.Count == 0) return 0.0;
 
-        var spans = new float[points.Count];
+        var spans = new double[points.Count];
         for (int i = 0; i < points.Count; i++) spans[i] = Closest(points[i], Second).Distance;
 
         Array.Sort(spans);
         return spans[spans.Length / 2];
     }
 
-    internal static (Vector3 Point, float Distance) Closest(Vector3 from, RidgeContour contour)
+    internal static (Vector3 Point, double Distance) Closest(Vector3 from, RidgeContour contour)
     {
         var points = contour.Points;
         int spans = contour.IsClosed ? points.Count : points.Count - 1;
 
         var best = from;
-        float bestDistance = float.MaxValue;
+        double bestDistance = double.MaxValue;
 
         for (int i = 0; i < spans; i++)
         {
             var a = points[i];
             var ab = points[(i + 1) % points.Count] - a;
 
-            float lengthSquared = ab.LengthSquared();
-            float t = lengthSquared < 1e-12f
-                ? 0f
-                : Math.Clamp(Vector3.Dot(from - a, ab) / lengthSquared, 0f, 1f);
+            double lengthSquared = ab.LengthSquared;
+            double t = lengthSquared < 1e-12
+                ? 0.0
+                : Math.Clamp((from - a).Dot(ab) / lengthSquared, 0.0, 1.0);
 
             var on = a + (ab * t);
-            float distance = Vector3.Distance(from, on);
+            double distance = from.DistanceTo(on);
             if (distance >= bestDistance) continue;
 
             bestDistance = distance;
@@ -83,7 +79,7 @@ public sealed record PartingLineCentringOptions
     /// distinguishes them.
     /// </para>
     /// </summary>
-    public float DeadZone { get; init; } = 0.02f;
+    public double DeadZone { get; init; } = 0.02;
 
     /// <summary>
     /// How much further past <see cref="DeadZone"/> a point must sit before it is moved at full
@@ -98,7 +94,7 @@ public sealed record PartingLineCentringOptions
     /// re-introducing the unevenness here would undo it for the sake of a threshold being crisp.
     /// </para>
     /// </summary>
-    public float Ramp { get; init; } = 0.06f;
+    public double Ramp { get; init; } = 0.06;
 
     /// <summary>
     /// The narrowest and widest a sample's span may read, as a multiple of the band's own median,
@@ -118,10 +114,10 @@ public sealed record PartingLineCentringOptions
     /// introduces no new number to argue over.
     /// </para>
     /// </summary>
-    public float NarrowestSpan { get; init; } = 0.6f;
+    public double NarrowestSpan { get; init; } = 0.6;
 
     /// <inheritdoc cref="NarrowestSpan"/>
-    public float WidestSpan { get; init; } = 1.6f;
+    public double WidestSpan { get; init; } = 1.6;
 
     /// <summary>
     /// How much of the way to the middle a point moves per pass. Short of the whole way, and repeated,
@@ -130,7 +126,7 @@ public sealed record PartingLineCentringOptions
     /// one edged across in steps stays on the surface it started on. This is the same reasoning that
     /// puts the projection inside <see cref="ThicknessParting"/>'s relaxation loop rather than after it.
     /// </summary>
-    public float Strength { get; init; } = 0.5f;
+    public double Strength { get; init; } = 0.5;
 
     /// <summary>
     /// How many move-smooth-project rounds to run, as a ceiling - the loop stops early once nothing is
@@ -185,17 +181,17 @@ public sealed record PartingLineCentringOptions
     /// <c>larynx-large</c>.
     /// </para>
     /// </summary>
-    public float OutlierTurnDegrees { get; init; } = 30f;
+    public double OutlierTurnDegrees { get; init; } = 30.0;
 
     /// <summary>
     /// The same threshold expressed against the loop's own median turn, whichever is the larger. A line
     /// sampled finely enough never reaches the absolute figure however badly it kinks, because the turn
     /// at one sample falls as the samples get closer together.
     /// </summary>
-    public float OutlierTurnRatio { get; init; } = 6f;
+    public double OutlierTurnRatio { get; init; } = 6.0;
 
     /// <summary>How far towards the average of its neighbours a kinked point moves per round.</summary>
-    public float OutlierStrength { get; init; } = 0.5f;
+    public double OutlierStrength { get; init; } = 0.5;
 
     /// <summary>
     /// How many rounds of kink smoothing to run, as a ceiling - it stops as soon as no sample is over
@@ -256,7 +252,7 @@ public static class PartingLineCentring
 
         options ??= PartingLineCentringOptions.Default;
 
-        var usable = bands?.Where(b => b.Span > 1e-4f).ToList() ?? new List<PartingBand>();
+        var usable = bands?.Where(b => b.Span > 1e-4).ToList() ?? new List<PartingBand>();
 
         var centred = new List<Vector3[]>(line.Loops.Count);
         foreach (var loop in line.Loops)
@@ -304,14 +300,14 @@ public static class PartingLineCentring
         if (count < 8 || options.OutlierPasses <= 0) return;
 
         var correction = new Vector3[count];
-        var turn = new float[count];
+        var turn = new double[count];
 
         for (int i = 0; i < count; i++) turn[i] = TurnDegrees(points, i);
 
         // Against the loop's own median as well as an absolute floor, so a finely tessellated line that
         // never exceeds the absolute threshold still has its worst samples eased, and a coarsely
         // sampled one that turns constantly is not declared to be all outlier.
-        float threshold = MathF.Max(
+        double threshold = Math.Max(
             options.OutlierTurnDegrees, MedianOf(turn) * options.OutlierTurnRatio);
 
         // Chosen once, from the line as it arrives, and then held. Re-deciding each pass sets off a
@@ -344,7 +340,7 @@ public static class PartingLineCentring
                 // needed one pass does not keep being pulled for eleven more.
                 if (TurnDegrees(points, i) < threshold) continue;
 
-                var midpoint = (points[(i - 1 + count) % count] + points[(i + 1) % count]) * 0.5f;
+                var midpoint = (points[(i - 1 + count) % count] + points[(i + 1) % count]) * 0.5;
                 correction[i] = (midpoint - points[i]) * options.OutlierStrength;
                 any = true;
             }
@@ -361,7 +357,7 @@ public static class PartingLineCentring
             // no samples over 60 degrees into 3.4% of them, and its worst turn from 59 to 91.
             for (int i = 0; i < count; i++)
             {
-                if (correction[i].LengthSquared() < 1e-12f) continue;
+                if (correction[i].LengthSquared < 1e-12) continue;
 
                 points[i] += correction[i];
                 if (projector is not null) points[i] = projector.Project(points[i]);
@@ -370,22 +366,22 @@ public static class PartingLineCentring
     }
 
     /// <summary>How sharply the line turns at one sample, in degrees; zero where it cannot be measured.</summary>
-    private static float TurnDegrees(Vector3[] points, int index)
+    private static double TurnDegrees(Vector3[] points, int index)
     {
         int count = points.Length;
         var incoming = points[index] - points[(index - 1 + count) % count];
         var outgoing = points[(index + 1) % count] - points[index];
 
-        if (incoming.LengthSquared() < 1e-12f || outgoing.LengthSquared() < 1e-12f) return 0f;
+        if (incoming.LengthSquared < 1e-12 || outgoing.LengthSquared < 1e-12) return 0.0;
 
-        return MathF.Acos(Math.Clamp(
-            Vector3.Dot(Vector3.Normalize(incoming), Vector3.Normalize(outgoing)), -1f, 1f))
-            * 180f / MathF.PI;
+        return Math.Acos(Math.Clamp(
+            incoming.Normalize().Dot(outgoing.Normalize()), -1.0, 1.0))
+            * 180.0 / Math.PI;
     }
 
-    private static float MedianOf(float[] values)
+    private static double MedianOf(double[] values)
     {
-        var sorted = (float[])values.Clone();
+        var sorted = (double[])values.Clone();
         Array.Sort(sorted);
         return sorted[sorted.Length / 2];
     }
@@ -420,14 +416,14 @@ public static class PartingLineCentring
                 var (first, toFirst) = PartingBand.Closest(points[i], band.First);
                 var (second, toSecond) = PartingBand.Closest(points[i], band.Second);
 
-                float span = toFirst + toSecond;
-                if (span < 1e-4f) continue;
+                double span = toFirst + toSecond;
+                if (span < 1e-4) continue;
 
-                float ratio = span / band.Span;
+                double ratio = span / band.Span;
                 if (ratio < options.NarrowestSpan || ratio > options.WidestSpan) continue;
 
-                float strength = Eased(MathF.Abs((toFirst / span) - 0.5f), options);
-                if (strength <= 0f) continue;
+                double strength = Eased(Math.Abs((toFirst / span) - 0.5), options);
+                if (strength <= 0.0) continue;
 
                 // Only the part of the move that crosses the band is kept. The midpoint of the two
                 // nearest crease points also sits a little way along the rim from where the point is,
@@ -441,12 +437,12 @@ public static class PartingLineCentring
                 // is the one thing the line must never do, because a self-intersecting cutter is one
                 // the mould boolean refuses. Accuracy that costs the cutter is not accuracy worth
                 // having; the passes are cheap and buy it back.
-                var step = ((first + second) * 0.5f) - points[i];
+                var step = ((first + second) * 0.5) - points[i];
                 var along = points[(i + 1) % count] - points[(i - 1 + count) % count];
-                if (along.LengthSquared() > 1e-12f)
+                if (along.LengthSquared > 1e-12)
                 {
-                    along = Vector3.Normalize(along);
-                    step -= along * Vector3.Dot(step, along);
+                    along = along.Normalize();
+                    step -= along * step.Dot(along);
                 }
 
                 correction[i] = step * options.Strength * strength;
@@ -454,7 +450,7 @@ public static class PartingLineCentring
 
             // Nothing left off centre: stop rather than run the remaining passes over a line that is
             // already where it should be.
-            if (Array.TrueForAll(correction, c => c.LengthSquared() < 1e-12f)) break;
+            if (Array.TrueForAll(correction, c => c.LengthSquared < 1e-12)) break;
 
             // The correction is blended along the loop before any of it lands, so the stretches that
             // qualified and the stretches that did not are joined by a ramp instead of a step.
@@ -462,7 +458,7 @@ public static class PartingLineCentring
 
             for (int i = 0; i < count; i++)
             {
-                if (correction[i].LengthSquared() < 1e-12f) continue;
+                if (correction[i].LengthSquared < 1e-12) continue;
 
                 points[i] += correction[i];
                 moved[i] = true;
@@ -511,8 +507,8 @@ public static class PartingLineCentring
         {
             for (int i = 0; i < count; i++)
                 scratch[i] = (correction[(i - 1 + count) % count]
-                    + (correction[i] * 2f)
-                    + correction[(i + 1) % count]) * 0.25f;
+                    + (correction[i] * 2.0)
+                    + correction[(i + 1) % count]) * 0.25;
 
             Array.Copy(scratch, correction, count);
         }
@@ -531,7 +527,7 @@ public static class PartingLineCentring
     /// </para>
     /// </summary>
     private static void Redistribute(
-        Vector3[] points, Vector3[] scratch, bool[] mask, float factor = 0.5f)
+        Vector3[] points, Vector3[] scratch, bool[] mask, double factor = 0.5)
     {
         int count = points.Length;
 
@@ -547,15 +543,15 @@ public static class PartingLineCentring
             var next = points[(i + 1) % count];
 
             var tangent = next - previous;
-            if (tangent.LengthSquared() < 1e-12f)
+            if (tangent.LengthSquared < 1e-12)
             {
                 scratch[i] = points[i];
                 continue;
             }
 
-            tangent = Vector3.Normalize(tangent);
-            var toMidpoint = ((previous + next) * 0.5f) - points[i];
-            scratch[i] = points[i] + (tangent * Vector3.Dot(toMidpoint, tangent) * factor);
+            tangent = tangent.Normalize();
+            var toMidpoint = ((previous + next) * 0.5) - points[i];
+            scratch[i] = points[i] + (tangent * toMidpoint.Dot(tangent) * factor);
         }
 
         Array.Copy(scratch, points, count);
@@ -566,24 +562,24 @@ public static class PartingLineCentring
     /// idle band, all of it beyond the ramp, and smoothly between - so neighbouring samples either side
     /// of the threshold move by nearly the same amount rather than by all or nothing.
     /// </summary>
-    private static float Eased(float offCentre, PartingLineCentringOptions options)
+    private static double Eased(double offCentre, PartingLineCentringOptions options)
     {
-        if (offCentre <= options.DeadZone) return 0f;
-        if (options.Ramp <= 1e-6f) return 1f;
+        if (offCentre <= options.DeadZone) return 0.0;
+        if (options.Ramp <= 1e-6) return 1.0;
 
-        float t = MathF.Min((offCentre - options.DeadZone) / options.Ramp, 1f);
-        return t * t * (3f - (2f * t));
+        double t = Math.Min((offCentre - options.DeadZone) / options.Ramp, 1.0);
+        return t * t * (3.0 - (2.0 * t));
     }
 
     /// <summary>The band this point runs along, as the one whose nearer crease is nearest.</summary>
     private static int Nearest(Vector3 point, IReadOnlyList<PartingBand> bands)
     {
         int best = 0;
-        float bestDistance = float.MaxValue;
+        double bestDistance = double.MaxValue;
 
         for (int i = 0; i < bands.Count; i++)
         {
-            float distance = MathF.Min(
+            double distance = Math.Min(
                 PartingBand.Closest(point, bands[i].First).Distance,
                 PartingBand.Closest(point, bands[i].Second).Distance);
 
@@ -602,8 +598,8 @@ public static class PartingLineCentring
     /// </summary>
     private static void Smooth(Vector3[] points, Vector3[] scratch, bool[] mask, int passes)
     {
-        const float Lambda = 0.55f;
-        const float Mu = -0.58f;
+        const double Lambda = 0.55;
+        const double Mu = -0.58;
 
         for (int pass = 0; pass < passes; pass++)
         {
@@ -611,7 +607,7 @@ public static class PartingLineCentring
             Sweep(scratch, points, mask, Mu);
         }
 
-        static void Sweep(Vector3[] source, Vector3[] destination, bool[] mask, float factor)
+        static void Sweep(Vector3[] source, Vector3[] destination, bool[] mask, double factor)
         {
             int count = source.Length;
             for (int i = 0; i < count; i++)
@@ -622,7 +618,7 @@ public static class PartingLineCentring
                     continue;
                 }
 
-                var midpoint = (source[(i - 1 + count) % count] + source[(i + 1) % count]) * 0.5f;
+                var midpoint = (source[(i - 1 + count) % count] + source[(i + 1) % count]) * 0.5;
                 destination[i] = source[i] + (factor * (midpoint - source[i]));
             }
         }

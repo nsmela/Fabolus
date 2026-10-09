@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>Settings for <see cref="CreaseOffsetLine"/>.</summary>
 public sealed record CreaseOffsetOptions
@@ -12,7 +8,7 @@ public sealed record CreaseOffsetOptions
     /// the middle, which is what a parting line wants; it is a setting rather than a constant only so a
     /// caller deliberately biasing the line towards one shell can say so.
     /// </summary>
-    public float Fraction { get; init; } = 0.5f;
+    public double Fraction { get; init; } = 0.5;
 
     /// <summary>
     /// How long a step the walk across the wall takes, as a multiple of the mesh's mean edge.
@@ -25,7 +21,7 @@ public sealed record CreaseOffsetOptions
     /// steps, each re-aimed and put back on the body, trace the surface instead of cutting across it.
     /// </para>
     /// </summary>
-    public float StepFraction { get; init; } = 0.35f;
+    public double StepFraction { get; init; } = 0.35;
 
     /// <summary>How many steps the walk may take before it is abandoned as not arriving.</summary>
     public int MaxSteps { get; init; } = 400;
@@ -55,7 +51,7 @@ public sealed record CreaseOffsetOptions
     /// following it costs almost none of the smoothness the constant bought.
     /// </para>
     /// </summary>
-    public float Constancy { get; init; } = 0f;
+    public double Constancy { get; init; } = 0.0;
 
     /// <summary>
     /// Passes of circular averaging applied to the measured crossing before the offset follows it.
@@ -74,7 +70,7 @@ public sealed record CreaseOffsetOptions
     /// fraction of the samples. A rim most of whose walks never cross is not a wall along its length,
     /// and the median crossing taken off the few that did describes somewhere else on the body.
     /// </summary>
-    public float FewestCrossings { get; init; } = 0.25f;
+    public double FewestCrossings { get; init; } = 0.25;
 
     /// <summary>Taubin passes applied to the finished curve, with a projection after each.</summary>
     public int SmoothingPasses { get; init; } = 4;
@@ -101,7 +97,7 @@ public sealed record CreaseOffsetOptions
 /// The two together, each as its share of the pair's total, so neither unit has to be converted into
 /// the other and neither can dominate by being the larger number. Lower is steadier.
 /// </param>
-public sealed record CreaseSteadiness(float TurnP95, float WidthVariation, float Score);
+public sealed record CreaseSteadiness(double TurnP95, double WidthVariation, double Score);
 
 /// <summary>What the offset was built from, so a caller can see which crease it trusted and why.</summary>
 /// <param name="Base">Which of the band's contours the line was offset from: 0 for first, 1 for second.</param>
@@ -127,7 +123,7 @@ public sealed record CreaseSteadiness(float TurnP95, float WidthVariation, float
 /// <c>Crossing / Widest</c> of the way over instead of half.
 /// </param>
 public sealed record CreaseOffsetReport(
-    int Base, float Crossing, float Narrowest, float Widest, float Offset,
+    int Base, double Crossing, double Narrowest, double Widest, double Offset,
     int Samples, int Reached, int Clamped, int Short,
     IReadOnlyDictionary<WalkStop, int> Crossings, IReadOnlyDictionary<WalkStop, int> Offsets,
     CreaseSteadiness First, CreaseSteadiness Second);
@@ -231,29 +227,29 @@ public static class CreaseOffsetLine
         var baseLine = useFirst ? first : second;
         var far = useFirst ? band.Second : band.First;
 
-        float step = normals.MeanEdge * options.StepFraction;
+        double step = normals.MeanEdge * options.StepFraction;
 
         // Walked all the way across first, to find out how wide the wall is along the surface. Nothing
         // else measures that: the straight-line width is a chord under a rounded rim, and the offset
         // has to be half of what the line will actually travel.
-        var crossing = new float[baseLine.Length];
+        var crossing = new double[baseLine.Length];
         var crossingStops = new Dictionary<WalkStop, int>();
         for (int i = 0; i < baseLine.Length; i++)
         {
             crossing[i] = Walk(
-                baseLine[i], Along(baseLine, i), far, float.PositiveInfinity,
+                baseLine[i], Along(baseLine, i), far, double.PositiveInfinity,
                 step, options.MaxSteps, normals, projector, out var why).Travelled;
             crossingStops[why] = crossingStops.GetValueOrDefault(why) + 1;
         }
 
-        var reached = crossing.Where(float.IsFinite).ToArray();
+        var reached = crossing.Where(double.IsFinite).ToArray();
         if (reached.Length == 0) return null;
 
         Array.Sort(reached);
-        float width = reached[reached.Length / 2];
-        if (width < 1e-4f) return null;
+        double width = reached[reached.Length / 2];
+        if (width < 1e-4) return null;
 
-        float offset = width * options.Fraction;
+        double offset = width * options.Fraction;
 
         // A sample whose walk did not cross takes the width of the walks either side of it rather than
         // the median of the whole rim. A stretch the walks could not cross is a stretch where something
@@ -267,21 +263,21 @@ public static class CreaseOffsetLine
         // carries the measurement's noise straight into the curve. Smoothing hard keeps the first and
         // drops the second - what survives fifty passes is the rim genuinely widening over a span of
         // it, and what does not is sampling.
-        var profile = (float[])filled.Clone();
+        var profile = (double[])filled.Clone();
         SmoothCircular(profile, options.WidthSmoothingPasses);
 
-        var distance = new float[baseLine.Length];
+        var distance = new double[baseLine.Length];
         int clamped = 0;
         for (int i = 0; i < baseLine.Length; i++)
         {
-            float following = (profile[i] * (1f - options.Constancy)) + (width * options.Constancy);
+            double following = (profile[i] * (1.0 - options.Constancy)) + (width * options.Constancy);
 
             // Never past the middle of what is actually there, whatever the profile says. Measured off
             // the raw crossing rather than the smoothed one, because a pinch is exactly the feature
             // smoothing takes out, and this is the guard that stops the line walking through the far
             // crease and out onto the far shell.
-            distance[i] = MathF.Min(following, filled[i]) * options.Fraction;
-            if (distance[i] < offset - 1e-4f) clamped++;
+            distance[i] = Math.Min(following, filled[i]) * options.Fraction;
+            if (distance[i] < offset - 1e-4) clamped++;
         }
 
         SmoothCircular(distance, options.DistanceSmoothingPasses);
@@ -297,13 +293,13 @@ public static class CreaseOffsetLine
 
             laid[i] = point;
             offsetStops[why] = offsetStops.GetValueOrDefault(why) + 1;
-            if (travelled < distance[i] * 0.9f) fellShort++;
+            if (travelled < distance[i] * 0.9) fellShort++;
         }
 
         var line = Smooth(laid, MedianStep(laid), options.SmoothingPasses, projector);
 
         report = new CreaseOffsetReport(
-            useFirst ? 0 : 1, width, Percentile(reached, 0.05f), Percentile(reached, 0.95f), offset,
+            useFirst ? 0 : 1, width, Percentile(reached, 0.05), Percentile(reached, 0.95), offset,
             baseLine.Length, reached.Length, clamped, fellShort,
             crossingStops, offsetStops, steadyFirst, steadySecond);
 
@@ -321,18 +317,18 @@ public static class CreaseOffsetLine
         var firstContour = new RidgeContour(first, true);
         var secondContour = new RidgeContour(second, true);
 
-        float turnFirst = Percentile(Turns(first), 0.95f);
-        float turnSecond = Percentile(Turns(second), 0.95f);
-        float varFirst = Variation(first, secondContour);
-        float varSecond = Variation(second, firstContour);
+        double turnFirst = Percentile(Turns(first), 0.95);
+        double turnSecond = Percentile(Turns(second), 0.95);
+        double varFirst = Variation(first, secondContour);
+        double varSecond = Variation(second, firstContour);
 
         // Each metric as its share of the pair's total. Degrees and a dimensionless ratio cannot be
         // added directly, and converting one into the other would need a constant nothing measures;
         // shares need none and cannot let the larger unit decide the answer on its own.
-        float turnTotal = turnFirst + turnSecond;
-        float varTotal = varFirst + varSecond;
+        double turnTotal = turnFirst + turnSecond;
+        double varTotal = varFirst + varSecond;
 
-        static float ShareOf(float value, float total) => total < 1e-6f ? 0.5f : value / total;
+        static double ShareOf(double value, double total) => total < 1e-6 ? 0.5 : value / total;
 
         return (
             new CreaseSteadiness(turnFirst, varFirst,
@@ -341,36 +337,36 @@ public static class CreaseOffsetLine
                 ShareOf(turnSecond, turnTotal) + ShareOf(varSecond, varTotal)));
     }
 
-    private static float[] Turns(Vector3[] points)
+    private static double[] Turns(Vector3[] points)
     {
         int n = points.Length;
-        var turns = new float[n];
+        var turns = new double[n];
 
         for (int i = 0; i < n; i++)
         {
             var incoming = points[i] - points[(i - 1 + n) % n];
             var outgoing = points[(i + 1) % n] - points[i];
-            if (incoming.LengthSquared() < 1e-12f || outgoing.LengthSquared() < 1e-12f) continue;
+            if (incoming.LengthSquared < 1e-12 || outgoing.LengthSquared < 1e-12) continue;
 
-            turns[i] = MathF.Acos(Math.Clamp(
-                Vector3.Dot(Vector3.Normalize(incoming), Vector3.Normalize(outgoing)), -1f, 1f))
-                * 180f / MathF.PI;
+            turns[i] = Math.Acos(Math.Clamp(
+                incoming.Normalize().Dot(outgoing.Normalize()), -1.0, 1.0))
+                * 180.0 / Math.PI;
         }
 
         return turns;
     }
 
-    private static float Variation(Vector3[] points, RidgeContour other)
+    private static double Variation(Vector3[] points, RidgeContour other)
     {
-        var distances = new float[points.Length];
+        var distances = new double[points.Length];
         for (int i = 0; i < points.Length; i++)
             distances[i] = PartingBand.Closest(points[i], other).Distance;
 
         Array.Sort(distances);
-        float median = distances[distances.Length / 2];
-        if (median < 1e-6f) return float.MaxValue;
+        double median = distances[distances.Length / 2];
+        if (median < 1e-6) return double.MaxValue;
 
-        return (Percentile(distances, 0.90f) - Percentile(distances, 0.10f)) / median;
+        return (Percentile(distances, 0.90) - Percentile(distances, 0.10)) / median;
     }
 
     // ---------------------------------------------------------------- the walk
@@ -380,7 +376,7 @@ public static class CreaseOffsetLine
     {
         int n = loop.Length;
         var run = loop[(index + 1) % n] - loop[(index - 1 + n) % n];
-        return run.LengthSquared() < 1e-12f ? Vector3.UnitX : Vector3.Normalize(run);
+        return run.LengthSquared < 1e-12 ? Vector3.UnitX : run.Normalize();
     }
 
     /// <summary>
@@ -405,30 +401,30 @@ public static class CreaseOffsetLine
     /// samples to cross and leave the finished curve doubling back on itself.
     /// </para>
     /// </summary>
-    private static (Vector3 At, float Travelled) Walk(
-        Vector3 from, Vector3 along, RidgeContour far, float distance,
-        float step, int maxSteps, SurfaceNormals normals, ISurfaceProjector? projector,
+    private static (Vector3 At, double Travelled) Walk(
+        Vector3 from, Vector3 along, RidgeContour far, double distance,
+        double step, int maxSteps, SurfaceNormals normals, ISurfaceProjector? projector,
         out WalkStop stopped)
     {
         stopped = WalkStop.Arrived;
-        if (distance <= 1e-5f) return (from, 0f);
+        if (distance <= 1e-5) return (from, 0.0);
 
         // How much of the chord to the far crease must lie in the surface before it is followed
         // directly. Below this it is mostly a probe into the solid, and normalizing what little of it
         // is tangential amplifies whatever noise is in the normal rather than picking a heading.
-        const float UsableTangent = 0.35f;
+        const double UsableTangent = 0.35;
 
         var at = from;
         var run = along;
-        float travelled = 0f;
-        float span = PartingBand.Closest(from, far).Distance;
-        float closest = span;
+        double travelled = 0.0;
+        double span = PartingBand.Closest(from, far).Distance;
+        double closest = span;
         int sinceCloser = 0;
 
         for (int taken = 0; taken < maxSteps; taken++)
         {
             var toward = PartingBand.Closest(at, far).Point - at;
-            float remaining = toward.Length();
+            double remaining = toward.Length;
 
             // Arrival, for a walk that was asked to cross rather than to stop short. A whole step of
             // slack, because the far crease runs between mesh vertices while the walk runs on the
@@ -436,20 +432,20 @@ public static class CreaseOffsetLine
             // asked for more precision than its own step length it circles the crease instead of
             // arriving - measured, that was 401 of larynx-large's 442 walks spending the whole step
             // budget within a millimetre of where they were trying to get to.
-            if (float.IsPositiveInfinity(distance) && remaining <= step)
+            if (double.IsPositiveInfinity(distance) && remaining <= step)
                 return (at, travelled + remaining);
 
             var normal = normals.At(at);
 
-            var tangential = toward - (Vector3.Dot(toward, normal) * normal);
-            var across = tangential.Length() >= remaining * UsableTangent
-                ? Vector3.Normalize(tangential)
+            var tangential = toward - (toward.Dot(normal) * normal);
+            var across = tangential.Length >= remaining * UsableTangent
+                ? tangential.Normalize()
                 : Square(normal, run, toward);
 
             if (across == Vector3.Zero) { stopped = WalkStop.NoHeading; break; }
 
-            float hop = MathF.Min(step, MathF.Min(remaining, distance - travelled));
-            if (hop <= 1e-6f) { stopped = WalkStop.NoHeading; break; }
+            double hop = Math.Min(step, Math.Min(remaining, distance - travelled));
+            if (hop <= 1e-6) { stopped = WalkStop.NoHeading; break; }
 
             var moved = at + (across * hop);
             if (projector is not null) moved = projector.Project(moved);
@@ -458,35 +454,35 @@ public static class CreaseOffsetLine
             // surface, so what the walk actually travelled is the distance between where it was and
             // where it ended up - and a width built on the requested figure would be long by however
             // much the rim curved away underneath it.
-            float actual = Vector3.Distance(at, moved);
+            double actual = at.DistanceTo(moved);
 
             // A step that goes nowhere is a walk that has stopped, whatever it was aiming at. Left to
             // run it spends the whole step budget in one place and reports a width of zero.
             // Judged against the step that was asked for rather than a full one. The last step of a
             // walk that has nearly arrived is a fraction of a step by design, and measured against a
             // full one every completed walk reports as having stalled.
-            if (actual < hop * 0.05f) { stopped = WalkStop.Stalled; break; }
+            if (actual < hop * 0.05) { stopped = WalkStop.Stalled; break; }
 
             // The run is carried forward only as the fallback heading's reference, so a stretch where
             // the wall twists away from the crease is still stepped square to the wall rather than
             // square to where the crease used to point.
-            run = Vector3.Cross(moved - at, normals.At(moved));
-            if (run.LengthSquared() < 1e-12f) run = along;
+            run = (moved - at).Cross(normals.At(moved));
+            if (run.LengthSquared < 1e-12) run = along;
             else
             {
-                run = Vector3.Normalize(run);
-                if (Vector3.Dot(run, along) < 0f) run = -run;
+                run = run.Normalize();
+                if (run.Dot(along) < 0.0) run = -run;
             }
 
             at = moved;
             travelled += actual;
 
-            float now = PartingBand.Closest(at, far).Distance;
+            double now = PartingBand.Closest(at, far).Distance;
 
             // A walk that has stopped getting nearer the far crease has left the wall - it is running
             // along the band rather than across it. Nothing beyond that point is a crossing, so the
             // width it would report is a length of the rim instead of a width of it.
-            if (float.IsPositiveInfinity(distance) && now > closest + step)
+            if (double.IsPositiveInfinity(distance) && now > closest + step)
             {
                 stopped = WalkStop.LeftTheWall;
                 break;
@@ -496,10 +492,10 @@ public static class CreaseOffsetLine
             // crease and a walk running parallel to it both keep stepping, and only the first is
             // measuring a width; a run of steps that buys nothing separates them long before the
             // budget does, and leaves a walk that had all but crossed counted as having crossed.
-            if (now < closest - (step * 0.1f)) { closest = now; sinceCloser = 0; }
+            if (now < closest - (step * 0.1)) { closest = now; sinceCloser = 0; }
             else if (++sinceCloser >= 8)
             {
-                if (float.IsPositiveInfinity(distance) && closest < span * 0.25f)
+                if (double.IsPositiveInfinity(distance) && closest < span * 0.25)
                     return (at, travelled + closest);
 
                 stopped = WalkStop.LeftTheWall;
@@ -509,27 +505,27 @@ public static class CreaseOffsetLine
             // Nor further than the wall could possibly be wide. Straight through is the shortest route
             // between the two creases whatever the surface does between them, so a walk several times
             // that length is going somewhere else.
-            if (float.IsPositiveInfinity(distance) && travelled > span * 4f)
+            if (double.IsPositiveInfinity(distance) && travelled > span * 4.0)
             {
                 stopped = WalkStop.LeftTheWall;
                 break;
             }
 
-            if (travelled >= distance - 1e-5f) return (at, travelled);
+            if (travelled >= distance - 1e-5) return (at, travelled);
         }
 
         if (stopped == WalkStop.Arrived) stopped = WalkStop.Budget;
-        return float.IsPositiveInfinity(distance) ? (at, float.PositiveInfinity) : (at, travelled);
+        return double.IsPositiveInfinity(distance) ? (at, double.PositiveInfinity) : (at, travelled);
     }
 
     /// <summary>The in-surface direction square to the wall's run, pointed at the far crease.</summary>
     private static Vector3 Square(Vector3 normal, Vector3 run, Vector3 toward)
     {
-        var across = Vector3.Cross(normal, run);
-        if (across.LengthSquared() < 1e-12f) return Vector3.Zero;
+        var across = normal.Cross(run);
+        if (across.LengthSquared < 1e-12) return Vector3.Zero;
 
-        across = Vector3.Normalize(across);
-        return Vector3.Dot(across, toward) < 0f ? -across : across;
+        across = across.Normalize();
+        return across.Dot(toward) < 0.0 ? -across : across;
     }
 
     // ---------------------------------------------------------------- surface normals
@@ -557,19 +553,19 @@ public static class CreaseOffsetLine
     {
         private readonly Vector3[] _centroids;
         private readonly Vector3[] _normals;
-        private readonly float[] _areas;
+        private readonly double[] _areas;
         private readonly Dictionary<(int, int, int), List<int>> _cells = new();
-        private readonly float _cell;
+        private readonly double _cell;
 
-        public float MeanEdge { get; }
+        public double MeanEdge { get; }
 
-        private SurfaceNormals(Vector3[] centroids, Vector3[] normals, float[] areas, float meanEdge)
+        private SurfaceNormals(Vector3[] centroids, Vector3[] normals, double[] areas, double meanEdge)
         {
             _centroids = centroids;
             _normals = normals;
             _areas = areas;
             MeanEdge = meanEdge;
-            _cell = MathF.Max(meanEdge * 2f, 1e-4f);
+            _cell = Math.Max(meanEdge * 2.0, 1e-4);
 
             for (int f = 0; f < centroids.Length; f++)
             {
@@ -581,14 +577,14 @@ public static class CreaseOffsetLine
 
         public static SurfaceNormals? Build(IMesh mesh)
         {
-            var vertices = NumericsMesh.Of(mesh).Vertices;
-            var triangles = NumericsMesh.Of(mesh).Triangles;
+            var vertices = mesh.Vertices;
+            var triangles = mesh.Triangles;
             int faceCount = triangles.Length / 3;
             if (faceCount == 0) return null;
 
             var centroids = new Vector3[faceCount];
             var normals = new Vector3[faceCount];
-            var areas = new float[faceCount];
+            var areas = new double[faceCount];
             double edgeTotal = 0d;
 
             for (int f = 0; f < faceCount; f++)
@@ -597,31 +593,31 @@ public static class CreaseOffsetLine
                 var b = vertices[triangles[(f * 3) + 1]];
                 var c = vertices[triangles[(f * 3) + 2]];
 
-                var cross = Vector3.Cross(b - a, c - a);
-                float length = cross.Length();
+                var cross = (b - a).Cross(c - a);
+                double length = cross.Length;
 
-                centroids[f] = (a + b + c) / 3f;
-                areas[f] = length * 0.5f;
-                normals[f] = length < 1e-12f ? Vector3.Zero : cross / length;
-                edgeTotal += Vector3.Distance(a, b);
+                centroids[f] = (a + b + c) / 3.0;
+                areas[f] = length * 0.5;
+                normals[f] = length < 1e-12 ? Vector3.Zero : cross / length;
+                edgeTotal += a.DistanceTo(b);
             }
 
-            float meanEdge = (float)(edgeTotal / faceCount);
-            return meanEdge < 1e-6f ? null : new SurfaceNormals(centroids, normals, areas, meanEdge);
+            double meanEdge = (double)(edgeTotal / faceCount);
+            return meanEdge < 1e-6 ? null : new SurfaceNormals(centroids, normals, areas, meanEdge);
         }
 
         private (int, int, int) Cell(Vector3 p) => (
-            (int)MathF.Floor(p.X / _cell), (int)MathF.Floor(p.Y / _cell), (int)MathF.Floor(p.Z / _cell));
+            (int)Math.Floor(p.X / _cell), (int)Math.Floor(p.Y / _cell), (int)Math.Floor(p.Z / _cell));
 
         public Vector3 At(Vector3 point)
         {
             var (cx, cy, cz) = Cell(point);
-            float reach = MeanEdge * 2f;
-            float reachSquared = reach * reach;
+            double reach = MeanEdge * 2.0;
+            double reachSquared = reach * reach;
 
             var nearby = new List<int>(24);
             int nearest = -1;
-            float nearestDistance = float.MaxValue;
+            double nearestDistance = double.MaxValue;
 
             for (int x = cx - 1; x <= cx + 1; x++)
                 for (int y = cy - 1; y <= cy + 1; y++)
@@ -631,7 +627,7 @@ public static class CreaseOffsetLine
 
                         foreach (int f in faces)
                         {
-                            float d = Vector3.DistanceSquared(_centroids[f], point);
+                            double d = _centroids[f].DistanceSquared(point);
                             if (d < nearestDistance) { nearestDistance = d; nearest = f; }
                             if (d <= reachSquared) nearby.Add(f);
                         }
@@ -642,11 +638,11 @@ public static class CreaseOffsetLine
             var sum = Vector3.Zero;
             foreach (int f in nearby)
             {
-                float d = MathF.Sqrt(Vector3.DistanceSquared(_centroids[f], point));
-                sum += _normals[f] * _areas[f] * (1f - (d / reach));
+                double d = Math.Sqrt(_centroids[f].DistanceSquared(point));
+                sum += _normals[f] * _areas[f] * (1.0 - (d / reach));
             }
 
-            return sum.LengthSquared() > 1e-12f ? Vector3.Normalize(sum) : _normals[nearest];
+            return sum.LengthSquared > 1e-12 ? sum.Normalize() : _normals[nearest];
         }
     }
 
@@ -657,46 +653,46 @@ public static class CreaseOffsetLine
     /// profile is continuous before it is smoothed. A gap left as the median instead is a step at each
     /// of its ends, and smoothing turns a step into a ramp rather than into nothing.
     /// </summary>
-    private static float[] Fill(float[] values, float fallback)
+    private static double[] Fill(double[] values, double fallback)
     {
         int n = values.Length;
-        var filled = new float[n];
+        var filled = new double[n];
 
         for (int i = 0; i < n; i++)
         {
-            if (float.IsFinite(values[i])) { filled[i] = values[i]; continue; }
+            if (double.IsFinite(values[i])) { filled[i] = values[i]; continue; }
 
             int back = 0, forward = 0;
-            while (back < n && !float.IsFinite(values[((i - back - 1) % n + n) % n])) back++;
-            while (forward < n && !float.IsFinite(values[(i + forward + 1) % n])) forward++;
+            while (back < n && !double.IsFinite(values[((i - back - 1) % n + n) % n])) back++;
+            while (forward < n && !double.IsFinite(values[(i + forward + 1) % n])) forward++;
 
             if (back >= n || forward >= n) { filled[i] = fallback; continue; }
 
-            float before = values[((i - back - 1) % n + n) % n];
-            float after = values[(i + forward + 1) % n];
-            float t = (back + 1f) / (back + forward + 2f);
+            double before = values[((i - back - 1) % n + n) % n];
+            double after = values[(i + forward + 1) % n];
+            double t = (back + 1.0) / (back + forward + 2.0);
             filled[i] = before + ((after - before) * t);
         }
 
         return filled;
     }
 
-    private static void SmoothCircular(float[] values, int passes)
+    private static void SmoothCircular(double[] values, int passes)
     {
         int n = values.Length;
         if (n < 3 || passes <= 0) return;
 
-        var scratch = new float[n];
+        var scratch = new double[n];
         for (int pass = 0; pass < passes; pass++)
         {
             for (int i = 0; i < n; i++)
-                scratch[i] = (values[(i - 1 + n) % n] + (values[i] * 2f) + values[(i + 1) % n]) * 0.25f;
+                scratch[i] = (values[(i - 1 + n) % n] + (values[i] * 2.0) + values[(i + 1) % n]) * 0.25;
             Array.Copy(scratch, values, n);
         }
     }
 
     private static Vector3[] Smooth(
-        Vector3[] points, float spacing, int passes, ISurfaceProjector? projector)
+        Vector3[] points, double spacing, int passes, ISurfaceProjector? projector)
     {
         var work = Resample(points, spacing);
         int n = work.Length;
@@ -705,8 +701,8 @@ public static class CreaseOffsetLine
         var scratch = new Vector3[n];
         for (int pass = 0; pass < passes; pass++)
         {
-            Sweep(work, scratch, 0.55f);
-            Sweep(scratch, work, -0.58f);
+            Sweep(work, scratch, 0.55);
+            Sweep(scratch, work, -0.58);
             if (projector is null) continue;
 
             for (int i = 0; i < n; i++) work[i] = projector.Project(work[i]);
@@ -719,12 +715,12 @@ public static class CreaseOffsetLine
         Unkink(work, projector);
         return work;
 
-        static void Sweep(Vector3[] source, Vector3[] destination, float factor)
+        static void Sweep(Vector3[] source, Vector3[] destination, double factor)
         {
             int count = source.Length;
             for (int i = 0; i < count; i++)
             {
-                var midpoint = (source[(i - 1 + count) % count] + source[(i + 1) % count]) * 0.5f;
+                var midpoint = (source[(i - 1 + count) % count] + source[(i + 1) % count]) * 0.5;
                 destination[i] = source[i] + (factor * (midpoint - source[i]));
             }
         }
@@ -737,7 +733,7 @@ public static class CreaseOffsetLine
     /// walks off along the line rewriting stretches that were never kinked.
     /// </summary>
     private static void Unkink(
-        Vector3[] points, ISurfaceProjector? projector, float limit = 60f, int passes = 24)
+        Vector3[] points, ISurfaceProjector? projector, double limit = 60.0, int passes = 24)
     {
         int count = points.Length;
         if (count < 8) return;
@@ -762,8 +758,8 @@ public static class CreaseOffsetLine
             {
                 if (!kinked[i] || Turn(points, i) < limit) continue;
 
-                var midpoint = (points[(i - 1 + count) % count] + points[(i + 1) % count]) * 0.5f;
-                points[i] += (midpoint - points[i]) * 0.5f;
+                var midpoint = (points[(i - 1 + count) % count] + points[(i + 1) % count]) * 0.5;
+                points[i] += (midpoint - points[i]) * 0.5;
                 if (projector is not null) points[i] = projector.Project(points[i]);
                 moved = true;
             }
@@ -772,66 +768,66 @@ public static class CreaseOffsetLine
         }
     }
 
-    private static float Turn(Vector3[] points, int index)
+    private static double Turn(Vector3[] points, int index)
     {
         int count = points.Length;
         var incoming = points[index] - points[(index - 1 + count) % count];
         var outgoing = points[(index + 1) % count] - points[index];
 
-        if (incoming.LengthSquared() < 1e-12f || outgoing.LengthSquared() < 1e-12f) return 0f;
+        if (incoming.LengthSquared < 1e-12 || outgoing.LengthSquared < 1e-12) return 0.0;
 
-        return MathF.Acos(Math.Clamp(
-            Vector3.Dot(Vector3.Normalize(incoming), Vector3.Normalize(outgoing)), -1f, 1f))
-            * 180f / MathF.PI;
+        return Math.Acos(Math.Clamp(
+            incoming.Normalize().Dot(outgoing.Normalize()), -1.0, 1.0))
+            * 180.0 / Math.PI;
     }
 
-    private static float MedianStep(IReadOnlyList<Vector3> points)
+    private static double MedianStep(IReadOnlyList<Vector3> points)
     {
         int n = points.Count;
-        if (n < 2) return 0f;
+        if (n < 2) return 0.0;
 
-        var steps = new float[n];
-        for (int i = 0; i < n; i++) steps[i] = Vector3.Distance(points[i], points[(i + 1) % n]);
+        var steps = new double[n];
+        for (int i = 0; i < n; i++) steps[i] = points[i].DistanceTo(points[(i + 1) % n]);
 
         Array.Sort(steps);
         return steps[steps.Length / 2];
     }
 
-    private static Vector3[] Resample(IReadOnlyList<Vector3> points, float spacing)
+    private static Vector3[] Resample(IReadOnlyList<Vector3> points, double spacing)
     {
         int n = points.Count;
-        if (n < 4 || spacing <= 1e-4f) return points.ToArray();
+        if (n < 4 || spacing <= 1e-4) return points.ToArray();
 
-        var cumulative = new float[n + 1];
+        var cumulative = new double[n + 1];
         for (int i = 0; i < n; i++)
-            cumulative[i + 1] = cumulative[i] + Vector3.Distance(points[i], points[(i + 1) % n]);
+            cumulative[i + 1] = cumulative[i] + points[i].DistanceTo(points[(i + 1) % n]);
 
-        float perimeter = cumulative[n];
-        if (perimeter < 1e-4f) return points.ToArray();
+        double perimeter = cumulative[n];
+        if (perimeter < 1e-4) return points.ToArray();
 
-        int count = Math.Clamp((int)MathF.Round(perimeter / spacing), 16, 20000);
+        int count = Math.Clamp((int)Math.Round(perimeter / spacing), 16, 20000);
         var result = new Vector3[count];
 
         int segment = 0;
         for (int k = 0; k < count; k++)
         {
-            float target = perimeter * k / count;
+            double target = perimeter * k / count;
             while (segment < n - 1 && cumulative[segment + 1] < target) segment++;
 
-            float span = cumulative[segment + 1] - cumulative[segment];
-            float t = span > 1e-6f ? Math.Clamp((target - cumulative[segment]) / span, 0f, 1f) : 0f;
-            result[k] = Vector3.Lerp(points[segment], points[(segment + 1) % n], t);
+            double span = cumulative[segment + 1] - cumulative[segment];
+            double t = span > 1e-6 ? Math.Clamp((target - cumulative[segment]) / span, 0.0, 1.0) : 0.0;
+            result[k] = points[segment].LerpTo(points[(segment + 1) % n], t);
         }
 
         return result;
     }
 
-    private static float Percentile(float[] values, float fraction)
+    private static double Percentile(double[] values, double fraction)
     {
-        if (values.Length == 0) return 0f;
+        if (values.Length == 0) return 0.0;
 
-        var sorted = (float[])values.Clone();
+        var sorted = (double[])values.Clone();
         Array.Sort(sorted);
-        return sorted[Math.Clamp((int)MathF.Round(fraction * (sorted.Length - 1)), 0, sorted.Length - 1)];
+        return sorted[Math.Clamp((int)Math.Round(fraction * (sorted.Length - 1)), 0, sorted.Length - 1)];
     }
 }

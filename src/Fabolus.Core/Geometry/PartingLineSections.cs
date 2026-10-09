@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// What is wrong with one stretch of a parting line, which is what decides how to put it right.
@@ -68,7 +64,7 @@ public enum PartingLineCondition
 /// <param name="Turn">Degrees turned at this sample.</param>
 /// <param name="Step">Distance to the next sample, as a multiple of the median step.</param>
 public sealed record PartingLineSample(
-    float Across, float Clearance, float Width, float Bulge, float Turn, float Step);
+    double Across, double Clearance, double Width, double Bulge, double Turn, double Step);
 
 /// <summary>A run of consecutive samples sharing one condition.</summary>
 /// <param name="Start">First sample of the run. May exceed the end - the loop wraps.</param>
@@ -79,7 +75,7 @@ public sealed record PartingLineSample(
 /// <see cref="PartingLineCondition.Kinked"/>.
 /// </param>
 public sealed record PartingLineSection(
-    PartingLineCondition Condition, int Start, int Count, float Worst);
+    PartingLineCondition Condition, int Start, int Count, double Worst);
 
 /// <summary>The line, sample by sample and stretch by stretch.</summary>
 public sealed record PartingLineReport(
@@ -91,11 +87,11 @@ public sealed record PartingLineReport(
     public int SamplesIn(PartingLineCondition condition) =>
         Sections.Where(s => s.Condition == condition).Sum(s => s.Count);
 
-    public float ShareIn(PartingLineCondition condition) =>
-        Samples.Count == 0 ? 0f : (float)SamplesIn(condition) / Samples.Count;
+    public double ShareIn(PartingLineCondition condition) =>
+        Samples.Count == 0 ? 0.0 : (double)SamplesIn(condition) / Samples.Count;
 
     /// <summary>The least clearance anywhere on the line, which is the figure a flange seal turns on.</summary>
-    public float Nearest => Samples.Count == 0 ? 0f : Samples.Min(s => s.Clearance);
+    public double Nearest => Samples.Count == 0 ? 0.0 : Samples.Min(s => s.Clearance);
 
     public bool IsSound => Sections.All(s => s.Condition is
         PartingLineCondition.Sound or PartingLineCondition.Necked);
@@ -109,7 +105,7 @@ public sealed record PartingLineSectionOptions
     /// is called faulty. Not an aesthetic threshold: the flange rim is offset from the line and stops
     /// sealing well before the line reaches a crease.
     /// </summary>
-    public float ClearanceFloor { get; init; } = 0.30f;
+    public double ClearanceFloor { get; init; } = 0.30;
 
     /// <summary>
     /// How much arc over chord separates a stretch that went round something from one that merely sits
@@ -117,19 +113,19 @@ public sealed record PartingLineSectionOptions
     /// its own right it cannot distinguish a step in the rim from the rim's own curvature, and flagged
     /// six times too much when it was tried that way.
     /// </summary>
-    public float BulgeRatio { get; init; } = 1.15f;
+    public double BulgeRatio { get; init; } = 1.15;
 
     /// <summary>How many wall widths the bulge is measured over.</summary>
-    public float BulgeWindowWidths { get; init; } = 2f;
+    public double BulgeWindowWidths { get; init; } = 2.0;
 
     /// <summary>
     /// How narrow the wall may read, against its own median, before its middle stops meaning anything.
     /// Below this the ratio that locates the middle is dividing by nearly nothing.
     /// </summary>
-    public float NeckedWidth { get; init; } = 0.6f;
+    public double NeckedWidth { get; init; } = 0.6;
 
     /// <summary>How hard a sample may turn, in degrees, before it is a spike rather than a bend.</summary>
-    public float KinkDegrees { get; init; } = 45f;
+    public double KinkDegrees { get; init; } = 45.0;
 
     public static PartingLineSectionOptions Default { get; } = new();
 }
@@ -160,10 +156,10 @@ public static class PartingLineSections
         int n = loop?.Count ?? 0;
         if (n < 8 || band?.First is null || band.Second is null) return PartingLineReport.Empty;
 
-        var across = new float[n];
-        var width = new float[n];
-        var step = new float[n];
-        var turn = new float[n];
+        var across = new double[n];
+        var width = new double[n];
+        var step = new double[n];
+        var turn = new double[n];
 
         for (int i = 0; i < n; i++)
         {
@@ -171,24 +167,24 @@ public static class PartingLineSections
             var second = PartingBand.Closest(loop[i], band.Second).Point;
 
             var axis = second - first;
-            float span = axis.LengthSquared();
+            double span = axis.LengthSquared;
 
-            across[i] = span < 1e-9f ? 0.5f : Vector3.Dot(loop[i] - first, axis) / span;
-            width[i] = MathF.Sqrt(span);
-            step[i] = Vector3.Distance(loop[i], loop[(i + 1) % n]);
+            across[i] = span < 1e-9 ? 0.5 : (loop[i] - first).Dot(axis) / span;
+            width[i] = Math.Sqrt(span);
+            step[i] = loop[i].DistanceTo(loop[(i + 1) % n]);
 
             var incoming = loop[i] - loop[(((i - 1) % n) + n) % n];
             var outgoing = loop[(i + 1) % n] - loop[i];
-            turn[i] = incoming.LengthSquared() < 1e-12f || outgoing.LengthSquared() < 1e-12f
-                ? 0f
-                : MathF.Acos(Math.Clamp(
-                    Vector3.Dot(Vector3.Normalize(incoming), Vector3.Normalize(outgoing)), -1f, 1f))
-                    * 180f / MathF.PI;
+            turn[i] = incoming.LengthSquared < 1e-12 || outgoing.LengthSquared < 1e-12
+                ? 0.0
+                : Math.Acos(Math.Clamp(
+                    incoming.Normalize().Dot(outgoing.Normalize()), -1.0, 1.0))
+                    * 180.0 / Math.PI;
         }
 
-        float medianWidth = Median(width);
-        float medianStep = Median(step);
-        if (medianWidth < 1e-5f || medianStep < 1e-5f) return PartingLineReport.Empty;
+        double medianWidth = Median(width);
+        double medianStep = Median(step);
+        if (medianWidth < 1e-5 || medianStep < 1e-5) return PartingLineReport.Empty;
 
         var bulge = Bulge(loop, step, medianWidth * options.BulgeWindowWidths);
 
@@ -197,8 +193,8 @@ public static class PartingLineSections
 
         for (int i = 0; i < n; i++)
         {
-            float clearance = MathF.Min(across[i], 1f - across[i]);
-            float relative = width[i] / medianWidth;
+            double clearance = Math.Min(across[i], 1.0 - across[i]);
+            double relative = width[i] / medianWidth;
 
             samples[i] = new PartingLineSample(
                 across[i], clearance, relative, bulge[i], turn[i], step[i] / medianStep);
@@ -223,17 +219,17 @@ public static class PartingLineSections
     /// reading belongs to the middle of the stretch it describes - measured forward, a detour's high
     /// reading lands on the samples approaching it rather than on the detour itself.
     /// </summary>
-    private static float[] Bulge(IReadOnlyList<Vector3> loop, float[] step, float window)
+    private static double[] Bulge(IReadOnlyList<Vector3> loop, double[] step, double window)
     {
         int n = loop.Count;
-        var bulge = new float[n];
+        var bulge = new double[n];
 
         for (int i = 0; i < n; i++)
         {
-            float arc = 0f;
+            double arc = 0.0;
             int back = 0, forward = 0;
 
-            while (arc < window * 0.5f && back < n / 6)
+            while (arc < window * 0.5 && back < n / 6)
             {
                 arc += step[(((i - back - 1) % n) + n) % n];
                 back++;
@@ -245,12 +241,11 @@ public static class PartingLineSections
                 forward++;
             }
 
-            if (back + forward < 2) { bulge[i] = 1f; continue; }
+            if (back + forward < 2) { bulge[i] = 1.0; continue; }
 
-            float chord = Vector3.Distance(
-                loop[(((i - back) % n) + n) % n], loop[(i + forward) % n]);
+            double chord = loop[(((i - back) % n) + n) % n].DistanceTo(loop[(i + forward) % n]);
 
-            bulge[i] = chord < 1e-5f ? float.MaxValue : arc / chord;
+            bulge[i] = chord < 1e-5 ? double.MaxValue : arc / chord;
         }
 
         return bulge;
@@ -284,29 +279,29 @@ public static class PartingLineSections
         return sections;
     }
 
-    private static float Worst(
+    private static double Worst(
         PartingLineCondition kind, PartingLineSample[] samples, int start, int count)
     {
         int n = samples.Length;
-        float worst = kind == PartingLineCondition.Kinked ? float.MinValue : float.MaxValue;
+        double worst = kind == PartingLineCondition.Kinked ? double.MinValue : double.MaxValue;
 
         for (int k = 0; k < count; k++)
         {
             var sample = samples[(start + k) % n];
             worst = kind switch
             {
-                PartingLineCondition.Kinked => MathF.Max(worst, sample.Turn),
-                PartingLineCondition.Necked => MathF.Min(worst, sample.Width),
-                _ => MathF.Min(worst, sample.Clearance),
+                PartingLineCondition.Kinked => Math.Max(worst, sample.Turn),
+                PartingLineCondition.Necked => Math.Min(worst, sample.Width),
+                _ => Math.Min(worst, sample.Clearance),
             };
         }
 
         return worst;
     }
 
-    private static float Median(float[] values)
+    private static double Median(double[] values)
     {
-        var sorted = (float[])values.Clone();
+        var sorted = (double[])values.Clone();
         Array.Sort(sorted);
         return sorted[sorted.Length / 2];
     }

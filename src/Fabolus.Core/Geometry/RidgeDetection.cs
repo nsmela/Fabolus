@@ -1,8 +1,4 @@
-﻿using System.Numerics;
-
-namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
+﻿namespace Fabolus.Core.Geometry;
 
 /// <summary>
 /// Thresholds for <see cref="RidgeDetection"/>, in three groups: what counts as a crease, how far a
@@ -17,7 +13,7 @@ public sealed record RidgeDetectionOptions
     /// crease of roughly 2mm radius - far tighter than anything the offsetting that builds a bolus
     /// shell produces on its own, so a seed is always a deliberate edge rather than surface relief.
     /// </summary>
-    public float SeedCurvature { get; init; } = 0.45f;
+    public double SeedCurvature { get; init; } = 0.45;
 
     /// <summary>
     /// Dihedral angle (degrees) that seeds a ridge whatever the curvature works out to. A fold this
@@ -26,7 +22,7 @@ public sealed record RidgeDetectionOptions
     /// triangles that sample it, so a genuine 90 degree rim on a 7mm mesh reads as a 4mm fillet.
     /// The angle does not care how far apart the samples are, which is exactly what is wanted here.
     /// </summary>
-    public float SeedAngleDegrees { get; init; } = 50f;
+    public double SeedAngleDegrees { get; init; } = 50.0;
 
     /// <summary>
     /// Curvature (1/mm) an edge must clear to be joined onto a ridge that already has a seed. Set
@@ -35,10 +31,10 @@ public sealed record RidgeDetectionOptions
     /// fragments that then fail the length test individually. Growing from seeds through weaker
     /// edges is what keeps the rim a single feature.
     /// </summary>
-    public float GrowCurvature { get; init; } = 0.20f;
+    public double GrowCurvature { get; init; } = 0.20;
 
     /// <summary>Dihedral angle (degrees) that extends a seeded ridge, whatever the curvature.</summary>
-    public float GrowAngleDegrees { get; init; } = 25f;
+    public double GrowAngleDegrees { get; init; } = 25.0;
 
     /// <summary>
     /// How long a ridge must be, as a fraction of the mesh's bounding-box diagonal, to be reported.
@@ -46,7 +42,7 @@ public sealed record RidgeDetectionOptions
     /// the diagonal, while the creases a coarse tessellation fakes are a handful of edges. 0.3 sits
     /// in the wide empty gap between the two on every sample tested.
     /// </summary>
-    public float MinLengthFraction { get; init; } = 0.30f;
+    public double MinLengthFraction { get; init; } = 0.30;
 
     /// <summary>
     /// Bail-out valve. If more than this fraction of the mesh's edges end up in ridges, the surface
@@ -54,7 +50,7 @@ public sealed record RidgeDetectionOptions
     /// than painting most of the model as ridge and calling that a detection. Reached only when
     /// <see cref="GrowCurvature"/> lets the grow pass percolate across the whole surface.
     /// </summary>
-    public float MaxRidgeEdgeFraction { get; init; } = 0.35f;
+    public double MaxRidgeEdgeFraction { get; init; } = 0.35;
 
     // ---- bridging breaks in a ridge ----
 
@@ -71,7 +67,7 @@ public sealed record RidgeDetectionOptions
     /// filled anyway.
     /// </para>
     /// </summary>
-    public float MaxGapFraction { get; init; } = 0.06f;
+    public double MaxGapFraction { get; init; } = 0.06;
 
     /// <summary>
     /// How strongly bridging prefers to route along whatever crease survives inside a break, as a
@@ -86,7 +82,7 @@ public sealed record RidgeDetectionOptions
     /// refused while the same 20mm along a surviving crease was allowed, which is backwards.
     /// </para>
     /// </summary>
-    public float GapFlatPenalty { get; init; } = 3f;
+    public double GapFlatPenalty { get; init; } = 3.0;
 
     /// <summary>
     /// How many steps along the ridge from a loose end still count as the same place. Without this a
@@ -102,7 +98,7 @@ public sealed record RidgeDetectionOptions
     /// band of a bolus runs 0.5-5% of the surface while the shell faces it separates run 37-50%, so
     /// anything near this threshold is one of the main surfaces and must not be painted.
     /// </summary>
-    public float MaxRegionAreaFraction { get; init; } = 0.15f;
+    public double MaxRegionAreaFraction { get; init; } = 0.15;
 
     /// <summary>
     /// The widest a region may be, as a fraction of the bounding diagonal, and still be filled.
@@ -111,7 +107,7 @@ public sealed record RidgeDetectionOptions
     /// small, a shell face is broad <em>and</em> large, and requiring both leaves no single
     /// measurement able to paint half the model on its own.
     /// </summary>
-    public float MaxRegionWidthFraction { get; init; } = 0.06f;
+    public double MaxRegionWidthFraction { get; init; } = 0.06;
 
     /// <summary>
     /// How wide a hole in the rim band may be, as a multiple of the band's own width, and still be
@@ -132,7 +128,7 @@ public sealed record RidgeDetectionOptions
     /// the area over the perimeter, the same measure the fill itself uses.
     /// </para>
     /// </summary>
-    public float MaxBandHoleWidthFraction { get; init; } = 1.0f;
+    public double MaxBandHoleWidthFraction { get; init; } = 1.0;
 
     /// <summary>
     /// How far below the band around it a stretch of band has to fall before it is treated as a
@@ -163,7 +159,7 @@ public sealed record RidgeDetectionOptions
     /// open contours where it used to come back as one closed one, and closure is the property
     /// everything downstream leans on. 0.5 is the setting to use once that is fixed.
     /// </para>
-    public float BandShortfallFraction { get; init; } = 0.5f;
+    public double BandShortfallFraction { get; init; } = 0.5;
 
     public static RidgeDetectionOptions Default { get; } = new();
 }
@@ -314,7 +310,7 @@ public static class RidgeDetection
     /// point. Display geometry arrives un-welded (one vertex per corner per face) and has no edge
     /// adjacency at all until coincident corners are matched up, so this runs unconditionally.
     /// </summary>
-    private const float WeldGridMm = 0.001f;
+    private const double WeldGridMm = 0.001;
 
     /// <summary>
     /// The mesh's Euler characteristic and genus, from the same welded view detection is run on - so a
@@ -546,13 +542,13 @@ public static class RidgeDetection
         if (profile.Width.Length == 0) return RidgeBandProfileReport.Empty;
 
         var surface = analysis.Surface;
-        var widths = new List<float>();
-        float bandArea = 0f, suspectArea = 0f;
+        var widths = new List<double>();
+        double bandArea = 0.0, suspectArea = 0.0;
         int bandFaces = 0, suspectFaces = 0;
 
         for (int f = 0; f < profile.Width.Length; f++)
         {
-            if (float.IsPositiveInfinity(profile.Width[f])) continue;
+            if (double.IsPositiveInfinity(profile.Width[f])) continue;
 
             widths.Add(profile.Width[f]);
             bandArea += surface.FaceArea[f];
@@ -565,7 +561,7 @@ public static class RidgeDetection
 
         return new RidgeBandProfileReport(
             true, profile.MedianWidth, bandFaces, suspectFaces, suspectArea, bandArea,
-            RidgeDistribution.From(widths, 0f, MathF.Max(profile.MedianWidth * 4f, 1f), 40),
+            RidgeDistribution.From(widths, 0.0, Math.Max(profile.MedianWidth * 4.0, 1.0), 40),
             profile.Width, profile.Expected, profile.Suspect, profile.ToFirst, profile.ToSecond);
     }
 
@@ -598,12 +594,12 @@ public static class RidgeDetection
     /// collapsed is what names the boundary that moved: a band pinched from one side has one of these
     /// at its usual value and the other at nearly nothing.</param>
     private sealed record BandProfile(
-        float[] Width, float[] Expected, bool[] Suspect, float MedianWidth,
-        float[] ToFirst, float[] ToSecond)
+        double[] Width, double[] Expected, bool[] Suspect, double MedianWidth,
+        double[] ToFirst, double[] ToSecond)
     {
         public static BandProfile None { get; } = new(
-            Array.Empty<float>(), Array.Empty<float>(), Array.Empty<bool>(), 0f,
-            Array.Empty<float>(), Array.Empty<float>());
+            Array.Empty<double>(), Array.Empty<double>(), Array.Empty<bool>(), 0.0,
+            Array.Empty<double>(), Array.Empty<double>());
     }
 
     /// <summary>
@@ -716,7 +712,7 @@ public static class RidgeDetection
             diag.EdgeTrace.Add(new RidgeEdgeAdmission(
                 edge.Item1, edge.Item2, MidPoint(surface, edge), surface.EdgeLength(edge),
                 first, second,
-                float.NaN, float.NaN, false, false, null, 0, 0f, true));
+                double.NaN, double.NaN, false, false, null, 0, 0.0, true));
         }
     }
 
@@ -741,8 +737,8 @@ public static class RidgeDetection
     /// <summary>Summarises the welded surface and the fold spread across it, for <see cref="Diagnose"/>.</summary>
     private static RidgeSurfaceReport Describe(IMesh mesh, Surface surface)
     {
-        var angles = new List<float>(surface.Folds.Count);
-        var curvatures = new List<float>(surface.Folds.Count);
+        var angles = new List<double>(surface.Folds.Count);
+        var curvatures = new List<double>(surface.Folds.Count);
         foreach (var fold in surface.Folds.Values)
         {
             angles.Add(fold.AngleDegrees);
@@ -759,8 +755,8 @@ public static class RidgeDetection
             Diagonal: surface.Diagonal,
             TotalArea: surface.TotalArea,
             MeanEdgeLength: surface.MeanEdgeLength,
-            FoldAngleDegrees: RidgeDistribution.From(angles, -180f, 180f, 72),
-            Curvature: RidgeDistribution.From(curvatures, -2f, 2f, 80));
+            FoldAngleDegrees: RidgeDistribution.From(angles, -180.0, 180.0, 72),
+            Curvature: RidgeDistribution.From(curvatures, -2.0, 2.0, 80));
     }
 
     // ---------------------------------------------------------------- pass 2: threshold
@@ -773,7 +769,7 @@ public static class RidgeDetection
         Surface surface, RidgeDetectionOptions options, RidgeDiagnostics? diag = null)
     {
         var kept = new HashSet<(int, int)>();
-        float minLength = options.MinLengthFraction * surface.Diagonal;
+        double minLength = options.MinLengthFraction * surface.Diagonal;
 
         int seedTotal = 0, seedByCurvature = 0, seedByAngle = 0, growByCurvature = 0, growByAngle = 0;
 
@@ -801,7 +797,7 @@ public static class RidgeDetection
                     Candidate: byCurvature || byAngle,
                     Seed: fold.Curvature > options.SeedCurvature
                         || fold.AngleDegrees > options.SeedAngleDegrees,
-                    Verdict: null, RunEdges: 0, RunLength: 0f, Final: false));
+                    Verdict: null, RunEdges: 0, RunLength: 0.0, Final: false));
             }
 
             if (!byCurvature && !byAngle) continue;
@@ -828,7 +824,7 @@ public static class RidgeDetection
         {
             bool hasSeed = false;
             int seedEdges = 0;
-            float length = 0f;
+            double length = 0.0;
             foreach (int index in run)
             {
                 var edge = candidates[index];
@@ -954,8 +950,8 @@ public static class RidgeDetection
         Surface surface, HashSet<(int, int)> ridgeEdges, RidgeDetectionOptions options,
         RidgeDiagnostics? diag = null)
     {
-        float maxGap = options.MaxGapFraction * surface.Diagonal;
-        if (maxGap <= 0f)
+        double maxGap = options.MaxGapFraction * surface.Diagonal;
+        if (maxGap <= 0.0)
         {
             diag?.BridgingSkipped("bridging disabled (MaxGapFraction is zero)", maxGap, ridgeEdges.Count, 0);
             return;
@@ -981,15 +977,15 @@ public static class RidgeDetection
 
         // Cost can never run ahead of distance by more than the penalty on a wholly flat route, so
         // once the cheapest thing left costs this much nothing within reach is left to find.
-        float costCeiling = maxGap * (1f + options.GapFlatPenalty);
+        double costCeiling = maxGap * (1.0 + options.GapFlatPenalty);
 
         // Reused across loose ends rather than reallocated per search: the searches are small and
         // local, so the clearing costs far less than the allocation would.
-        var cheapest = new Dictionary<int, float>();
-        var reach = new Dictionary<int, float>();
+        var cheapest = new Dictionary<int, double>();
+        var reach = new Dictionary<int, double>();
         var previous = new Dictionary<int, int>();
         var tooClose = new HashSet<int>();
-        var queue = new PriorityQueue<int, float>();
+        var queue = new PriorityQueue<int, double>();
 
         foreach (int start in looseEnds)
         {
@@ -999,14 +995,14 @@ public static class RidgeDetection
             reach.Clear();
             previous.Clear();
             queue.Clear();
-            cheapest[start] = 0f;
-            reach[start] = 0f;
-            queue.Enqueue(start, 0f);
+            cheapest[start] = 0.0;
+            reach[start] = 0.0;
+            queue.Enqueue(start, 0.0);
 
             int reached = -1;
-            while (queue.TryDequeue(out int current, out float cost))
+            while (queue.TryDequeue(out int current, out double cost))
             {
-                if (cost > cheapest.GetValueOrDefault(current, float.MaxValue) + 1e-6f) continue;
+                if (cost > cheapest.GetValueOrDefault(current, double.MaxValue) + 1e-6) continue;
                 if (cost > costCeiling) break;
                 if (ridgeVertices.Contains(current) && !tooClose.Contains(current))
                 {
@@ -1018,17 +1014,17 @@ public static class RidgeDetection
                 foreach (int next in neighbours)
                 {
                     var edge = current < next ? (current, next) : (next, current);
-                    float length = surface.EdgeLength(edge);
+                    double length = surface.EdgeLength(edge);
 
                     // Past the budget in plain distance, so this is no longer a break being closed.
-                    float span = reach[current] + length;
+                    double span = reach[current] + length;
                     if (span > maxGap) continue;
 
-                    float sharpness = surface.Folds.TryGetValue(edge, out var fold)
-                        ? MathF.Max(0f, fold.Curvature)
-                        : 0f;
-                    float total = cost + (length * (1f + (options.GapFlatPenalty / (1f + sharpness))));
-                    if (total >= cheapest.GetValueOrDefault(next, float.MaxValue)) continue;
+                    double sharpness = surface.Folds.TryGetValue(edge, out var fold)
+                        ? Math.Max(0.0, fold.Curvature)
+                        : 0.0;
+                    double total = cost + (length * (1.0 + (options.GapFlatPenalty / (1.0 + sharpness))));
+                    if (total >= cheapest.GetValueOrDefault(next, double.MaxValue)) continue;
 
                     cheapest[next] = total;
                     reach[next] = span;
@@ -1040,7 +1036,7 @@ public static class RidgeDetection
             if (reached < 0) continue;
 
             int added = 0;
-            float bridgeLength = 0f;
+            double bridgeLength = 0.0;
             for (int at = reached; previous.TryGetValue(at, out int from); at = from)
             {
                 var edge = at < from ? (at, from) : (from, at);
@@ -1131,13 +1127,13 @@ public static class RidgeDetection
             regionCount++;
         }
 
-        var area = new float[regionCount];
-        var perimeter = new float[regionCount];
+        var area = new double[regionCount];
+        var perimeter = new double[regionCount];
         for (int face = 0; face < faceCount; face++) area[region[face]] += surface.FaceArea[face];
         foreach (var edge in ridgeEdges)
         {
             var (first, second) = surface.Edges[edge];
-            float length = surface.EdgeLength(edge);
+            double length = surface.EdgeLength(edge);
             perimeter[region[first]] += length;
             // A ridge with the same region on both sides does not enclose it, so its length counts
             // once rather than twice - otherwise a crease running into a region would read as
@@ -1145,16 +1141,16 @@ public static class RidgeDetection
             if (second >= 0 && region[second] != region[first]) perimeter[region[second]] += length;
         }
 
-        float maxArea = options.MaxRegionAreaFraction * surface.TotalArea;
-        float maxWidth = options.MaxRegionWidthFraction * surface.Diagonal;
+        double maxArea = options.MaxRegionAreaFraction * surface.TotalArea;
+        double maxWidth = options.MaxRegionWidthFraction * surface.Diagonal;
 
         var fill = new bool[regionCount];
         for (int r = 0; r < regionCount; r++)
         {
             if (area[r] >= maxArea) continue;
             // No ridge on the boundary at all means nothing enclosed it; it is the whole surface.
-            if (perimeter[r] < 1e-6f) continue;
-            fill[r] = 2f * area[r] / perimeter[r] < maxWidth;
+            if (perimeter[r] < 1e-6) continue;
+            fill[r] = 2.0 * area[r] / perimeter[r] < maxWidth;
         }
 
         for (int face = 0; face < faceCount; face++)
@@ -1163,7 +1159,7 @@ public static class RidgeDetection
         var holes = diag is null ? null : new List<RidgeHoleReport>();
         int closed = CloseBandHoles(
             surface, ridgeEdges, options, ridgeFaces, region, area, perimeter, fill, regionCount,
-            holes, out float bandWidth, out float holeLimit);
+            holes, out double bandWidth, out double holeLimit);
 
         CompleteBand(surface, ridgeEdges, options, ridgeFaces, region, area, regionCount);
 
@@ -1197,15 +1193,15 @@ public static class RidgeDetection
     /// <returns>How many faces were given back to the band.</returns>
     private static int CompleteBand(
         Surface surface, HashSet<(int, int)> ridgeEdges, RidgeDetectionOptions options,
-        bool[] filled, int[] region, float[] area, int regionCount)
+        bool[] filled, int[] region, double[] area, int regionCount)
     {
-        if (options.BandShortfallFraction <= 0f || regionCount < 2) return 0;
+        if (options.BandShortfallFraction <= 0.0 || regionCount < 2) return 0;
 
         // Kept so the whole repair can be put back if it does not finish. See the convergence test
         // below for why abandoning it wholesale is the right answer rather than keeping what it did.
         var filledBefore = (bool[])filled.Clone();
         var regionBefore = (int[])region.Clone();
-        var areaBefore = (float[])area.Clone();
+        var areaBefore = (double[])area.Clone();
         var edgesBefore = new HashSet<(int, int)>(ridgeEdges);
 
         var repaired = new List<int>();
@@ -1267,7 +1263,7 @@ public static class RidgeDetection
     }
 
     /// <summary>The two largest regions by area - the outer and inner faces of the shell.</summary>
-    private static void TwoLargest(float[] area, int regionCount, out int first, out int second)
+    private static void TwoLargest(double[] area, int regionCount, out int first, out int second)
     {
         first = 0;
         second = -1;
@@ -1295,7 +1291,7 @@ public static class RidgeDetection
     /// <summary>One measure-and-grow. Returns the faces it gave back.</summary>
     private static List<int> CompleteBandPass(
         Surface surface, HashSet<(int, int)> ridgeEdges, RidgeDetectionOptions options,
-        bool[] filled, int[] region, float[] area, int regionCount)
+        bool[] filled, int[] region, double[] area, int regionCount)
     {
         var none = new List<int>();
         TwoLargest(area, regionCount, out int first, out int second);
@@ -1313,20 +1309,20 @@ public static class RidgeDetection
         int faceCount = surface.FaceCount;
         var centroid = Centroids(surface);
 
-        var distance = new float[faceCount];
-        var budget = new float[faceCount];
+        var distance = new double[faceCount];
+        var budget = new double[faceCount];
         var inherit = new int[faceCount];
-        Array.Fill(distance, float.PositiveInfinity);
+        Array.Fill(distance, double.PositiveInfinity);
         Array.Fill(inherit, -1);
 
-        var queue = new PriorityQueue<int, float>();
+        var queue = new PriorityQueue<int, double>();
 
         for (int f = 0; f < faceCount; f++)
         {
             if (!profile.Suspect[f]) continue;
 
-            float missing = profile.Expected[f] - profile.Width[f];
-            if (missing <= 0f) continue;
+            double missing = profile.Expected[f] - profile.Width[f];
+            if (missing <= 0.0) continue;
 
             // The side that rode in is the side the band barely reaches, so that is the one to grow.
             int collapsed = profile.ToFirst[f] < profile.ToSecond[f] ? first : second;
@@ -1340,7 +1336,7 @@ public static class RidgeDetection
                 int across = left == f ? right : left;
                 if (across < 0 || band[across] || region[across] != collapsed) continue;
 
-                float step = Vector3.Distance(centroid[f], MidPoint(surface, edge));
+                double step = centroid[f].DistanceTo(MidPoint(surface, edge));
                 if (step >= distance[across]) continue;
 
                 distance[across] = step;
@@ -1355,9 +1351,9 @@ public static class RidgeDetection
         // them and the faces given back reads as band against surface and goes on being drawn - the old
         // boundary and the new one both, which is worse than the pocket was. They move with the rest.
         var grown = new List<int>();
-        while (queue.TryDequeue(out int current, out float cost))
+        while (queue.TryDequeue(out int current, out double cost))
         {
-            if (cost > distance[current] + 1e-6f) continue;
+            if (cost > distance[current] + 1e-6) continue;
 
             grown.Add(current);
 
@@ -1368,7 +1364,7 @@ public static class RidgeDetection
                 int across = left == current ? right : left;
                 if (across < 0 || band[across] || region[across] != region[current]) continue;
 
-                float step = cost + Vector3.Distance(centroid[current], centroid[across]);
+                double step = cost + centroid[current].DistanceTo(centroid[across]);
                 if (step > budget[current] || step >= distance[across]) continue;
 
                 distance[across] = step;
@@ -1458,7 +1454,7 @@ public static class RidgeDetection
     /// <param name="zone">The whole rim, where the crease is re-laid along the band's edge.</param>
     /// <param name="repair">The faces the repair touched, the only ones that change hands.</param>
     private static void Rebound(
-        Surface surface, HashSet<(int, int)> ridgeEdges, bool[] band, int[] region, float[] area,
+        Surface surface, HashSet<(int, int)> ridgeEdges, bool[] band, int[] region, double[] area,
         HashSet<int> zone, int first, int second)
     {
         for (int pass = 0; pass < 8; pass++)
@@ -1521,7 +1517,7 @@ public static class RidgeDetection
         for (int f = 0; f < surface.FaceCount; f++)
             centroid[f] = (surface.Positions[surface.Triangles[f * 3]]
                 + surface.Positions[surface.Triangles[(f * 3) + 1]]
-                + surface.Positions[surface.Triangles[(f * 3) + 2]]) / 3f;
+                + surface.Positions[surface.Triangles[(f * 3) + 2]]) / 3.0;
         return centroid;
     }
 
@@ -1539,7 +1535,7 @@ public static class RidgeDetection
     /// </param>
     private static BandProfile MeasureBand(
         Surface surface, Territories territories, bool[] band,
-        float shortfall = 0.5f, float neighbourhood = 4f)
+        double shortfall = 0.5, double neighbourhood = 4.0)
     {
         if (territories.First < 0) return BandProfile.None;
 
@@ -1547,13 +1543,13 @@ public static class RidgeDetection
         var toFirst = SpreadAcrossBand(surface, territories, band, territories.First);
         var toSecond = SpreadAcrossBand(surface, territories, band, territories.Second);
 
-        var width = new float[faceCount];
-        var measured = new List<float>();
+        var width = new double[faceCount];
+        var measured = new List<double>();
         for (int f = 0; f < faceCount; f++)
         {
-            if (!band[f] || float.IsPositiveInfinity(toFirst[f]) || float.IsPositiveInfinity(toSecond[f]))
+            if (!band[f] || double.IsPositiveInfinity(toFirst[f]) || double.IsPositiveInfinity(toSecond[f]))
             {
-                width[f] = float.PositiveInfinity;
+                width[f] = double.PositiveInfinity;
                 continue;
             }
 
@@ -1564,22 +1560,22 @@ public static class RidgeDetection
         if (measured.Count == 0) return BandProfile.None;
 
         measured.Sort();
-        float median = measured[measured.Count / 2];
+        double median = measured[measured.Count / 2];
 
         // The local expectation: the median width of the band within a few widths along it. Median
         // rather than mean so the collapse being looked for cannot drag its own reference down.
-        float radius = neighbourhood * median;
-        var expected = new float[faceCount];
+        double radius = neighbourhood * median;
+        var expected = new double[faceCount];
         var suspect = new bool[faceCount];
-        var nearby = new List<float>();
+        var nearby = new List<double>();
         var visited = new HashSet<int>();
         var frontier = new List<int>();
         var next = new List<int>();
 
         for (int f = 0; f < faceCount; f++)
         {
-            expected[f] = float.PositiveInfinity;
-            if (float.IsPositiveInfinity(width[f])) continue;
+            expected[f] = double.PositiveInfinity;
+            if (double.IsPositiveInfinity(width[f])) continue;
 
             nearby.Clear();
             visited.Clear();
@@ -1588,7 +1584,7 @@ public static class RidgeDetection
             frontier.Add(f);
             nearby.Add(width[f]);
 
-            float walked = 0f;
+            double walked = 0.0;
             while (walked < radius && frontier.Count > 0)
             {
                 next.Clear();
@@ -1598,7 +1594,7 @@ public static class RidgeDetection
                         var edge = surface.FaceEdge(face, e);
                         var (first, second) = surface.Edges[edge];
                         int across = first == face ? second : first;
-                        if (across < 0 || float.IsPositiveInfinity(width[across])) continue;
+                        if (across < 0 || double.IsPositiveInfinity(width[across])) continue;
                         if (!visited.Add(across)) continue;
 
                         next.Add(across);
@@ -1622,21 +1618,21 @@ public static class RidgeDetection
     /// walking only across the band. Dijkstra over face centroids rather than a hop count, so the
     /// answer is a length in millimetres and does not change with how finely the band is tessellated.
     /// </summary>
-    private static float[] SpreadAcrossBand(
+    private static double[] SpreadAcrossBand(
         Surface surface, Territories territories, bool[] band, int territory)
     {
         int faceCount = surface.FaceCount;
-        var distance = new float[faceCount];
-        Array.Fill(distance, float.PositiveInfinity);
+        var distance = new double[faceCount];
+        Array.Fill(distance, double.PositiveInfinity);
 
-        var queue = new PriorityQueue<int, float>();
+        var queue = new PriorityQueue<int, double>();
         var centroid = new Vector3[faceCount];
         for (int f = 0; f < faceCount; f++)
         {
             var a = surface.Positions[surface.Triangles[f * 3]];
             var b = surface.Positions[surface.Triangles[(f * 3) + 1]];
             var c = surface.Positions[surface.Triangles[(f * 3) + 2]];
-            centroid[f] = (a + b + c) / 3f;
+            centroid[f] = (a + b + c) / 3.0;
         }
 
         // Seeded at the band faces that border the territory, at half their own size rather than at
@@ -1652,17 +1648,17 @@ public static class RidgeDetection
                 int across = first == f ? second : first;
                 if (across < 0 || band[across] || territories.Region[across] != territory) continue;
 
-                float seed = Vector3.Distance(centroid[f], MidPoint(surface, edge));
+                double seed = centroid[f].DistanceTo(MidPoint(surface, edge));
                 if (seed >= distance[f]) continue;
                 distance[f] = seed;
             }
 
-            if (!float.IsPositiveInfinity(distance[f])) queue.Enqueue(f, distance[f]);
+            if (!double.IsPositiveInfinity(distance[f])) queue.Enqueue(f, distance[f]);
         }
 
-        while (queue.TryDequeue(out int current, out float cost))
+        while (queue.TryDequeue(out int current, out double cost))
         {
-            if (cost > distance[current] + 1e-6f) continue;
+            if (cost > distance[current] + 1e-6) continue;
 
             for (int e = 0; e < 3; e++)
             {
@@ -1671,7 +1667,7 @@ public static class RidgeDetection
                 int across = first == current ? second : first;
                 if (across < 0 || !band[across]) continue;
 
-                float step = cost + Vector3.Distance(centroid[current], centroid[across]);
+                double step = cost + centroid[current].DistanceTo(centroid[across]);
                 if (step >= distance[across]) continue;
 
                 distance[across] = step;
@@ -1683,7 +1679,7 @@ public static class RidgeDetection
     }
 
     private static Vector3 MidPoint(Surface surface, (int, int) edge) =>
-        (surface.Positions[edge.Item1] + surface.Positions[edge.Item2]) * 0.5f;
+        (surface.Positions[edge.Item1] + surface.Positions[edge.Item2]) * 0.5;
 
     /// <summary>
     /// Closes pockets punched through the rim band, by giving their faces to the band around them.
@@ -1699,12 +1695,12 @@ public static class RidgeDetection
     /// <returns>How many pockets were closed.</returns>
     private static int CloseBandHoles(
         Surface surface, HashSet<(int, int)> ridgeEdges, RidgeDetectionOptions options, bool[] band,
-        int[] region, float[] area, float[] perimeter, bool[] fill, int regionCount,
-        List<RidgeHoleReport>? holes, out float bandWidth, out float holeLimit)
+        int[] region, double[] area, double[] perimeter, bool[] fill, int regionCount,
+        List<RidgeHoleReport>? holes, out double bandWidth, out double holeLimit)
     {
-        bandWidth = 0f;
-        holeLimit = 0f;
-        if (options.MaxBandHoleWidthFraction <= 0f) return 0;
+        bandWidth = 0.0;
+        holeLimit = 0.0;
+        if (options.MaxBandHoleWidthFraction <= 0.0) return 0;
 
         // The band's width, taken over the band as one object rather than per region.
         //
@@ -1714,12 +1710,12 @@ public static class RidgeDetection
         // width. On this set it read 3.9mm against a real 11mm. Measured across the whole band the
         // ends cancel - a band of length L and width w has area Lw and two long sides of length L, so
         // twice the area over that perimeter is w exactly.
-        float bandArea = 0f;
+        double bandArea = 0.0;
         for (int r = 0; r < regionCount; r++)
             if (fill[r]) bandArea += area[r];
-        if (bandArea < 1e-6f) return 0;
+        if (bandArea < 1e-6) return 0;
 
-        float bandSides = 0f;
+        double bandSides = 0.0;
         foreach (var edge in ridgeEdges)
         {
             var (first, second) = surface.Edges[edge];
@@ -1729,10 +1725,10 @@ public static class RidgeDetection
             bool rightFilled = fill[region[second]];
             if (leftFilled != rightFilled) bandSides += surface.EdgeLength(edge);
         }
-        if (bandSides < 1e-6f) return 0;
+        if (bandSides < 1e-6) return 0;
 
-        bandWidth = 2f * bandArea / bandSides;
-        float maxWidth = options.MaxBandHoleWidthFraction * bandWidth;
+        bandWidth = 2.0 * bandArea / bandSides;
+        double maxWidth = options.MaxBandHoleWidthFraction * bandWidth;
         holeLimit = maxWidth;
 
         // Area as well as width, because twice-the-area-over-the-perimeter only measures a width on
@@ -1741,7 +1737,7 @@ public static class RidgeDetection
         // reach into it, came out at 14mm across when it is 300mm wide, and closing swallowed the
         // whole cap. Requiring the pocket to fit inside a square of one band width as well is what
         // makes the pair of tests describe a blemish rather than either one alone.
-        float maxArea = maxWidth * maxWidth;
+        double maxArea = maxWidth * maxWidth;
 
         int faceCount = surface.FaceCount;
 
@@ -1773,7 +1769,7 @@ public static class RidgeDetection
             stack.Push(seed);
 
             bool enclosed = true;
-            float holeArea = 0f, holePerimeter = 0f;
+            double holeArea = 0.0, holePerimeter = 0.0;
             int touching = -1;
 
             while (stack.Count > 0)
@@ -1812,14 +1808,14 @@ public static class RidgeDetection
                 }
             }
 
-            float holeWidth = holePerimeter > 1e-6f ? 2f * holeArea / holePerimeter : float.PositiveInfinity;
-            bool ok = enclosed && touching >= 0 && holePerimeter > 1e-6f
+            double holeWidth = holePerimeter > 1e-6 ? 2.0 * holeArea / holePerimeter : double.PositiveInfinity;
+            bool ok = enclosed && touching >= 0 && holePerimeter > 1e-6
                 && holeWidth < maxWidth && holeArea < maxArea;
 
             string verdict =
                 !enclosed ? "open to a boundary edge"
                 : touching < 0 ? "nothing beside it to inherit from"
-                : holePerimeter < 1e-6f ? "no perimeter"
+                : holePerimeter < 1e-6 ? "no perimeter"
                 : holeWidth >= maxWidth ? "wider than the band"
                 : holeArea >= maxArea ? "larger than the band is wide"
                 : "closed";
@@ -1863,7 +1859,7 @@ public static class RidgeDetection
     /// </para>
     /// </summary>
     private static Territories Classify(
-        Surface surface, HashSet<(int, int)> ridgeEdges, int[] region, float[] area, int regionCount)
+        Surface surface, HashSet<(int, int)> ridgeEdges, int[] region, double[] area, int regionCount)
     {
         if (regionCount < 2) return Territories.None;
 
@@ -1952,8 +1948,8 @@ public static class RidgeDetection
 
     private static void ReportFill(
         Surface surface, RidgeDetectionOptions options, RidgeDiagnostics diag,
-        int[] region, float[] area, float[] perimeter, bool[] fill, int regionCount,
-        Territories territories, int closedHoles, float bandWidth, float holeLimit,
+        int[] region, double[] area, double[] perimeter, bool[] fill, int regionCount,
+        Territories territories, int closedHoles, double bandWidth, double holeLimit,
         List<RidgeHoleReport> holes)
     {
         int faceCount = surface.FaceCount;
@@ -1963,15 +1959,15 @@ public static class RidgeDetection
 
         var regions = new List<RidgeRegionReport>(regionCount);
         int filledRegions = 0, filledFaces = 0;
-        float filledArea = 0f;
+        double filledArea = 0.0;
         for (int r = 0; r < regionCount; r++)
         {
-            float width = perimeter[r] > 1e-6f ? 2f * area[r] / perimeter[r] : float.PositiveInfinity;
+            double width = perimeter[r] > 1e-6 ? 2.0 * area[r] / perimeter[r] : double.PositiveInfinity;
             regions.Add(new RidgeRegionReport(
                 faceCounts[r], area[r],
-                surface.TotalArea > 0f ? area[r] / surface.TotalArea : 0f,
+                surface.TotalArea > 0.0 ? area[r] / surface.TotalArea : 0.0,
                 perimeter[r], width,
-                surface.Diagonal > 0f ? width / surface.Diagonal : 0f,
+                surface.Diagonal > 0.0 ? width / surface.Diagonal : 0.0,
                 fill[r]));
 
             if (!fill[r]) continue;
@@ -1985,7 +1981,7 @@ public static class RidgeDetection
             regions.OrderByDescending(r => r.Area).Take(64).ToList(),
             options.MaxRegionAreaFraction, options.MaxRegionWidthFraction,
             filledRegions, filledFaces,
-            surface.TotalArea > 0f ? filledArea / surface.TotalArea : 0f,
+            surface.TotalArea > 0.0 ? filledArea / surface.TotalArea : 0.0,
             // One group per rim is the healthy answer. Two rims sharing a group means their walls
             // touch, and a walk cannot then tell one rim from the other.
             territories.BandGroup.Where(g => g >= 0).Distinct().Count(),
@@ -1996,8 +1992,8 @@ public static class RidgeDetection
     // ---------------------------------------------------------------- pass 5: contour
 
     /// <summary>Taubin shrink factor, and the inflate factor that cancels its shrinkage.</summary>
-    private const float ContourLambda = 0.55f;
-    private const float ContourMu = -0.58f;
+    private const double ContourLambda = 0.55;
+    private const double ContourMu = -0.58;
 
     /// <summary>
     /// Relaxation passes over each contour. Enough to erase the triangle-scale staircase the trace
@@ -2010,13 +2006,13 @@ public static class RidgeDetection
     /// edge is what lets relaxation work at all: left on the original vertices, a staircase's steps
     /// are its own neighbours and the Laplacian of a step is the step, so it barely moves.
     /// </summary>
-    private const float ContourSpacingInEdges = 1.0f;
+    private const double ContourSpacingInEdges = 1.0;
 
     /// <summary>How far a contour is lifted off the surface, as a fraction of the bounding diagonal.</summary>
-    private const float ContourLiftFraction = 0.002f;
+    private const double ContourLiftFraction = 0.002;
 
     /// <summary>Shortest contour worth drawing, as a fraction of the bounding diagonal.</summary>
-    private const float MinContourFraction = 0.15f;
+    private const double MinContourFraction = 0.15;
 
     /// <summary>
     /// Turns the ridge into curves. The curve follows the crease itself, not the outline of the
@@ -2059,9 +2055,9 @@ public static class RidgeDetection
             creases.Add(edge);
         }
 
-        float minLength = MinContourFraction * surface.Diagonal;
-        float spacing = ContourSpacingInEdges * surface.MeanEdgeLength;
-        float lift = ContourLiftFraction * surface.Diagonal;
+        double minLength = MinContourFraction * surface.Diagonal;
+        double spacing = ContourSpacingInEdges * surface.MeanEdgeLength;
+        double lift = ContourLiftFraction * surface.Diagonal;
 
         if (diag is not null)
         {
@@ -2088,11 +2084,11 @@ public static class RidgeDetection
         var contours = new List<RidgeContour>();
         foreach (var (chain, closed) in ChainCreases(surface, creases, territories))
         {
-            float length = 0f;
+            double length = 0.0;
             for (int i = 0; i < chain.Count - 1; i++)
-                length += Vector3.Distance(surface.Positions[chain[i]], surface.Positions[chain[i + 1]]);
+                length += surface.Positions[chain[i]].DistanceTo(surface.Positions[chain[i + 1]]);
             if (closed)
-                length += Vector3.Distance(surface.Positions[chain[^1]], surface.Positions[chain[0]]);
+                length += surface.Positions[chain[^1]].DistanceTo(surface.Positions[chain[0]]);
             if (length < minLength)
             {
                 diag?.Chain(chain.Count, 0, length, closed, RidgeChainVerdict.TooShort);
@@ -2250,11 +2246,11 @@ public static class RidgeDetection
         if (!incident.TryGetValue(at, out var candidates)) return -1;
 
         var heading = surface.Positions[at] - surface.Positions[from];
-        float headingLength = heading.Length();
-        if (headingLength > 1e-9f) heading /= headingLength;
+        double headingLength = heading.Length;
+        if (headingLength > 1e-9) heading /= headingLength;
 
         int best = -1;
-        float straightest = float.MinValue;
+        double straightest = double.MinValue;
         foreach (int index in candidates)
         {
             if (used[index]) continue;
@@ -2263,10 +2259,10 @@ public static class RidgeDetection
             int other = edge.Item1 == at ? edge.Item2 : edge.Item1;
 
             var direction = surface.Positions[other] - surface.Positions[at];
-            float length = direction.Length();
-            if (length < 1e-9f) continue;
+            double length = direction.Length;
+            if (length < 1e-9) continue;
 
-            float turn = Vector3.Dot(heading, direction / length);
+            double turn = heading.Dot(direction / length);
             if (turn <= straightest) continue;
 
             straightest = turn;
@@ -2281,7 +2277,7 @@ public static class RidgeDetection
     /// with the position so the lift at the end still points away from the surface.
     /// </summary>
     private static Vector3[] Resample(
-        Vector3[] points, Vector3[] normals, float spacing, bool closed, out Vector3[] resampledNormals)
+        Vector3[] points, Vector3[] normals, double spacing, bool closed, out Vector3[] resampledNormals)
     {
         int n = points.Length;
         int spans = closed ? n : n - 1;
@@ -2291,18 +2287,18 @@ public static class RidgeDetection
             return points;
         }
 
-        var cumulative = new float[spans + 1];
+        var cumulative = new double[spans + 1];
         for (int i = 0; i < spans; i++)
-            cumulative[i + 1] = cumulative[i] + Vector3.Distance(points[i], points[(i + 1) % n]);
+            cumulative[i + 1] = cumulative[i] + points[i].DistanceTo(points[(i + 1) % n]);
 
-        float total = cumulative[spans];
-        if (total < 1e-6f)
+        double total = cumulative[spans];
+        if (total < 1e-6)
         {
             resampledNormals = normals;
             return points;
         }
 
-        int count = Math.Clamp((int)MathF.Round(total / MathF.Max(spacing, 1e-4f)), 8, 20000);
+        int count = Math.Clamp((int)Math.Round(total / Math.Max(spacing, 1e-4)), 8, 20000);
         // An open chain needs a sample at each end; a closed one must not repeat its start.
         int samples = closed ? count : count + 1;
 
@@ -2312,16 +2308,16 @@ public static class RidgeDetection
         int segment = 0;
         for (int k = 0; k < samples; k++)
         {
-            float target = total * k / count;
+            double target = total * k / count;
             while (segment < spans - 1 && cumulative[segment + 1] < target) segment++;
 
-            float span = cumulative[segment + 1] - cumulative[segment];
-            float t = span > 1e-6f ? Math.Clamp((target - cumulative[segment]) / span, 0f, 1f) : 0f;
+            double span = cumulative[segment + 1] - cumulative[segment];
+            double t = span > 1e-6 ? Math.Clamp((target - cumulative[segment]) / span, 0.0, 1.0) : 0.0;
             int next = (segment + 1) % n;
 
-            outPoints[k] = Vector3.Lerp(points[segment], points[next], t);
-            var normal = Vector3.Lerp(normals[segment], normals[next], t);
-            resampledNormals[k] = normal.LengthSquared() < 1e-12f ? Vector3.Zero : Vector3.Normalize(normal);
+            outPoints[k] = points[segment].LerpTo(points[next], t);
+            var normal = normals[segment].LerpTo(normals[next], t);
+            resampledNormals[k] = normal.LengthSquared < 1e-12 ? Vector3.Zero : normal.Normalize();
         }
 
         return outPoints;
@@ -2334,7 +2330,7 @@ public static class RidgeDetection
     /// without that drift. An open chain's endpoints are pinned, so a run does not creep back from
     /// the junction it started at.
     /// </summary>
-    private static Vector3[] Relax(Vector3[] points, Vector3[] normals, float lift, bool closed)
+    private static Vector3[] Relax(Vector3[] points, Vector3[] normals, double lift, bool closed)
     {
         int n = points.Length;
         if (n < 4) return points;
@@ -2352,7 +2348,7 @@ public static class RidgeDetection
         for (int i = 0; i < n; i++) work[i] += normals[i] * lift;
         return work;
 
-        static void LaplacianPass(Vector3[] source, Vector3[] destination, float factor, bool closed)
+        static void LaplacianPass(Vector3[] source, Vector3[] destination, double factor, bool closed)
         {
             int count = source.Length;
             for (int i = 0; i < count; i++)
@@ -2363,7 +2359,7 @@ public static class RidgeDetection
                     continue;
                 }
 
-                var midpoint = (source[(i - 1 + count) % count] + source[(i + 1) % count]) * 0.5f;
+                var midpoint = (source[(i - 1 + count) % count] + source[(i + 1) % count]) * 0.5;
                 destination[i] = source[i] + (factor * (midpoint - source[i]));
             }
         }
@@ -2377,7 +2373,7 @@ public static class RidgeDetection
     /// folds towards them (a concave valley), so a convexity test is just a comparison against a
     /// positive threshold.
     /// </summary>
-    private readonly record struct Fold(float AngleDegrees, float Curvature);
+    private readonly record struct Fold(double AngleDegrees, double Curvature);
 
     /// <summary>
     /// A welded view of a mesh: coincident corners merged, face normals, centroids and areas
@@ -2388,18 +2384,18 @@ public static class RidgeDetection
         public required Vector3[] Positions { get; init; }
         public required int[] Triangles { get; init; }
         public required Vector3[] FaceNormal { get; init; }
-        public required float[] FaceArea { get; init; }
+        public required double[] FaceArea { get; init; }
         public required Dictionary<(int, int), (int First, int Second)> Edges { get; init; }
         public required Dictionary<(int, int), Fold> Folds { get; init; }
         public required Dictionary<int, List<int>> VertexNeighbours { get; init; }
-        public required float Diagonal { get; init; }
-        public required float TotalArea { get; init; }
-        public required float MeanEdgeLength { get; init; }
+        public required double Diagonal { get; init; }
+        public required double TotalArea { get; init; }
+        public required double MeanEdgeLength { get; init; }
 
         public int FaceCount => FaceArea.Length;
 
-        public float EdgeLength((int, int) edge) =>
-            Vector3.Distance(Positions[edge.Item1], Positions[edge.Item2]);
+        public double EdgeLength((int, int) edge) =>
+            Positions[edge.Item1].DistanceTo(Positions[edge.Item2]);
 
         /// <summary>
         /// Area-weighted vertex normals, for lifting a contour clear of the surface. Weighted by area
@@ -2417,7 +2413,7 @@ public static class RidgeDetection
             }
 
             for (int i = 0; i < normals.Length; i++)
-                normals[i] = normals[i].LengthSquared() < 1e-12f ? Vector3.Zero : Vector3.Normalize(normals[i]);
+                normals[i] = normals[i].LengthSquared < 1e-12 ? Vector3.Zero : normals[i].Normalize();
 
             return normals;
         }
@@ -2432,8 +2428,8 @@ public static class RidgeDetection
 
         public static Surface Build(IMesh mesh)
         {
-            var sourceVertices = NumericsMesh.Of(mesh).Vertices;
-            var sourceTriangles = NumericsMesh.Of(mesh).Triangles;
+            var sourceVertices = mesh.Vertices;
+            var sourceTriangles = mesh.Triangles;
             int triangleCount = sourceTriangles.Length / 3;
 
             // --- weld ---
@@ -2443,9 +2439,9 @@ public static class RidgeDetection
             {
                 var v = sourceVertices[i];
                 var key = (
-                    (int)MathF.Round(v.X / WeldGridMm),
-                    (int)MathF.Round(v.Y / WeldGridMm),
-                    (int)MathF.Round(v.Z / WeldGridMm));
+                    (int)Math.Round(v.X / WeldGridMm),
+                    (int)Math.Round(v.Y / WeldGridMm),
+                    (int)Math.Round(v.Z / WeldGridMm));
 
                 if (!lookup.TryGetValue(key, out int id))
                 {
@@ -2464,19 +2460,19 @@ public static class RidgeDetection
             // --- per-face normal, centroid and area ---
             var normals = new Vector3[triangleCount];
             var centroids = new Vector3[triangleCount];
-            var areas = new float[triangleCount];
-            float totalArea = 0f;
+            var areas = new double[triangleCount];
+            double totalArea = 0.0;
             for (int t = 0; t < triangleCount; t++)
             {
                 var a = positions[triangles[t * 3]];
                 var b = positions[triangles[(t * 3) + 1]];
                 var c = positions[triangles[(t * 3) + 2]];
 
-                var cross = Vector3.Cross(b - a, c - a);
-                float length = cross.Length();
-                normals[t] = length < 1e-12f ? Vector3.Zero : cross / length;
-                centroids[t] = (a + b + c) / 3f;
-                areas[t] = length * 0.5f;
+                var cross = (b - a).Cross(c - a);
+                double length = cross.Length;
+                normals[t] = length < 1e-12 ? Vector3.Zero : cross / length;
+                centroids[t] = (a + b + c) / 3.0;
+                areas[t] = length * 0.5;
                 totalArea += areas[t];
             }
 
@@ -2503,12 +2499,12 @@ public static class RidgeDetection
                     Attach(vertexNeighbours, b, a);
                 }
 
-            var min = new Vector3(float.MaxValue);
-            var max = new Vector3(float.MinValue);
+            var min = new Vector3(double.MaxValue, double.MaxValue, double.MaxValue);
+            var max = new Vector3(double.MinValue, double.MinValue, double.MinValue);
             foreach (var p in positions)
             {
-                min = Vector3.Min(min, p);
-                max = Vector3.Max(max, p);
+                min = min.ComponentMin(p);
+                max = max.ComponentMax(p);
             }
 
             var folds = new Dictionary<(int, int), Fold>(edges.Count);
@@ -2520,7 +2516,7 @@ public static class RidgeDetection
             }
 
             double edgeTotal = 0d;
-            foreach (var key in edges.Keys) edgeTotal += Vector3.Distance(positions[key.Item1], positions[key.Item2]);
+            foreach (var key in edges.Keys) edgeTotal += positions[key.Item1].DistanceTo(positions[key.Item2]);
 
             return new Surface
             {
@@ -2531,9 +2527,9 @@ public static class RidgeDetection
                 Edges = edges,
                 Folds = folds,
                 VertexNeighbours = vertexNeighbours,
-                Diagonal = (max - min).Length(),
+                Diagonal = (max - min).Length,
                 TotalArea = totalArea,
-                MeanEdgeLength = edges.Count > 0 ? (float)(edgeTotal / edges.Count) : 1f,
+                MeanEdgeLength = edges.Count > 0 ? (double)(edgeTotal / edges.Count) : 1.0,
             };
 
             static void Attach(Dictionary<int, List<int>> map, int key, int value)
@@ -2564,7 +2560,7 @@ public static class RidgeDetection
             var n1 = normals[second];
             if (n0 == Vector3.Zero || n1 == Vector3.Zero) return default; // degenerate face, nothing to fold
 
-            float angle = MathF.Acos(Math.Clamp(Vector3.Dot(n0, n1), -1f, 1f));
+            double angle = Math.Acos(Math.Clamp(n0.Dot(n1), -1.0, 1.0));
 
             // The corner of the second face that isn't on the shared edge tells us which way the fold
             // goes: behind the first face's plane is convex, in front of it is concave.
@@ -2576,21 +2572,21 @@ public static class RidgeDetection
                 opposite = positions[id];
                 break;
             }
-            float sign = Vector3.Dot(opposite - positions[edge.Item1], n0) < 0f ? 1f : -1f;
+            double sign = (opposite - positions[edge.Item1]).Dot(n0) < 0.0 ? 1.0 : -1.0;
 
             var step = centroids[second] - centroids[first];
             var along = positions[edge.Item2] - positions[edge.Item1];
-            float alongLength = along.Length();
-            if (alongLength > 1e-6f)
+            double alongLength = along.Length;
+            if (alongLength > 1e-6)
             {
                 along /= alongLength;
-                step -= along * Vector3.Dot(step, along);
+                step -= along * step.Dot(along);
             }
 
-            float span = step.Length();
+            double span = step.Length;
             return new Fold(
-                AngleDegrees: sign * angle * 180f / MathF.PI,
-                Curvature: span < 1e-6f ? 0f : sign * angle / span);
+                AngleDegrees: sign * angle * 180.0 / Math.PI,
+                Curvature: span < 1e-6 ? 0.0 : sign * angle / span);
         }
     }
 }

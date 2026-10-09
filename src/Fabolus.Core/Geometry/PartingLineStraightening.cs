@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>Settings for <see cref="PartingLineStraightening"/>.</summary>
 public sealed record PartingLineStraighteningOptions
@@ -20,13 +16,13 @@ public sealed record PartingLineStraighteningOptions
     /// middle third rather than merely inside the creases.
     /// </para>
     /// </summary>
-    public float Margin { get; init; } = 0.35f;
+    public double Margin { get; init; } = 0.35;
 
     /// <summary>Rounds of smoothing: a Laplacian step, a push back off the creases, then a projection.</summary>
     public int Passes { get; init; } = 60;
 
     /// <summary>How far towards the average of its neighbours a point moves per round.</summary>
-    public float Strength { get; init; } = 0.5f;
+    public double Strength { get; init; } = 0.5;
 
     public static PartingLineStraighteningOptions Default { get; } = new();
 }
@@ -76,7 +72,7 @@ public static class PartingLineStraightening
 
         options ??= PartingLineStraighteningOptions.Default;
 
-        var usable = bands.Where(b => b.Span > 1e-4f).ToList();
+        var usable = bands.Where(b => b.Span > 1e-4).ToList();
         if (usable.Count == 0) return line;
 
         var straightened = new List<Vector3[]>(line.Loops.Count);
@@ -90,13 +86,13 @@ public static class PartingLineStraightening
     private static PartingBand Nearest(IReadOnlyList<Vector3> loop, IReadOnlyList<PartingBand> bands)
     {
         var best = bands[0];
-        float bestDistance = float.MaxValue;
+        double bestDistance = double.MaxValue;
 
         foreach (var band in bands)
         {
-            float total = 0f;
+            double total = 0.0;
             foreach (var point in loop)
-                total += MathF.Min(
+                total += Math.Min(
                     PartingBand.Closest(point, band.First).Distance,
                     PartingBand.Closest(point, band.Second).Distance);
 
@@ -125,7 +121,7 @@ public static class PartingLineStraightening
             // wrong here: the shrinkage is the straightening. What stops it collapsing is the wall.
             for (int i = 0; i < count; i++)
             {
-                var midpoint = (points[(i - 1 + count) % count] + points[(i + 1) % count]) * 0.5f;
+                var midpoint = (points[(i - 1 + count) % count] + points[(i + 1) % count]) * 0.5;
                 scratch[i] = points[i] + ((midpoint - points[i]) * options.Strength);
             }
 
@@ -141,19 +137,19 @@ public static class PartingLineStraightening
                 var b = PartingBand.Closest(scratch[i], band.Second).Point;
 
                 var across = b - a;
-                float span = across.LengthSquared();
-                if (span < 1e-9f) continue;
+                double span = across.LengthSquared;
+                if (span < 1e-9) continue;
 
-                float t = Vector3.Dot(scratch[i] - a, across) / span;
-                float over =
+                double t = (scratch[i] - a).Dot(across) / span;
+                double over =
                     t < options.Margin ? options.Margin - t
-                    : t > 1f - options.Margin ? t - (1f - options.Margin)
-                    : 0f;
+                    : t > 1.0 - options.Margin ? t - (1.0 - options.Margin)
+                    : 0.0;
 
-                if (over <= 0f) continue;
+                if (over <= 0.0) continue;
 
-                float target = t < options.Margin ? options.Margin : 1f - options.Margin;
-                scratch[i] += across * ((target - t) * MathF.Min(over / options.Margin, 1f));
+                double target = t < options.Margin ? options.Margin : 1.0 - options.Margin;
+                scratch[i] += across * ((target - t) * Math.Min(over / options.Margin, 1.0));
             }
 
             Array.Copy(scratch, points, count);

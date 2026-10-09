@@ -1,9 +1,4 @@
-﻿using System.Numerics;
-
-namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
-using Vector2 = System.Numerics.Vector2;
+﻿namespace Fabolus.Core.Geometry;
 
 /// <summary>
 /// The 3D loop(s) that mark where a mould should be divided along a given pull direction.
@@ -76,10 +71,10 @@ public static class PartingLineSmoother {
     private const int MaxIterations = 50;
 
     /// <summary>Shrinking-pass factor.</summary>
-    private const float Lambda = 0.5f;
+    private const double Lambda = 0.5;
 
     /// <summary>Inflating-pass factor, tuned so the two passes roughly cancel net shrinkage.</summary>
-    private const float Mu = -0.53f;
+    private const double Mu = -0.53;
 
     /// <summary>Loops shorter than this can't be meaningfully smoothed and are passed through as-is.</summary>
     private const int MinLoopPoints = 4;
@@ -98,7 +93,7 @@ public static class PartingLineSmoother {
     public static PartingLine Smooth(PartingLine line, double strength)
         => Smooth(line, strength, PartingLineSmoothingOptions.DefaultSpacingMm);
 
-    public static PartingLine Smooth(PartingLine line, double strength, float spacingMm)
+    public static PartingLine Smooth(PartingLine line, double strength, double spacingMm)
         => Smooth(line, strength, spacingMm, DefaultPullDirection, snapToSurface: null);
 
     /// <summary>
@@ -140,14 +135,14 @@ public static class PartingLineSmoother {
     public static PartingLine Smooth(
         PartingLine line,
         double strength,
-        float spacingMm,
+        double spacingMm,
         Vector3 pullDirection,
         Func<Vector3, Vector3>? snapToSurface) {
         if (line is null || line.Loops.Count == 0) return PartingLine.Empty;
         if (pullDirection == Vector3.Zero) pullDirection = DefaultPullDirection;
 
         int iterations = IterationsFor(strength);
-        bool resample = spacingMm > 1e-4f;
+        bool resample = spacingMm > 1e-4;
         if (iterations <= 0 && !resample) return line; // nothing to do -> raw loops, untouched.
 
         var (u, v) = FootprintFrame(pullDirection);
@@ -167,17 +162,17 @@ public static class PartingLineSmoother {
 
     /// <summary>Any orthonormal pair spanning the plane perpendicular to <paramref name="pullDirection"/>.</summary>
     private static (Vector3 U, Vector3 V) FootprintFrame(Vector3 pullDirection) {
-        var d = Vector3.Normalize(pullDirection);
-        var seed = MathF.Abs(d.Y) < 0.9f ? Vector3.UnitY : Vector3.UnitX;
-        var u = Vector3.Normalize(Vector3.Cross(seed, d));
-        return (u, Vector3.Cross(d, u));
+        var d = pullDirection.Normalize();
+        var seed = Math.Abs(d.Y) < 0.9 ? Vector3.UnitY : Vector3.UnitX;
+        var u = seed.Cross(d).Normalize();
+        return (u, d.Cross(u));
     }
 
     private static Vector2 Footprint(Vector3 p, Vector3 u, Vector3 v) =>
-        new(Vector3.Dot(p, u), Vector3.Dot(p, v));
+        new(p.Dot(u), p.Dot(v));
 
     private static Vector3[] SmoothLoop(
-        IReadOnlyList<Vector3> loop, int iterations, float spacingMm,
+        IReadOnlyList<Vector3> loop, int iterations, double spacingMm,
         Vector3 u, Vector3 v, Func<Vector3, Vector3>? snapToSurface) {
         // 1. Uniform arc-length resample. The marching-triangles isoline occasionally wobbles back and
         // forth across a cluster of near-coincident points - a sub-millimetre "needle" that reads as a
@@ -185,7 +180,7 @@ public static class PartingLineSmoother {
         // because the Laplacian midpoint of two alternating near-coincident neighbours lands right on
         // top of the vertex, so it barely moves. Resampling to a spacing coarser than the wobble merges
         // the cluster into a single point, erasing the reversal before any smoothing runs.
-        Vector3[] work = spacingMm > 1e-4f ? ResampleUniform(loop, spacingMm) : loop.ToArray();
+        Vector3[] work = spacingMm > 1e-4 ? ResampleUniform(loop, spacingMm) : loop.ToArray();
 
         // 2. Despike guard. Belt-and-suspenders for any reversal that survives (or when resampling is
         // disabled): drop vertices whose incoming/outgoing edges reverse by more than DespikeAngle.
@@ -229,32 +224,32 @@ public static class PartingLineSmoother {
     /// sub-spacing wobble (needles) into single points. Orientation-agnostic: uses full 3D distance,
     /// so it needs no knowledge of the pull direction.
     /// </summary>
-    private static Vector3[] ResampleUniform(IReadOnlyList<Vector3> loop, float spacingMm) {
+    private static Vector3[] ResampleUniform(IReadOnlyList<Vector3> loop, double spacingMm) {
         int n = loop.Count;
         if (n < MinLoopPoints) return loop.ToArray();
 
-        var cum = new float[n + 1];
+        var cum = new double[n + 1];
         for (int i = 0; i < n; i++)
-            cum[i + 1] = cum[i] + Vector3.Distance(loop[i], loop[(i + 1) % n]);
+            cum[i + 1] = cum[i] + loop[i].DistanceTo(loop[(i + 1) % n]);
 
-        float perim = cum[n];
-        if (perim < 1e-4f) return loop.ToArray();
+        double perim = cum[n];
+        if (perim < 1e-4) return loop.ToArray();
 
-        int count = Math.Clamp((int)MathF.Round(perim / spacingMm), 16, 4000);
+        int count = Math.Clamp((int)Math.Round(perim / spacingMm), 16, 4000);
         var resampled = new Vector3[count];
         int seg = 0;
         for (int k = 0; k < count; k++) {
-            float target = perim * k / count;
+            double target = perim * k / count;
             while (seg < n - 1 && cum[seg + 1] < target) seg++;
-            float segLen = cum[seg + 1] - cum[seg];
-            float t = segLen > 1e-6f ? (target - cum[seg]) / segLen : 0f;
-            resampled[k] = Vector3.Lerp(loop[seg], loop[(seg + 1) % n], t);
+            double segLen = cum[seg + 1] - cum[seg];
+            double t = segLen > 1e-6 ? (target - cum[seg]) / segLen : 0.0;
+            resampled[k] = loop[seg].LerpTo(loop[(seg + 1) % n], t);
         }
         return resampled;
     }
 
     /// <summary>Angle (deg) past straight beyond which a vertex is treated as a reversal spike.</summary>
-    private const float DespikeAngle = 120f;
+    private const double DespikeAngle = 120.0;
 
     /// <summary>
     /// Removes vertices that form a near-reversal (turn angle &gt; <see cref="DespikeAngle"/>) with their
@@ -263,7 +258,7 @@ public static class PartingLineSmoother {
     /// but valid corner is thinned rather than erased.
     /// </summary>
     private static Vector3[] Despike(Vector3[] loop, int maxPasses = 4) {
-        float cosLimit = MathF.Cos(DespikeAngle * MathF.PI / 180f); // turn > 120deg => dir dot < -0.5
+        double cosLimit = Math.Cos(DespikeAngle * Math.PI / 180.0); // turn > 120deg => dir dot < -0.5
 
         var pts = loop;
         for (int pass = 0; pass < maxPasses; pass++) {
@@ -280,10 +275,10 @@ public static class PartingLineSmoother {
 
                 var e0 = pts[i] - pts[(i - 1 + n) % n];
                 var e1 = pts[(i + 1) % n] - pts[i];
-                float l0 = e0.Length(), l1 = e1.Length();
-                if (l0 < 1e-6f || l1 < 1e-6f) continue;
+                double l0 = e0.Length, l1 = e1.Length;
+                if (l0 < 1e-6 || l1 < 1e-6) continue;
 
-                if (Vector3.Dot(e0 / l0, e1 / l1) < cosLimit) {
+                if ((e0 / l0).Dot(e1 / l1) < cosLimit) {
                     keep[i] = false;
                     prevRemoved = true;
                     if (++removed >= n - MinLoopPoints) break;
@@ -306,7 +301,7 @@ public static class PartingLineSmoother {
     /// <paramref name="scratch"/> the discarded intermediate - two passes means two swaps, so the
     /// caller's references come back the way round they went in.
     /// </summary>
-    private static void LaplacianPair(ref Vector3[] work, ref Vector3[] scratch, float lambda, float mu) {
+    private static void LaplacianPair(ref Vector3[] work, ref Vector3[] scratch, double lambda, double mu) {
         LaplacianPassInPlace(work, scratch, lambda);
         Swap(ref work, ref scratch);
         LaplacianPassInPlace(work, scratch, mu);
@@ -315,7 +310,7 @@ public static class PartingLineSmoother {
 
     /// <summary>As <see cref="LaplacianPair"/>, but relaxing the in-plane components only.</summary>
     private static void FootprintLaplacianPair(
-        ref Vector3[] work, ref Vector3[] scratch, Vector3 u, Vector3 v, float lambda, float mu) {
+        ref Vector3[] work, ref Vector3[] scratch, Vector3 u, Vector3 v, double lambda, double mu) {
         FootprintPassInPlace(work, scratch, u, v, lambda);
         Swap(ref work, ref scratch);
         FootprintPassInPlace(work, scratch, u, v, mu);
@@ -326,12 +321,12 @@ public static class PartingLineSmoother {
     /// Executes a Laplacian pass reading from <paramref name="source"/> and writing directly
     /// into <paramref name="destination"/> without allocating memory on the managed heap.
     /// </summary>
-    private static void LaplacianPassInPlace(Vector3[] source, Vector3[] destination, float factor) {
+    private static void LaplacianPassInPlace(Vector3[] source, Vector3[] destination, double factor) {
         int n = source.Length;
         for (int i = 0; i < n; i++) {
             var prev = source[(i - 1 + n) % n];
             var next = source[(i + 1) % n];
-            var midpoint = (prev + next) * 0.5f;
+            var midpoint = (prev + next) * 0.5;
             destination[i] = source[i] + factor * (midpoint - source[i]);
         }
     }
@@ -342,14 +337,14 @@ public static class PartingLineSmoother {
     /// undulation the flange has to follow.
     /// </summary>
     private static void FootprintPassInPlace(
-        Vector3[] source, Vector3[] destination, Vector3 u, Vector3 v, float factor) {
+        Vector3[] source, Vector3[] destination, Vector3 u, Vector3 v, double factor) {
         int n = source.Length;
         for (int i = 0; i < n; i++) {
             var prev = Footprint(source[(i - 1 + n) % n], u, v);
             var next = Footprint(source[(i + 1) % n], u, v);
             var here = Footprint(source[i], u, v);
 
-            var delta = (((prev + next) * 0.5f) - here) * factor;
+            var delta = (((prev + next) * 0.5) - here) * factor;
             destination[i] = source[i] + (u * delta.X) + (v * delta.Y);
         }
     }
@@ -385,9 +380,9 @@ public static class PartingLineSmoother {
             var flat = new Vector2[n];
             for (int i = 0; i < n; i++) flat[i] = Footprint(pts[i], u, v);
 
-            var arc = new float[n + 1];
-            for (int i = 0; i < n; i++) arc[i + 1] = arc[i] + Vector2.Distance(flat[i], flat[(i + 1) % n]);
-            float total = arc[n];
+            var arc = new double[n + 1];
+            for (int i = 0; i < n; i++) arc[i + 1] = arc[i] + flat[i].DistanceTo(flat[(i + 1) % n]);
+            double total = arc[n];
 
             var cut = FindCrossing(flat, arc, total, pts);
             if (cut is null) break;
@@ -408,7 +403,7 @@ public static class PartingLineSmoother {
     /// Finds the first footprint self-crossing and returns the loop with the shorter arc excised, or
     /// null when the footprint is already simple.
     /// </summary>
-    private static Vector3[]? FindCrossing(Vector2[] flat, float[] arc, float total, Vector3[] pts) {
+    private static Vector3[]? FindCrossing(Vector2[] flat, double[] arc, double total, Vector3[] pts) {
         int n = flat.Length;
 
         for (int i = 0; i < n; i++) {
@@ -416,12 +411,12 @@ public static class PartingLineSmoother {
                 // i and j are adjacent around the seam, so they share a point rather than cross.
                 if (i == 0 && j == n - 1) continue;
 
-                if (!SegmentsCross(flat[i], flat[(i + 1) % n], flat[j], flat[(j + 1) % n], out float t))
+                if (!SegmentsCross(flat[i], flat[(i + 1) % n], flat[j], flat[(j + 1) % n], out double t))
                     continue;
 
                 // The crossing divides the loop into the arc from i+1 to j and everything else.
-                float inner = arc[j + 1] - arc[i + 1];
-                var join = Vector3.Lerp(pts[i], pts[(i + 1) % n], t);
+                double inner = arc[j + 1] - arc[i + 1];
+                var join = pts[i].LerpTo(pts[(i + 1) % n], t);
 
                 var kept = new List<Vector3>(n);
                 if (inner <= total - inner) {
@@ -445,22 +440,22 @@ public static class PartingLineSmoother {
     /// True when the two segments cross properly (not merely touch at an endpoint), with
     /// <paramref name="t"/> the crossing's parameter along <paramref name="a0"/>-<paramref name="a1"/>.
     /// </summary>
-    private static bool SegmentsCross(Vector2 a0, Vector2 a1, Vector2 b0, Vector2 b1, out float t) {
-        t = 0f;
+    private static bool SegmentsCross(Vector2 a0, Vector2 a1, Vector2 b0, Vector2 b1, out double t) {
+        t = 0.0;
 
         var r = a1 - a0;
         var s = b1 - b0;
-        float denominator = Cross(r, s);
-        if (MathF.Abs(denominator) < 1e-12f) return false; // parallel or degenerate
+        double denominator = Cross(r, s);
+        if (Math.Abs(denominator) < 1e-12) return false; // parallel or degenerate
 
-        float onA = Cross(b0 - a0, s) / denominator;
-        float onB = Cross(b0 - a0, r) / denominator;
-        if (onA <= 0f || onA >= 1f || onB <= 0f || onB >= 1f) return false;
+        double onA = Cross(b0 - a0, s) / denominator;
+        double onB = Cross(b0 - a0, r) / denominator;
+        if (onA <= 0.0 || onA >= 1.0 || onB <= 0.0 || onB >= 1.0) return false;
 
         t = onA;
         return true;
 
-        static float Cross(Vector2 p, Vector2 q) => (p.X * q.Y) - (p.Y * q.X);
+        static double Cross(Vector2 p, Vector2 q) => (p.X * q.Y) - (p.Y * q.X);
     }
 
 }
@@ -486,7 +481,7 @@ public sealed record PartingLineSmoothingOptions
     /// back to 80 degrees.
     /// </para>
     /// </summary>
-    public const float DefaultSpacingMm = 2.0f;
+    public const double DefaultSpacingMm = 2.0;
 
     /// <summary>
     /// How much to smooth, in [0, 1]. 0 leaves the loops un-Taubin'd (they are still resampled unless
@@ -500,10 +495,10 @@ public sealed record PartingLineSmoothingOptions
     /// marching-triangles needle spikes that Taubin smoothing cannot. 0 (or negative) disables
     /// resampling and leaves the point count untouched.
     /// </summary>
-    public float SpacingMm { get; init; } = DefaultSpacingMm;
+    public double SpacingMm { get; init; } = DefaultSpacingMm;
 
     public static PartingLineSmoothingOptions Default { get; } = new();
-    public static PartingLineSmoothingOptions None { get; } = new() { Strength = 0.0, SpacingMm = 0f };
+    public static PartingLineSmoothingOptions None { get; } = new() { Strength = 0.0, SpacingMm = 0.0 };
 }
 
 /// <summary>
@@ -514,13 +509,13 @@ public sealed record PartingLineFilterOptions {
     /// The minimum allowable clearance (in mm) between two distinct loops. 
     /// Loops closer than this distance will be evaluated for redundancy.
     /// </summary>
-    public float MinimumClearance { get; init; } = 1.5f;
+    public double MinimumClearance { get; init; } = 1.5;
 
     /// <summary>
     /// The fraction of a candidate loop's vertices [0, 1] that must fall within 
     /// <see cref="MinimumClearance"/> of a dominant loop to be considered a shadow contour.
     /// </summary>
-    public float ShadowOverlapRatio { get; init; } = 0.60f;
+    public double ShadowOverlapRatio { get; init; } = 0.60;
 
     public static PartingLineFilterOptions Default { get; } = new();
 }
@@ -534,7 +529,7 @@ public static class PartingLineProximityFilter {
     public static PartingLine PruneShadowLoops(PartingLine line, PartingLineFilterOptions options) {
         if (line is null || line.Loops.Count <= 1) return line ?? PartingLine.Empty;
 
-        float clearanceSq = options.MinimumClearance * options.MinimumClearance;
+        double clearanceSq = options.MinimumClearance * options.MinimumClearance;
 
         // 1. Rank loops by dominance (Length is most reliable for 3D contour importance)
         var rankedLoops = line.Loops
@@ -562,8 +557,8 @@ public static class PartingLineProximityFilter {
         LoopCandidate candidate,
         IReadOnlyList<Vector3[]> acceptedLoops,
         IReadOnlyList<BoundingBox3D> acceptedBoxes,
-        float clearanceSq,
-        float overlapRatioThreshold) {
+        double clearanceSq,
+        double overlapRatioThreshold) {
         for (int i = 0; i < acceptedLoops.Count; i++) {
             // Fast $O(1)$ Rejection: If bounding boxes don't overlap, loops aren't close
             if (!candidate.Bounds.IntersectsWithTolerance(acceptedBoxes[i], clearanceSq))
@@ -579,7 +574,7 @@ public static class PartingLineProximityFilter {
                 }
             }
 
-            float ratio = (float)pointsWithinClearance / candidate.Points.Length;
+            double ratio = (double)pointsWithinClearance / candidate.Points.Length;
             if (ratio >= overlapRatioThreshold) {
                 return true; // Classified as a redundant shadow contour
             }
@@ -588,11 +583,11 @@ public static class PartingLineProximityFilter {
         return false;
     }
 
-    private static bool IsPointNearLoop(Vector3 point, Vector3[] loop, float clearanceSq) {
+    private static bool IsPointNearLoop(Vector3 point, Vector3[] loop, double clearanceSq) {
         // For production performance on massive loops, replace this linear scan 
         // with a spatial grid lookup similar to our discussed IsolineGraph optimization.
         for (int i = 0; i < loop.Length; i++) {
-            if (Vector3.DistanceSquared(point, loop[i]) <= clearanceSq)
+            if (point.DistanceSquared(loop[i]) <= clearanceSq)
                 return true;
         }
         return false;
@@ -602,27 +597,27 @@ public static class PartingLineProximityFilter {
 
     private readonly struct LoopCandidate {
         public Vector3[] Points { get; }
-        public float Length { get; }
+        public double Length { get; }
         public BoundingBox3D Bounds { get; }
 
         public LoopCandidate(IReadOnlyList<Vector3> loop) {
             int n = loop.Count;
             Points = new Vector3[n];
 
-            var min = new Vector3(float.MaxValue);
-            var max = new Vector3(float.MinValue);
-            float len = 0f;
+            var min = new Vector3(double.MaxValue, double.MaxValue, double.MaxValue);
+            var max = new Vector3(double.MinValue, double.MinValue, double.MinValue);
+            double len = 0.0;
 
             for (int i = 0; i < n; i++) {
                 var p = loop[i];
                 Points[i] = p;
 
-                min = Vector3.Min(min, p);
-                max = Vector3.Max(max, p);
+                min = min.ComponentMin(p);
+                max = max.ComponentMax(p);
 
-                if (i > 0) len += Vector3.Distance(loop[i - 1], p);
+                if (i > 0) len += loop[i - 1].DistanceTo(p);
             }
-            if (n > 1) len += Vector3.Distance(loop[n - 1], loop[0]); // Close loop
+            if (n > 1) len += loop[n - 1].DistanceTo(loop[0]); // Close loop
 
             Length = len;
             Bounds = new BoundingBox3D(min, max);
@@ -638,9 +633,9 @@ public static class PartingLineProximityFilter {
             Max = max;
         }
 
-        public bool IntersectsWithTolerance(BoundingBox3D other, float toleranceSq) {
+        public bool IntersectsWithTolerance(BoundingBox3D other, double toleranceSq) {
             // Approximate tolerance expansion using square root of clearanceSq for box bounds
-            float tol = (float)Math.Sqrt(toleranceSq);
+            double tol = Math.Sqrt(toleranceSq);
             return (Min.X - tol <= other.Max.X && Max.X + tol >= other.Min.X) &&
                    (Min.Y - tol <= other.Max.Y && Max.Y + tol >= other.Min.Y) &&
                    (Min.Z - tol <= other.Max.Z && Max.Z + tol >= other.Min.Z);
@@ -656,14 +651,14 @@ public sealed record PartingLinePinchOptions {
     /// The physical 3D distance (in mm) under which two non-adjacent sections of the same 
     /// loop are considered to be pinching or colliding.
     /// </summary>
-    public float PinchClearance { get; init; } = 1.2f;
+    public double PinchClearance { get; init; } = 1.2;
 
     /// <summary>
     /// The minimum topological distance (arc length in mm) along the loop required before a 
     /// spatial proximity is treated as a bypassable peninsula. Prevents the filter from 
     /// accidentally short-circuiting normal, valid tight corners.
     /// </summary>
-    public float MinPeninsulaLength { get; init; } = 6.0f;
+    public double MinPeninsulaLength { get; init; } = 6.0;
 
     public static PartingLinePinchOptions Default { get; } = new();
 }
@@ -689,13 +684,13 @@ public static class PartingLinePinchFilter {
         int n = loop.Count;
         if (n < 6) return loop.ToArray(); // Too small to contain a meaningful peninsula
 
-        float clearanceSq = options.PinchClearance * options.PinchClearance;
+        double clearanceSq = options.PinchClearance * options.PinchClearance;
 
         // 1. Precompute cumulative arc lengths for O(1) topological distance queries
         var (arcLengths, totalLength) = ComputeArcLengths(loop);
 
         // If the entire loop is smaller than our peninsula threshold, we cannot snip it
-        if (totalLength <= options.MinPeninsulaLength * 2f) return loop.ToArray();
+        if (totalLength <= options.MinPeninsulaLength * 2.0) return loop.ToArray();
 
         var result = new List<Vector3>(n);
         int curr = 0;
@@ -705,21 +700,21 @@ public static class PartingLinePinchFilter {
             result.Add(loop[curr]);
 
             int bestJumpTarget = -1;
-            float maxPeninsulaBypassed = 0f;
+            double maxPeninsulaBypassed = 0.0;
 
             // Search ahead for the furthest valid pinch target that removes a minor peninsula
             for (int target = curr + 1; target < n; target++) {
                 // Calculate topological distance (forward arc length along the loop)
-                float forwardArc = arcLengths[target] - arcLengths[curr];
+                double forwardArc = arcLengths[target] - arcLengths[curr];
 
                 // INVARIANT 1: Must be topologically distant (exceeds minimum peninsula length)
                 if (forwardArc < options.MinPeninsulaLength) continue;
 
                 // INVARIANT 2: Must be a MINOR excursion (we never snip > 50% of the loop's total body)
-                if (forwardArc >= totalLength * 0.5f) break;
+                if (forwardArc >= totalLength * 0.5) break;
 
                 // INVARIANT 3: Must be spatially close (Euclidean distance < PinchClearance)
-                if (Vector3.DistanceSquared(loop[curr], loop[target]) <= clearanceSq) {
+                if (loop[curr].DistanceSquared(loop[target]) <= clearanceSq) {
                     // We found a pinch! Keep looking to see if we can jump even further 
                     // across the bottleneck to remove the entire peninsula cleanly.
                     if (forwardArc > maxPeninsulaBypassed) {
@@ -740,18 +735,18 @@ public static class PartingLinePinchFilter {
         return result.ToArray();
     }
 
-    private static (float[] ArcLengths, float TotalLength) ComputeArcLengths(IReadOnlyList<Vector3> loop) {
+    private static (double[] ArcLengths, double TotalLength) ComputeArcLengths(IReadOnlyList<Vector3> loop) {
         int n = loop.Count;
-        var lengths = new float[n + 1];
-        float total = 0f;
+        var lengths = new double[n + 1];
+        double total = 0.0;
 
         for (int i = 1; i < n; i++) {
-            total += Vector3.Distance(loop[i - 1], loop[i]);
+            total += loop[i - 1].DistanceTo(loop[i]);
             lengths[i] = total;
         }
 
         // Close the loop distance
-        total += Vector3.Distance(loop[n - 1], loop[0]);
+        total += loop[n - 1].DistanceTo(loop[0]);
         lengths[n] = total;
 
         return (lengths, total);

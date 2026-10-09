@@ -1,13 +1,9 @@
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
-using System.Numerics;
 using Xunit;
 
 namespace Fabolus.Core.Tests.Features.PartingSplit;
-
-using Vector3 = System.Numerics.Vector3;
-using Vec3 = GeometryEngine.Core.Geometry.Primitives.Vec3;
 
 /// <summary>
 /// Covers the region fill: a rim is usually a wall between two creases rather than a single crease,
@@ -19,8 +15,8 @@ using Vec3 = GeometryEngine.Core.Geometry.Primitives.Vec3;
 [Collection("GeometryEngine collection")]
 public class RidgeRegionTests
 {
-    private const float Radius = 150f;
-    private const float Thickness = 20f;
+    private const double Radius = 150.0;
+    private const double Thickness = 20.0;
 
     private readonly IGeometryEngine _engine;
 
@@ -68,8 +64,8 @@ public class RidgeRegionTests
     [Fact]
     public void FindRidgeFaces_RimBrokenOpen_IsNotFilled()
     {
-        var puck = Puck(out var faces, fadeRadius: 10f);
-        var noBridging = RidgeDetectionOptions.Default with { MaxGapFraction = 0f };
+        var puck = Puck(out var faces, fadeRadius: 10.0);
+        var noBridging = RidgeDetectionOptions.Default with { MaxGapFraction = 0.0 };
 
         var ridges = RidgeDetection.FindRidgeFaces(puck, noBridging);
 
@@ -89,7 +85,7 @@ public class RidgeRegionTests
         // whose rim is a tenth of its surface must not come back mostly purple. Measured as area
         // rather than as a count of faces, because the crease itself is tessellated into slivers
         // that are a large share of the faces and a negligible share of the model.
-        MarkedAreaFraction(puck, ridges).Should().BeInRange(0.02f, 0.30f);
+        MarkedAreaFraction(puck, ridges).Should().BeInRange(0.02, 0.30);
     }
 
     // --- contours --- //
@@ -106,7 +102,7 @@ public class RidgeRegionTests
         foreach (var contour in contours)
         {
             contour.IsClosed.Should().BeTrue("each crease runs the whole way round");
-            Length(contour).Should().BeApproximately(2f * MathF.PI * Radius, Radius * 0.15f);
+            Length(contour).Should().BeApproximately(2.0 * Math.PI * Radius, Radius * 0.15);
         }
     }
 
@@ -123,8 +119,8 @@ public class RidgeRegionTests
         foreach (var contour in contours)
             foreach (var point in contour.Points)
             {
-                float radial = MathF.Sqrt((point.X * point.X) + (point.Z * point.Z));
-                radial.Should().BeInRange(Radius * 0.98f, Radius * 1.02f, "the crease is at the rim radius");
+                double radial = Math.Sqrt((point.X * point.X) + (point.Z * point.Z));
+                radial.Should().BeInRange(Radius * 0.98, Radius * 1.02, "the crease is at the rim radius");
             }
     }
 
@@ -138,7 +134,7 @@ public class RidgeRegionTests
         // The rim of a puck is a circle, so with the triangle-scale staircase relaxed away no turn
         // in the curve should read as a corner.
         foreach (var contour in contours)
-            WorstTurnDegrees(contour).Should().BeLessThan(15f);
+            WorstTurnDegrees(contour).Should().BeLessThan(15.0);
     }
 
     [Fact]
@@ -152,65 +148,65 @@ public class RidgeRegionTests
         // the curve would sink inside the model and be hidden by the surface it describes.
         foreach (var contour in contours)
             foreach (var point in contour.Points)
-                MathF.Sqrt((point.X * point.X) + (point.Z * point.Z)).Should().BeGreaterThan(Radius);
+                Math.Sqrt((point.X * point.X) + (point.Z * point.Z)).Should().BeGreaterThan(Radius);
     }
 
     [Fact]
     public void FindRidgeContours_Sphere_TracesNothing()
     {
-        var sphere = _engine.Generators.GenerateSphere(Vec3.Zero, 30.0, 48);
+        var sphere = _engine.Generators.GenerateSphere(Vector3.Zero, 30.0, 48);
 
         RidgeDetection.FindRidgeContours(sphere.Value, RidgeDetectionOptions.Default)
             .Should().BeEmpty("a sphere has no rim to trace");
     }
 
-    private static float Length(RidgeContour contour)
+    private static double Length(RidgeContour contour)
     {
         var points = contour.Points;
         int spans = contour.IsClosed ? points.Count : points.Count - 1;
 
-        float total = 0f;
-        for (int i = 0; i < spans; i++) total += Vector3.Distance(points[i], points[(i + 1) % points.Count]);
+        double total = 0.0;
+        for (int i = 0; i < spans; i++) total += points[i].DistanceTo(points[(i + 1) % points.Count]);
         return total;
     }
 
-    private static float WorstTurnDegrees(RidgeContour contour)
+    private static double WorstTurnDegrees(RidgeContour contour)
     {
         var points = contour.Points;
         int first = contour.IsClosed ? 0 : 1;
         int last = contour.IsClosed ? points.Count : points.Count - 1;
 
-        float worst = 0f;
+        double worst = 0.0;
         for (int i = first; i < last; i++)
         {
             var incoming = points[i] - points[(i - 1 + points.Count) % points.Count];
             var outgoing = points[(i + 1) % points.Count] - points[i];
-            if (incoming.Length() < 1e-6f || outgoing.Length() < 1e-6f) continue;
+            if (incoming.Length < 1e-6 || outgoing.Length < 1e-6) continue;
 
-            float turn = MathF.Acos(Math.Clamp(
-                Vector3.Dot(Vector3.Normalize(incoming), Vector3.Normalize(outgoing)), -1f, 1f));
-            worst = MathF.Max(worst, turn * 180f / MathF.PI);
+            double turn = Math.Acos(Math.Clamp(
+                incoming.Normalize().Dot(outgoing.Normalize()), -1.0, 1.0));
+            worst = Math.Max(worst, turn * 180.0 / Math.PI);
         }
         return worst;
     }
 
-    private static float MarkedAreaFraction(IMesh mesh, bool[] ridges)
+    private static double MarkedAreaFraction(IMesh mesh, bool[] ridges)
     {
-        var vertices = NumericsMesh.Of(mesh).Vertices;
-        var triangles = NumericsMesh.Of(mesh).Triangles;
+        var vertices = mesh.Vertices;
+        var triangles = mesh.Triangles;
 
-        float marked = 0f, total = 0f;
+        double marked = 0.0, total = 0.0;
         for (int t = 0; t < ridges.Length; t++)
         {
             var a = vertices[triangles[t * 3]];
             var b = vertices[triangles[(t * 3) + 1]];
             var c = vertices[triangles[(t * 3) + 2]];
-            float area = Vector3.Cross(b - a, c - a).Length() * 0.5f;
+            double area = (b - a).Cross(c - a).Length * 0.5;
 
             total += area;
             if (ridges[t]) marked += area;
         }
-        return total > 0f ? marked / total : 0f;
+        return total > 0.0 ? marked / total : 0.0;
     }
 
     // --- fixture --- //
@@ -232,7 +228,7 @@ public class RidgeRegionTests
     /// radius eases between the two so the stretch does not simply swap one crease for another
     /// running across the wall.
     /// </param>
-    private IMesh Puck(out PuckFaces faces, float fadeRadius = 0.3f)
+    private IMesh Puck(out PuckFaces faces, double fadeRadius = 0.3)
     {
         const int Steps = 96;      // around the circumference
         const int CapRings = 4;    // rings per cap, so cap interiors sit clear of the rim
@@ -241,7 +237,7 @@ public class RidgeRegionTests
         const int FadeStart = 24;  // where the faded stretch begins, in steps
         const int FadeSpan = 12;   // how many steps it takes to ease in and out again
 
-        const float SharpRadius = 0.3f;
+        const double SharpRadius = 0.3;
 
         // profile: [0] bottom centre, cap rings out to the rim, wall up, fillet over, cap rings in,
         // [last] top centre. The two centres are shared by every step round the circumference.
@@ -250,42 +246,42 @@ public class RidgeRegionTests
         var vertices = new List<double>();
         var index = new int[Steps, profileLength];
 
-        int bottomCentre = AddVertex(vertices, new Vector3(0, -Thickness / 2f, 0));
+        int bottomCentre = AddVertex(vertices, new Vector3(0, -Thickness / 2.0, 0));
         int topCentre = -1;
 
         for (int s = 0; s < Steps; s++)
         {
-            float angle = 2f * MathF.PI * s / Steps;
-            float cos = MathF.Cos(angle), sin = MathF.Sin(angle);
-            float r = FilletRadiusAt(s, Steps, FadeStart, FadeSpan, SharpRadius, fadeRadius);
+            double angle = 2.0 * Math.PI * s / Steps;
+            double cos = Math.Cos(angle), sin = Math.Sin(angle);
+            double r = FilletRadiusAt(s, Steps, FadeStart, FadeSpan, SharpRadius, fadeRadius);
 
             int p = 0;
             index[s, p++] = bottomCentre;
 
             for (int m = 1; m <= CapRings; m++)
-                index[s, p++] = Add(vertices, cos, sin, Radius * m / CapRings, -Thickness / 2f);
+                index[s, p++] = Add(vertices, cos, sin, Radius * m / CapRings, -Thickness / 2.0);
 
             for (int j = 1; j <= WallBands; j++)
                 index[s, p++] = Add(vertices, cos, sin, Radius,
-                    (-Thickness / 2f) + (j * (Thickness - r) / WallBands));
+                    (-Thickness / 2.0) + (j * (Thickness - r) / WallBands));
 
             for (int k = 1; k <= FilletSteps; k++)
             {
-                float t = MathF.PI / 2f * k / FilletSteps;
+                double t = Math.PI / 2.0 * k / FilletSteps;
                 index[s, p++] = Add(vertices, cos, sin,
-                    Radius - r + (r * MathF.Cos(t)),
-                    (Thickness / 2f) - r + (r * MathF.Sin(t)));
+                    Radius - r + (r * Math.Cos(t)),
+                    (Thickness / 2.0) - r + (r * Math.Sin(t)));
             }
 
             for (int m = 1; m <= CapRings; m++)
             {
-                float inner = (Radius - r) * (1f - ((float)m / CapRings));
+                double inner = (Radius - r) * (1.0 - ((double)m / CapRings));
                 if (m == CapRings)
                 {
-                    if (topCentre < 0) topCentre = AddVertex(vertices, new Vector3(0, Thickness / 2f, 0));
+                    if (topCentre < 0) topCentre = AddVertex(vertices, new Vector3(0, Thickness / 2.0, 0));
                     index[s, p++] = topCentre;
                 }
-                else index[s, p++] = Add(vertices, cos, sin, inner, Thickness / 2f);
+                else index[s, p++] = Add(vertices, cos, sin, inner, Thickness / 2.0);
             }
         }
 
@@ -313,7 +309,7 @@ public class RidgeRegionTests
         faces = Classify(mesh, FadeStart, FadeSpan, Steps);
         return mesh;
 
-        static int Add(List<double> into, float cos, float sin, float radial, float axial) =>
+        static int Add(List<double> into, double cos, double sin, double radial, double axial) =>
             AddVertex(into, new Vector3(radial * cos, axial, radial * sin));
 
         static int AddVertex(List<double> into, Vector3 v)
@@ -327,15 +323,15 @@ public class RidgeRegionTests
     /// Eases the top fillet radius from <paramref name="sharp"/> up to <paramref name="faded"/> and
     /// back across the faded stretch, on a raised cosine so no step is a crease in its own right.
     /// </summary>
-    private static float FilletRadiusAt(int step, int steps, int fadeStart, int fadeSpan, float sharp, float faded)
+    private static double FilletRadiusAt(int step, int steps, int fadeStart, int fadeSpan, double sharp, double faded)
     {
         if (faded <= sharp) return sharp;
 
         int offset = ((step - fadeStart) % steps + steps) % steps;
         if (offset >= fadeSpan) return sharp;
 
-        float phase = (float)offset / fadeSpan;
-        return sharp + ((faded - sharp) * 0.5f * (1f - MathF.Cos(2f * MathF.PI * phase)));
+        double phase = (double)offset / fadeSpan;
+        return sharp + ((faded - sharp) * 0.5 * (1.0 - Math.Cos(2.0 * Math.PI * phase)));
     }
 
     /// <summary>
@@ -345,38 +341,38 @@ public class RidgeRegionTests
     /// </summary>
     private static PuckFaces Classify(IMesh mesh, int fadeStart, int fadeSpan, int steps)
     {
-        var vertices = NumericsMesh.Of(mesh).Vertices;
-        var triangles = NumericsMesh.Of(mesh).Triangles;
+        var vertices = mesh.Vertices;
+        var triangles = mesh.Triangles;
 
         var midWall = new List<int>();
         var midWallAway = new List<int>();
         var capInterior = new List<int>();
 
         // The faded stretch, in radians, padded either side so "away from it" really is away.
-        float fadeFrom = (2f * MathF.PI * (fadeStart - 4)) / steps;
-        float fadeTo = (2f * MathF.PI * (fadeStart + fadeSpan + 4)) / steps;
+        double fadeFrom = (2.0 * Math.PI * (fadeStart - 4)) / steps;
+        double fadeTo = (2.0 * Math.PI * (fadeStart + fadeSpan + 4)) / steps;
 
         for (int t = 0; t < triangles.Length / 3; t++)
         {
             var centre = (vertices[triangles[t * 3]]
                         + vertices[triangles[(t * 3) + 1]]
-                        + vertices[triangles[(t * 3) + 2]]) / 3f;
+                        + vertices[triangles[(t * 3) + 2]]) / 3.0;
 
-            float radial = MathF.Sqrt((centre.X * centre.X) + (centre.Z * centre.Z));
+            double radial = Math.Sqrt((centre.X * centre.X) + (centre.Z * centre.Z));
 
             // Mid-wall: out at the rim radius, and in the middle half of the thickness so the face
             // is a band or more clear of the top and bottom rim edges.
-            if (radial > Radius * 0.97f && MathF.Abs(centre.Y) < Thickness * 0.25f)
+            if (radial > Radius * 0.97 && Math.Abs(centre.Y) < Thickness * 0.25)
             {
                 midWall.Add(t);
 
-                float angle = MathF.Atan2(centre.Z, centre.X);
-                if (angle < 0) angle += 2f * MathF.PI;
+                double angle = Math.Atan2(centre.Z, centre.X);
+                if (angle < 0) angle += 2.0 * Math.PI;
                 if (angle < fadeFrom || angle > fadeTo) midWallAway.Add(t);
             }
 
             // Cap interior: on a flat face, well in from the rim.
-            if (radial < Radius * 0.6f && MathF.Abs(MathF.Abs(centre.Y) - (Thickness / 2f)) < 1e-3f)
+            if (radial < Radius * 0.6 && Math.Abs(Math.Abs(centre.Y) - (Thickness / 2.0)) < 1e-3)
                 capInterior.Add(t);
         }
 

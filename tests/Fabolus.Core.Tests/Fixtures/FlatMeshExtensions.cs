@@ -7,7 +7,7 @@ namespace Fabolus.Tests.Fixtures;
 /// Builds engine meshes from the flat coordinate arrays the parting tests generate their test shapes
 /// in - x, y, z per vertex, as the engine they were written against took them.
 /// </summary>
-public static class NumericsMeshExtensions
+public static class FlatMeshExtensions
 {
     public static Result<IMesh> MeshFrom(
         this IGeometryEngine engine, double[] coordinates, int[] triangles, string name = "test")

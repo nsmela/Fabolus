@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// The rim wall as something a line can be walked along: its faces, how they join, and where each one
@@ -29,7 +25,7 @@ public sealed class PartingBandGraph
 {
     private readonly int[] _faces;
     private readonly Vector3[] _centroid;
-    private readonly float[] _rimIndex;
+    private readonly double[] _rimIndex;
     private readonly List<int>[] _neighbours;
 
     /// <summary>
@@ -43,7 +39,7 @@ public sealed class PartingBandGraph
     private readonly Dictionary<(int, int), (Vector3 A, Vector3 B)> _portals;
 
     private readonly Dictionary<(int, int, int), List<int>> _cells = new();
-    private readonly float _cell;
+    private readonly double _cell;
 
     /// <summary>How many samples the crease this graph's rim positions are indexed against has.</summary>
     public int RimSamples { get; }
@@ -51,13 +47,13 @@ public sealed class PartingBandGraph
     /// <summary>The wall's two creases.</summary>
     public PartingBand Band { get; }
 
-    public float MeanEdge { get; }
+    public double MeanEdge { get; }
 
     private PartingBandGraph(
-        int[] faces, Vector3[] centroid, float[] rimIndex, List<int>[] neighbours,
+        int[] faces, Vector3[] centroid, double[] rimIndex, List<int>[] neighbours,
         Dictionary<int, (Vector3, Vector3, Vector3)> corners,
         Dictionary<(int, int), (Vector3, Vector3)> portals,
-        PartingBand band, float meanEdge, int rimSamples)
+        PartingBand band, double meanEdge, int rimSamples)
     {
         _portals = portals;
         _faces = faces;
@@ -68,7 +64,7 @@ public sealed class PartingBandGraph
         Band = band;
         MeanEdge = meanEdge;
         RimSamples = rimSamples;
-        _cell = MathF.Max(meanEdge * 2f, 1e-4f);
+        _cell = Math.Max(meanEdge * 2.0, 1e-4);
 
         foreach (int f in faces)
         {
@@ -88,8 +84,8 @@ public sealed class PartingBandGraph
     {
         if (mesh is null || pair?.First is null || pair.Second is null) return null;
 
-        var triangles = NumericsMesh.Of(mesh).Triangles;
-        var vertices = NumericsMesh.Of(mesh).Vertices;
+        var triangles = mesh.Triangles;
+        var vertices = mesh.Vertices;
         int faceCount = triangles.Length / 3;
         if (band is null || band.Length != faceCount) return null;
 
@@ -133,7 +129,7 @@ public sealed class PartingBandGraph
         }
 
         var centroid = new Vector3[faceCount];
-        var rimIndex = new float[faceCount];
+        var rimIndex = new double[faceCount];
         var corners = new Dictionary<int, (Vector3, Vector3, Vector3)>(list.Count);
         var crease = pair.First.Points;
 
@@ -144,16 +140,16 @@ public sealed class PartingBandGraph
             var c = vertices[triangles[(f * 3) + 2]];
 
             corners[f] = (a, b, c);
-            centroid[f] = (a + b + c) / 3f;
+            centroid[f] = (a + b + c) / 3.0;
 
             rimIndex[f] = NearestIndex(centroid[f], crease);
         }
 
         double edgeTotal = 0d;
         foreach (var key in edges.Keys)
-            edgeTotal += Vector3.Distance(vertices[key.Item1], vertices[key.Item2]);
+            edgeTotal += vertices[key.Item1].DistanceTo(vertices[key.Item2]);
 
-        float meanEdge = edges.Count == 0 ? 1f : (float)(edgeTotal / edges.Count);
+        double meanEdge = edges.Count == 0 ? 1.0 : (double)(edgeTotal / edges.Count);
 
         return new PartingBandGraph(
             list.ToArray(), centroid, rimIndex, neighbours, corners, portals, pair, meanEdge,
@@ -163,7 +159,7 @@ public sealed class PartingBandGraph
     private static (int, int) Pair(int a, int b) => a < b ? (a, b) : (b, a);
 
     private (int, int, int) Cell(Vector3 p) => (
-        (int)MathF.Floor(p.X / _cell), (int)MathF.Floor(p.Y / _cell), (int)MathF.Floor(p.Z / _cell));
+        (int)Math.Floor(p.X / _cell), (int)Math.Floor(p.Y / _cell), (int)Math.Floor(p.Z / _cell));
 
     /// <summary>The band face nearest a point, or -1 if the band is nowhere near it.</summary>
     public int NearestFace(Vector3 point)
@@ -173,7 +169,7 @@ public sealed class PartingBandGraph
         for (int radius = 1; radius <= 6; radius++)
         {
             int best = -1;
-            float bestDistance = float.MaxValue;
+            double bestDistance = double.MaxValue;
 
             for (int x = cx - radius; x <= cx + radius; x++)
                 for (int y = cy - radius; y <= cy + radius; y++)
@@ -183,7 +179,7 @@ public sealed class PartingBandGraph
 
                         foreach (int f in faces)
                         {
-                            float d = Vector3.DistanceSquared(_centroid[f], point);
+                            double d = _centroid[f].DistanceSquared(point);
                             if (d >= bestDistance) continue;
 
                             bestDistance = d;
@@ -199,11 +195,11 @@ public sealed class PartingBandGraph
         // cannot do anything useful with it, WalkFaces above all, which returns null and leaves a
         // dragged handle with its spans un-rewalked.
         int nearest = -1;
-        float nearestDistance = float.MaxValue;
+        double nearestDistance = double.MaxValue;
 
         foreach (int f in _faces)
         {
-            float d = Vector3.DistanceSquared(_centroid[f], point);
+            double d = _centroid[f].DistanceSquared(point);
             if (d >= nearestDistance) continue;
 
             nearestDistance = d;
@@ -231,7 +227,7 @@ public sealed class PartingBandGraph
         var (cx, cy, cz) = Cell(point);
 
         var best = point;
-        float bestDistance = float.MaxValue;
+        double bestDistance = double.MaxValue;
         int firstHit = -1;
 
         // Measured face by face rather than by taking the face with the nearest centroid and working
@@ -254,7 +250,7 @@ public sealed class PartingBandGraph
                         foreach (int f in faces)
                         {
                             var candidate = ClosestOnFace(f, point);
-                            float d = Vector3.DistanceSquared(candidate, point);
+                            double d = candidate.DistanceSquared(point);
                             if (d >= bestDistance) continue;
 
                             bestDistance = d;
@@ -266,7 +262,7 @@ public sealed class PartingBandGraph
             // centroid, so one whose centroid is this far out still reaches about an edge length nearer
             // than that - hence the allowance. A point already on the wall settles at the first ring,
             // which is the case that matters: every edit re-snaps the anchors it carries across.
-            float reach = MathF.Max((radius * _cell) - MeanEdge, 0f);
+            double reach = Math.Max((radius * _cell) - MeanEdge, 0.0);
             if (bestDistance <= reach * reach) break;
 
             // Nothing near enough to settle it. Carry on, but never past one ring beyond the first cell
@@ -293,12 +289,12 @@ public sealed class PartingBandGraph
     private Vector3 Furthest(Vector3 point)
     {
         var best = point;
-        float bestDistance = float.MaxValue;
+        double bestDistance = double.MaxValue;
 
         foreach (int f in _faces)
         {
             var candidate = ClosestOnFace(f, point);
-            float d = Vector3.DistanceSquared(candidate, point);
+            double d = candidate.DistanceSquared(point);
             if (d >= bestDistance) continue;
 
             bestDistance = d;
@@ -336,7 +332,7 @@ public sealed class PartingBandGraph
         {
             int best = -1;
             var bestPoint = point;
-            float bestDistance = float.MaxValue;
+            double bestDistance = double.MaxValue;
             bool bestIsNear = false;
 
             Consider(hint, near: true);
@@ -355,7 +351,7 @@ public sealed class PartingBandGraph
             void Consider(int face, bool near)
             {
                 var candidate = ClosestOnFace(face, point);
-                float d = Vector3.DistanceSquared(candidate, point);
+                double d = candidate.DistanceSquared(point);
                 if (d >= bestDistance) return;
 
                 bestDistance = d;
@@ -386,43 +382,43 @@ public sealed class PartingBandGraph
         var ac = c - a;
         var ap = p - a;
 
-        float d1 = Vector3.Dot(ab, ap);
-        float d2 = Vector3.Dot(ac, ap);
-        if (d1 <= 0f && d2 <= 0f) return a;
+        double d1 = ab.Dot(ap);
+        double d2 = ac.Dot(ap);
+        if (d1 <= 0.0 && d2 <= 0.0) return a;
 
         var bp = p - b;
-        float d3 = Vector3.Dot(ab, bp);
-        float d4 = Vector3.Dot(ac, bp);
-        if (d3 >= 0f && d4 <= d3) return b;
+        double d3 = ab.Dot(bp);
+        double d4 = ac.Dot(bp);
+        if (d3 >= 0.0 && d4 <= d3) return b;
 
-        float vc = (d1 * d4) - (d3 * d2);
-        if (vc <= 0f && d1 >= 0f && d3 <= 0f)
+        double vc = (d1 * d4) - (d3 * d2);
+        if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0)
             return a + (ab * (d1 / (d1 - d3)));
 
         var cp = p - c;
-        float d5 = Vector3.Dot(ab, cp);
-        float d6 = Vector3.Dot(ac, cp);
-        if (d6 >= 0f && d5 <= d6) return c;
+        double d5 = ab.Dot(cp);
+        double d6 = ac.Dot(cp);
+        if (d6 >= 0.0 && d5 <= d6) return c;
 
-        float vb = (d5 * d2) - (d1 * d6);
-        if (vb <= 0f && d2 >= 0f && d6 <= 0f)
+        double vb = (d5 * d2) - (d1 * d6);
+        if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0)
             return a + (ac * (d2 / (d2 - d6)));
 
-        float va = (d3 * d6) - (d5 * d4);
-        if (va <= 0f && d4 - d3 >= 0f && d5 - d6 >= 0f)
+        double va = (d3 * d6) - (d5 * d4);
+        if (va <= 0.0 && d4 - d3 >= 0.0 && d5 - d6 >= 0.0)
             return b + ((c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6))));
 
-        float denominator = va + vb + vc;
-        if (denominator <= 1e-20f) return a;
+        double denominator = va + vb + vc;
+        if (denominator <= 1e-20) return a;
 
         return a + (ab * (vb / denominator)) + (ac * (vc / denominator));
     }
 
     /// <summary>Where a point sits round the rim, as a fractional index into the first crease.</summary>
-    public float RimPosition(Vector3 point)
+    public double RimPosition(Vector3 point)
     {
         int face = NearestFace(point);
-        return face < 0 ? 0f : _rimIndex[face];
+        return face < 0 ? 0.0 : _rimIndex[face];
     }
 
     /// <summary>
@@ -447,7 +443,7 @@ public sealed class PartingBandGraph
     /// </summary>
     public bool ArcForward(Vector3 from, Vector3 to, Vector3 through)
     {
-        float fromIndex = RimPosition(from);
+        double fromIndex = RimPosition(from);
         return Forward(fromIndex, RimPosition(through), true)
             <= Forward(fromIndex, RimPosition(to), true);
     }
@@ -467,7 +463,7 @@ public sealed class PartingBandGraph
     /// a face's nearest crease sample, which steps rather than varies smoothly, so a walk held exactly
     /// inside it can be blocked by a single face whose nearest sample happens to sit a step outside.
     /// </param>
-    public IReadOnlyList<Vector3>? Walk(Vector3 from, Vector3 to, bool forward = true, float slack = 8f)
+    public IReadOnlyList<Vector3>? Walk(Vector3 from, Vector3 to, bool forward = true, double slack = 8.0)
     {
         var faces = WalkFaces(from, to, forward, slack);
         if (faces is null) return null;
@@ -482,22 +478,22 @@ public sealed class PartingBandGraph
     /// an edge, so this is a triangle strip - which is what <see cref="WalkGeodesic"/> needs, and it is
     /// the reason the search is separated from the points it used to return directly.
     /// </summary>
-    private List<int>? WalkFaces(Vector3 from, Vector3 to, bool forward, float slack)
+    private List<int>? WalkFaces(Vector3 from, Vector3 to, bool forward, double slack)
     {
         int start = NearestFace(from);
         int goal = NearestFace(to);
         if (start < 0 || goal < 0) return null;
         if (start == goal) return new List<int> { start };
 
-        float fromIndex = _rimIndex[start];
-        float toIndex = _rimIndex[goal];
+        double fromIndex = _rimIndex[start];
+        double toIndex = _rimIndex[goal];
 
         var previous = new Dictionary<int, int> { [start] = -1 };
-        var distance = new Dictionary<int, float> { [start] = 0f };
-        var queue = new PriorityQueue<int, float>();
-        queue.Enqueue(start, 0f);
+        var distance = new Dictionary<int, double> { [start] = 0.0 };
+        var queue = new PriorityQueue<int, double>();
+        queue.Enqueue(start, 0.0);
 
-        while (queue.TryDequeue(out int face, out float cost))
+        while (queue.TryDequeue(out int face, out double cost))
         {
             if (face == goal) break;
             if (cost > distance[face]) continue;
@@ -506,8 +502,8 @@ public sealed class PartingBandGraph
             {
                 if (next != goal && !InArc(_rimIndex[next], fromIndex, toIndex, forward, slack)) continue;
 
-                float step = cost + Vector3.Distance(_centroid[face], _centroid[next]);
-                if (distance.TryGetValue(next, out float known) && step >= known) continue;
+                double step = cost + _centroid[face].DistanceTo(_centroid[next]);
+                if (distance.TryGetValue(next, out double known) && step >= known) continue;
 
                 distance[next] = step;
                 previous[next] = face;
@@ -560,7 +556,7 @@ public sealed class PartingBandGraph
     /// of a mean edge, which on the bodies here happens well inside the default.
     /// </param>
     public IReadOnlyList<Vector3>? WalkGeodesic(
-        Vector3 from, Vector3 to, bool forward = true, float slack = 8f, int passes = 24)
+        Vector3 from, Vector3 to, bool forward = true, double slack = 8.0, int passes = 24)
     {
         var corridor = WalkFaces(from, to, forward, slack);
         if (corridor is null) return null;
@@ -585,13 +581,13 @@ public sealed class PartingBandGraph
         // Started at the middle of each gate. Any starting point on the gate converges to the same
         // place; the middle is simply the one furthest from having to be clamped on the first sweep.
         var crossings = new Vector3[gates.Length];
-        for (int i = 0; i < gates.Length; i++) crossings[i] = (gates[i].A + gates[i].B) * 0.5f;
+        for (int i = 0; i < gates.Length; i++) crossings[i] = (gates[i].A + gates[i].B) * 0.5;
 
-        float settled = MeanEdge * 1e-3f;
+        double settled = MeanEdge * 1e-3;
 
         for (int pass = 0; pass < passes; pass++)
         {
-            float moved = 0f;
+            double moved = 0.0;
 
             // Swept in place, so a crossing sees its predecessor's new position within the same pass.
             // Converges in roughly half the sweeps of a version that works off a copy.
@@ -602,7 +598,7 @@ public sealed class PartingBandGraph
                 var next = i == crossings.Length - 1 ? end : crossings[i + 1];
 
                 crossings[i] = Straighten(gates[i], previous, next);
-                moved = MathF.Max(moved, Vector3.Distance(before, crossings[i]));
+                moved = Math.Max(moved, before.DistanceTo(crossings[i]));
             }
 
             if (moved <= settled) break;
@@ -614,9 +610,9 @@ public sealed class PartingBandGraph
         // along the line.
         var path = new List<Vector3>(crossings.Length + 2) { start };
         foreach (var crossing in crossings)
-            if (Vector3.DistanceSquared(path[^1], crossing) > settled * settled) path.Add(crossing);
+            if (path[^1].DistanceSquared(crossing) > settled * settled) path.Add(crossing);
 
-        if (Vector3.DistanceSquared(path[^1], end) > settled * settled) path.Add(end);
+        if (path[^1].DistanceSquared(end) > settled * settled) path.Add(end);
         else path[^1] = end;
 
         return path.Count >= 2 ? path : new[] { start, end };
@@ -637,57 +633,57 @@ public sealed class PartingBandGraph
     private static Vector3 Straighten((Vector3 A, Vector3 B) gate, Vector3 previous, Vector3 next)
     {
         var along = gate.B - gate.A;
-        float length = along.LengthSquared();
-        if (length < 1e-12f) return gate.A;
+        double length = along.LengthSquared;
+        if (length < 1e-12) return gate.A;
 
-        along /= MathF.Sqrt(length);
+        along /= Math.Sqrt(length);
 
-        Measure(previous, out float previousAlong, out float previousOff);
-        Measure(next, out float nextAlong, out float nextOff);
+        Measure(previous, out double previousAlong, out double previousOff);
+        Measure(next, out double nextAlong, out double nextOff);
 
-        float total = previousOff + nextOff;
+        double total = previousOff + nextOff;
 
         // Both ends sitting on the gate line leaves nothing to divide in proportion to. That is a
         // degenerate crossing rather than a wrong one, so it is left where the midpoint of the two
         // would put it.
-        float at = total < 1e-9f
-            ? (previousAlong + nextAlong) * 0.5f
+        double at = total < 1e-9
+            ? (previousAlong + nextAlong) * 0.5
             : ((previousAlong * nextOff) + (nextAlong * previousOff)) / total;
 
-        return gate.A + (along * Math.Clamp(at, 0f, MathF.Sqrt(length)));
+        return gate.A + (along * Math.Clamp(at, 0.0, Math.Sqrt(length)));
 
-        void Measure(Vector3 point, out float distanceAlong, out float distanceOff)
+        void Measure(Vector3 point, out double distanceAlong, out double distanceOff)
         {
             var offset = point - gate.A;
-            distanceAlong = Vector3.Dot(offset, along);
-            distanceOff = (offset - (along * distanceAlong)).Length();
+            distanceAlong = offset.Dot(along);
+            distanceOff = (offset - (along * distanceAlong)).Length;
         }
     }
 
     /// <summary>Whether a rim position lies on the way from one index to another, going the given way.</summary>
-    private bool InArc(float at, float from, float to, bool forward, float slack)
+    private bool InArc(double at, double from, double to, bool forward, double slack)
     {
-        float span = Forward(from, to, forward);
-        float offset = Forward(from, at, forward);
+        double span = Forward(from, to, forward);
+        double offset = Forward(from, at, forward);
         return offset <= span + slack;
     }
 
-    private float Forward(float from, float to, bool forward)
+    private double Forward(double from, double to, bool forward)
     {
-        float delta = forward ? to - from : from - to;
-        while (delta < 0f) delta += RimSamples;
+        double delta = forward ? to - from : from - to;
+        while (delta < 0.0) delta += RimSamples;
         while (delta >= RimSamples) delta -= RimSamples;
         return delta;
     }
 
-    private static float NearestIndex(Vector3 point, IReadOnlyList<Vector3> crease)
+    private static double NearestIndex(Vector3 point, IReadOnlyList<Vector3> crease)
     {
         int best = 0;
-        float bestDistance = float.MaxValue;
+        double bestDistance = double.MaxValue;
 
         for (int i = 0; i < crease.Count; i++)
         {
-            float d = Vector3.DistanceSquared(point, crease[i]);
+            double d = point.DistanceSquared(crease[i]);
             if (d >= bestDistance) continue;
 
             bestDistance = d;

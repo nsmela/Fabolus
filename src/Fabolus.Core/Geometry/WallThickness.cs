@@ -1,8 +1,4 @@
-using System.Numerics;
-
 namespace Fabolus.Core.Geometry;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// The distribution of a <see cref="WallThickness"/> measurement, over the faces that could be
@@ -17,25 +13,25 @@ public sealed record WallThicknessStatistics
     /// The shell's wall thickness. The median rather than the mean: even after excluding the faces
     /// that never exited, the ones near a rim read long, and there is no upper bound on how long.
     /// </summary>
-    public required float Median { get; init; }
+    public required double Median { get; init; }
 
-    public required float Mean { get; init; }
-    public required float Minimum { get; init; }
-    public required float Maximum { get; init; }
+    public required double Mean { get; init; }
+    public required double Minimum { get; init; }
+    public required double Maximum { get; init; }
 
     /// <summary>
     /// Spread about the <see cref="Mean"/>. Small next to the median means a shell of even
     /// thickness; large means the two surfaces are not parallel, which is worth knowing before
     /// trusting anything that assumes a constant offset.
     /// </summary>
-    public required float StandardDeviation { get; init; }
+    public required double StandardDeviation { get; init; }
 
     /// <summary>
     /// Fifth and ninety-fifth percentiles - the working range of the wall, ignoring the tails. Useful
     /// for choosing a band around the median without having to sort the per-face values again.
     /// </summary>
-    public required float FifthPercentile { get; init; }
-    public required float NinetyFifthPercentile { get; init; }
+    public required double FifthPercentile { get; init; }
+    public required double NinetyFifthPercentile { get; init; }
 
     /// <summary>How many faces returned a thickness, and how many there were in total.</summary>
     public required int MeasuredFaces { get; init; }
@@ -46,18 +42,18 @@ public sealed record WallThicknessStatistics
     /// faces of the wall swept between the two surfaces, whose normals run along the shell rather
     /// than across it.
     /// </summary>
-    public float UnmeasuredFraction =>
-        TotalFaces > 0 ? 1f - ((float)MeasuredFaces / TotalFaces) : 0f;
+    public double UnmeasuredFraction =>
+        TotalFaces > 0 ? 1.0 - ((double)MeasuredFaces / TotalFaces) : 0.0;
 
     public static WallThicknessStatistics Empty { get; } = new()
     {
-        Median = 0f,
-        Mean = 0f,
-        Minimum = 0f,
-        Maximum = 0f,
-        StandardDeviation = 0f,
-        FifthPercentile = 0f,
-        NinetyFifthPercentile = 0f,
+        Median = 0.0,
+        Mean = 0.0,
+        Minimum = 0.0,
+        Maximum = 0.0,
+        StandardDeviation = 0.0,
+        FifthPercentile = 0.0,
+        NinetyFifthPercentile = 0.0,
         MeasuredFaces = 0,
         TotalFaces = 0,
     };
@@ -89,7 +85,7 @@ public sealed record WallThickness
     /// <see cref="float.PositiveInfinity"/> where the probe never came out the far side within
     /// <see cref="WallThicknessOptions.MaxThicknessMm"/>.
     /// </summary>
-    public required IReadOnlyList<float> PerFace { get; init; }
+    public required IReadOnlyList<double> PerFace { get; init; }
 
     /// <summary>
     /// The same measurement carried to the vertices, indexed to match <see cref="IMesh.Vertices"/>,
@@ -102,7 +98,7 @@ public sealed record WallThickness
     /// shared by several faces appears several times and each copy carries only its own face.
     /// </para>
     /// </summary>
-    public required IReadOnlyList<float> PerVertex { get; init; }
+    public required IReadOnlyList<double> PerVertex { get; init; }
 
     /// <summary>
     /// The face each probe came out through, indexed by triangle; -1 where nothing was measured.
@@ -126,7 +122,7 @@ public sealed record WallThickness
     public required WallThicknessOptions Options { get; init; }
 
     /// <summary>Shorthand for <see cref="WallThicknessStatistics.Median"/>, the wall thickness.</summary>
-    public float Median => Statistics.Median;
+    public double Median => Statistics.Median;
 }
 
 /// <summary>Search settings for <see cref="IGeometryEvaluators.MeasureWallThickness"/>.</summary>
@@ -137,13 +133,13 @@ public sealed record WallThicknessOptions
     /// as unmeasured rather than as very thick, because past this depth the probe is no longer
     /// crossing a wall - it is running the length of the body.
     /// </summary>
-    public float MaxThicknessMm { get; init; } = 25f;
+    public double MaxThicknessMm { get; init; } = 25.0;
 
     /// <summary>
     /// How precisely to locate the far surface, in mm. The search brackets the crossing coarsely and
     /// then bisects, so halving this costs one extra probe per face rather than doubling the work.
     /// </summary>
-    public float ToleranceMm { get; init; } = 0.1f;
+    public double ToleranceMm { get; init; } = 0.1;
 
     /// <summary>
     /// Probes taken on the first sweep. The bracket has to be found before it can be bisected, so

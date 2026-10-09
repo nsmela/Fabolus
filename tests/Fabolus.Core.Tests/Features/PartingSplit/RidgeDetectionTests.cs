@@ -1,13 +1,9 @@
 using Fabolus.Core.Geometry;
 using Fabolus.Tests.Fixtures;
 using FluentAssertions;
-using System.Numerics;
 using Xunit;
 
 namespace Fabolus.Core.Tests.Features.PartingSplit;
-
-using Vector3 = System.Numerics.Vector3;
-using Vec3 = GeometryEngine.Core.Geometry.Primitives.Vec3;
 
 [Collection("GeometryEngine collection")]
 public class RidgeDetectionTests
@@ -19,7 +15,7 @@ public class RidgeDetectionTests
     [Fact]
     public void FindRidgeFaces_FlatSheet_FindsNothing()
     {
-        var sheet = Tent(foldDegrees: 0f, spanMm: 60f, panels: 12);
+        var sheet = Tent(foldDegrees: 0.0, spanMm: 60.0, panels: 12);
 
         var ridges = RidgeDetection.FindRidgeFaces(sheet, RidgeDetectionOptions.Default);
 
@@ -29,7 +25,7 @@ public class RidgeDetectionTests
     [Fact]
     public void FindRidgeFaces_Sphere_FindsNothing()
     {
-        var sphere = _engine.Generators.GenerateSphere(Vec3.Zero, 30.0, 48);
+        var sphere = _engine.Generators.GenerateSphere(Vector3.Zero, 30.0, 48);
         sphere.IsSuccess.Should().BeTrue();
 
         var ridges = RidgeDetection.FindRidgeFaces(sphere.Value, RidgeDetectionOptions.Default);
@@ -40,7 +36,7 @@ public class RidgeDetectionTests
     [Fact]
     public void FindRidgeFaces_SharpFold_FindsTheFold()
     {
-        var tent = Tent(foldDegrees: 90f, spanMm: 60f, panels: 12);
+        var tent = Tent(foldDegrees: 90.0, spanMm: 60.0, panels: 12);
 
         var ridges = RidgeDetection.FindRidgeFaces(tent, RidgeDetectionOptions.Default);
 
@@ -57,7 +53,7 @@ public class RidgeDetectionTests
     {
         // 8 degrees over a 5mm panel is about 0.03/mm - the sort of gentle turn an offset surface
         // makes on its own, well under the grow threshold.
-        var tent = Tent(foldDegrees: 8f, spanMm: 60f, panels: 12);
+        var tent = Tent(foldDegrees: 8.0, spanMm: 60.0, panels: 12);
 
         var ridges = RidgeDetection.FindRidgeFaces(tent, RidgeDetectionOptions.Default);
 
@@ -75,7 +71,7 @@ public class RidgeDetectionTests
     [InlineData(64)]
     public void FindRidgeFaces_SharpFold_IsFoundAtAnyTessellation(int panels)
     {
-        var tent = Tent(foldDegrees: 90f, spanMm: 60f, panels: panels);
+        var tent = Tent(foldDegrees: 90.0, spanMm: 60.0, panels: panels);
 
         var ridges = RidgeDetection.FindRidgeFaces(tent, RidgeDetectionOptions.Default);
 
@@ -89,7 +85,7 @@ public class RidgeDetectionTests
         // A single kinked vertex in an otherwise flat sheet: sharp enough to seed, far too short to
         // be a feature. This is the filter that keeps a stair-stepped CT surface from reading as
         // ridge everywhere.
-        var sheet = SheetWithSpike(spanMm: 120f, panels: 24, spikeHeightMm: 4f);
+        var sheet = SheetWithSpike(spanMm: 120.0, panels: 24, spikeHeightMm: 4.0);
 
         var ridges = RidgeDetection.FindRidgeFaces(sheet, RidgeDetectionOptions.Default);
 
@@ -111,20 +107,20 @@ public class RidgeDetectionTests
     /// <paramref name="panels"/> rises while the fold itself stays put, which is exactly the
     /// tessellation-versus-shape distinction the detector is meant to be insensitive to.
     /// </summary>
-    private IMesh Tent(float foldDegrees, float spanMm, int panels)
+    private IMesh Tent(double foldDegrees, double spanMm, int panels)
     {
         if (panels % 2 != 0) throw new ArgumentException("needs a panel boundary at the midpoint", nameof(panels));
 
-        float half = spanMm / 2f;
-        float step = spanMm / panels;
-        float slope = MathF.Tan(foldDegrees * MathF.PI / 360f); // half the fold each side
+        double half = spanMm / 2.0;
+        double step = spanMm / panels;
+        double slope = Math.Tan(foldDegrees * Math.PI / 360.0); // half the fold each side
 
         var vertices = new List<double>();
         for (int i = 0; i <= panels; i++)
         {
-            float x = -half + (i * step);
-            float y = (half - MathF.Abs(x)) * slope;
-            foreach (float z in new[] { -half, half })
+            double x = -half + (i * step);
+            double y = (half - Math.Abs(x)) * slope;
+            foreach (double z in new[] { -half, half })
             {
                 vertices.Add(x);
                 vertices.Add(y);
@@ -145,17 +141,17 @@ public class RidgeDetectionTests
     }
 
     /// <summary>A flat sheet with one interior vertex pulled out of plane - an isolated kink.</summary>
-    private IMesh SheetWithSpike(float spanMm, int panels, float spikeHeightMm)
+    private IMesh SheetWithSpike(double spanMm, int panels, double spikeHeightMm)
     {
-        float half = spanMm / 2f;
-        float step = spanMm / panels;
+        double half = spanMm / 2.0;
+        double step = spanMm / panels;
 
         var vertices = new List<double>();
         for (int i = 0; i <= panels; i++)
             for (int j = 0; j <= panels; j++)
             {
                 vertices.Add(-half + (i * step));
-                vertices.Add(i == panels / 2 && j == panels / 2 ? spikeHeightMm : 0f);
+                vertices.Add(i == panels / 2 && j == panels / 2 ? spikeHeightMm : 0.0);
                 vertices.Add(-half + (j * step));
             }
 

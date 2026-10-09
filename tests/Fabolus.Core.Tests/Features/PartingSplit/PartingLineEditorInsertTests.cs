@@ -1,11 +1,8 @@
-using System.Numerics;
 using Fabolus.Core.Geometry;
 using FluentAssertions;
 using Xunit;
 
 namespace Fabolus.Core.Tests.Features.PartingSplit;
-
-using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// A placement outlives the line it was planned against: the view works one out when the cursor moves
