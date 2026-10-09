@@ -17,7 +17,7 @@ Inno Setup) are not part of any release and are not listed here.
 
 | Component | Licence | Copyright | Source |
 |---|---|---|---|
-| GeometryEngine | MIT | © 2026 Nathan Smela | https://github.com/nsmela/GeometryEngine |
+| GeometryEngine | MIT | © 2017–2026 Provincial Health Services Authority | https://github.com/nsmela/GeometryEngine |
 | BasicResults | MIT | © Nathan Smela | https://github.com/nsmela/BasicResults |
 | HelixToolkit, HelixToolkit.Wpf.SharpDX | MIT | © 2022 Helix Toolkit contributors | https://github.com/helix-toolkit/helix-toolkit |
 | SharpDX | MIT | © 2010–2016 Alexandre Mutel | https://github.com/sharpdx/SharpDX |
