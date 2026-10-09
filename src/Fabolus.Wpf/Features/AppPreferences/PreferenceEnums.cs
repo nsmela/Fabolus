@@ -50,6 +50,12 @@ public enum CutViewScope {
     Both
 }
 
+/// <summary>Application theme for UI controls.</summary>
+public enum AppTheme {
+    Dark,
+    Light
+}
+
 public static class PreferenceEnumExtensions {
     // Short labels that match the segmented controls in the UI.
     public static string ToLabel(this ExportFormat value) => value switch {
@@ -82,6 +88,12 @@ public static class PreferenceEnumExtensions {
         DecalAutoPlaceScope.Base => "Base mesh only",
         DecalAutoPlaceScope.MouldAndBase => "Mould and base",
         DecalAutoPlaceScope.BaseIfNoMould => "Base only when no mould",
+        _ => value.ToString()
+    };
+
+    public static string ToLabel(this AppTheme value) => value switch {
+        AppTheme.Dark => "Dark",
+        AppTheme.Light => "Light",
         _ => value.ToString()
     };
 }

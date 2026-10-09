@@ -38,6 +38,15 @@ public sealed class GeneralPreferencePage : IPreferencePage {
         // rather than a sidebar entry of its own.
         new HeaderRow { Label = "APPEARANCE" },
         new SegmentedRow {
+            Label = "Application theme",
+            Choices = [
+                new(AppTheme.Dark, AppTheme.Dark.ToLabel()),
+                new(AppTheme.Light, AppTheme.Light.ToLabel()),
+            ],
+            Read = () => vm.Get<GeneralPreferences>().AppTheme,
+            Write = value => vm.Update<GeneralPreferences>(settings => settings with { AppTheme = (AppTheme)value }),
+        },
+        new SegmentedRow {
             Label = "Viewport background",
             Choices = [
                 new(ViewportBackground.Graphite, "Graphite"),
