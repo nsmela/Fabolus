@@ -2026,13 +2026,6 @@ internal sealed class PartingTools : IPartingTools
     }
 
     /// <summary>
-    /// How hard each swept ring is relaxed toward its neighbours' midpoint before the next step is
-    /// taken from it. This is the sweep's only defence against the rings crowding where the parting
-    /// line is concave, so it cannot be timid; it is applied to the ring's shape, never to the
-    /// parting line itself, which is ring zero and never moves. Measured on chin and scalp, raising
-    /// this from 0.35 to 0.6 cut the swept surface's self-intersections by roughly four fifths.
-    /// </summary>
-    /// <summary>
     /// Builds the flange by lofting the parting line out to a ring on the mould, rather than by
     /// marching along the body's normals.
     ///
@@ -2124,9 +2117,15 @@ internal sealed class PartingTools : IPartingTools
             previous = here;
         }
 
+        // The closing step, from the last point back to the first, is part of the loop too. Left out,
+        // the last point is mapped a full turn round to exactly where the first one is, and the seam
+        // span between them comes out with no length on the outer ring.
+        float closing = MathF.Max(
+            winding * LoftWrap(LoftBearing(partingLine[0], u, v, centre) - previous), 0f);
+
         // A line whose bearings barely advance has nothing to map round the outline, and is refused
         // rather than folded onto a point.
-        float span = sweep[n - 1];
+        float span = running + closing;
         if (span < 1e-3f) return GeometryErrors.InvalidPolygon;
 
         var hull = LoftHull(mould.Vertices, u, v);
@@ -2272,6 +2271,13 @@ internal sealed class PartingTools : IPartingTools
         return centre + (dir * furthest);
     }
 
+    /// <summary>
+    /// How hard each swept ring is relaxed toward its neighbours' midpoint before the next step is
+    /// taken from it. This is the sweep's only defence against the rings crowding where the parting
+    /// line is concave, so it cannot be timid; it is applied to the ring's shape, never to the
+    /// parting line itself, which is ring zero and never moves. Measured on chin and scalp, raising
+    /// this from 0.35 to 0.6 cut the swept surface's self-intersections by roughly four fifths.
+    /// </summary>
     private const float SweepRelaxation = 0.6f;
 
     /// <summary>Laplacian smoothing of a closed ring, in place.</summary>

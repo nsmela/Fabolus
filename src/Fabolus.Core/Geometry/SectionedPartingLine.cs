@@ -302,12 +302,12 @@ public static class PartingLineEditor
         bool leaving = Retrace(spans, anchors, anchor, graph, geodesic);
         bool arriving = Retrace(spans, anchors, ((anchor - 1) % n + n) % n, graph, geodesic);
 
-        // Neither span could be re-walked, so the handle has moved somewhere the wall cannot be crossed
-        // to. Committing it anyway leaves both stretches still ending where the handle used to be - a
-        // line with a step in it at the join, and a Flatten that no longer passes through the handle at
-        // all. The drag is refused instead, which reads as the handle declining to follow the cursor
-        // rather than as the line coming apart behind it.
-        if (!leaving && !arriving) return line;
+        // Either span failing is enough to refuse. One that could not be re-walked still ends where the
+        // handle used to be, so committing the other alone leaves a line with a step in it at the join,
+        // and a Flatten that no longer passes through the handle at all. The drag is refused instead,
+        // which reads as the handle declining to follow the cursor rather than as the line coming apart
+        // behind it.
+        if (!leaving || !arriving) return line;
 
         return new SectionedPartingLine(anchors, spans);
     }
