@@ -82,7 +82,7 @@ public sealed record ThicknessPartingOptions
 /// </summary>
 public static class ThicknessParting
 {
-    /// <summary>Grid size, in mm, for matching coincident corners - display geometry arrives un-welded.</summary>
+    /// <summary>Grid size, in mm, for matching coincident corners on a seam - see <see cref="SeamWeld"/>.</summary>
     private const double WeldGridMm = 0.001;
 
     /// <summary>
@@ -565,25 +565,9 @@ public static class ThicknessParting
             var sourceTriangles = mesh.Triangles;
             int faceCount = sourceTriangles.Length / 3;
 
-            var lookup = new Dictionary<(int, int, int), int>(sourceVertices.Length);
-            var welded = new int[sourceVertices.Length];
-            for (int i = 0; i < sourceVertices.Length; i++)
-            {
-                var v = sourceVertices[i];
-                var key = (
-                    (int)Math.Round(v.X / WeldGridMm),
-                    (int)Math.Round(v.Y / WeldGridMm),
-                    (int)Math.Round(v.Z / WeldGridMm));
+            var welded = SeamWeld.Weld(mesh, WeldGridMm, out int pointCount);
 
-                if (!lookup.TryGetValue(key, out int id))
-                {
-                    id = lookup.Count;
-                    lookup[key] = id;
-                }
-                welded[i] = id;
-            }
-
-            var positions = new Vector3[lookup.Count];
+            var positions = new Vector3[pointCount];
             for (int i = 0; i < sourceVertices.Length; i++) positions[welded[i]] = sourceVertices[i];
 
             var triangles = new int[sourceTriangles.Length];

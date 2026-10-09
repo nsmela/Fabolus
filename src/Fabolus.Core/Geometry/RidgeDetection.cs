@@ -306,9 +306,10 @@ public sealed record MeshTopology(int Vertices, int Edges, int Faces, int Bounda
 public static class RidgeDetection
 {
     /// <summary>
-    /// Grid size, in mm, that vertices are snapped to when working out which of them are the same
-    /// point. Display geometry arrives un-welded (one vertex per corner per face) and has no edge
-    /// adjacency at all until coincident corners are matched up, so this runs unconditionally.
+    /// Grid size, in mm, that seam vertices are snapped to when working out which of them are the
+    /// same point. Display geometry arrives un-welded (one vertex per corner per face) and has no
+    /// edge adjacency at all until coincident corners are matched up; a mesh that already closes up
+    /// by index is left as it is - see <see cref="SeamWeld"/>.
     /// </summary>
     private const double WeldGridMm = 0.001;
 
@@ -2433,25 +2434,9 @@ public static class RidgeDetection
             int triangleCount = sourceTriangles.Length / 3;
 
             // --- weld ---
-            var lookup = new Dictionary<(int, int, int), int>(sourceVertices.Length);
-            var welded = new int[sourceVertices.Length];
-            for (int i = 0; i < sourceVertices.Length; i++)
-            {
-                var v = sourceVertices[i];
-                var key = (
-                    (int)Math.Round(v.X / WeldGridMm),
-                    (int)Math.Round(v.Y / WeldGridMm),
-                    (int)Math.Round(v.Z / WeldGridMm));
+            var welded = SeamWeld.Weld(mesh, WeldGridMm, out int pointCount);
 
-                if (!lookup.TryGetValue(key, out int id))
-                {
-                    id = lookup.Count;
-                    lookup[key] = id;
-                }
-                welded[i] = id;
-            }
-
-            var positions = new Vector3[lookup.Count];
+            var positions = new Vector3[pointCount];
             for (int i = 0; i < sourceVertices.Length; i++) positions[welded[i]] = sourceVertices[i];
 
             var triangles = new int[sourceTriangles.Length];
