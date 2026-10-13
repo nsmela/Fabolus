@@ -17,6 +17,12 @@ public static class MetadataErrors {
     public static readonly Error MissingBaseMesh = new("Metadata.MissingBaseMesh", "The mesh has no recorded base mesh to replay from");
 
     /// <summary>
+    /// Error returned when a command that builds on an earlier stage is applied on its own, with no
+    /// replay to say what the earlier stages were.
+    /// </summary>
+    public static readonly Error NeedsEarlierStages = new("Metadata.NeedsEarlierStages", "This command builds on an earlier stage of the mesh's history, so it can only be applied by replaying that history");
+
+    /// <summary>
     /// Error returned when a save file records a command this build cannot resolve to a type.
     /// </summary>
     public static Error UnknownCommand(string name) =>

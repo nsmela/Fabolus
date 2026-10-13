@@ -16,17 +16,23 @@ namespace Fabolus.Core.Geometry.Metadata;
 public static class CommandReplay {
     /// <summary>
     /// Replays commands against <paramref name="baseMesh"/>, returning it unchanged when there is
-    /// nothing to apply.
+    /// nothing to apply. Each result is kept by its command's stage as it is made, so a command that
+    /// needs an earlier one - see <see cref="IStagedMeshCommand"/> - can be handed it.
     /// </summary>
     public static Result<IMesh> Apply(IGeometryEngine engine, IMesh baseMesh, IEnumerable<IMeshCommand> commands) {
         IMesh current = baseMesh;
+        var stages = new ReplayStages(baseMesh);
+
         foreach (var command in commands) {
-            var result = command.Apply(engine, current);
+            var result = command is IStagedMeshCommand staged
+                ? staged.Apply(engine, current, stages)
+                : command.Apply(engine, current);
             if (result.IsFailure) {
                 return result.Error;
             }
 
             current = result.Value;
+            stages.Record(command.Priority, current);
         }
 
         return Result<IMesh>.Success(current);

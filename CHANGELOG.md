@@ -15,6 +15,11 @@ for public use.
   angled channels.
 - Convex, concave and contoured mould shapes, mould troughs, and a cut/split tool
   (experimental).
+- Parting split (experimental): split a mould into pieces along a parting line traced on the
+  body inside it, with the line editable before the cut. Off by default; turn on "Split view
+  (for moulds)" in preferences. The split is kept in the project's history, so a reopened
+  project rebuilds it.
+- A dark theme, now the default; the light theme is a preference.
 - Smoothing cross-section and distance heat-map displays, print-orientation overhang preview,
   and a wireframe overlay.
 - 3MF project export that keeps the full editing history, so a project can be reopened and

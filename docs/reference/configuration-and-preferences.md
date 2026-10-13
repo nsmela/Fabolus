@@ -4,7 +4,7 @@ Fabolus stores user preferences as JSON and shares them with the ViewModels that
 
 Preferences are organised into **sections**. Each section is an immutable record implementing `IPreferenceSettings<TSelf>` that knows how to read itself from, and write itself to, a flat `PreferenceBag`. Following the "each feature owns its preferences" refactor, the sections live with their features:
 
-- **`GeneralPreferences`** — import/export folders, export format, viewport background.
+- **`GeneralPreferences`** — import/export folders, export format, viewport background, application theme.
 - **`PrintBedPreferences`** — print bed size, bed grid, and channel defaults.
 - **`SmoothingPreferences`** — smoothing parameters and display mode.
 - **`RotationPreferences`** — overhang warning/critical angles.
@@ -63,6 +63,7 @@ Types marked *enum* are written as their value name. Ranges, where shown, are th
 | `default_export_folder` | string | Local Application Data folder | Falls back to default if the stored folder no longer exists. |
 | `default_export_format` | enum | `Stl` | `Stl`, `ThreeMF`. |
 | `viewport_background` | enum | `Graphite` | `Graphite`, `LightSteel`. |
+| `app_theme` | enum | `Dark` | `Dark`, `Light`. Switches live: MahApps' base theme and the `FabolusSteelDark` / `SteelCyan` override dictionary. |
 
 ### `PrintBedPreferences` ([source](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/AppPreferences/PrintBedPreferences.cs))
 
@@ -132,7 +133,7 @@ The two angles are kept at least 5° apart.
 | :--- | :--- | :--- | :--- |
 | `cut_view_enabled` | bool | `false` | Enables the cut view. |
 | `cut_view_scope` | enum | `Base` | `Base`, `Mould`, `Both`. |
-| `split_view_enabled` | bool | `false` | Enables the split view. |
+| `split_view_enabled` | bool | `false` | Shows the parting split tab, which splits a mould along a parting line traced on the body inside it. |
 
 ---
 

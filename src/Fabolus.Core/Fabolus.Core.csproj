@@ -52,6 +52,13 @@
       sides of the adapter, which is what lets a Result cross that boundary without translation.
     -->
     <PackageReference Include="BasicResults" Version="1.0.1" />
+
+    <!--
+      Polygon offsetting for the parting flange's wavefront rings. PartingTools calls it directly,
+      so it is declared here for the same reason as BasicResults; keep the version in step with
+      the one GeometryEngine uses.
+    -->
+    <PackageReference Include="Clipper2" Version="1.5.4" />
   </ItemGroup>
 
   <ItemGroup>

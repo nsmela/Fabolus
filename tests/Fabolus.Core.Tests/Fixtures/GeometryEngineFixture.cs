@@ -29,6 +29,17 @@ public class GeometryEngineFixture
         return (workspace.AddMesh(mesh, record).Value, record.Id);
     }
 
+    /// <summary>
+    /// <see cref="AddActive"/> for a mesh that will have history built on it: the entry records the
+    /// mesh as its own base, as an import does, so anything that replays the entry back to an
+    /// earlier stage - a mould split recovering its body, say - has somewhere to replay from.
+    /// </summary>
+    public static (Workspace Workspace, Guid Id) AddBody(Workspace workspace, IMesh mesh, string name = "body")
+    {
+        var record = MeshRecord.ForImport(name).WithBaseMesh(mesh);
+        return (workspace.AddMesh(mesh, record).Value, record.Id);
+    }
+
     public IMesh LoadStl(string name)
     {
         var path = GetAssetPath(name);
