@@ -38,10 +38,21 @@ public class PartingSplitRecipeEndToEndTests
     {
         // Fully qualified: Fabolus.Wpf.Common carries its own FileSystem type, so pulling System.IO
         // in wholesale here invites a collision for no benefit.
-        var path = System.IO.Path.Combine(System.AppContext.BaseDirectory, name);
-        if (!System.IO.File.Exists(path))
-            path = System.IO.Path.Combine(System.AppContext.BaseDirectory, "../../../../files", name);
-        return System.IO.Path.GetFullPath(path);
+        //
+        // Walked up to rather than reached by a fixed "../../../../": CI builds with
+        // -p:Platform=x64, which puts the output under bin/x64/Release - a level deeper than a
+        // local build - and the fixed path then lands beside the test project, not on tests/files.
+        var directory = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var candidate = System.IO.Path.Combine(directory.FullName, "files", name);
+            if (System.IO.File.Exists(candidate))
+                return candidate;
+
+            directory = directory.Parent;
+        }
+
+        throw new System.IO.FileNotFoundException($"Could not find tests/files/{name}.");
     }
 
     [Theory]
