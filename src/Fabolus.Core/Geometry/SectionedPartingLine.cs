@@ -184,6 +184,18 @@ public static class PartingLineEditor
             kept.Add(section);
         }
 
+        // The pass above only ever folds a section into the one before it, and the first has none
+        // there - so a short first section came through it whole, and the line was seeded with two
+        // handles a couple of millimetres apart. Measured on larynx_small: a first section of three
+        // samples, 2.9mm long, too short for the editor to divide or a user to aim between. Round a
+        // closed loop the section before the first is the last, so that is where it goes.
+        if (kept.Count > 1 && kept[0].Count < shortestSection)
+        {
+            var first = kept[0];
+            kept.RemoveAt(0);
+            kept[^1] = kept[^1] with { Count = kept[^1].Count + first.Count };
+        }
+
         if (kept.Count > 1 && kept[^1].Count < shortestSection)
         {
             var last = kept[^1];
