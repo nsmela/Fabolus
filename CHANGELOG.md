@@ -5,6 +5,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Uninstalling now removes the preferences and crash reports in `%LOCALAPPDATA%\Fabolus`, not
+  just the program files. The build docs give the current preferences location.
+
 ## [1.0.0] - 2026-10-14
 
 A rewrite: a new architecture, a new geometry engine, and the first release intended
