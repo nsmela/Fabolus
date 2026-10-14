@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout Fabolus
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: Fabolus
 
@@ -42,14 +42,14 @@ jobs:
         run: '"sha=$((Get-Content build/geometryengine.sha -Raw).Trim())" >> $env:GITHUB_OUTPUT'
 
       - name: Checkout GeometryEngine
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: nsmela/GeometryEngine
           ref: ${{ steps.geometryengine.outputs.sha }}
           path: GeometryEngine
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
@@ -82,7 +82,7 @@ jobs:
         run: ./build/publish.ps1 -Version ${{ steps.version.outputs.version }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Fabolus-${{ steps.version.outputs.version }}
           path: Fabolus/artifacts/*
@@ -90,7 +90,7 @@ jobs:
 
       - name: Create draft release
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
           name: Fabolus ${{ steps.version.outputs.version }}
