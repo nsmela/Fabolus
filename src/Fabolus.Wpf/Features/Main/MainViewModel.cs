@@ -238,14 +238,10 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void OpenPreferences()
     {
-        PreferencesView preferences =
-            Application.Current.Windows.OfType<PreferencesView>().SingleOrDefault()
-            ?? new PreferencesView(PreferencesViewModel);
-
-        preferences.Show();
-        preferences.WindowState = WindowState.Normal;
-        preferences.Activate();
-
+        // Modal and owned by the main window, so it stays above it and can never be left behind
+        // once the main window closes.
+        var preferences = new PreferencesView(PreferencesViewModel) { Owner = Application.Current.MainWindow };
+        preferences.ShowDialog();
     }
 
     [RelayCommand]

@@ -2,7 +2,9 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Fabolus.Wpf"
-             xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert">
+             xmlns:conv="clr-namespace:Fabolus.Wpf.Common.Convert"
+             ShutdownMode="OnMainWindowClose">
+    <!-- Closing the main window ends the app and every window with it. -->
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
