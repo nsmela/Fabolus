@@ -101,7 +101,7 @@ public sealed class CrashHandler {
         }
 
         try {
-            _alert.ShowError(Message(exception, logPath, fatal));
+            _alert.ShowError(Message(exception, logPath, fatal, _log.Redactor));
         }
         catch (Exception) {
             // Nothing more can be done from here, and throwing would end the app this is keeping up.
@@ -111,7 +111,7 @@ public sealed class CrashHandler {
         }
     }
 
-    public static string Message(Exception exception, string? logPath, bool fatal) {
+    public static string Message(Exception exception, string? logPath, bool fatal, CrashRedactor redactor) {
         var lead = fatal
             ? "Fabolus ran into an unexpected problem and has to close."
             : "Something went wrong and the last action did not finish. Fabolus is still running, "
@@ -121,7 +121,8 @@ public sealed class CrashHandler {
             ? "The details could not be saved to a log file."
             : $"The details were saved to:\n{logPath}";
 
-        return $"{lead}\n\n{exception.GetType().Name}: {exception.Message}\n\n{where}";
+        // Redacted like the log: a screenshot of this is as likely to end up on an issue.
+        return $"{lead}\n\n{exception.GetType().Name}: {redactor.Redact(exception.Message)}\n\n{where}";
     }
 
     // Same type, message and stack is the same failure, however many times it repeats.

@@ -9,6 +9,7 @@ using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.About;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
+using Fabolus.Wpf.Features.Viewport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -21,6 +22,7 @@ public partial class App : Application
 
     public static IHost? AppHost { get; private set; }
 
+    private readonly CrashRedactor _crashRedactor = new();
     private readonly CrashHandler _crashHandler;
 
     public App()
@@ -28,7 +30,7 @@ public partial class App : Application
         // Before anything else, so a failure building the host is reported too. Built by hand
         // rather than resolved: it has to work when the container is what failed.
         _crashHandler = new CrashHandler(
-            new CrashLog(new FileSystem(), CrashLog.DefaultFolder, () => DateTime.Now, AboutViewModel.ReadVersion()),
+            new CrashLog(new FileSystem(), CrashLog.DefaultFolder, () => DateTime.Now, AboutViewModel.ReadVersion(), _crashRedactor),
             new AlertDialog());
         _crashHandler.Attach(Dispatcher);
         _crashHandler.AttachProcessWide();
@@ -73,6 +75,11 @@ public partial class App : Application
             var messenger = AppHost.Services.GetRequiredService<IMessenger>();
             messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (_, msg) => SetTheme(msg.Section.AppTheme));
             SetTheme(messenger.GetSection(GeneralPreferences.Default).AppTheme);
+
+            // Mesh names come from the files they were imported from, which are often named after
+            // the patient - keep them out of crash reports.
+            messenger.Register<WorkspaceChangedMessage>(this, (_, msg) =>
+                _crashRedactor.AddSensitiveNames(msg.Workspace.Records.Select(r => r.Name)));
 
             var mainWindow = AppHost.Services.GetRequiredService<MainView>();
             mainWindow.Show();

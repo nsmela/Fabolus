@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -24,14 +25,17 @@ public sealed class CrashLog {
     private readonly Func<DateTime> _clock;
     private readonly string _appVersion;
 
-    public CrashLog(IFileSystem fileSystem, string folder, Func<DateTime> clock, string appVersion) {
+    public CrashLog(IFileSystem fileSystem, string folder, Func<DateTime> clock, string appVersion, CrashRedactor redactor) {
         _fileSystem = fileSystem;
         Folder = folder;
         _clock = clock;
         _appVersion = appVersion;
+        Redactor = redactor;
     }
 
     public string Folder { get; }
+
+    public CrashRedactor Redactor { get; }
 
     /// <summary>
     /// Writes the report and returns its path, or null if it could not be written. Never throws:
@@ -51,7 +55,7 @@ public sealed class CrashLog {
                 path = Path.Combine(Folder, $"{stem}-{n}.txt");
             }
 
-            _fileSystem.WriteAllText(path, Format(exception, context, at, _appVersion));
+            _fileSystem.WriteAllText(path, Format(exception, context, at, _appVersion, Redactor));
             return path;
         }
         catch (Exception) {
@@ -59,7 +63,7 @@ public sealed class CrashLog {
         }
     }
 
-    public static string Format(Exception exception, string context, DateTime at, string appVersion) {
+    public static string Format(Exception exception, string context, DateTime at, string appVersion, CrashRedactor redactor) {
         var report = new StringBuilder();
         report.AppendLine($"Fabolus {appVersion}");
         report.AppendLine($"Time:    {at:yyyy-MM-dd HH:mm:ss.fff}");
@@ -68,9 +72,24 @@ public sealed class CrashLog {
         report.AppendLine($".NET:    {RuntimeInformation.FrameworkDescription}");
         report.AppendLine();
 
-        // ToString carries the type, message and stack of the exception and of every inner one,
-        // including each exception an AggregateException wraps.
-        report.AppendLine(exception.ToString());
+        AppendChain(report, exception, redactor, depth: 0);
         return report.ToString();
+    }
+
+    // Written out by hand rather than with Exception.ToString, which cannot be redacted: it embeds
+    // each message as is, and some types add more - FileNotFoundException appends the file name.
+    private static void AppendChain(StringBuilder report, Exception exception, CrashRedactor redactor, int depth) {
+        report.AppendLine($"{exception.GetType().FullName}: {redactor.Redact(exception.Message)}");
+        if (exception.StackTrace is { } stack) report.AppendLine(stack);
+
+        IEnumerable<Exception> inner = exception is AggregateException aggregate
+            ? aggregate.InnerExceptions
+            : exception.InnerException is { } single ? [single] : [];
+
+        foreach (var cause in inner) {
+            report.AppendLine();
+            report.AppendLine($"--- Inner exception (depth {depth + 1}) ---");
+            AppendChain(report, cause, redactor, depth + 1);
+        }
     }
 }

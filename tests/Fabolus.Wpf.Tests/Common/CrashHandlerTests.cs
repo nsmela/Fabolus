@@ -18,6 +18,7 @@ public sealed class CrashHandlerTests : IDisposable
     private readonly string _folder = Path.Combine(Path.GetTempPath(), "fabolus-crash-" + Guid.NewGuid().ToString("N"));
     private readonly Mock<IAlertDialog> _alert = new();
     private readonly List<string> _shown = [];
+    private readonly CrashRedactor _redactor = new();
 
     public CrashHandlerTests()
     {
@@ -30,7 +31,7 @@ public sealed class CrashHandlerTests : IDisposable
     }
 
     private CrashHandler NewHandler(IFileSystem? fileSystem = null) =>
-        new(new CrashLog(fileSystem ?? new FileSystem(), _folder, () => DateTime.Now, "1.0.0"), _alert.Object);
+        new(new CrashLog(fileSystem ?? new FileSystem(), _folder, () => DateTime.Now, "1.0.0", _redactor), _alert.Object);
 
     private string[] Logs() =>
         Directory.Exists(_folder) ? Directory.GetFiles(_folder, "crash-*.txt") : [];
@@ -55,6 +56,24 @@ public sealed class CrashHandlerTests : IDisposable
             Assert.Contains("Fabolus is still running", message);
             Assert.Contains("InvalidOperationException: ui thread failure", message);
             Assert.Contains(log, message);
+        });
+    }
+
+    // A screenshot of the dialog is as likely to end up on an issue as the log.
+    [Fact]
+    public void Dialog_KeepsPathsAndMeshNamesOut()
+    {
+        _redactor.AddSensitiveNames(["Jane Doe"]);
+
+        OnDispatcher(async dispatcher =>
+        {
+            Post(dispatcher, () => throw new IOException(@"Cannot read 'C:\Scans\Smith.stl' for Jane Doe"));
+            await Drain(dispatcher);
+
+            var message = Assert.Single(_shown);
+            Assert.Contains("IOException: Cannot read '<path>' for <name>", message);
+            Assert.DoesNotContain("Smith", message);
+            Assert.DoesNotContain("Jane", message);
         });
     }
 
