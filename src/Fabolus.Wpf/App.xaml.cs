@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using CommunityToolkit.Mvvm.Messaging;
@@ -31,7 +32,11 @@ public partial class App : Application
         // rather than resolved: it has to work when the container is what failed.
         _crashHandler = new CrashHandler(
             new CrashLog(new FileSystem(), CrashLog.DefaultFolder, () => DateTime.Now, AboutViewModel.ReadVersion(), _crashRedactor),
-            new AlertDialog());
+            new AlertDialog(),
+            freezeUi: () => Dispatcher.BeginInvoke(() => { if (MainWindow is not null) MainWindow.IsEnabled = false; }),
+            // Killed rather than exited: an orderly exit runs the host's shutdown, which can wait on
+            // the very thread that failed. The crash log is already written.
+            terminate: () => Process.GetCurrentProcess().Kill());
         _crashHandler.Attach(Dispatcher);
         _crashHandler.AttachProcessWide();
 

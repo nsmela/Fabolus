@@ -22,7 +22,11 @@ public sealed class CrashHandlerTests : IDisposable
 
     public CrashHandlerTests()
     {
-        _alert.Setup(a => a.ShowError(It.IsAny<string>())).Callback<string>(_shown.Add);
+        _alert.Setup(a => a.ShowError(It.IsAny<string>())).Callback<string>(message =>
+        {
+            _shown.Add(message);
+            _events.Add("dialog");
+        });
     }
 
     public void Dispose()
@@ -30,8 +34,18 @@ public sealed class CrashHandlerTests : IDisposable
         if (Directory.Exists(_folder)) Directory.Delete(_folder, recursive: true);
     }
 
+    // Freezing, dialogs and termination, in the order they happened.
+    private readonly List<string> _events = [];
+
+    // Fixed unless a test moves it, so every failure in a test lands at the same instant.
+    private DateTime _now = new(2026, 10, 14, 10, 0, 0, DateTimeKind.Utc);
+
     private CrashHandler NewHandler(IFileSystem? fileSystem = null) =>
-        new(new CrashLog(fileSystem ?? new FileSystem(), _folder, () => DateTime.Now, "1.0.0", _redactor), _alert.Object);
+        new(new CrashLog(fileSystem ?? new FileSystem(), _folder, () => DateTime.Now, "1.0.0", _redactor),
+            _alert.Object,
+            freezeUi: () => _events.Add("freeze"),
+            terminate: () => _events.Add("terminate"),
+            clock: () => _now);
 
     private string[] Logs() =>
         Directory.Exists(_folder) ? Directory.GetFiles(_folder, "crash-*.txt") : [];
@@ -144,6 +158,45 @@ public sealed class CrashHandlerTests : IDisposable
         });
     }
 
+    // Doing the same thing again later is a new failure as far as the user is concerned.
+    [Fact]
+    public void SameFailureAfterAQuietGap_IsShownAgain()
+    {
+        OnDispatcher(async dispatcher =>
+        {
+            static void Fail() => throw new InvalidOperationException("same again");
+
+            Post(dispatcher, Fail);
+            await Drain(dispatcher);
+            _now += CrashHandler.RepeatQuietPeriod + TimeSpan.FromMilliseconds(1);
+            Post(dispatcher, Fail);
+            await Drain(dispatcher);
+
+            Assert.Equal(2, _shown.Count);
+        });
+    }
+
+    // Each repeat restarts the quiet period, so something failing every frame stays quiet for as
+    // long as it keeps failing - not only for the first second.
+    [Fact]
+    public void FailureThatKeepsRepeating_StaysQuietPastTheQuietPeriod()
+    {
+        OnDispatcher(async dispatcher =>
+        {
+            static void Fail() => throw new InvalidOperationException("every half second");
+
+            for (var i = 0; i < 6; i++)
+            {
+                Post(dispatcher, Fail);
+                await Drain(dispatcher);
+                _now += CrashHandler.RepeatQuietPeriod / 2;
+            }
+
+            Assert.Equal(6, LogsContaining("every half second").Length);
+            Assert.Single(_shown);
+        });
+    }
+
     [Fact]
     public void DifferentFailures_AreEachShown()
     {
@@ -237,6 +290,38 @@ public sealed class CrashHandlerTests : IDisposable
         Assert.Contains("has to close", Assert.Single(_shown));
     }
 
+    // Left to the runtime, the window stayed up and usable for seconds after the notice while
+    // Windows Error Reporting ran, then vanished mid-action - found by hand on this branch.
+    [Fact]
+    public void FatalException_FreezesTheWindowShowsTheNoticeThenEndsTheProcess()
+    {
+        NewHandler().OnFatalException(null, new UnhandledExceptionEventArgs(new InvalidOperationException("boom"), isTerminating: true));
+
+        Assert.Equal(["freeze", "dialog", "terminate"], _events);
+    }
+
+    [Fact]
+    public void FatalException_EndsTheProcessEvenIfTheNoticeCannotBeShown()
+    {
+        _alert.Setup(a => a.ShowError(It.IsAny<string>())).Throws(new InvalidOperationException("no dialog"));
+
+        NewHandler().OnFatalException(null, new UnhandledExceptionEventArgs(new InvalidOperationException("boom"), isTerminating: true));
+
+        Assert.Equal(["freeze", "terminate"], _events);
+    }
+
+    [Fact]
+    public void RecoveredFailure_NeitherFreezesNorEnds()
+    {
+        OnDispatcher(async dispatcher =>
+        {
+            Post(dispatcher, () => throw new InvalidOperationException("recoverable"));
+            await Drain(dispatcher);
+        });
+
+        Assert.Equal(["dialog"], _events);
+    }
+
     // It is the last thing the user sees, so it shows even if that failure was shown before.
     [Fact]
     public void FatalException_IsShownEvenIfTheSameFailureWasShownBefore()
@@ -305,6 +390,7 @@ public sealed class CrashHandlerTests : IDisposable
 
         Assert.Contains(CrashHandler.StartupContext, File.ReadAllText(Assert.Single(Logs())));
         Assert.Contains("has to close", Assert.Single(_shown));
+        Assert.DoesNotContain("terminate", _events);   // App shuts down in order itself
     }
 
     // Kept out of the test's own frame so nothing there holds the task alive through the collect.
