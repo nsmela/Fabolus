@@ -55,7 +55,7 @@ public partial class AboutViewModel
     // The informational version carries the commit after a '+' (1.0.0+1a2b3c...). The number
     // is what people quote; the commit is shortened rather than dropped so a build can still
     // be traced back to its source.
-    private static string ReadVersion()
+    internal static string ReadVersion()
     {
         var informational = typeof(AboutViewModel).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
