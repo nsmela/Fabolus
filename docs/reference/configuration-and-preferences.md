@@ -55,7 +55,7 @@ The file is a flat JSON object keyed by each setting's storage key. Enums are wr
 
 Types marked *enum* are written as their value name. Ranges, where shown, are the values a stored setting must fall within to be accepted.
 
-### `GeneralPreferences` ([source](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/AppPreferences/GeneralPreferences.cs))
+### `GeneralPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/AppPreferences/GeneralPreferences.cs))
 
 | Storage Key | Type | Default | Notes |
 | :--- | :--- | :--- | :--- |
@@ -65,7 +65,7 @@ Types marked *enum* are written as their value name. Ranges, where shown, are th
 | `viewport_background` | enum | `Graphite` | `Graphite`, `LightSteel`. |
 | `app_theme` | enum | `Dark` | `Dark`, `Light`. Switches live: MahApps' base theme and the `FabolusSteelDark` / `SteelCyan` override dictionary. |
 
-### `PrintBedPreferences` ([source](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/AppPreferences/PrintBedPreferences.cs))
+### `PrintBedPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/AppPreferences/PrintBedPreferences.cs))
 
 | Storage Key | Type | Default | Range |
 | :--- | :--- | :--- | :--- |
@@ -81,7 +81,7 @@ Types marked *enum* are written as their value name. Ranges, where shown, are th
 
 The print bed stores width and depth only; there is no stored bed-height preference.
 
-### `SmoothingPreferences` ([source](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Smoothing/SmoothingPreferences.cs))
+### `SmoothingPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Smoothing/SmoothingPreferences.cs))
 
 | Storage Key | Type | Default | Range |
 | :--- | :--- | :--- | :--- |
@@ -92,7 +92,7 @@ The print bed stores width and depth only; there is no stored bed-height prefere
 | `smooth_resolution` | float | `1.0` | `0.5`–`4` |
 | `smooth_display_mode` | enum | `None` | `None`, `CrossSection`, `Heatmap` |
 
-### `RotationPreferences` ([source](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Rotatation/RotationPreferences.cs))
+### `RotationPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Rotatation/RotationPreferences.cs))
 
 | Storage Key | Type | Default | Range |
 | :--- | :--- | :--- | :--- |
@@ -101,7 +101,7 @@ The print bed stores width and depth only; there is no stored bed-height prefere
 
 The two angles are kept at least 5° apart.
 
-### `MouldPreferences` ([source](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Moulding/MouldPreferences.cs))
+### `MouldPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Moulding/MouldPreferences.cs))
 
 | Storage Key | Type | Default | Range |
 | :--- | :--- | :--- | :--- |
@@ -112,7 +112,7 @@ The two angles are kept at least 5° apart.
 | `mould_trough_offset` | float | `2.5` | `0.5`–`15` |
 | `mould_trough_shape` | enum | `Footprint` | `Footprint`, `Channels` |
 
-### `DecalPreferences` ([source](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Emboss/DecalPreferences.cs))
+### `DecalPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Decal/DecalPreferences.cs))
 
 | Storage Key | Type | Default | Notes |
 | :--- | :--- | :--- | :--- |
@@ -127,7 +127,7 @@ The two angles are kept at least 5° apart.
 | `decal_default_depth` | float | `0.8` | `0.1`–`2` |
 | `decal_default_operation` | enum | `Engrave` | `Emboss`, `Engrave`. |
 
-### `CutSplitPreferences` ([source](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/CutSplit/CutSplitPreferences.cs))
+### `CutSplitPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/CutSplit/CutSplitPreferences.cs))
 
 | Storage Key | Type | Default | Notes |
 | :--- | :--- | :--- | :--- |

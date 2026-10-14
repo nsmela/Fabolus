@@ -49,7 +49,7 @@ Geometry tests load real bolus meshes from the shared `tests/files/` folder via 
 
 ## The `GeometryEngineFixture` Shared Harness
 
-The real geometry engine is shared across tests via an xUnit collection fixture ([`GeometryEngineFixture`](https://github.com/nsmela/Fabolus/blob/v1/tests/Fabolus.Core.Tests/Fixtures/GeometryEngineFixture.cs)), applied through `[Collection("GeometryEngine collection")]`:
+The real geometry engine is shared across tests via an xUnit collection fixture ([`GeometryEngineFixture`](https://github.com/nsmela/Fabolus/blob/dev/tests/Fabolus.Core.Tests/Fixtures/GeometryEngineFixture.cs)), applied through `[Collection("GeometryEngine collection")]`:
 
 ```csharp
 public class GeometryEngineFixture

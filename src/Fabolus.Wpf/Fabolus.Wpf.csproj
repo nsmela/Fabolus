@@ -18,7 +18,7 @@
 
     <!-- Single source of truth for the version. AssemblyVersion, FileVersion and
          InformationalVersion are all derived from it. CI overrides with -p:Version=<tag>. -->
-    <Version>0.9.4</Version>
+    <Version>1.0.0</Version>
     <Product>Fabolus</Product>
     <Company>Provincial Health Services Authority</Company>
     <Copyright>© 2017–2026 Provincial Health Services Authority</Copyright>

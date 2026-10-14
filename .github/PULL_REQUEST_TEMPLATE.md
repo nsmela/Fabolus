@@ -8,7 +8,7 @@
 
 ## Checklist
 
-- [ ] Targets the `v1` branch
+- [ ] Targets the `dev` branch
 - [ ] Tests cover the change, especially anything that alters geometry
 - [ ] No patient data in the diff, test files or screenshots
 - [ ] `build/geometryengine.sha` updated, if this depends on a GeometryEngine change

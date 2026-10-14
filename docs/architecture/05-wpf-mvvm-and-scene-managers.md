@@ -21,9 +21,9 @@ The generator automatically expands this into standard `INotifyPropertyChanged` 
 
 ---
 
-## The View Lifecycle Contract: `IViewState` ([`IViewState.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/IViewState.cs))
+## The View Lifecycle Contract: `IViewState` ([`IViewState.cs`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/IViewState.cs))
 
-When the operator switches tabs across the top navigation bar (e.g. from `meshes` to `smooth` to `mould`), the application does not destroy and recreate ViewModel state. Instead, ViewModels implement the [`IViewState`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/IViewState.cs) lifecycle interface:
+When the operator switches tabs across the top navigation bar (e.g. from `meshes` to `smooth` to `mould`), the application does not destroy and recreate ViewModel state. Instead, ViewModels implement the [`IViewState`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/IViewState.cs) lifecycle interface:
 
 ```csharp
 public interface IViewState
@@ -37,7 +37,7 @@ public interface IViewState
 <!-- IMAGE_PLACEHOLDER: [Figure 14.2: Feature View Lifecycle State Transition. Flowchart showing navigation from MeshManager through Smoothing, Rotation, and Moulding via IViewState.ActivateAsync and DeactivateAsync. Dimensions: 800x400px.] -->
 
 1. **`ActivateAsync(workspace)`**: Invoked when the tab becomes active. The ViewModel ingests the current workspace state, synchronizes parameters, and instructs its Scene Manager to render feature-specific visuals (e.g. turning on rotation gizmos or cutting planes).
-2. **`DeactivateAsync()`**: Invoked when the user navigates away. The ViewModel releases cached heavy meshes, instructs its Scene Manager to clear visual elements, and yields back the updated `Workspace` to [`MainViewModel`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Main/MainViewModel.cs).
+2. **`DeactivateAsync()`**: Invoked when the user navigates away. The ViewModel releases cached heavy meshes, instructs its Scene Manager to clear visual elements, and yields back the updated `Workspace` to [`MainViewModel`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Main/MainViewModel.cs).
 
 ---
 
@@ -66,7 +66,7 @@ A critical software engineering innovation in Fabolus is the strict separation b
 - If ViewModels hold references to `Element3D` objects, unit testing without launching an entire graphical desktop window becomes impossible.
 - DirectX memory leaks easily arise when visual objects are held alive by ViewModel data bindings.
 
-### The Contract: `ISceneManager` ([`ISceneManager.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Viewport/ISceneManager.cs))
+### The Contract: `ISceneManager` ([`ISceneManager.cs`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Viewport/ISceneManager.cs))
 ```csharp
 public interface ISceneManager
 {
@@ -88,8 +88,8 @@ public interface ISceneManager
 
 Concrete scene managers additionally expose a `ReleaseMesh()` method (used when a feature is deactivated) by convention; it is not part of the interface.
 
-The [`ViewportControl`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Viewport/ViewportControl.xaml.cs) binds to the active ViewModel's `SceneManager`. When geometry or colouring changes:
-1. The Scene Manager converts the domain mesh (optionally with per-vertex colours) into a HelixToolkit `MeshGeometry3D` via [`MeshConverters.ToHelixMesh`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Common/Mesh/MeshConverters.cs).
+The [`ViewportControl`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Viewport/ViewportControl.xaml.cs) binds to the active ViewModel's `SceneManager`. When geometry or colouring changes:
+1. The Scene Manager converts the domain mesh (optionally with per-vertex colours) into a HelixToolkit `MeshGeometry3D` via [`MeshConverters.ToHelixMesh`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Common/Mesh/MeshConverters.cs).
 2. It wraps the geometry in an `Element3D` and fires `VisualAddedOrUpdated`, which `ViewportControl` adds to or updates in the scene.
 3. The ViewModel itself holds no `Element3D` references and can be unit-tested without a graphical window.
 
@@ -98,7 +98,7 @@ The [`ViewportControl`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wp
 To see this decoupling in action, consider how smoothing operations and cross-sections are displayed in the 3D viewport:
 
 #### 1. The ViewModel Owns the Scene Manager and Sends Domain Data
-The ViewModel ([`SmoothingViewModel.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Smoothing/SmoothingViewModel.cs)) implements `IViewState`. It manages user inputs (such as smoothing intensity or display mode) and passes pure domain meshes (`IMesh`) to its scene manager, without needing to know anything about DirectX 3D visual elements:
+The ViewModel ([`SmoothingViewModel.cs`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Smoothing/SmoothingViewModel.cs)) implements `IViewState`. It manages user inputs (such as smoothing intensity or display mode) and passes pure domain meshes (`IMesh`) to its scene manager, without needing to know anything about DirectX 3D visual elements:
 
 ```csharp
 public partial class SmoothingViewModel : ObservableObject, IViewState 
@@ -130,7 +130,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState
 ```
 
 #### 2. The Scene Manager Builds 3D Visuals and Fires Events
-The Scene Manager ([`SmoothingSceneManager.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Smoothing/SmoothingSceneManager.cs)) receives the domain meshes, converts them into graphical geometry, configures DirectX materials, and raises events:
+The Scene Manager ([`SmoothingSceneManager.cs`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Smoothing/SmoothingSceneManager.cs)) receives the domain meshes, converts them into graphical geometry, configures DirectX materials, and raises events:
 
 ```csharp
 public class SmoothingSceneManager : ISceneManager
@@ -166,7 +166,7 @@ public class SmoothingSceneManager : ISceneManager
 ```
 
 #### 3. The Viewport Binds to the Active Scene Manager
-In [`MainView.xaml`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Wpf/Features/Main/MainView.xaml), the shared 3D viewport binds directly to whichever ViewModel is currently active:
+In [`MainView.xaml`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Main/MainView.xaml), the shared 3D viewport binds directly to whichever ViewModel is currently active:
 
 ```xml
 <viewport:ViewportControl 

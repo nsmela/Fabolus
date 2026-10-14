@@ -63,7 +63,8 @@ describes how the tests are organised.
 
 ## Pull requests
 
-- Open pull requests against the **`v1`** branch.
+- Open pull requests against the **`dev`** branch. `dev` collects new work; `main` holds the
+  latest release and is updated from `dev` when the next one is cut.
 - Keep a pull request to one change, and describe what it changes and why.
 - Add or update tests for behaviour changes, especially anything that alters geometry (volume,
   smoothing, mould shells, booleans).

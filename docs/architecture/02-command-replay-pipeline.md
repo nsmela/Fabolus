@@ -69,7 +69,7 @@ Base Mesh ──► [Transform (Rotate)] ──► [Smoothing] ──► [Decals
 
 ## The `IMeshCommand` Interface
 
-In code, every operation implements the simple [`IMeshCommand`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/IMeshCommand.cs) interface:
+In code, every operation implements the simple [`IMeshCommand`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Core/Geometry/Metadata/IMeshCommand.cs) interface:
 
 ```csharp
 public interface IMeshCommand
@@ -82,7 +82,7 @@ public interface IMeshCommand
 - **`Priority`**: Defines where the command runs in the pipeline.
 - **`Apply`**: Takes an input mesh, performs the calculation, and returns a new updated mesh without modifying the original input.
 
-### Execution Loop ([`CommandReplay.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/CommandReplay.cs))
+### Execution Loop ([`CommandReplay.cs`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Core/Geometry/Metadata/CommandReplay.cs))
 
 Replaying commands against the base mesh is straightforward:
 

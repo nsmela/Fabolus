@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - v1
-      - feat/docs
     paths:
       - 'docs/**'
       - 'mkdocs.yml'

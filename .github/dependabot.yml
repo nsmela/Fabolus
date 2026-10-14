@@ -5,7 +5,7 @@ updates:
   # dozen. Test-only packages are grouped separately: they never ship, so they are low risk.
   - package-ecosystem: nuget
     directory: /
-    target-branch: v1
+    target-branch: dev
     schedule:
       interval: monthly
     groups:
@@ -22,7 +22,7 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
-    target-branch: v1
+    target-branch: dev
     schedule:
       interval: monthly
     groups:

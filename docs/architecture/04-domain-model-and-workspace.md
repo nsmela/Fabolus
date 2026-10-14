@@ -38,7 +38,7 @@ What genuinely does describe the geometry — the measurements the engine comput
 
 ---
 
-## The `Workspace` Container ([`Workspace.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Workspace.cs))
+## The `Workspace` Container ([`Workspace.cs`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Core/Geometry/Workspace.cs))
 
 `Workspace` is the top-level container holding the entire active project session. It tracks all loaded meshes, which mesh is currently selected, and the sequence of modifications applied to each shape.
 
@@ -66,7 +66,7 @@ Meshes are immutable values, so nothing here copies defensively and a caller may
 
 ---
 
-## The `MeshRecord`: identity and history ([`MeshRecord.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/MeshRecord.cs))
+## The `MeshRecord`: identity and history ([`MeshRecord.cs`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Core/Geometry/MeshRecord.cs))
 
 A record is the workspace entry: who the mesh is, what has been done to it, and the pristine geometry that history replays against.
 
@@ -104,7 +104,7 @@ record.TextDecals();        // every decal across both decal commands
 
 ## Measurements: what the geometry knows about itself
 
-Statistics, the topology audit and vertex normals are measurements of the geometry in hand. GeometryEngine's meshes cannot change, so the engine remembers each measurement on the mesh the first time it is asked and answers every later request from there. Fabolus keeps no copy of its own; it reads them through the engine ([`MeshMeasurementExtensions.cs`](https://github.com/nsmela/Fabolus/blob/v1/src/Fabolus.Core/Geometry/Metadata/MeshMeasurementExtensions.cs)):
+Statistics, the topology audit and vertex normals are measurements of the geometry in hand. GeometryEngine's meshes cannot change, so the engine remembers each measurement on the mesh the first time it is asked and answers every later request from there. Fabolus keeps no copy of its own; it reads them through the engine ([`MeshMeasurementExtensions.cs`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Core/Geometry/Metadata/MeshMeasurementExtensions.cs)):
 
 ```csharp
 mesh.Stats(engine);      // MeshStatistics?, null only for an empty mesh

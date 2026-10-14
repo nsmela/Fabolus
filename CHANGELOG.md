@@ -5,7 +5,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-The `v1` rewrite: a new architecture, a new geometry engine, and the first release intended
+## [1.0.0] - 2026-10-14
+
+A rewrite: a new architecture, a new geometry engine, and the first release intended
 for public use.
 
 ### Added
@@ -43,5 +45,6 @@ for public use.
 
 See the [GitHub releases](https://github.com/nsmela/Fabolus/releases).
 
-[Unreleased]: https://github.com/nsmela/Fabolus/compare/0.9.3...v1
+[Unreleased]: https://github.com/nsmela/Fabolus/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/nsmela/Fabolus/compare/0.9.3...1.0.0
 [0.9.3] and earlier: https://github.com/nsmela/Fabolus/releases

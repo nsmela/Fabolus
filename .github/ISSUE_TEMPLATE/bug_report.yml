@@ -16,7 +16,7 @@ body:
     attributes:
       label: Fabolus version
       description: Shown in the About window (the ⓘ button over the viewport).
-      placeholder: "0.9.4"
+      placeholder: "1.0.0"
     validations:
       required: true
 
