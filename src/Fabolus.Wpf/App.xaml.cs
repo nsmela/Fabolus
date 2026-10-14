@@ -6,6 +6,7 @@ using ControlzEx.Theming;
 using Fabolus.Core.Common.Interfaces;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.About;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Main;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,8 +21,18 @@ public partial class App : Application
 
     public static IHost? AppHost { get; private set; }
 
+    private readonly CrashHandler _crashHandler;
+
     public App()
     {
+        // Before anything else, so a failure building the host is reported too. Built by hand
+        // rather than resolved: it has to work when the container is what failed.
+        _crashHandler = new CrashHandler(
+            new CrashLog(new FileSystem(), CrashLog.DefaultFolder, () => DateTime.Now, AboutViewModel.ReadVersion()),
+            new AlertDialog());
+        _crashHandler.Attach(Dispatcher);
+        _crashHandler.AttachProcessWide();
+
         AppHost = Host.CreateDefaultBuilder()
             .ConfigureServices((HostBuilderContext context, IServiceCollection services) =>
             {
@@ -45,22 +56,33 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
-        await AppHost!.StartAsync();
+        // A failure here would otherwise be recovered by the crash handler like any other UI
+        // exception, leaving a process running with no window. Report it and leave instead.
+        try
+        {
+            await AppHost!.StartAsync();
 
-        var outlineSource = AppHost.Services.GetRequiredService<Fabolus.Core.Features.Decal.IGlyphOutlineSource>();
-        Fabolus.Core.Features.Decal.GlyphOutlineSourceProvider.Default = outlineSource;
+            var outlineSource = AppHost.Services.GetRequiredService<Fabolus.Core.Features.Decal.IGlyphOutlineSource>();
+            Fabolus.Core.Features.Decal.GlyphOutlineSourceProvider.Default = outlineSource;
 
-        // Nothing injects the store - it answers preference messages. Resolve it here so it is
-        // listening before the first view model asks for a section.
-        AppHost.Services.GetRequiredService<AppPreferencesStore>();
+            // Nothing injects the store - it answers preference messages. Resolve it here so it is
+            // listening before the first view model asks for a section.
+            AppHost.Services.GetRequiredService<AppPreferencesStore>();
 
-        // The theme follows the preference live, and starts from whatever was saved.
-        var messenger = AppHost.Services.GetRequiredService<IMessenger>();
-        messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (_, msg) => SetTheme(msg.Section.AppTheme));
-        SetTheme(messenger.GetSection(GeneralPreferences.Default).AppTheme);
+            // The theme follows the preference live, and starts from whatever was saved.
+            var messenger = AppHost.Services.GetRequiredService<IMessenger>();
+            messenger.Register<PreferenceSectionUpdateMessage<GeneralPreferences>>(this, (_, msg) => SetTheme(msg.Section.AppTheme));
+            SetTheme(messenger.GetSection(GeneralPreferences.Default).AppTheme);
 
-        var mainWindow = AppHost.Services.GetRequiredService<MainView>();
-        mainWindow.Show();
+            var mainWindow = AppHost.Services.GetRequiredService<MainView>();
+            mainWindow.Show();
+        }
+        catch (Exception failure)
+        {
+            _crashHandler.ReportStartupFailure(failure);
+            Shutdown(1);
+            return;
+        }
 
         base.OnStartup(e);
     }
