@@ -265,17 +265,16 @@ public sealed class PartingMeshFeature
             return new Error("Geometry.NoWallRim",
                 "This body has no rim with two sides, so there is no wall a line could be edited within.");
 
-        var mask = ridge.Band;
         var rims = new List<PartingRimEdit>(walls.Count);
         var taken = new bool[line.Loops.Count];
+
+        var index = _engine.Spatial.IndexFor(body.Mesh);
+        if (index.IsFailure) return index.Error;
 
         foreach (var wall in walls)
         {
             var band = new PartingBand(
                 contours[wall.ContourIndices[0]], contours[wall.ContourIndices[1]]);
-
-            var graph = PartingBandGraph.Build(body.Mesh, mask, ridge.FaceRims, wall.Id, band);
-            if (graph is null) continue;
 
             // Matched by which loop runs nearest this wall, and claimed once, so two rims that converge
             // cannot both take the same loop and leave the other with none.
@@ -307,6 +306,18 @@ public sealed class PartingMeshFeature
 
             if (best < 0) continue;
 
+            // The wall the line may be edited within is the ridge's band, widened by the faces this
+            // loop already runs across. On a GeometryEngine-smoothed body the band can miss stretches
+            // of the wall - measured on larynx_small, a loop centred between its creases ran a dozen
+            // samples over faces with no band face beside them - and a corridor that does not contain
+            // the line it was handed snaps the line's own points millimetres sideways the moment
+            // anything is edited.
+            var (mask, faceRims) = WithFacesUnder(
+                body.Mesh, index.Value, ridge.Band, ridge.FaceRims, wall.Id, line.Loops[best]);
+
+            var graph = PartingBandGraph.Build(body.Mesh, mask, faceRims, wall.Id, band);
+            if (graph is null) continue;
+
             taken[best] = true;
             var sectioned = PartingLineEditor.Seed(line.Loops[best], band);
             if (sectioned.Anchors.Count == 0) continue;
@@ -318,6 +329,79 @@ public sealed class PartingMeshFeature
             ? new Error("Geometry.NoEditableRim",
                 "No rim of this body could be put into an editable form.")
             : Result.Success(new PartingLineEdit(rims));
+    }
+
+    /// <summary>How finely a loop is sampled for the faces it crosses, in mm - well under any edge.</summary>
+    private const double UnderLineStepMm = 0.25;
+
+    /// <summary>
+    /// The band mask and face-to-rim map with every face <paramref name="loop"/> runs across added to
+    /// rim <paramref name="rim"/>, along with the faces sharing an edge with them. The neighbours are
+    /// what keep the added faces a corridor rather than a chain: two faces the line passes between at a
+    /// vertex share no edge, and the band graph only steps across edges.
+    /// </summary>
+    /// <returns>Copies; the ridge's own arrays are shared by every rim and are left as they were.</returns>
+    private static (bool[] Mask, int[] FaceRims) WithFacesUnder(
+        IMesh mesh, GeometryEngine.Core.Geometry.ISpatialIndex index,
+        bool[] band, int[] faceRims, int rim, IReadOnlyList<Vector3> loop)
+    {
+        var triangles = mesh.Triangles;
+        int faceCount = triangles.Length / 3;
+
+        var mask = (bool[])band.Clone();
+        var rims = faceRims.Length == faceCount ? (int[])faceRims.Clone() : Enumerable.Repeat(-1, faceCount).ToArray();
+
+        var under = new HashSet<int>();
+        for (int i = 0; i < loop.Count; i++)
+        {
+            var from = loop[i];
+            var to = loop[(i + 1) % loop.Count];
+            int steps = Math.Max(1, (int)Math.Ceiling(from.DistanceTo(to) / UnderLineStepMm));
+
+            for (int s = 0; s < steps; s++)
+            {
+                var hit = index.ClosestPoint(from.LerpTo(to, (double)s / steps));
+                if (hit.HasValue && hit.Value.Triangle >= 0 && hit.Value.Triangle < faceCount)
+                    under.Add(hit.Value.Triangle);
+            }
+        }
+
+        if (under.Count == 0) return (mask, rims);
+
+        var faceOfEdge = new Dictionary<(int, int), List<int>>(faceCount * 2);
+        for (int f = 0; f < faceCount; f++)
+            for (int e = 0; e < 3; e++)
+            {
+                int a = triangles[(f * 3) + e];
+                int b = triangles[(f * 3) + ((e + 1) % 3)];
+                var key = a < b ? (a, b) : (b, a);
+                if (!faceOfEdge.TryGetValue(key, out var shared)) faceOfEdge[key] = shared = new List<int>(2);
+                shared.Add(f);
+            }
+
+        foreach (int f in under)
+        {
+            Claim(f);
+            for (int e = 0; e < 3; e++)
+            {
+                int a = triangles[(f * 3) + e];
+                int b = triangles[(f * 3) + ((e + 1) % 3)];
+                foreach (int neighbour in faceOfEdge[a < b ? (a, b) : (b, a)]) Claim(neighbour);
+            }
+        }
+
+        return (mask, rims);
+
+        // A face the ridge gave to another rim stays with that rim unless this loop itself runs across
+        // it - a neighbour is only there for room, and is not worth taking a face from the wall it was
+        // found on. Everything else joins this rim.
+        void Claim(int face)
+        {
+            if (mask[face] && rims[face] >= 0 && rims[face] != rim && !under.Contains(face)) return;
+
+            mask[face] = true;
+            rims[face] = rim;
+        }
     }
 
     /// <summary>
