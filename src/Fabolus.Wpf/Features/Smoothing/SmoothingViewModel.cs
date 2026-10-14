@@ -1,0 +1,312 @@
+using Fabolus.Core;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.Features.MeshIO;
+using Fabolus.Core.Features.Smoothing;
+using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
+using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.Main;
+using Fabolus.Wpf.Features.Viewport;
+
+namespace Fabolus.Wpf.Features.Smoothing;
+
+public partial class SmoothingViewModel : ObservableObject, IViewState {
+    
+    private readonly IMessenger _messenger;
+    
+    private readonly BusyIndicator _busy;
+    private readonly IAlertDialog _alert;
+    private readonly IGeometryEngine _engine;
+    private readonly SmoothingSceneManager _sceneManager;
+
+    private readonly ResetSmoothing _resetFeature;
+    private readonly SmoothMesh _smoothFeature;
+
+    private Workspace Workspace { get; set; }
+    private Guid ActiveMeshId { get; set; }
+
+    // Owned meshes cached between workspace changes, so display-only changes (heatmap
+    // toggle, sensitivity/comparison sliders) re-render from them instead of re-fetching
+    // and re-replaying per slider tick. Disposed on refresh and on Deactivate.
+    private IMesh? _stagedMesh;
+    private IMesh? _unsmoothedTwin;
+    private MeshStatistics? _originalStats;
+
+    // The active entry, cached alongside the meshes above: whether this mesh is smoothed, and
+    // what to replay to produce its unsmoothed twin, are both questions about the entry rather
+    // than about the geometry in hand.
+    private MeshRecord? _record;
+
+    // Seeded from app preferences on every activation (see ActivateAsync). The values here are
+    // only what a design-time instance shows, and are kept in step with the shipped defaults.
+    [ObservableProperty] private int _iterations = 1;
+    [ObservableProperty] private float _intensity = 1.5f;
+    [ObservableProperty] private float _inflation = 0.2f;
+    [ObservableProperty] private float _remeshRatio = 1.0f;
+    [ObservableProperty] private float _resolution = 1.0f;
+    [ObservableProperty] private double _heatmapSensitivity = 0.4;
+    [ObservableProperty] private bool _hasActiveMesh;
+    [ObservableProperty] private bool _isSmoothed;
+    [ObservableProperty] private string _applyButtonText = "Apply Smoothing";
+    [ObservableProperty] private bool _showHeatmap;
+    [ObservableProperty] private bool _showGhost;
+    [ObservableProperty] private bool _showComparisonSlider;
+    [ObservableProperty] private double _comparisonFactor = 0.5;
+
+    [ObservableProperty] private SmoothDisplayMode _displayMode = SmoothDisplayMode.None;
+
+    // ---- Slider bounds -------------------------------------------------
+    // Bound by the view rather than hardcoded in it, so the range a value can be given here is
+    // the same one its preference is validated against. The two used to be separate literals
+    // that had drifted apart, which let a user pick a default the tool would not accept - or
+    // set a value in the tool that no default could express.
+
+    public double IntensityMinimum => SmoothingPreferences.Ranges.IntensityMin;
+    public double IntensityMaximum => SmoothingPreferences.Ranges.IntensityMax;
+    public double InflationMinimum => SmoothingPreferences.Ranges.InflationMin;
+    public double InflationMaximum => SmoothingPreferences.Ranges.InflationMax;
+    public double IterationsMinimum => SmoothingPreferences.Ranges.IterationsMin;
+    public double IterationsMaximum => SmoothingPreferences.Ranges.IterationsMax;
+    public double RemeshRatioMinimum => SmoothingPreferences.Ranges.RemeshRatioMin;
+    public double RemeshRatioMaximum => SmoothingPreferences.Ranges.RemeshRatioMax;
+    public double ResolutionMinimum => SmoothingPreferences.Ranges.ResolutionMin;
+    public double ResolutionMaximum => SmoothingPreferences.Ranges.ResolutionMax;
+
+    partial void OnShowHeatmapChanged(bool value) => UpdateViewport();
+    partial void OnHeatmapSensitivityChanged(double value) => UpdateViewport();
+    partial void OnShowGhostChanged(bool value) => UpdateViewport();
+    partial void OnShowComparisonSliderChanged(bool value) => UpdateViewport();
+    partial void OnComparisonFactorChanged(double value) => UpdateViewport();
+
+    public SmoothingViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine) {
+        _messenger = messenger;
+        _busy = new BusyIndicator(messenger);
+        _alert = alert;
+        _engine = engine;
+
+        _resetFeature = new ResetSmoothing(_engine);
+        _sceneManager = new SmoothingSceneManager(engine, _messenger);
+        _smoothFeature = new SmoothMesh(engine);
+    }
+
+    public SmoothingViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), GeometryEngine.BspGeometryEngine.Create()) { }
+
+    public ISceneManager SceneManager => _sceneManager;
+
+    public async Task ActivateAsync(Workspace workspace) {
+        // Read fresh each activation, so a change made in the preferences window applies to the
+        // next mesh without restarting.
+        var preferences = LoadPreferences();
+
+        await UpdateWorkspaceAsync(workspace);
+
+        // A mesh that has already been smoothed reopens with the settings it was actually
+        // smoothed at; the preference only supplies the starting point for one that has not.
+        var settings = preferences.ToSmoothSettings();
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsSuccess && recordResult.Value.Smoothing() is { } applied) {
+            settings = applied;
+        }
+
+        UpdateSettings(settings);
+
+        // Display is a property of the view, not of the mesh, so it always comes from the
+        // preference. Assigned after the meshes are cached, because the change handler renders.
+        DisplayMode = preferences.DisplayMode;
+    }
+
+    /// <summary>
+    /// The smoothing parameters an unsmoothed mesh starts from, taken from app preferences.
+    /// Falls back to default when the store cannot be reached - which is the case for the
+    /// design-time constructor.
+    /// </summary>
+    private SmoothingPreferences LoadPreferences() => _messenger.GetSection(SmoothingPreferences.Default);
+
+    public Task<Workspace> DeactivateAsync() {
+        ReleaseCachedMeshes();
+        return Task.FromResult(Workspace);
+    }
+
+    partial void OnDisplayModeChanged(SmoothDisplayMode value) {
+        _sceneManager.SetDisplayMode(value);
+        UpdateViewport();
+    }
+
+    private void UpdateSettings(SmoothSettings settings) {
+        Iterations = settings.Iterations;
+        Inflation = settings.Inflation;
+        Intensity = settings.Intensity;
+        RemeshRatio = settings.RemeshRatio;
+        Resolution = settings.Resolution;
+        
+        OnPropertyChanged(nameof(Iterations));
+        OnPropertyChanged(nameof(Inflation));
+        OnPropertyChanged(nameof(Intensity));
+        OnPropertyChanged(nameof(RemeshRatio));
+        OnPropertyChanged(nameof(Resolution));
+    }
+
+    private void UpdateViewport() {
+        RenderViewport();
+    }
+
+    private async Task UpdateWorkspaceAsync(Workspace workspace) {
+        Workspace = workspace;
+        await Task.Run(() => RefreshMeshes());
+        RenderViewport();
+    }
+
+    // Re-derives the cached meshes from the current workspace: the staged mesh shown in the
+    // viewport (the model as it was before any mould was cut) and the original-mesh stats
+    // for the info panel. The comparison twin is computed lazily in RenderViewport, since
+    // it's only needed when a comparison display mode is active.
+    private void RefreshMeshes() {
+        ReleaseCachedMeshes();
+
+        var activeMeshResult = Workspace.GetActiveMesh();
+        if (activeMeshResult.IsFailure) return;
+        var activeMesh = activeMeshResult.Value;
+
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure) return;
+        _record = recordResult.Value;
+
+        var stageResult = CommandReplay.GetMeshAtStage(_engine, activeMesh, _record, CommandPriority.Transform);
+        if (stageResult.IsFailure) return;
+
+        // Read through the engine, which remembers measurements on the mesh: free when the stage
+        // is the active mesh itself, or a rigid move of the measured base, and one measurement
+        // when replay rebuilt the surface.
+        _stagedMesh = stageResult.Value;
+
+        // The base mesh was measured at import time and never changes - a lookup.
+        _originalStats = _record.BaseMesh?.Stats(_engine);
+    }
+
+    private void RenderViewport() {
+        if (_stagedMesh is null) return;
+
+        // Comparison views (heatmap, cross-section) compare against the mesh's aligned
+        // "unsmoothed twin" - BaseMesh with the remaining commands (e.g. a rotation) replayed
+        // on top - NOT raw BaseMesh, which stays pristine and never rotates, so it drifts out
+        // of alignment as soon as the mesh is transformed after smoothing.
+        var isSmoothed = _record?.Smoothing() is not null;
+
+        IMesh? unsmoothedMesh = null;
+        if (DisplayMode != SmoothDisplayMode.None && isSmoothed) {
+            if (_unsmoothedTwin is null) {
+                var unsmoothedResult = _resetFeature.ComputeUnsmoothedMesh(_record!);
+                if (unsmoothedResult.IsSuccess) {
+                    _unsmoothedTwin = unsmoothedResult.Value;
+                }
+            }
+            unsmoothedMesh = _unsmoothedTwin;
+        }
+
+        double[]? heatmapColors = null;
+        if (DisplayMode == SmoothDisplayMode.Heatmap && unsmoothedMesh is not null) {
+            var colorResult = CalculateDeviationColors(_stagedMesh, unsmoothedMesh, HeatmapSensitivity);
+            if (colorResult.IsSuccess) {
+                heatmapColors = colorResult.Value;
+            }
+        }
+
+        PublishInfo();
+        // The scene manager only borrows the meshes for this call (it converts them to
+        // render geometry immediately); ownership stays here with the cache.
+        _sceneManager.UpdateMesh(_stagedMesh, isSmoothed, unsmoothedMesh, heatmapColors);
+    }
+
+    private void ReleaseCachedMeshes() {
+        _stagedMesh = null;
+        _unsmoothedTwin = null;
+        _originalStats = null;
+        _record = null;
+    }
+
+    private void PublishInfo() {
+        var items = new List<MeshInfoItem>();
+
+        if (_originalStats is not null) {
+            items.Add(new TitleInfoItem { Label = "Original Mesh" });
+            items.Add(new TextInfoItem { Label = "Volume", Value = $"{Measure.ToMillilitres(_originalStats.Volume):N2} mL" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{Measure.ToSquareCentimetres(_originalStats.SurfaceArea):N2} cm²" });
+            items.Add(new TextInfoItem { Label = "Triangles", Value = _originalStats.TriangleCount.ToString("N0") });
+        }
+
+        // The staged mesh rather than the active one. Both rows here are about the bolus - as it
+        // was imported, and as smoothing left it - and once a mould has been generated the active
+        // mesh IS the mould. Reading it reported the mould's shell material under a "Smoothed
+        // Mesh" heading: 24.8mL of resin where the bolus it was cut around is 121.2mL.
+        if (_record?.Smoothing() is not null && _stagedMesh?.Stats(_engine) is { } stats) {
+            items.Add(new TitleInfoItem { Label = "Smoothed Mesh" });
+            items.Add(new TextInfoItem { Label = "Volume", Value = $"{Measure.ToMillilitres(stats.Volume):N2} mL" });
+            items.Add(new TextInfoItem { Label = "Surface Area", Value = $"{Measure.ToSquareCentimetres(stats.SurfaceArea):N2} cm²" });
+            items.Add(new TextInfoItem { Label = "Triangles", Value = stats.TriangleCount.ToString("N0") });
+        }
+
+        _messenger.Send(new UpdateMeshInfoMessage(items));
+    }
+
+    [RelayCommand]
+    public async Task ApplySmoothingAsync() {
+        // A scope rather than a send per exit: the overlay comes down in a finally, so a path
+        // added later cannot leave it up.
+        using var busy = _busy.Enter();
+
+        var settings = new SmoothSettings(
+            Iterations,
+            Intensity,
+            Inflation,
+            RemeshRatio,
+            Resolution);
+
+        var result = await Task.Run(() => _smoothFeature.Execute(Workspace, settings));
+        if (result.IsFailure) {
+            _alert.ShowError(result.Error.Description);
+            return;
+        }
+
+        await UpdateWorkspaceAsync(result.Value);
+    }
+
+    [RelayCommand]
+    public async Task ResetSmoothingAsync() {
+        var result = _resetFeature.Execute(Workspace);
+        if (result.IsFailure) {
+            _alert.ShowError(result.Error.Description);
+            return;
+        }
+
+        await UpdateWorkspaceAsync(result.Value);
+    }
+
+    private BasicResults.Result<double[]> CalculateDeviationColors(IMesh current, IMesh original, double maxDeviation = 0.4)
+    {
+        if (current is null || original is null) return Fabolus.Core.Geometry.MeshErrors.NullSource;
+
+        var deviation = _engine.Evaluators.MeasureDeviation(current, original);
+        if (deviation.IsFailure) return BasicResults.Result<double[]>.Failure(deviation.Error);
+
+        var distances = deviation.Value.Distances;
+
+        var gradient = Fabolus.Core.Features.Overhangs.ColourGradient.SmoothingDeviation;
+        var scale = Math.Max(maxDeviation, 0.001);
+        var colours = new double[current.VertexCount * 3];
+
+        for (int i = 0; i < distances.Length; i++)
+        {
+            var t = Math.Clamp((distances[i] + scale) / (2.0 * scale), 0.0, 1.0);
+            var color = gradient.Sample((float)t);
+            colours[i * 3] = color.R;
+            colours[i * 3 + 1] = color.G;
+            colours[i * 3 + 2] = color.B;
+        }
+
+        return colours;
+    }
+
+}

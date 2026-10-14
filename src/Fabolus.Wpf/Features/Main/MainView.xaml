@@ -1,0 +1,432 @@
+<mah:MetroWindow x:Class="Fabolus.Wpf.Features.Main.MainView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Fabolus.Wpf.Features.Main"
+        xmlns:mah="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro" 
+        xmlns:common="clr-namespace:Fabolus.Wpf.Common.Mesh"
+        xmlns:viewport="clr-namespace:Fabolus.Wpf.Features.Viewport"
+        xmlns:mm="clr-namespace:Fabolus.Wpf.Features.MeshManager"
+        xmlns:smooth="clr-namespace:Fabolus.Wpf.Features.Smoothing"
+        xmlns:rotate="clr-namespace:Fabolus.Wpf.Features.Rotatation"
+        xmlns:mould="clr-namespace:Fabolus.Wpf.Features.Moulding"
+        xmlns:export="clr-namespace:Fabolus.Wpf.Features.Export"
+        xmlns:controls="clr-namespace:Fabolus.Wpf.Features.Main.Controls"
+        xmlns:meshManager="clr-namespace:Fabolus.Wpf.Features.MeshManager"
+        xmlns:cutSplit="clr-namespace:Fabolus.Wpf.Features.CutSplit"
+        xmlns:partingSplit="clr-namespace:Fabolus.Wpf.Features.PartingSplit"
+        xmlns:decal="clr-namespace:Fabolus.Wpf.Features.Decal"
+        mc:Ignorable="d"
+        Title="FABOLUS" Height="720" Width="1340" MinHeight="520" MinWidth="600"
+        ResizeMode="CanResizeWithGrip"
+        TitleCharacterCasing="Upper"
+        Background="{DynamicResource Brush.App.Background}"
+        GlowBrush="{DynamicResource Brush.Accent}"
+        NonActiveWindowTitleBrush="{DynamicResource Brush.Brushed.StatusBar}"
+        TitleForeground="{DynamicResource Brush.Text.Primary}"
+        WindowStartupLocation="CenterScreen">
+
+    <mah:MetroWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <DataTemplate DataType="{x:Type mm:MeshManagerViewModel}">
+            <mm:MeshManagerView/>
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type smooth:SmoothingViewModel}">
+            <smooth:SmoothingView/>
+        </DataTemplate>
+        
+        <DataTemplate DataType="{x:Type partingSplit:PartingSplitViewModel}">
+            <partingSplit:PartingSplitView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type cutSplit:CutSplitViewModel}">
+            <cutSplit:CutSplitView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type rotate:RotateViewModel }">
+            <rotate:RotateView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type mould:MouldViewModel }">
+            <mould:MouldView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type decal:DecalViewModel }">
+            <decal:DecalView />
+        </DataTemplate>
+
+        <DataTemplate DataType="{x:Type export:ExportViewModel }">
+            <export:ExportView />
+        </DataTemplate>
+        
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#5E6B73"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{TemplateBinding Background}">
+                            <TextBlock Text="{TemplateBinding Content}"
+                         Foreground="{TemplateBinding Foreground}"
+                         FontFamily="{TemplateBinding FontFamily}"
+                         FontSize="{TemplateBinding FontSize}"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- generic hover -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="#22000000"/>
+                            </Trigger>
+                            <!-- close button → red hover, white glyph -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="Tag" Value="close"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="bg" Property="Background" Value="#D64545"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </mah:MetroWindow.Resources>
+
+    <Grid>
+            <!-- Grid Sizing Definitions-->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" MinWidth="240" MaxWidth="440"/>
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="64" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="28" />
+            </Grid.RowDefinitions>
+
+            <!-- App State -->
+            <Border Grid.Row="0" Grid.Column="0"
+            Background="{DynamicResource Brush.Surface}"
+            BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,0,1,1">
+                <Label Content="{Binding CurrentViewTitle}"
+           HorizontalAlignment="Left" VerticalAlignment="Center" Margin="14,0,0,0"
+           Foreground="{DynamicResource Brush.Text.Primary}"
+           FontFamily="\Fonts\#Poppins" FontSize="24" FontWeight="Bold"/>
+            </Border>
+
+            <!-- View Mode Bar -->
+            <Border Grid.Row="0" Grid.Column="1"
+                Background="{DynamicResource Brush.Surface}"
+                BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,0,0,1">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Stretch" Margin="6,0">
+
+                    <Button Command="{Binding SwitchToMeshManagerViewCommand}" >
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                    <Path Data="{StaticResource Icon.Import}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                </Viewbox>
+                                <TextBlock Text="meshes" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button.Content>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentViewTitle}" Value="meshes">
+                                        <Setter Property="Tag" Value="active"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Command="{Binding SwitchToSmoothingViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                    <Path Data="{StaticResource Icon.Smooth}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                </Viewbox>
+                                <TextBlock Text="smooth" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button.Content>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentViewTitle}" Value="smooth">
+                                        <Setter Property="Tag" Value="active"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <Button Command="{Binding ShowCutSplitCommand}" IsEnabled="{Binding MeshLoaded}"
+                            Visibility="{Binding ShowCutView, Converter={StaticResource BoolToVis}}">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                    <TextBlock Text="✂" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                </Viewbox>
+                                <TextBlock Text="cut / split" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button.Content>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentViewTitle}" Value="cut / split">
+                                        <Setter Property="Tag" Value="active"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                <Button Command="{Binding SwitchToRotateViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal">
+                                <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                    <Path Data="{StaticResource Icon.Rotate}"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="1.5" Fill="{x:Null}"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                </Viewbox>
+                                <TextBlock Text="rotate" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button.Content>
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentViewTitle}" Value="rotate">
+                                        <Setter Property="Tag" Value="active"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                <Button Command="{Binding SwitchToMouldViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <Path Data="{StaticResource Icon.Mould}"
+                                      Stroke="{DynamicResource Brush.Border.Strong}" StrokeThickness="1.2" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="mould" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="mould">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <Button Command="{Binding SwitchToDecalViewCommand}" IsEnabled="{Binding MeshLoaded}"
+                        Visibility="{Binding ShowDecalView, Converter={StaticResource BoolToVis}}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <Path Data="{StaticResource Icon.Decals}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="decals" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="decals">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                    
+                <Button Command="{Binding ShowPartingSplitCommand}" IsEnabled="{Binding MeshLoaded}"
+                        Visibility="{Binding ShowSplitView, Converter={StaticResource BoolToVis}}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <Path Data="{StaticResource Icon.Split}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="parting split" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="parting split">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+                <Button Command="{Binding SwitchToExportViewCommand}" IsEnabled="{Binding MeshLoaded}">
+                    <Button.Content>
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="16" Height="16" Margin="0,0,7,0">
+                                <Path Data="{DynamicResource Icon.Export}"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                      StrokeThickness="1.5" Fill="{x:Null}"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="export" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button.Content>
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource TabButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentViewTitle}" Value="export">
+                                    <Setter Property="Tag" Value="active"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+
+            </StackPanel>
+            </Border>
+
+            <!-- Tools View  -->
+        <Border Grid.Row="1" Grid.Column="0"
+            Background="{DynamicResource Brush.Surface}"
+            BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,1,0">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="10" ShadowDepth="0" Direction="0"
+                        Opacity="0.12" Color="#FF141E28"/>
+            </Border.Effect>
+            <ContentControl Content="{Binding CurrentView}" Margin="14,16"/>
+        </Border>
+
+            <!-- Information bar View -->
+        <Border Grid.Row="2" Grid.ColumnSpan="2"
+                Height="27" BorderThickness="0,1,0,0" BorderBrush="#D5DBDF">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#EEF1F3" Offset="0"/>
+                    <GradientStop Color="#E1E6E9" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+
+            <Grid Margin="14,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding MeshName}" HorizontalAlignment="Left"
+                       FontFamily="Consolas" FontSize="11" FontWeight="Medium"
+                       Foreground="#0B8593"/>
+                    <TextBlock Text="•" Margin="8,0" Foreground="#A8B1B6" VerticalAlignment="Center"/>
+                    <TextBlock Text="Units: mm" FontFamily="Consolas" FontSize="11"
+                        FontWeight="Medium" Foreground="#5E6B73"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!--  MeshView -->
+        <viewport:ViewportControl x:Name="ViewportControl" Grid.Column="1" Grid.Row="1"
+                                  SceneManager="{Binding SceneManager}"
+                                  WireframeMode="{Binding WireframeMode}"
+                                  BackgroundBrush="{Binding ViewportBackgroundBrush}" />
+
+        <controls:LoadingOverlay Grid.Column="1" Grid.Row="1" IsLoading="{Binding IsLoading}" />
+
+        <GridSplitter Grid.Row="1" Grid.Column="1"
+              HorizontalAlignment="Left" VerticalAlignment="Stretch"
+              Width="5" Background="Transparent"
+              ResizeBehavior="PreviousAndCurrent" ResizeDirection="Columns"/>        <!-- Tool buttons & Info Panel Overlay -->
+        <Grid x:Name="OverlayGrid" Grid.Row="1" Grid.Column="1">
+            <StackPanel Orientation="Vertical">
+                <StackPanel x:Name="ToolButtonsPanel" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Command="{Binding ToggleWireframeCommand}" Width="33" Height="33" Margin="4"
+                    Style="{StaticResource Button.Secondary}" ToolTip="{Binding WireframeToolTip}">
+                        <Viewbox Width="16" Height="16">
+                            <!-- icon shows the current mode; the tooltip describes what the next click does -->
+                            <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.5" Fill="{x:Null}"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round">
+                                <Path.Style>
+                                    <Style TargetType="Path">
+                                        <Setter Property="Data" Value="{StaticResource Icon.Wireframe.None}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding WireframeMode}" Value="Overlay">
+                                                <Setter Property="Data" Value="{StaticResource Icon.Wireframe.Overlay}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding WireframeMode}" Value="Only">
+                                                <Setter Property="Data" Value="{StaticResource Icon.Wireframe.Only}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Path.Style>
+                            </Path>
+                        </Viewbox>
+                    </Button>
+
+                    <Button Command="{Binding CaptureScreenshotCommand}" Width="33" Height="33" Margin="4"
+                    Style="{StaticResource Button.Secondary}" ToolTip="Capture screenshot">
+                        <Viewbox Width="16" Height="16">
+                            <Path Data="{StaticResource Icon.Screenshot}"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.5" Fill="{x:Null}"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Viewbox>
+                    </Button>
+
+                    <Button Command="{Binding OpenPreferencesCommand}" Width="33" Height="33" Margin="4"
+                    Style="{StaticResource Button.Secondary}" ToolTip="Preferences">
+                        <Viewbox Width="16" Height="16">
+                            <Path Data="{StaticResource Icon.Preferences}"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.5" Fill="{x:Null}"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Viewbox>
+                    </Button>
+
+                    <Button Command="{Binding OpenAboutCommand}" Width="33" Height="33" Margin="4"
+                    Style="{StaticResource Button.Secondary}" ToolTip="About Fabolus">
+                        <Viewbox Width="16" Height="16">
+                            <Path Data="{StaticResource Icon.About}"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.5" Fill="{x:Null}"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                        </Viewbox>
+                    </Button>
+
+                </StackPanel>
+
+                <!-- Info Pane-->
+                <ContentControl Content="{Binding CurrentMeshInfo}" />
+               
+            </StackPanel>
+
+            <local:InfoPanel x:Name="InfoPanel" DataContext="{Binding InfoViewModel}"/>
+        </Grid>
+        
+    </Grid>
+
+</mah:MetroWindow>

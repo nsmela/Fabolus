@@ -1,0 +1,306 @@
+using System.Collections.ObjectModel;
+using System.IO;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.Common.Interfaces;
+using Fabolus.Core.Features.MeshIO;
+using Fabolus.Core.Features.Moulds;
+using Fabolus.Core.Features.Smoothing;
+using Fabolus.Core.Geometry;
+using Fabolus.Core.Geometry.Metadata;
+using Fabolus.Wpf.Common;
+using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.Main;
+using Fabolus.Wpf.Features.Viewport;
+
+namespace Fabolus.Wpf.Features.Export;
+
+public class OperationItem
+{
+    public string Text { get; set; }
+    public OperationItem(string text) { Text = text; }
+}
+
+public partial class ExportViewModel : ObservableObject, IViewState
+{
+    private readonly IMessenger _messenger;
+    private readonly IAlertDialog _alert;
+    private readonly IGeometryEngine _engine;
+    private readonly IDialogueSystem _dialogueSystem;
+    private readonly ExportMesh _exportFeature;
+    private readonly ExportSceneManager _sceneManager;
+
+    private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
+
+    [ObservableProperty] private bool _is3mfSelected = true;
+
+    partial void OnIs3mfSelectedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsStlSelected));
+        ExportButtonText = value ? "Export package" : "Export file";
+        FileExtension = value ? ".3mf" : ".stl";
+        UpdateInfoPanelAsync();
+    }
+
+    public bool IsStlSelected { get => !Is3mfSelected; set => Is3mfSelected = !value; }
+
+    [ObservableProperty] private string _fileName = "bolus_R1";
+
+    partial void OnFileNameChanged(string value)
+    {
+        UpdateInfoPanelAsync();
+    }
+
+    [ObservableProperty] private string _fileExtension = ".3mf";
+    [ObservableProperty] private int _fileCount;
+    [ObservableProperty] private string _exportButtonText = "Export 0 files";
+
+    [ObservableProperty] private int _bakedOperationsCount;
+    [ObservableProperty] private bool _hasBakedOperations;
+    [ObservableProperty] private string _bakedOperationsText;
+    [ObservableProperty] private string _printableMeshName;
+
+    public ObservableCollection<OperationItem> BakedOperations { get; } = new();
+
+    public ISceneManager SceneManager => _sceneManager;
+
+    /// <summary>
+    /// The two extensions this panel writes. Both import paths hand over a name that has already
+    /// been through Path.GetFileNameWithoutExtension, so a freshly imported mesh never carries
+    /// one - but the name box is free text and the user can type "bolus.stl" into it.
+    /// </summary>
+    private static readonly string[] ExportExtensions = [".stl", ".3mf"];
+
+    /// <summary>
+    /// <see cref="FileName"/> without a trailing export extension, so appending
+    /// <see cref="FileExtension"/> cannot produce "bolus.stl.stl".
+    /// </summary>
+    /// <remarks>
+    /// Only the two extensions above are stripped, rather than whatever Path.GetExtension finds:
+    /// a bolus named "ear_v1.5" has a suffix that looks like an extension and is not one, and
+    /// taking it off would quietly rename the user's file.
+    /// </remarks>
+    private string BaseFileName
+    {
+        get
+        {
+            var name = FileName?.Trim() ?? string.Empty;
+
+            foreach (var extension in ExportExtensions)
+            {
+                if (name.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                {
+                    return name[..^extension.Length];
+                }
+            }
+
+            return name;
+        }
+    }
+
+    public ExportViewModel(IMessenger messenger, IAlertDialog alert, IGeometryEngine engine, IDialogueSystem dialogueSystem)
+    {
+        _messenger = messenger;
+        _alert = alert;
+        _engine = engine;
+        _dialogueSystem = dialogueSystem;
+        _sceneManager = new ExportSceneManager(_engine, _messenger);
+        _exportFeature = new ExportMesh(_engine);
+    }
+
+    private ExportFormat GetPreferredExportFormat() =>
+        _messenger.GetSection(GeneralPreferences.Default).ExportFormat;
+
+    public async Task ActivateAsync(Workspace workspace)
+    {
+        await Task.Yield();
+
+        Workspace = workspace;
+        _sceneManager.UpdateWorkspace(workspace);
+
+        Is3mfSelected = GetPreferredExportFormat() == ExportFormat.ThreeMF;
+
+        FileCount = workspace.MeshCount;
+        ExportButtonText = Is3mfSelected ? "Export package" : "Export file";
+
+        // Info-panel values come from the workspace entry and the measurements cached on its
+        // geometry - no measuring needed just to display numbers.
+        var metadataResult = workspace.GetActiveRecord();
+        if (metadataResult.IsFailure)
+        {
+            _alert.ShowError(metadataResult.Error.Description);
+            _messenger.Send(new UpdateMeshInfoMessage([]));
+            return;
+        }
+
+        var metadata = metadataResult.Value;
+        FileName = metadata.Name;
+
+        BakedOperations.Clear();
+
+        // Each command names itself (IMeshCommand.Describe), so a new operation shows up here
+        // without this view model having to learn about it. Ordered by pipeline stage rather
+        // than by the order they happened to be recorded in.
+        foreach (var command in metadata.Commands.OrderBy(c => c.Priority))
+        {
+            var description = command.Describe();
+            if (string.IsNullOrEmpty(description)) continue;
+            BakedOperations.Add(new OperationItem(description));
+        }
+
+        BakedOperationsCount = BakedOperations.Count;
+        HasBakedOperations = BakedOperationsCount > 0;
+        BakedOperationsText = $"{BakedOperationsCount} included";
+
+        if (metadata.MouldDefinition() is not null)
+        {
+            PrintableMeshName = "mould";
+        }
+        else if (metadata.Smoothing() is not null)
+        {
+            PrintableMeshName = "smoothed mesh";
+        }
+        else
+        {
+            PrintableMeshName = "base mesh";
+        }
+
+        await UpdateInfoPanelAsync();
+    }
+
+    private async Task UpdateInfoPanelAsync()
+    {
+        var activeMeshResult = Workspace.GetActiveMesh();
+        if (activeMeshResult.IsFailure)
+        {
+            _alert.ShowError(activeMeshResult.Error.Description);
+
+            var itemss = new List<MeshInfoItem> {
+                new OutputHeaderInfoItem { Label = "OUTPUT", PillText = Is3mfSelected ? "3MF" : "STL" }
+            };
+            itemss.Add(new TextInfoItem { Label = "Bad metadata" });
+            _messenger.Send(new UpdateMeshInfoMessage(itemss));
+            return;
+        }
+
+        var recordResult = Workspace.GetActiveRecord();
+        if (recordResult.IsFailure)
+        {
+            _alert.ShowError(recordResult.Error.Description);
+            return;
+        }
+
+        var mesh = activeMeshResult.Value;
+        var record = recordResult.Value;
+
+        var items = new List<MeshInfoItem> {
+                new OutputHeaderInfoItem { Label = "OUTPUT", PillText = Is3mfSelected ? "3MF" : "STL" }
+            };
+
+        string fileSize = "Unknown MB";
+        var activeStats = mesh.Stats(_engine);
+        if (activeStats is not null)
+        {
+            // Roughly estimate file size for display using the final mesh
+            double sizeMb = Is3mfSelected ? (activeStats.TriangleCount * 15.0) / (1024 * 1024) : (activeStats.TriangleCount * 50.0) / (1024 * 1024);
+            if (sizeMb < 0.1)
+                sizeMb = 0.1;
+            fileSize = $"{sizeMb:F1} MB";
+        }
+
+        string filename = $"{BaseFileName}{FileExtension}";
+
+        items.Add(new FileDetailsInfoItem { FileName = filename, FileSize = fileSize });
+        items.Add(new SeparatorInfoItem());
+
+        if (record.Smoothing() is not null)
+        {
+            items.Add(new SubtitleInfoItem { Label = "Measured from smoothed mesh" });
+        }
+        else
+        {
+            items.Add(new SubtitleInfoItem { Label = "Measured from base mesh" });
+        }
+
+        var transformStageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, mesh, record, CommandPriority.Transform));
+        var stageStats = transformStageResult.IsSuccess
+            ? _engine.Evaluators.GetStatistics(transformStageResult.Value)
+            : BasicResults.Result<MeshStatistics>.Failure(transformStageResult.Error);
+
+        var stats = stageStats.IsSuccess ? stageStats.Value : activeStats;
+        if (stats is null)
+        {
+            _messenger.Send(new UpdateMeshInfoMessage(items));
+            return;
+        }
+
+        // The transform-stage mesh, so this is the bolus itself whether or not a mould was cut
+        // around it afterwards.
+        items.Add(new TextInfoItem { Label = "Bolus volume", Value = $"{Measure.ToMillilitres(stats.Volume):N1} mL" });
+
+        // Once a mould has been generated the active mesh IS the mould, so its volume is the
+        // mould's. The two answer different questions - how much silicone the bolus takes against
+        // how much resin the mould does - and an export is where both matter.
+        if (record.MouldDefinition() is not null && activeStats is not null)
+        {
+            items.Add(new TextInfoItem { Label = "Mould volume", Value = $"{Measure.ToMillilitres(activeStats.Volume):N1} mL" });
+        }
+
+        items.Add(new TextInfoItem { Label = "Surface area", Value = $"{Measure.ToSquareCentimetres(stats.SurfaceArea):N1} cm²" });
+        
+        _messenger.Send(new UpdateMeshInfoMessage(items));
+
+    }
+
+    public Task<Workspace> DeactivateAsync() => Task.FromResult(Workspace);
+
+    [RelayCommand]
+    public void ExportFiles()
+    {
+        if (Workspace.MeshCount == 0)
+        {
+            _alert.ShowError("No meshes to export.");
+            return;
+        }
+
+        var activeMeshResult = Workspace.GetActiveMesh();
+        if (activeMeshResult.IsFailure)
+        {
+            _alert.ShowError($"Failed to export: {activeMeshResult.Error.Description}");
+            return;
+        }
+
+        var filter = Is3mfSelected ? "3D Manufacturing Format (*.3mf)|*.3mf" : "STL Files (*.stl)|*.stl";
+        var defaultExt = Is3mfSelected ? ".3mf" : ".stl";
+        
+        // FileName starts as the active record's name - the one the mesh was imported under - and
+        // tracks whatever the user has since typed into the export panel, so the dialog opens on
+        // the name shown there rather than blank. Stripped of any extension the user typed, because
+        // SaveFileDialog appends the filter's own when what is there does not match it: "bolus.stl"
+        // exported as a package would otherwise be saved as "bolus.stl.3mf".
+        var saveResult = _dialogueSystem.ShowSaveFileDialog(filter, defaultExt, BaseFileName);
+        if (saveResult.HasNoValue) return;
+
+        var exportRecordResult = Workspace.GetActiveRecord();
+        if (exportRecordResult.IsFailure)
+        {
+            _alert.ShowError(exportRecordResult.Error.Description);
+            return;
+        }
+
+        var mesh = activeMeshResult.Value;
+        var filepath = saveResult.Value;
+
+        // The record goes along so a 3MF carries the entry's history; an STL takes the geometry
+        // alone, which is all that format holds.
+        var result = _exportFeature.Execute(mesh, exportRecordResult.Value, filepath, true);
+        if (result.IsFailure)
+        {
+            _alert.ShowError($"Failed to export: {result.Error.Description}");
+            return;
+        }
+
+        _alert.ShowInfo($"Successfully exported to {Path.GetFileName(filepath)}.");
+    }
+}

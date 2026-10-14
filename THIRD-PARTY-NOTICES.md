@@ -1,0 +1,141 @@
+# Third-party notices
+
+Fabolus is released under the MIT License (see [LICENSE](LICENSE)). It is built on, and its
+releases redistribute, the third-party software listed below. Each component remains under
+its own licence. This file and `LICENSE` ship beside `Fabolus.exe` in every release.
+
+Most of the geometry stack arrives through [GeometryEngine](https://github.com/nsmela/GeometryEngine),
+whose own [THIRD-PARTY-NOTICES.md](https://github.com/nsmela/GeometryEngine/blob/main/THIRD-PARTY-NOTICES.md)
+records how each of those components is built and redistributed.
+
+Test-only and build-only dependencies (xUnit, FluentAssertions, coverlet, the .NET test SDK,
+Inno Setup) are not part of any release and are not listed here.
+
+---
+
+## Components
+
+| Component | Licence | Copyright | Source |
+|---|---|---|---|
+| GeometryEngine | MIT | © 2017–2026 Provincial Health Services Authority | https://github.com/nsmela/GeometryEngine |
+| BasicResults | MIT | © Nathan Smela | https://github.com/nsmela/BasicResults |
+| HelixToolkit, HelixToolkit.Wpf.SharpDX | MIT | © 2022 Helix Toolkit contributors | https://github.com/helix-toolkit/helix-toolkit |
+| SharpDX | MIT | © 2010–2016 Alexandre Mutel | https://github.com/sharpdx/SharpDX |
+| Cyotek.Drawing.BitmapFont | MIT | © 2012–2020 Cyotek Ltd. | https://github.com/cyotek/Cyotek.Drawing.BitmapFont |
+| MahApps.Metro | MIT | © 2023 .NET Foundation and Contributors | https://github.com/MahApps/MahApps.Metro |
+| ControlzEx | MIT | © 2015–2020 Jan Karger, Bastian Schmidt, James Willock | https://github.com/ControlzEx/ControlzEx |
+| CommunityToolkit.Mvvm | MIT | © .NET Foundation and Contributors | https://github.com/CommunityToolkit/dotnet |
+| Microsoft.Xaml.Behaviors.Wpf | MIT | © Microsoft Corporation | https://github.com/Microsoft/XamlBehaviorsWpf |
+| Microsoft.Extensions.\* and System.\* packages | MIT | © .NET Foundation and Contributors | https://github.com/dotnet/runtime |
+| .NET runtime (self-contained builds and the installer only) | MIT | © .NET Foundation and Contributors | https://github.com/dotnet/runtime |
+| Clipper2 | Boost Software License 1.0 | © 2010–2025 Angus Johnson | https://github.com/AngusJohnson/Clipper2 |
+| NetTopologySuite | BSD 3-Clause | © 2006–2025 NetTopologySuite Team and contributors | https://github.com/NetTopologySuite/NetTopologySuite |
+| Manifold (`manifold.dll`, `manifoldc.dll`) | Apache License 2.0 | © The Manifold Authors | https://github.com/elalish/manifold |
+| oneTBB (statically linked into `manifold.dll`) | Apache License 2.0 | © 2005–2025 Intel Corporation; © 2025 UXL Foundation Contributors | https://github.com/uxlfoundation/oneTBB |
+| libigl and Eigen (compiled into `geometryengine_native.dll`) | Mozilla Public License 2.0 | © libigl and Eigen authors | https://github.com/libigl/libigl, https://gitlab.com/libeigen/eigen |
+
+---
+
+## Licence texts
+
+### MIT License
+
+Applies to every component above marked MIT, with that component's copyright line in place
+of the one below.
+
+```
+Copyright (c) <year> <copyright holders>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### Boost Software License 1.0 (Clipper2)
+
+```
+Boost Software License - Version 1.0 - August 17th, 2003
+
+Permission is hereby granted, free of charge, to any person or organization
+obtaining a copy of the software and accompanying documentation covered by
+this license (the "Software") to use, reproduce, display, distribute,
+execute, and transmit the Software, and to prepare derivative works of the
+Software, and to permit third-parties to whom the Software is furnished to
+do so, all subject to the following:
+
+The copyright notices in the Software and this entire statement, including
+the above license grant, this restriction and the following disclaimer,
+must be included in all copies of the Software, in whole or in part, and
+all derivative works of the Software, unless such copies or derivative
+works are solely in the form of machine-executable object code generated by
+a source language processor.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT
+SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
+FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+```
+
+### BSD 3-Clause License (NetTopologySuite)
+
+```
+Copyright (c) 2006 - 2025 NetTopologySuite - Team, Diego Guidi, John Diss
+(www.newgrove.com), Felix Obermaier (www.ivv-aachen.de), Todd Jackson, Joe Amenta
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+### Apache License 2.0 (Manifold, oneTBB)
+
+The full texts ship beside `Fabolus.exe` as `LICENSE.manifold.txt` and `LICENSE.oneTBB.txt`.
+oneTBB's own bundled components (ITT Notify, hwloc, gperftools and others) are covered by
+`LICENSE.oneTBB-third-party-programs.txt`, which ships alongside them. Neither project
+includes a `NOTICE` file, and neither was modified.
+
+### Mozilla Public License 2.0 (libigl, Eigen)
+
+Full text: https://www.mozilla.org/en-US/MPL/2.0/
+
+libigl (tag `v2.5.0`) and Eigen (tag `3.4.0`) are header-only libraries compiled, unmodified,
+into `geometryengine_native.dll`. As MPL-2.0 section 3.2 requires, their source is available
+from the upstream repositories linked above at those tags.

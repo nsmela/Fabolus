@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Platforms>x64</Platforms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <StartupObject>Fabolus.Wpf.App</StartupObject>
+    <ApplicationIcon>Fabolus icon resized.ico</ApplicationIcon>
+    <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
+
+    <!-- Output is Fabolus.exe; RootNamespace stays Fabolus.Wpf -->
+    <AssemblyName>Fabolus</AssemblyName>
+    <RootNamespace>Fabolus.Wpf</RootNamespace>
+
+    <!-- Single source of truth for the version. AssemblyVersion, FileVersion and
+         InformationalVersion are all derived from it. CI overrides with -p:Version=<tag>. -->
+    <Version>1.0.0</Version>
+    <Product>Fabolus</Product>
+    <Company>Provincial Health Services Authority</Company>
+    <Copyright>© 2017–2026 Provincial Health Services Authority</Copyright>
+
+    <!-- Drop the MahApps/HelixToolkit localisation subfolders from published output -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- NOTE: SelfContained / PublishSingleFile / PublishReadyToRun are deliberately NOT set
+       here. build/publish.ps1 passes them per artifact so ordinary builds stay lightweight
+       and RID-agnostic. -->
+
+  <ItemGroup>
+    <Content Include="Fabolus icon resized.ico" />
+  </ItemGroup>
+
+  <!-- The licence and notices ship beside Fabolus.exe in every build, so all three release
+       artifacts carry them; the installer packages the same folder. -->
+  <ItemGroup>
+    <None Include="..\..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+
+  <!-- The About window's medical disclaimer. Embedded, not copied, so it cannot go missing. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\DISCLAIMER.txt" LogicalName="Fabolus.Disclaimer.txt" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.25.0" />
+    <PackageReference Include="MahApps.Metro" Version="2.4.10" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fabolus.Core\Fabolus.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,79 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+	  <Platforms>x64</Platforms>
+    <GeometryEngineRoot Condition="'$(GeometryEngineRoot)' == ''">$(MSBuildThisFileDirectory)..\..\..\GeometryEngine\</GeometryEngineRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Export\**" />
+    <Compile Remove="Import\**" />
+    <Compile Remove="Rotation\**" />
+    <EmbeddedResource Remove="Export\**" />
+    <EmbeddedResource Remove="Import\**" />
+    <EmbeddedResource Remove="Rotation\**" />
+    <None Remove="Export\**" />
+    <None Remove="Import\**" />
+    <None Remove="Rotation\**" />
+    <Page Remove="Export\**" />
+    <Page Remove="Import\**" />
+    <Page Remove="Rotation\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- White-box assertions on BaseMesh lifetime (MeshMetadata.BaseMeshInstance). -->
+    <InternalsVisibleTo Include="Fabolus.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Every geometry operation - booleans, offsets, decimation, spatial queries, polygon work and
+      mesh files - comes from GeometryEngine, a sibling checkout of this repository. Override
+      GeometryEngineRoot to build against a checkout elsewhere.
+
+      Core is referenced explicitly because GeometryEngine marks its own reference to it private -
+      Core ships inside the GeometryEngine package rather than as a package of its own - and a
+      private reference does not flow on to projects referencing GeometryEngine.
+    -->
+    <ProjectReference Include="$(GeometryEngineRoot)src\GeometryEngine\GeometryEngine.csproj" />
+    <ProjectReference Include="$(GeometryEngineRoot)src\GeometryEngine.Core\GeometryEngine.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Result, Error and Maybe. A package, unlike GeometryEngine, because this one is published.
+      Declared here rather than left to flow in through GeometryEngine: this project's own API
+      is written in these types, so the dependency is its own, not an inherited detail. Keep the
+      version in step with the one GeometryEngine resolves - it is the same assembly on both
+      sides of the adapter, which is what lets a Result cross that boundary without translation.
+    -->
+    <PackageReference Include="BasicResults" Version="1.0.1" />
+
+    <!--
+      Polygon offsetting for the parting flange's wavefront rings. PartingTools calls it directly,
+      so it is declared here for the same reason as BasicResults; keep the version in step with
+      the one GeometryEngine uses.
+    -->
+    <PackageReference Include="Clipper2" Version="1.5.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://nsmela.github.io/Fabolus/
+    about: The user guide covers the whole workflow, from import to casting.
+  - name: Report a security vulnerability
+    url: https://github.com/nsmela/Fabolus/security/advisories/new
+    about: Report security problems privately, not as a public issue.

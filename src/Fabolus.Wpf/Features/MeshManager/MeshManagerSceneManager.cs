@@ -1,0 +1,70 @@
+using CommunityToolkit.Mvvm.Messaging;
+using Fabolus.Core.Geometry;
+using Fabolus.Wpf.Common.Mesh;
+using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit.Wpf.SharpDX;
+using System.Windows.Input;
+using Fabolus.Wpf.Common.Helpers;
+
+namespace Fabolus.Wpf.Features.MeshManager;
+
+internal class MeshManagerSceneManager : ISceneManager {
+    private readonly IGeometryEngine _engine;
+    private readonly IMessenger _messenger;
+
+    public event Action<Element3D> VisualAddedOrUpdated;
+    public event Action<Guid> VisualRemovedById;
+    public event Action VisualsCleared;
+
+    private readonly PrintBedGrid _grid;
+    private Guid _activeId = Guid.Empty;
+
+    public MeshManagerSceneManager(IGeometryEngine engine, IMessenger messenger) {
+        _engine = engine;
+        _messenger = messenger;
+
+        _grid = new PrintBedGrid(_messenger);
+        _grid.Replaced += (replacedId, grid) => {
+            VisualRemovedById?.Invoke(replacedId);
+            VisualAddedOrUpdated?.Invoke(grid);
+        };
+    }
+
+    public void UpdateWorkspace(Workspace workspace) {
+        VisualRemovedById?.Invoke(_activeId);
+
+        var activeMeshResult = workspace.GetActiveMesh();
+        if (activeMeshResult.IsFailure) return;
+
+        // Owned copy - converted to render geometry immediately, then released.
+        IMesh mesh = activeMeshResult.Value;
+
+        MeshGeometry3D geometry = mesh.ToHelixMesh(_engine).Value;
+        var model = new MeshGeometryModel3D {
+            Geometry = geometry,
+            Material = Skins.Surface.Gray,
+        };
+        SceneVisual.SetIsModelGeometry(model, true);
+        _activeId = model.GUID;
+
+        VisualAddedOrUpdated?.Invoke(model);
+    }
+
+    public void OnActivated() {
+        VisualsCleared?.Invoke();
+        VisualAddedOrUpdated?.Invoke(_grid.Current);
+    }
+
+    public void OnDeactivated() { }
+
+    public bool OnKeyDown(Key key) => false;
+    public bool OnKeyUp(Key key) => false;
+
+    public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
+
+    public bool OnMouseMove(IList<HitTestResult> hits) => false;
+
+    public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
+
+}

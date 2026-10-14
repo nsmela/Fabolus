@@ -1,0 +1,12 @@
+Fabolus is not a medical device.
+
+It has not been cleared, approved or certified by any medical device regulator, and it is
+not intended to diagnose, treat or plan treatment for any patient.
+
+Fabolus is provided "as is", without warranty of any kind. Every bolus and mould it produces
+must be independently verified by qualified clinical staff - including its dimensions,
+thickness, volume and fit - under your institution's own quality-assurance procedures before
+it is used on a patient.
+
+You use Fabolus entirely at your own risk. The authors accept no liability for any outcome
+of its use.
