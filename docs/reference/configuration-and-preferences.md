@@ -45,7 +45,7 @@ Preferences are stored at `PreferenceStorageLocation.DefaultPath`:
 %LOCALAPPDATA%\Fabolus\preferences.json
 ```
 
-typically resolving to `C:\Users\<Username>\AppData\Local\Fabolus\preferences.json`.
+typically resolving to `C:\Users\<Username>\AppData\Local\Fabolus\preferences.json`. Each Windows user has their own file. Uninstalling Fabolus deletes it for the user who runs the uninstaller; export a preference profile first to keep the settings.
 
 The file is a flat JSON object keyed by each setting's storage key. Enums are written as their **name** (e.g. `"Stl"`, `"Graphite"`, `"Concave"`), not as integers. A value that is missing, the wrong type, or out of range falls back to that setting's shipped default — it is **not** clamped to the nearest bound. Keys the current build does not recognise are preserved and written back out.
 

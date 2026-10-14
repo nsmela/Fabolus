@@ -94,10 +94,12 @@ installer.
 Per-user by default: `PrivilegesRequired=lowest` puts it in `%LOCALAPPDATA%\Programs\Fabolus`
 with no UAC prompt. The user can still choose a machine-wide install from the wizard.
 
-This is not just convenience. `AppPreferencesStore` calls `ConfigurationManager.Save()` on
-every preference change, which writes `Fabolus.dll.config` **next to the exe**. Under
-`C:\Program Files` that throws for a non-admin user. Keeping the install directory writable
-sidesteps it. See *Known rough edges* below.
+Preferences do not live in the install directory. `AppPreferencesStore` writes them to
+`%LOCALAPPDATA%\Fabolus\preferences.json` (`PreferenceStorageLocation.DefaultPath`), one
+file per Windows user, so a machine-wide install under `C:\Program Files` works as well as
+a per-user one. The first run after upgrading from an older build copies its settings out of
+the old exe-adjacent `Fabolus.dll.config`; see
+[Configuration & Preferences](../docs/reference/configuration-and-preferences.md).
 
 The `AppId` GUID in [`Fabolus.iss`](installer/Fabolus.iss) must never change — it is what
 makes a new version upgrade the existing install in place instead of sitting alongside it.
@@ -128,8 +130,16 @@ script.
 `CloseApplications=yes` lets the Restart Manager close a running Fabolus instead of the
 install failing part-way on locked files.
 
-Uninstall removes the program files, the generated `Fabolus.dll.config`, the Start Menu
-group, and the Add/Remove Programs entry.
+Uninstall removes the program files, the Start Menu group, the Add/Remove Programs entry,
+and what the app wrote at runtime: `%LOCALAPPDATA%\Fabolus\preferences.json`, the crash
+reports in `%LOCALAPPDATA%\Fabolus\logs\`, those folders if nothing else is in them, and any
+`Fabolus.dll.config` an older build left beside the exe. The installer didn't create these, so
+they are listed by name in `[UninstallDelete]`. They are removed only from the profile of the
+user running the uninstaller; on a machine-wide install, other users' files stay behind.
+Exported preference profiles are wherever the user saved them and are never touched.
+
+An upgrade installs over the existing copy without running the uninstaller, so preferences
+carry across versions.
 
 ## Platform
 
@@ -163,12 +173,12 @@ Beyond the automated test gate, worth checking by hand when something changes:
 - Install the setup exe, confirm no elevation prompt, launch from the Start Menu, change a
   preference, restart the app, and confirm the preference stuck.
 - Run the installer a second time and confirm you get one Add/Remove entry, not two.
+- Uninstall, and confirm `%LOCALAPPDATA%\Fabolus` is gone along with
+  `%LOCALAPPDATA%\Programs\Fabolus`.
 
 ## Known rough edges
 
 Things a future change should probably address, none of which block a release today:
 
-- **Preferences live next to the exe.** Moving them to `%APPDATA%\Fabolus\` would remove the
-  writability constraint and let a machine-wide install work properly.
 - **The builds are not code-signed,** so SmartScreen warns about an unknown publisher until
   a build has earned reputation. The README tells users how to get past it.
