@@ -15,7 +15,7 @@ Surfaces shallower than the warning angle appear green (printable without suppor
 
 Both thresholds come from `RotationPreferences` and are adjustable via the range slider (kept at least 5° apart, within `30°`–`90°`).
 
-<!-- IMAGE_PLACEHOLDER: [Figure 5.1: The rotate tab showing the green-to-red overhang gradient applied to an oriented bolus mesh.] -->
+![The bolus coloured by overhang angle in the rotate view](../images/screenshots/04-rotate-overhangs.png)
 
 ---
 

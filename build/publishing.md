@@ -34,7 +34,7 @@ source of truth. `AssemblyVersion`, `FileVersion` and `InformationalVersion` are
 from it — do not set them separately.
 
 - Running the script with no `-Version` reads that value.
-- Passing `-Version 0.9.5` overrides it for that run, including the metadata compiled into
+- Passing `-Version 1.0.1` overrides it for that run, including the metadata compiled into
   the exe.
 - CI passes the git tag, so a tagged build always stamps itself with the tag.
 
@@ -47,7 +47,7 @@ installer's Add/Remove Programs entry.
 2. Tag it and push:
 
 ```bash
-git tag 0.9.5 && git push origin 0.9.5
+git tag 1.0.1 && git push origin 1.0.1
 ```
 
 3. [`release.yml`](../.github/workflows/release.yml) picks up any `x.y.z` tag, installs
@@ -81,7 +81,7 @@ installer.
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `-Version` | `<Version>` from the csproj | Leading `v` is stripped, so `v0.9.5` works |
+| `-Version` | `<Version>` from the csproj | Leading `v` is stripped, so `v1.0.1` works |
 | `-Configuration` | `Release` | |
 | `-Runtime` | `win-x64` | Fabolus is x64-only today |
 | `-OutputDir` | `<repo>/artifacts` | Wiped at the start of every run |

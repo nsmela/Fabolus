@@ -64,7 +64,7 @@ public static class MaterialsHelper
     /// region. Everything else - manipulators, air channel tubes, the grid - is generated
     /// geometry whose smooth normals are correct and should not use this.
     ///
-    /// Vertex normals reach the GPU from MeshLib's computePerVertNormals, an area-weighted
+    /// Vertex normals reach the GPU from GeometryEngine's ComputeVertexNormals, an area-weighted
     /// one-ring average with no crease threshold, and these meshes are full of real creases.
     /// It is worse on moulds than on the boli: 9.7% of mould_test's triangle corners are
     /// shaded with a normal more than 45 degrees off the facet they belong to (5.1% for the

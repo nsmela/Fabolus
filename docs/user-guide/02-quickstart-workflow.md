@@ -8,7 +8,7 @@ This is the basic workflow that utilizes Fabolus end to end: taking a bolus mesh
 
 Fabolus imports mesh files (e.g. `.stl`). Optionally, it can import `.3mf` files which may have saved prior Fabolus edits and command history. It reads the geometry as-is, so exported meshes should be in millimetres and cover the intended bolus region.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 2.1: Fabolus main window — step navigation header (meshes, smooth, rotate, decals, mould, export, cut / split), left parameter panel, 3D viewport, and right info panel.] -->
+![An imported chin bolus in the meshes view, with its mesh statistics and topology checks](../images/screenshots/01-import.png)
 
 ### Viewport camera controls
 - **Orbit / rotate**: hold the right mouse button and drag.
@@ -55,7 +55,7 @@ See [Print Orientation & Overhangs](05-print-orientation-and-overhangs.md).
 2. By default, Fabolus automatically generates and places text decals: the mesh filename on the front anchor and the bolus volume on the back anchor.
 3. Review and adjust decal text, font, cap height, depth, or placement if desired. These markings engrave or emboss identifiers directly into the mould wall so they are transferred to the cast silicone bolus.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 2.2: Decals tab showing automatic filename and volume decals placed on the mesh.] -->
+![Embossed text decals - the file name and the volume - previewed on the mould](../images/screenshots/07-decals.png)
 
 ---
 
@@ -68,7 +68,7 @@ Air channels must be added before generating the mould so silicone can enter and
 3. Choose a channel type — **Straight**, **Angled**, or **Painted** — and click (or drag, for Painted) on the mesh preview to place it.
 4. Adjust channel diameters or tip parameters as needed.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 2.3: Placing air channels on the mesh within the mould preview.] -->
+![Air channels placed on the bolus in the mould view, with the channel types and their settings](../images/screenshots/05-air-channels.png)
 
 See [Air Channels](06-air-channels-and-degassing.md).
 
@@ -79,7 +79,7 @@ See [Air Channels](06-air-channels-and-degassing.md).
 1. With channels placed, click **Generate Mould**. Fabolus subtracts the bolus cavity and all placed air channels from the mould shell, creating the finished sacrificial mould.
 2. If adjustments are needed, click **Clear Mould** to remove the generated mould and return to the bolus and channel preview.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 2.4: Generated sacrificial mould showing cavity and channel openings.] -->
+![The generated mould around the bolus, with its volume and dimensions](../images/screenshots/06-mould.png)
 
 See [Sacrificial Mould Design](07-sacrificial-mould-design.md).
 

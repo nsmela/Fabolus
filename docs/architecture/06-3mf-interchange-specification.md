@@ -26,8 +26,6 @@ bolus_project.3mf (ZIP Archive)
         └── 3dmodel.model.rels
 ```
 
-<!-- IMAGE_PLACEHOLDER: [Figure 15.1: Anatomy of a Fabolus 3MF Package. Internal folder and XML schema hierarchy diagram showing [Content_Types].xml, 3D/3dmodel.model, custom fab namespace attributes, and base mesh resource embedding. Dimensions: 900x500px.] -->
-
 ---
 
 ## The Fabolus 3MF XML Extension Schema
@@ -126,8 +124,6 @@ Fabolus's packaging strategy adheres strictly to the core 3MF Consortium specifi
   A restored entry is deliberately **not** re-centred or split into components on the way in. It is already in the frame its base mesh replays into — that history carries the centring translation from when it was first imported — and a mould is one entry rather than a pile of shells.
 
   A history the reader cannot make sense of **fails the import** rather than quietly downgrading to a geometry-only load. An unrecognised command name reports `Metadata.UnknownCommand` and names the command; damaged JSON reports `Metadata.MalformedHistory`. Opening a file that looks correct while having silently forgotten what it is would be the worse outcome — the baked geometry would then disagree with the history claiming to describe it.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 15.2: Round-Trip Project Restoration Flow. Diagram illustrating saving to 3MF and re-importing in a fresh Fabolus session with 100% parametric history preserved. Dimensions: 850x400px.] -->
 
 ---
 

@@ -10,9 +10,9 @@ Fabolus provides three channel types (`AirChannelType`):
 
 - **Straight** — a tube running straight up from the mesh surface.
 - **Angled** — leaves the surface perpendicular to the wall, then curves upward (useful on steep walls, where a straight tube would leave a thin edge).
-- **Painted** — a channel drawn by dragging along the surface, following a path (useful along a ridge).
+- **Painted** (the **Path** button) — a channel drawn by dragging along the surface, following a path (useful along a ridge).
 
-<!-- IMAGE_PLACEHOLDER: [Figure 6.1: Straight, Angled, and Painted channels on a bolus mesh.] -->
+![Air channels placed on the bolus in the mould view, with the channel types and their settings](../images/screenshots/05-air-channels.png)
 
 ---
 
@@ -37,12 +37,10 @@ Air channels must be placed before generating the mould:
 
 1. In the **mould** tab, choose a channel type.
 2. Move the cursor over the mesh; a preview follows the cursor.
-3. Click to place a Straight or Angled channel, or drag to draw a Painted channel.
+3. Click to place a Straight or Angled channel, or choose **Path** and drag to draw a Painted channel.
 4. Select a placed channel to adjust its parameters or remove it.
 
 Placed channels are stored with the mould definition, so they are subtracted from the shell when you click **Generate Mould** and are preserved in the saved project.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 6.2: Placing a channel, with the live preview following the cursor.] -->
 
 ---
 

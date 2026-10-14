@@ -4,8 +4,6 @@
 
 `Fabolus.Core` is built with a focus on clinical safety, predictable data flow, and **immutability** (data that cannot be changed once created). Rather than modifying existing 3D models in place, every operation produces a clean new state. This prevents data corruption, ensures safe multi-threading (so intensive 3D calculations do not freeze or disrupt the user interface), and maintains a reliable history of every patient model.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 13.1: Domain Architecture Diagram. Component diagram illustrating the Workspace container, its entries pairing IMesh with MeshRecord, and the measurements the engine remembers on the geometry. Dimensions: 900x500px.] -->
-
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                 Workspace (Aggregate Root)                  │
@@ -132,8 +130,6 @@ These are caches. Losing one costs a recomputation, never correctness.
 In clinical radiation therapy software, geometric edge cases—such as an imported mesh having holes, or a cut plane that misses the model entirely—are everyday occurrences, not system crashes.
 
 Instead of throwing unhandled exceptions or returning `null` (which can cause sudden crashes), Fabolus wraps operations in two predictable types:
-
-<!-- IMAGE_PLACEHOLDER: [Figure 13.2: Predictable Result<T> Error Handling Flow. Flowchart illustrating Result<T> success and failure pathways across feature workflows without unexpected runtime crashes. Dimensions: 800x350px.] -->
 
 Both types come from [BasicResults](https://github.com/nsmela/BasicResults), a small standalone library shared with GeometryEngine so that a `Result` crossing the boundary between them is one type rather than two that have to be translated.
 

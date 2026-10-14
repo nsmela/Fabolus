@@ -10,7 +10,7 @@ Welcome to the **Fabolus** project documentation. Fabolus is an open-source, spe
 
     You use Fabolus entirely at your own risk. The authors accept no liability for any outcome of its use.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 0.1: Fabolus Application Overview. Full-screen capture of the Fabolus main window displaying an anatomical bolus mesh loaded in the DirectX 3D viewport, with the step navigation header, interactive transform gizmo, and real-time physical properties panel.] -->
+![An imported chin bolus in the meshes view, with its mesh statistics and topology checks](images/screenshots/01-import.png)
 
 ---
 

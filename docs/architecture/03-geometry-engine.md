@@ -6,8 +6,6 @@ Fabolus delegates every geometric operation — booleans, offsets, smoothing, de
 
 Keeping it separate is the point. Fabolus is clinical software with a user interface; GeometryEngine is a geometry library with no opinion about boluses or moulds. The boundary between them is a single interface, `IGeometryEngine`, which means the geometry can be tested exhaustively on its own — against analytic volume identities and real clinical meshes — without a workspace, a view model or a window in sight.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 12.1: Engine Boundary. Diagram showing Fabolus.Core calling IGeometryEngine, with the Manifold native kernel and the managed BSP fallback behind it. Dimensions: 900x450px.] -->
-
 ```csharp
 public interface IGeometryEngine
 {
@@ -88,8 +86,6 @@ When generating curved or angled air channels, the engine sweeps circular rings 
 - Standard curve-following techniques often twist or pinch when a curve turns or flattens out.
 - A stable orientation technique (known as a **Parallel Transport** or **Bishop frame**) keeps each circular cross-section aligned smoothly with the path.
 - This produces clean, un-twisted cylindrical tubes that ensure silicone can enter and air can escape without obstruction.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 12.2: Parallel Transport Frame vs Standard Framing. Visual comparison showing how stable frame transport prevents twisting along curved 3D channel paths. Dimensions: 800x400px.] -->
 
 ### 4. 2D Mould Footprints via Clipper2
 To create mould shells (Convex, Concave, or Contoured):

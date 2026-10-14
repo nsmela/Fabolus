@@ -6,7 +6,7 @@ Fabolus is used to prepare a 3D mesh for 3D printing either as a smoothed, solid
 
     Fabolus has not been cleared or approved by any medical device regulator and is provided without warranty. Every bolus and mould it produces must be independently verified by qualified clinical staff before it is used on a patient. See the full medical disclaimer on the [documentation home page](../index.md).
 
-<!-- IMAGE_PLACEHOLDER: [Figure 1.1: Fabolus main window with a bolus mesh loaded in the 3D viewport, the step navigation header, and the info panel.] -->
+![An imported chin bolus in the meshes view, with its mesh statistics and topology checks](../images/screenshots/01-import.png)
 
 ---
 

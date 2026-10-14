@@ -47,8 +47,6 @@ Specialized clinical radiation oncology software (such as Varian Eclipse, Elekta
 
 ## 2. Additive Manufacturing & Casting Chemistry
 
-<!-- IMAGE_PLACEHOLDER: [Figure 17.1: Visual Glossary of Bolus Anatomy and 3D Terminology. Labeled 3D diagram illustrating the anatomical contact surface, bolus solid body, sacrificial mould shell, sprue inlet, riser vents, parting line, and draft angle with callouts explaining each concept.] -->
-
 ### Addition-Cure (Platinum-Cured) Silicone
 A high-grade, two-part liquid silicone rubber that cures at room temperature. It features virtually zero cure shrinkage (under 0.1%), excellent skin safety, and high tear resistance, making it the preferred material for patient-contact boluses.
 
@@ -131,4 +129,3 @@ The history lives on the entry rather than on the geometry so that it survives o
 
 ### Predictable Error Handling (Result and Maybe Patterns)
 A programming pattern where operations explicitly return `Result<T>` (either a success value or a clear clinical diagnostic) or `Maybe<T>` (an optional reference without null pointers), ensuring that 3D geometry computations never crash silently or produce corrupted model files.
-

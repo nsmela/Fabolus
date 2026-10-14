@@ -12,7 +12,7 @@ Fabolus's role ends at export: it writes the prepared mesh or generated mould to
    - **3MF** — a package that, in Fabolus's extended form, also stores the command history and the base mesh, so the project can be re-opened and re-edited.
 3. Choose a destination and export.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 9.1: The export tab with the STL / 3MF format options.] -->
+![The finished mould in the export view, with the STL and 3MF options, ready to save as 3MF](../images/screenshots/08-export.png)
 
 ### What a 3MF export contains
 

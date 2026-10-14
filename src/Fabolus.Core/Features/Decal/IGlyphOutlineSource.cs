@@ -9,9 +9,8 @@ namespace Fabolus.Core.Features.Decal;
 /// <remarks>
 /// Deliberately not part of <see cref="IGeometryEngine"/>, for two reasons.
 /// <para>
-/// The engine's sub-interfaces are all implemented by Geometry.MeshLib, which wraps geometry
-/// libraries (MeshLib, geometry3Sharp, Clipper) and references no UI framework - that is what
-/// lets the engine be swapped for a different backend. Glyph outlines, by contrast, can only
+/// The engine's sub-interfaces are all implemented by GeometryEngine, which references no UI
+/// framework - that is what lets the engine be swapped for a different backend. Glyph outlines, by contrast, can only
 /// come from a font stack: the one implementation here is built on WPF's FormattedText and
 /// PathGeometry. Hanging it off the engine would either drag WPF into the geometry assembly or
 /// leave one engine member that no engine can actually implement.

@@ -22,7 +22,7 @@
 
 .EXAMPLE
     pwsh ./build/publish.ps1
-    pwsh ./build/publish.ps1 -Version 0.9.4 -SkipInstaller
+    pwsh ./build/publish.ps1 -Version 1.0.0 -SkipInstaller
     pwsh ./build/publish.ps1 -GeometryEngineRoot D:\src\GeometryEngine
 #>
 [CmdletBinding()]

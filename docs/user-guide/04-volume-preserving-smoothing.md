@@ -24,8 +24,6 @@ Expanding then contracting by the same distance leaves flat and broad regions wh
 > [!TIP]
 > For additional background on morphological operations in 3D geometry, see [Mathematical Morphology (Wikipedia)](https://en.wikipedia.org/wiki/Mathematical_morphology) and [Geometry Engine](../architecture/03-geometry-engine.md).
 
-<!-- IMAGE_PLACEHOLDER: [Figure 4.1: The smoothing controls panel with the Apply Smoothing button.] -->
-
 ---
 
 ## Smoothing controls
@@ -69,6 +67,6 @@ The heat map displays surface deviation using a colour gradient:
   -2.0 mm (Red)     ──  Inward gap (shows where raw CT ridges were removed)
 ```
 
-<!-- IMAGE_PLACEHOLDER: [Figure 4.2: Heat-map display of a smoothed bolus with the Blue (+2.0 mm) to Green (0.0 mm) and Red (-2.0 mm) deviation gradient.] -->
+![The smoothed bolus coloured by its distance from the original, with original and smoothed volumes side by side](../images/screenshots/02-smooth-heatmap.png)
 
-<!-- IMAGE_PLACEHOLDER: [Figure 4.3: Cross-section display showing the green smoothed contour against the red original contour to inspect the gap.] -->
+![A cutting plane through the original and smoothed bolus](../images/screenshots/03-smooth-section.png)

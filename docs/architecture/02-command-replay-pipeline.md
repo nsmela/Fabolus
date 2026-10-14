@@ -14,8 +14,6 @@ In clinical radiation oncology, destructive modeling introduces major risks:
 
 **Fabolus solves this by using a non-destructive Command-Replay Pipeline.**
 
-<!-- IMAGE_PLACEHOLDER: [Figure 11.1: The Command Replay Pipeline. Diagram illustrating the pristine BaseMesh flowing through Transform, Smoothing, Decals, and Mould generation stages.] -->
-
 ---
 
 ## How the Pipeline Works

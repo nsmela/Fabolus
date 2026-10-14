@@ -52,7 +52,7 @@ public partial class AboutViewModel
         return string.Join(Environment.NewLine + Environment.NewLine, paragraphs);
     }
 
-    // The informational version carries the commit after a '+' (0.9.4+1a2b3c...). The number
+    // The informational version carries the commit after a '+' (1.0.0+1a2b3c...). The number
     // is what people quote; the commit is shortened rather than dropped so a build can still
     // be traced back to its source.
     private static string ReadVersion()

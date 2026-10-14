@@ -6,8 +6,6 @@ In clinical radiation oncology software, automated software verification cannot 
 
 Fabolus enforces a **pragmatic, multi-tier testing strategy** combining pure domain unit tests with native geometric integration benchmarks executed against real clinical bolus geometry: boluses designed for patient phantoms, and patient boluses with all identifiers removed.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 16.1: Test Pyramid for Fabolus. Diagram illustrating pure domain unit tests (fast, in-memory), geometry engine integration tests with clinical STLs, and MVVM presentation tests. Dimensions: 800x400px.] -->
-
 ---
 
 ## Test Organization & Project Structure
@@ -32,8 +30,6 @@ tests/
 ## The Shared STL Test Assets (`tests/files/`)
 
 Geometry tests load real bolus meshes from the shared `tests/files/` folder via `GeometryEngineFixture.LoadStl(...)`. The folder currently contains:
-
-<!-- IMAGE_PLACEHOLDER: [Figure 16.2: STL test assets. 3D renders of the bolus models in tests/files highlighting varied anatomical topologies. Dimensions: 1000x450px.] -->
 
 | File | Anatomical Site |
 | :--- | :--- |

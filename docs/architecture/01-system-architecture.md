@@ -12,8 +12,6 @@ Each feature is a self-contained "vertical slice" that holds everything it needs
 - **Everything in one place**: For example, everything related to Smoothing (the slider controls, the 3D viewport tools, the calculation logic, and the user settings) lives together under the Smoothing feature.
 - **Independent features**: Changes made to one feature (like Decals or Moulding) do not break or affect other features, making the application easier to test, maintain, and expand.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 10.1: Vertical Slice Architecture Diagram for Fabolus. Diagram showing vertical feature slices (MeshIO, Smoothing, Orientation, Decals, Moulding, Cut/Split, Export) cutting across presentation (WPF), domain logic (Fabolus.Core), and the geometry engine (GeometryEngine).] -->
-
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                           Fabolus.Wpf (User Interface)                                          │
@@ -124,8 +122,6 @@ The codebase is split into three focused projects:
 Large 3D mesh operations (like smoothing a 300,000-triangle mesh or carving a mould cavity) take significant processing power. If run on the main thread, the entire program would freeze.
 
 Fabolus keeps the user interface smooth and responsive using background tasks:
-
-<!-- IMAGE_PLACEHOLDER: [Figure 10.2: Threading and Async Pipeline Sequence Diagram. Sequence diagram illustrating the interaction between ViewModel, Background Worker Task, Geometry Engine, and Viewport Dispatcher. Dimensions: 900x450px.] -->
 
 ```mermaid
 sequenceDiagram

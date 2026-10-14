@@ -1331,9 +1331,9 @@ public enum PartingSplitMethod
     /// <para>
     /// The gap between the halves comes from shifting the tool half a gap each way rather than from
     /// the tool's own thickness. That is not a detail: giving the two operations the same tool
-    /// position makes their results share a surface, and the boolean resolves coincident input by
-    /// virtually displacing vertices, which returns a valid mesh of zero volume. See MeshLib
-    /// discussion 4933.
+    /// position makes their results share a surface, and MeshLib's boolean resolved coincident input
+    /// by virtually displacing vertices, which returned a valid mesh of zero volume (MeshLib
+    /// discussion 4933, from before GeometryEngine).
     /// </para>
     /// </summary>
     ShiftedHalfSpaces,

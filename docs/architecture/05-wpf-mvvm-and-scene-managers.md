@@ -34,8 +34,6 @@ public interface IViewState
 }
 ```
 
-<!-- IMAGE_PLACEHOLDER: [Figure 14.2: Feature View Lifecycle State Transition. Flowchart showing navigation from MeshManager through Smoothing, Rotation, and Moulding via IViewState.ActivateAsync and DeactivateAsync. Dimensions: 800x400px.] -->
-
 1. **`ActivateAsync(workspace)`**: Invoked when the tab becomes active. The ViewModel ingests the current workspace state, synchronizes parameters, and instructs its Scene Manager to render feature-specific visuals (e.g. turning on rotation gizmos or cutting planes).
 2. **`DeactivateAsync()`**: Invoked when the user navigates away. The ViewModel releases cached heavy meshes, instructs its Scene Manager to clear visual elements, and yields back the updated `Workspace` to [`MainViewModel`](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Main/MainViewModel.cs).
 
@@ -44,8 +42,6 @@ public interface IViewState
 ## Decoupling the 3D Viewport: The `ISceneManager` Pattern
 
 A critical software engineering innovation in Fabolus is the strict separation between ViewModel state and 3D graphics rendering.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 14.1: Viewport Decoupling Architecture. Component interaction diagram showing MainViewModel, Feature ViewModels, ISceneManager implementations, ViewportControl, and HelixToolkit DirectX 11 pipeline. Dimensions: 900x500px.] -->
 
 ```
 ┌──────────────────────────────────────┐           ┌──────────────────────────────────────┐

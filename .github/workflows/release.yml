@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build (e.g. 0.9.4). No release is created for manual runs.'
+        description: 'Version to build (e.g. 1.0.1). No release is created for manual runs.'
         required: true
         type: string
 

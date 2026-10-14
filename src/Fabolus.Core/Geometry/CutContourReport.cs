@@ -8,9 +8,9 @@ namespace Fabolus.Core.Geometry;
 /// A boolean needs the two meshes' intersection contours to be closed, orientable and free of
 /// self-intersections - not, as its error message suggests, the meshes themselves. The usual way to
 /// break that is a cutter that only <em>partly</em> crosses the mould: the contour runs off the edge
-/// of the cutter and never closes. MeshLib reports that as "Bad contour on N mesh A faces, probably
-/// mesh B has self-intersections", and the "probably" is doing a lot of work - the message names a
-/// cause that is often not the one present.
+/// of the cutter and never closes. MeshLib, the engine before GeometryEngine, reported that as "Bad
+/// contour on N mesh A faces, probably mesh B has self-intersections", and the "probably" was doing a
+/// lot of work - the message named a cause that was often not the one present.
 /// </para>
 ///
 /// <para>

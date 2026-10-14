@@ -16,8 +16,6 @@ Two tools divide geometry into pieces:
 2. Click **Apply Cut**. Fabolus splits the mesh into two halves along the plane — the half on the side the plane normal points to is the "top".
 3. Both halves are added to the workspace, named `{Original Name} (Top)` and `{Original Name} (Bottom)`, and the view returns to the mesh list.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 8.1: The cutting plane positioned through a mesh, with the resulting top and bottom halves.] -->
-
 Each half is re-evaluated for topology and statistics, so you can check them in the Info Panel.
 
 The **Show on** preference (`cut_view_scope`) decides which meshes offer the Cut tab. A mesh counts as a mould when it carries a generated mould, whatever it is named. The plane cut is not applied to moulds: on a mould, the tab points you to Parting Split instead.
@@ -52,8 +50,6 @@ Review the positive (blue) and negative (orange) halves, and choose how they are
 - **Single file (halves joined)**: the pieces are written together in one file.
 
 Click **Apply Split** to add the result to the workspace as `{Mould Name} (Cut)` and open the mesh list. The split is kept in the mesh's history, so a project saved as 3MF reopens with the split rebuilt.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 8.2: The parting line on the body, the parting mesh inside the mould, and the two mould halves.] -->
 
 > [!WARNING]
 > Check each piece before printing: open it in the mesh list and confirm in the Info Panel that it is watertight. On some bodies the split cannot separate the mould, and Fabolus reports that rather than producing pieces.

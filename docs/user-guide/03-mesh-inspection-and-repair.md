@@ -22,8 +22,6 @@ When converting stacked 2D CT contours into a 3D STL file, mesh errors can occur
 | **Multiple Meshes** | The file contains two or more separate, disconnected parts. | Mould generation may envelope unwanted geometry or fail to generate a clean cavity. |
 | **Meshes with Tiny Islands** | Stray CT noise or tiny floating mesh fragments disconnected from the main body. | Floating fragments cause boolean failures or create unwanted voids/debris in the printed mould. |
 
-<!-- IMAGE_PLACEHOLDER: [Figure 3.1: Topological defects — open holes, non-manifold edges, self-intersections, degenerate triangles, and tiny floating islands.] -->
-
 ---
 
 ## The Info Panel
@@ -57,7 +55,7 @@ Each status is shown in green for good, or red if an issue is detected:
   - :white_check_mark: **Green (`No`)**: Clean geometry.
   - :x: **Red (`Yes`)**: Self-intersecting triangles detected. Repair is recommended.
 
-<!-- IMAGE_PLACEHOLDER: [Figure 3.2: Info panel showing mesh statistics and topology status for an imported bolus.] -->
+![An imported chin bolus in the meshes view, with its mesh statistics and topology checks](../images/screenshots/01-import.png)
 
 ---
 
@@ -72,5 +70,3 @@ To repair a mesh:
 3. Fabolus repairs the mesh (there is also an option to fix self-intersections), then re-evaluates its topology and statistics.
 
 Repair updates the selected mesh **in place** — it keeps the same entry rather than adding a separate copy. After repair, re-check the Info Panel to confirm the topology status.
-
-<!-- IMAGE_PLACEHOLDER: [Figure 3.3: A mesh before and after repair, with the topology status updating from red to green.] -->

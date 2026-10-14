@@ -1,7 +1,7 @@
 ; Fabolus installer
 ;
 ; Compiled by build/publish.ps1, which supplies:
-;   /DAppVersion=<version>   e.g. 0.9.4
+;   /DAppVersion=<version>   e.g. 1.0.0
 ;   /DPayloadDir=<path>      the self-contained publish output to package
 ;   /DOutputDir=<path>       where Fabolus-<version>-setup.exe is written
 ;
