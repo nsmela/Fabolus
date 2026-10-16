@@ -160,12 +160,15 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
                 Colour = isWaterTight ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
 
-            bool hasOrphanedVertices = false;
+            bool hasOrphanedVertices = ActiveTopology.UnreferencedVertexCount > 0;
             items.Add(new StatusInfoItem {
                 Label = "Orphaned Vertices",
                 Text = hasOrphanedVertices ? "Yes" : "No",
                 Colour = !hasOrphanedVertices ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
+            if (hasOrphanedVertices) {
+                items.Add(new TextInfoItem { Label = "Orphaned", Value = ActiveTopology.UnreferencedVertexCount.ToString("N0") });
+            }
 
             bool hasDegenerateTriangles = ActiveTopology.DegenerateTriangleCount > 0;
             items.Add(new StatusInfoItem {

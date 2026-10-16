@@ -9,6 +9,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 - Uninstalling now removes the preferences and crash reports in `%LOCALAPPDATA%\Fabolus`, not
   just the program files. The build docs give the current preferences location.
+- The mesh manager's "Orphaned Vertices" check now reports vertices no triangle uses, with
+  their count; it always read "No".
 
 ## [1.0.0] - 2026-10-14
 
