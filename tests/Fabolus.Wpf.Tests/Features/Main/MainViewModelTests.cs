@@ -102,6 +102,79 @@ public class MainViewModelTests
         Assert.Empty(viewModel.InfoViewModel.InfoItems);
     }
 
+    private static readonly IGeometryEngine Engine = global::GeometryEngine.BspGeometryEngine.Create();
+
+    private static IMesh Box(double size) =>
+        Engine.Generators.GenerateBox(new Vector3(0, 0, 0), new Vector3(size, size, size)).Value;
+
+    [Fact]
+    public async Task ConfirmClose_WithNothingLoaded_ClosesWithoutAsking()
+    {
+        var dialogue = new Mock<IDialogueSystem>();
+        var viewModel = await SettledOn(Workspace.CreateEmpty(), new StrongReferenceMessenger(), dialogue);
+
+        Assert.True(viewModel.ConfirmClose());
+        dialogue.Verify(d => d.ShowConfirmation(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConfirmClose_AfterOnlyImporting_ClosesWithoutAsking()
+    {
+        var messenger = new StrongReferenceMessenger();
+        var record = MeshRecord.ForImport("bolus");
+        var workspace = Workspace.CreateEmpty().AddMesh(Box(10), record).Value;
+
+        var dialogue = new Mock<IDialogueSystem>();
+        var viewModel = await SettledOn(workspace, messenger, dialogue);
+        messenger.Send(new MeshesSavedMessage(workspace, [record.Id]));
+
+        Assert.True(viewModel.ConfirmClose());
+        dialogue.Verify(d => d.ShowConfirmation(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>
+    /// The change is read off the current view, not the main view model's copy of the workspace:
+    /// most views only hand their workspace back on deactivation, which closing never reaches.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ConfirmClose_WithAChangeNotExported_AsksAndFollowsTheAnswer(bool closeAnyway)
+    {
+        var messenger = new StrongReferenceMessenger();
+        var record = MeshRecord.ForImport("ear_bolus");
+        var imported = Workspace.CreateEmpty().AddMesh(Box(10), record).Value;
+        var edited = imported.UpdateMesh(record.Id, Box(12), record).Value;
+
+        var dialogue = new Mock<IDialogueSystem>();
+        dialogue.Setup(d => d.ShowConfirmation(It.IsAny<string>(), It.IsAny<string>())).Returns(closeAnyway);
+
+        var viewModel = await SettledOn(edited, messenger, dialogue);
+        messenger.Send(new MeshesSavedMessage(imported, [record.Id]));
+
+        Assert.Equal(closeAnyway, viewModel.ConfirmClose());
+        dialogue.Verify(d => d.ShowConfirmation(
+            It.IsAny<string>(), It.Is<string>(message => message.Contains("ear_bolus"))), Times.Once);
+    }
+
+    /// <summary>
+    /// A main view model whose startup switch has finished, with a stand-in view holding
+    /// <paramref name="workspace"/> as the current one.
+    /// </summary>
+    private static async Task<MainViewModel> SettledOn(
+        Workspace workspace, IMessenger messenger, Mock<IDialogueSystem> dialogue)
+    {
+        var viewModel = new MainViewModel(
+            messenger, new Mock<IGeometryEngine>().Object, dialogue.Object, new Mock<IAlertDialog>().Object);
+        await SettledOnMeshManager(viewModel);
+
+        var view = new Mock<IViewState>();
+        view.Setup(v => v.CurrentWorkspace).Returns(workspace);
+        viewModel.CurrentView = view.Object;
+
+        return viewModel;
+    }
+
     /// <summary>
     /// Waits for the constructor's fire-and-forget view switch to run all the way through. The
     /// view is assigned before its ActivateAsync is awaited, so waiting on CurrentView alone

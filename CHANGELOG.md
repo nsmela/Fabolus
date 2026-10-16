@@ -5,6 +5,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Closing the app with meshes changed since they were imported or last exported now asks
+  before discarding them, naming the meshes.
+
 ### Changed
 
 - Exports default to the Documents folder instead of `%LOCALAPPDATA%`. Preferences that still
