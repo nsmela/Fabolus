@@ -314,9 +314,12 @@ public partial class ExportViewModel : ObservableObject, IViewState
 
         // The record goes along so a 3MF carries the entry's history; an STL takes the geometry
         // alone, which is all that format holds.
-        var result = _exportFeature.Execute(mesh, exportRecordResult.Value, filepath, true);
+        var result = _exportFeature.Execute(
+            mesh, exportRecordResult.Value, filepath, true, _dialogueSystem.ConfirmReplacingFiles);
         if (result.IsFailure)
         {
+            if (result.Error == MeshErrors.ExportCancelled) return;
+
             _alert.ShowError($"Failed to export: {result.Error.Description}");
             return;
         }

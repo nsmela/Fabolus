@@ -33,7 +33,21 @@ public sealed class ExportMesh {
     /// The workspace entry the geometry belongs to. Its history is what makes a saved mould
     /// reopen as a mould rather than as a raw bolus.
     /// </param>
-    public Result Execute(IMesh mesh, MeshRecord record, string filePath, bool overwrite = false) {
+    /// <param name="overwrite">
+    /// Whether <paramref name="filePath"/> itself may be replaced. It covers that one name only.
+    /// </param>
+    /// <param name="confirmReplace">
+    /// Asked, with the paths, before a separated parting export replaces files the user never
+    /// named: the save dialog only ever saw "bolus.stl", not the "bolus_A.stl" and "bolus_B.stl"
+    /// actually written. Returning false, or passing nothing, leaves them alone and the export
+    /// fails with <see cref="MeshErrors.ExportCancelled"/> or <see cref="MeshErrors.ExportFilesExist"/>.
+    /// </param>
+    public Result Execute(
+        IMesh mesh,
+        MeshRecord record,
+        string filePath,
+        bool overwrite = false,
+        Func<IReadOnlyList<string>, bool>? confirmReplace = null) {
         if (mesh is null)
             return MeshErrors.ExportMeshIsNull;
 
@@ -52,7 +66,7 @@ public sealed class ExportMesh {
         var mode = record.Command<CutCommand>()?.Mode ?? PartingResultMode.Combined;
         return mode == PartingResultMode.Combined
             ? _geometryEngine.IO.Export(mesh, filePath, overwrite)
-            : ExportPieces(mesh, filePath, overwrite);
+            : ExportPieces(mesh, filePath, overwrite, confirmReplace);
     }
 
     /// <summary>
@@ -60,7 +74,8 @@ public sealed class ExportMesh {
     /// beside <paramref name="filePath"/>. A mesh that is only one piece is written as it is rather
     /// than as a lone "_A".
     /// </summary>
-    private Result ExportPieces(IMesh mesh, string filePath, bool overwrite) {
+    private Result ExportPieces(
+        IMesh mesh, string filePath, bool overwrite, Func<IReadOnlyList<string>, bool>? confirmReplace) {
         var componentsResult = _geometryEngine.Evaluators.SeparateComponents(mesh);
         if (componentsResult.IsFailure)
             return componentsResult.Error;
@@ -73,9 +88,23 @@ public sealed class ExportMesh {
         var name = Path.GetFileNameWithoutExtension(filePath);
         var extension = Path.GetExtension(filePath);
 
+        var partPaths = Enumerable.Range(0, components.Length)
+            .Select(i => Path.Combine(directory, $"{name}_{(char)('A' + i)}{extension}"))
+            .ToList();
+
+        // Checked for the whole set before any piece is written, so a refusal never leaves half
+        // the pieces new and half from an earlier export.
+        var existing = partPaths.Where(File.Exists).ToList();
+        if (existing.Count > 0) {
+            if (confirmReplace is null)
+                return MeshErrors.ExportFilesExist(existing);
+
+            if (!confirmReplace(existing))
+                return MeshErrors.ExportCancelled;
+        }
+
         for (int i = 0; i < components.Length; i++) {
-            var partPath = Path.Combine(directory, $"{name}_{(char)('A' + i)}{extension}");
-            var export = _geometryEngine.IO.Export(components[i], partPath, overwrite);
+            var export = _geometryEngine.IO.Export(components[i], partPaths[i], overwrite: true);
             if (export.IsFailure)
                 return export.Error;
         }

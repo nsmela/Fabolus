@@ -70,6 +70,78 @@ public class ExportPartingTests
         finally { Directory.Delete(dir, true); }
     }
 
+    /// <summary>
+    /// The save dialog confirms replacing the name the user picked - "bolus.stl" - but a separated
+    /// export writes "bolus_A.stl" and "bolus_B.stl", which the dialog never saw. Those are only
+    /// replaced once the caller has asked about them by name.
+    /// </summary>
+    [Fact]
+    public void Separated_MeshFormat_DoesNotReplaceExistingPiecesUnasked()
+    {
+        var (mesh, record) = PartedMould(PartingResultMode.Separated);
+        var dir = TempDir();
+        try
+        {
+            var path = Path.Combine(dir, "bolus.stl");
+            var pieceA = Path.Combine(dir, "bolus_A.stl");
+            var pieceB = Path.Combine(dir, "bolus_B.stl");
+            File.WriteAllText(pieceA, "earlier export");
+
+            var export = new ExportMesh(_engine).Execute(mesh, record, path, overwrite: true);
+
+            export.IsFailure.Should().BeTrue();
+            export.Error.Code.Should().Be(MeshErrors.ExportFilesExist([pieceA]).Code);
+            File.ReadAllText(pieceA).Should().Be("earlier export");
+            File.Exists(pieceB).Should().BeFalse("nothing is written once a piece would be replaced");
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void Separated_MeshFormat_DeclinedReplace_LeavesEveryFileAlone()
+    {
+        var (mesh, record) = PartedMould(PartingResultMode.Separated);
+        var dir = TempDir();
+        try
+        {
+            var path = Path.Combine(dir, "bolus.stl");
+            var pieceB = Path.Combine(dir, "bolus_B.stl");
+            File.WriteAllText(pieceB, "earlier export");
+
+            IReadOnlyList<string>? asked = null;
+            var export = new ExportMesh(_engine).Execute(mesh, record, path, overwrite: true,
+                confirmReplace: paths => { asked = paths; return false; });
+
+            export.IsFailure.Should().BeTrue();
+            export.Error.Should().Be(MeshErrors.ExportCancelled);
+            asked.Should().Equal(pieceB);
+            File.ReadAllText(pieceB).Should().Be("earlier export");
+            File.Exists(Path.Combine(dir, "bolus_A.stl")).Should().BeFalse();
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void Separated_MeshFormat_ConfirmedReplace_WritesEveryPiece()
+    {
+        var (mesh, record) = PartedMould(PartingResultMode.Separated);
+        var dir = TempDir();
+        try
+        {
+            var path = Path.Combine(dir, "bolus.stl");
+            var pieceA = Path.Combine(dir, "bolus_A.stl");
+            File.WriteAllText(pieceA, "earlier export");
+
+            var export = new ExportMesh(_engine).Execute(mesh, record, path, overwrite: true,
+                confirmReplace: _ => true);
+
+            export.IsSuccess.Should().BeTrue(export.IsFailure ? export.Error.Description : "");
+            File.ReadAllText(pieceA).Should().NotBe("earlier export");
+            File.Exists(Path.Combine(dir, "bolus_B.stl")).Should().BeTrue();
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
     [Fact]
     public void Combined_MeshFormat_WritesSingleFile()
     {
