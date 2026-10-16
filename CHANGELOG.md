@@ -9,6 +9,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 - Uninstalling now removes the preferences and crash reports in `%LOCALAPPDATA%\Fabolus`, not
   just the program files. The build docs give the current preferences location.
+- The export panel no longer shows the mould's volume and surface area as the bolus's when the
+  bolus inside a mould cannot be rebuilt from its history; it shows the bolus volume as
+  unavailable instead.
 
 ## [1.0.0] - 2026-10-14
 
