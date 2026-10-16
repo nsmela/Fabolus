@@ -18,6 +18,7 @@ using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
 using Fabolus.Wpf.Features.CutSplit;
 using Fabolus.Core.Features.Decal;
+using Fabolus.Core.Features.MeshIO;
 using Fabolus.Wpf.Features.Decal;
 
 namespace Fabolus.Wpf.Features.Main;
@@ -79,6 +80,8 @@ public partial class MainViewModel : ObservableObject
     // Stores: passively monitor messages to store or retreive data for multiple views
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
 
+    private readonly UnsavedWork _unsavedWork = new();
+
     public MainViewModel(
         IMessenger messenger,
         IGeometryEngine engine,
@@ -100,6 +103,7 @@ public partial class MainViewModel : ObservableObject
         _messenger.Register<WorkspaceChangedMessage>(this, (r, m) => WorkspaceUpdated(m.Workspace));
         _messenger.Register<IsLoadingMessage>(this, (r, m) => IsLoading = m.IsLoading);
         _messenger.Register<SwitchToMeshManagerMessage>(this, async (r, m) => await SwitchToMeshManagerViewAsync());
+        _messenger.Register<MeshesSavedMessage>(this, (r, m) => _unsavedWork.MarkSaved(m.Workspace, m.Ids));
 
         // Take the new value off the message rather than reading it back from the store,
         // so this doesn't depend on which recipient the messenger notifies first.
@@ -211,6 +215,30 @@ public partial class MainViewModel : ObservableObject
 
         MeshLoaded = Workspace.ActiveMeshId != Guid.Empty;
         MeshName = MeshLoaded ? result.Value.Name : "No mesh selected";
+    }
+
+    /// <summary>
+    /// Whether the app may close: true when nothing would be lost, or when the user, told what
+    /// would be, says to close anyway.
+    /// </summary>
+    /// <remarks>
+    /// Asks the current view for its workspace rather than using <see cref="Workspace"/>: most
+    /// views only hand theirs back on deactivation, so a smoothing applied a moment ago is not
+    /// here yet. And it asks without deactivating, which would tear the view down even when the
+    /// user then decides to stay.
+    /// </remarks>
+    public bool ConfirmClose()
+    {
+        var workspace = CurrentView?.CurrentWorkspace ?? Workspace;
+        var unsaved = _unsavedWork.Unsaved(workspace);
+        if (unsaved.Count == 0) return true;
+
+        var names = string.Join(Environment.NewLine, unsaved.Select(record => $"  \u2022 {record.Name}"));
+        var message = unsaved.Count == 1
+            ? $"This mesh has changes that have not been exported:{Environment.NewLine}{Environment.NewLine}{names}{Environment.NewLine}{Environment.NewLine}Close anyway and lose them?"
+            : $"These meshes have changes that have not been exported:{Environment.NewLine}{Environment.NewLine}{names}{Environment.NewLine}{Environment.NewLine}Close anyway and lose them?";
+
+        return _dialogueSystem.ShowConfirmation("Unsaved changes", message);
     }
 
     // Cycles solid -> solid with edges -> edges only -> solid.

@@ -112,5 +112,14 @@ public partial class MainView : MetroWindow {
             : WindowState.Maximized;
 
     void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    // Every way out - the title-bar button, Alt+F4, the taskbar - comes through here.
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e) {
+        if (DataContext is MainViewModel viewModel && !viewModel.ConfirmClose()) {
+            e.Cancel = true;
+        }
+
+        base.OnClosing(e);
+    }
 }
 

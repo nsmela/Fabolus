@@ -28,6 +28,7 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
     private readonly MeshManagerSceneManager _sceneManager;
 
     private Workspace Workspace { get; set; }
+    public Workspace CurrentWorkspace => Workspace;
 
     public MeshManagerViewModel(IMessenger messenger, IDialogueSystem dialogue, IAlertDialog alertDialog, IGeometryEngine engine) {
         _dialogue = dialogue;
@@ -160,12 +161,15 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
                 Colour = isWaterTight ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
 
-            bool hasOrphanedVertices = false;
+            bool hasOrphanedVertices = ActiveTopology.UnreferencedVertexCount > 0;
             items.Add(new StatusInfoItem {
                 Label = "Orphaned Vertices",
                 Text = hasOrphanedVertices ? "Yes" : "No",
                 Colour = !hasOrphanedVertices ? System.Windows.Media.Colors.MediumSeaGreen : System.Windows.Media.Colors.IndianRed
             });
+            if (hasOrphanedVertices) {
+                items.Add(new TextInfoItem { Label = "Orphaned", Value = ActiveTopology.UnreferencedVertexCount.ToString("N0") });
+            }
 
             bool hasDegenerateTriangles = ActiveTopology.DegenerateTriangleCount > 0;
             items.Add(new StatusInfoItem {
@@ -196,7 +200,8 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
 
         using var busy = _busy.Enter();
 
-        var result = await Task.Run(() => _importFeature.Execute(Workspace, openFileResult.Value));
+        var before = Workspace;
+        var result = await Task.Run(() => _importFeature.Execute(before, openFileResult.Value));
 
         if (result.IsFailure) {
             _alertDialog.ShowError(result.Error.Description);
@@ -204,6 +209,13 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         }
 
         UpdateWorkspace(result.Value);
+
+        // Freshly read from a file, so there is nothing yet to lose by closing.
+        var imported = result.Value.Records
+            .Select(record => record.Id)
+            .Where(id => before.GetRecord(id).IsFailure)
+            .ToList();
+        _messenger.Send(new MeshesSavedMessage(result.Value, imported));
     }
 
     [RelayCommand]
@@ -255,7 +267,10 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         var result = _exportFeature.Execute(mesh, recordResult.Value, saveFileResult.Value, true);
         if (result.IsFailure) {
             _alertDialog.ShowError(result.Error.Description);
+            return;
         }
+
+        _messenger.Send(new MeshesSavedMessage(Workspace, [id]));
     }
 }
 

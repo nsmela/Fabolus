@@ -309,6 +309,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     private const int LivePreviewDebounceMs = 30;
 
     private Workspace Workspace { get; set; }
+    public Workspace CurrentWorkspace => Workspace;
     private bool _isUpdatingFromScene;
     private CancellationTokenSource? _livePreviewCts;
     private CancellationTokenSource? _partingMeshCts;

@@ -23,6 +23,7 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
     private readonly CutMeshFeature _cutFeature;
 
     private Workspace Workspace { get; set; }
+    public Workspace CurrentWorkspace => Workspace;
 
     [ObservableProperty] private bool _isMould;
     [ObservableProperty] private IMesh? _activeMesh;

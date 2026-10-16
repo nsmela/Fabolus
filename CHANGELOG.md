@@ -5,10 +5,22 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Closing the app with meshes changed since they were imported or last exported now asks
+  before discarding them, naming the meshes.
+
+### Changed
+
+- Exports default to the Documents folder instead of `%LOCALAPPDATA%`. Preferences that still
+  hold the old default move to the new one.
+
 ### Fixed
 
 - Uninstalling now removes the preferences and crash reports in `%LOCALAPPDATA%\Fabolus`, not
   just the program files. The build docs give the current preferences location.
+- The mesh manager's "Orphaned Vertices" check now reports vertices no triangle uses, with
+  their count; it always read "No".
 
 ## [1.0.0] - 2026-10-14
 
