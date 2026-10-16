@@ -107,12 +107,8 @@ public sealed class ExportMesh {
 
         if (written.IsFailure) return written.Error;
 
-        try {
-            File.WriteAllBytes(filePath, written.Value);
-        } catch (Exception failure) when (failure is IOException or UnauthorizedAccessException) {
-            return MeshErrors.ExportFailed(failure.Message);
-        }
-
-        return Result.Success();
+        // A package is the project itself - the only copy of its history - so it is never
+        // truncated in place.
+        return SafeFile.WriteAllBytes(filePath, written.Value);
     }
 }
