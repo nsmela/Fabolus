@@ -60,7 +60,7 @@ Types marked *enum* are written as their value name. Ranges, where shown, are th
 | Storage Key | Type | Default | Notes |
 | :--- | :--- | :--- | :--- |
 | `default_import_folder` | string | Common Documents folder | Falls back to default if the stored folder no longer exists. |
-| `default_export_folder` | string | Local Application Data folder | Falls back to default if the stored folder no longer exists. |
+| `default_export_folder` | string | Documents folder | Falls back to default if the stored folder no longer exists. A stored Local Application Data folder, the 1.0.0 default, is read as the current default. |
 | `default_export_format` | enum | `Stl` | `Stl`, `ThreeMF`. |
 | `viewport_background` | enum | `Graphite` | `Graphite`, `LightSteel`. |
 | `app_theme` | enum | `Dark` | `Dark`, `Light`. Switches live: MahApps' base theme and the `FabolusSteelDark` / `SteelCyan` override dictionary. |

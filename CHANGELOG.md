@@ -5,6 +5,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Exports default to the Documents folder instead of `%LOCALAPPDATA%`. Preferences that still
+  hold the old default move to the new one.
+
 ### Fixed
 
 - Uninstalling now removes the preferences and crash reports in `%LOCALAPPDATA%\Fabolus`, not
