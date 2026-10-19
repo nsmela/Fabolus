@@ -9,6 +9,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 - Uninstalling now removes the preferences and crash reports in `%LOCALAPPDATA%\Fabolus`, not
   just the program files. The build docs give the current preferences location.
+- The export panel no longer shows the mould's volume and surface area as the bolus's when the
+  bolus inside a mould cannot be rebuilt from its history; it shows the bolus volume as
+  unavailable instead.
+- Saving a project (3MF) writes to a temporary file first and only then replaces the old one,
+  so a save that fails part-way leaves the previous project intact rather than truncated.
+- Exporting a parting split as separate pieces asks before replacing existing `_A`, `_B`, …
+  files, which the save dialog never showed.
 
 ## [1.0.0] - 2026-10-14
 

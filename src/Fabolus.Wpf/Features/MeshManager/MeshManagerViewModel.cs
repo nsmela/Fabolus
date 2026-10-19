@@ -252,8 +252,9 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         }
 
         var mesh = meshResult.Value;
-        var result = _exportFeature.Execute(mesh, recordResult.Value, saveFileResult.Value, true);
-        if (result.IsFailure) {
+        var result = _exportFeature.Execute(
+            mesh, recordResult.Value, saveFileResult.Value, true, _dialogue.ConfirmReplacingFiles);
+        if (result.IsFailure && result.Error != MeshErrors.ExportCancelled) {
             _alertDialog.ShowError(result.Error.Description);
         }
     }
