@@ -26,6 +26,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     private readonly SmoothMesh _smoothFeature;
 
     private Workspace Workspace { get; set; }
+    public Workspace CurrentWorkspace => Workspace;
     private Guid ActiveMeshId { get; set; }
 
     // Owned meshes cached between workspace changes, so display-only changes (heatmap

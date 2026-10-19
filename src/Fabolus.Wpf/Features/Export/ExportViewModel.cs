@@ -32,6 +32,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
     private readonly ExportSceneManager _sceneManager;
 
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
+    public Workspace CurrentWorkspace => Workspace;
 
     [ObservableProperty] private bool _is3mfSelected = true;
 
@@ -324,6 +325,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
             return;
         }
 
+        _messenger.Send(new MeshesSavedMessage(Workspace, [exportRecordResult.Value.Id]));
         _alert.ShowInfo($"Successfully exported to {Path.GetFileName(filepath)}.");
     }
 }
