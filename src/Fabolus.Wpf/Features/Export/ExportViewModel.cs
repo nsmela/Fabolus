@@ -225,20 +225,16 @@ public partial class ExportViewModel : ObservableObject, IViewState
         }
 
         var transformStageResult = await Task.Run(() => CommandReplay.GetMeshAtStage(_engine, mesh, record, CommandPriority.Transform));
-        var stageStats = transformStageResult.IsSuccess
-            ? _engine.Evaluators.GetStatistics(transformStageResult.Value)
-            : BasicResults.Result<MeshStatistics>.Failure(transformStageResult.Error);
-
-        var stats = stageStats.IsSuccess ? stageStats.Value : activeStats;
-        if (stats is null)
-        {
-            _messenger.Send(new UpdateMeshInfoMessage(items));
-            return;
-        }
+        var stats = BolusStatistics(transformStageResult, mesh, activeStats);
 
         // The transform-stage mesh, so this is the bolus itself whether or not a mould was cut
-        // around it afterwards.
-        items.Add(new TextInfoItem { Label = "Bolus volume", Value = $"{Measure.ToMillilitres(stats.Volume):N1} mL" });
+        // around it afterwards. When it cannot be had, the row says so rather than going quiet:
+        // a missing bolus volume is easy to overlook, an "Unavailable" one is not.
+        items.Add(new TextInfoItem
+        {
+            Label = "Bolus volume",
+            Value = stats is null ? "Unavailable" : $"{Measure.ToMillilitres(stats.Volume):N1} mL"
+        });
 
         // Once a mould has been generated the active mesh IS the mould, so its volume is the
         // mould's. The two answer different questions - how much silicone the bolus takes against
@@ -248,10 +244,34 @@ public partial class ExportViewModel : ObservableObject, IViewState
             items.Add(new TextInfoItem { Label = "Mould volume", Value = $"{Measure.ToMillilitres(activeStats.Volume):N1} mL" });
         }
 
-        items.Add(new TextInfoItem { Label = "Surface area", Value = $"{Measure.ToSquareCentimetres(stats.SurfaceArea):N1} cm²" });
-        
+        if (stats is not null)
+        {
+            items.Add(new TextInfoItem { Label = "Surface area", Value = $"{Measure.ToSquareCentimetres(stats.SurfaceArea):N1} cm²" });
+        }
+
         _messenger.Send(new UpdateMeshInfoMessage(items));
 
+    }
+
+    /// <summary>
+    /// The bolus's measurements: those of the transform-stage mesh, or null when it cannot be had.
+    /// </summary>
+    /// <remarks>
+    /// The active mesh's cached statistics stand in only when the transform stage IS the active
+    /// mesh (nothing past that stage has run, so the replay hands it straight back). Past it, the
+    /// active mesh is the mould, a split, or an embossed bolus, and its figures shown as the
+    /// bolus's would be wrong - with a mould, the mould's volume labelled "Bolus volume".
+    /// </remarks>
+    private MeshStatistics? BolusStatistics(
+        BasicResults.Result<IMesh> transformStageResult, IMesh activeMesh, MeshStatistics? activeStats)
+    {
+        if (transformStageResult.IsFailure) return null;
+
+        var bolus = transformStageResult.Value;
+        var measured = _engine.Evaluators.GetStatistics(bolus);
+        if (measured.IsSuccess) return measured.Value;
+
+        return ReferenceEquals(bolus, activeMesh) ? activeStats : null;
     }
 
     public Task<Workspace> DeactivateAsync() => Task.FromResult(Workspace);
@@ -295,9 +315,12 @@ public partial class ExportViewModel : ObservableObject, IViewState
 
         // The record goes along so a 3MF carries the entry's history; an STL takes the geometry
         // alone, which is all that format holds.
-        var result = _exportFeature.Execute(mesh, exportRecordResult.Value, filepath, true);
+        var result = _exportFeature.Execute(
+            mesh, exportRecordResult.Value, filepath, true, _dialogueSystem.ConfirmReplacingFiles);
         if (result.IsFailure)
         {
+            if (result.Error == MeshErrors.ExportCancelled) return;
+
             _alert.ShowError($"Failed to export: {result.Error.Description}");
             return;
         }
