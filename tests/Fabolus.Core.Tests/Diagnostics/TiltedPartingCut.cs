@@ -189,6 +189,173 @@ public class TiltedPartingCut
         _out.WriteLine($"           final line {line.Count} pts, {Perimeter(line):F0}mm, {Deviation(Untilt(line, tiltDeg), untilted)}");
     }
 
+    /// <summary>
+    /// The same cut drawn twice, without the headway check and with it, into a contact sheet under
+    /// <c>FABOLUS_TILT_IMAGES</c>. The line here is built from the public stages
+    /// <c>GeneratePartingLineFromThickness</c> runs - crease offset, then treatment - so the check can
+    /// be switched off for the "before" row; the "after" row is checked against the feature's own line.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData(45.0)]
+    [InlineData(30.0)]
+    public void DrawBeforeAndAfter(double tiltDeg)
+    {
+        var directory = Environment.GetEnvironmentVariable("FABOLUS_TILT_IMAGES");
+        if (string.IsNullOrWhiteSpace(directory)) { _out.WriteLine("FABOLUS_TILT_IMAGES not set"); return; }
+
+        const int size = 520;
+        var options = RenderOptions.Default;
+        var lineColour = new Rgb(80, 220, 255);
+        var baseColour = new Rgb(255, 170, 60);
+        var farColour = new Rgb(255, 230, 90);
+        var walkColour = new Rgb(255, 70, 90);
+        var foldColour = new Rgb(235, 60, 60);
+
+        var mould = Mould(tiltDeg);
+        var body = _sut.GetBodyMesh(mould).Value;
+
+        var thickness = WallThickness.Measure(_engine, body.Mesh, WallThicknessOptions.Default).Value;
+        var closed = RidgeDetection.FindRidgeContours(body.Mesh, RidgeDetectionOptions.Default)
+            .Where(c => c.IsClosed).ToList();
+        var rim = PartingStrategy.Rims(closed, thickness.Statistics.Median).Single(r => r.Kind == PartingRimKind.Wall);
+        var band = new PartingBand(closed[rim.ContourIndices[0]], closed[rim.ContourIndices[1]]);
+
+        using var projector = new PartingTools(_engine).CreateSurfaceProjector(body.Mesh).Value;
+
+        var shipped = _sut.GeneratePartingLine(mould, LineRecipe).Value;
+        var tiles = new List<Tile>();
+        Camera? flap = null;
+        IReadOnlyList<Vector3>? beforeLine = null;
+
+        // The walk ends the check drops: those of the unchecked trace that the checked one has nothing
+        // near. Marked in both rows, so the "after" row shows the line passing them by.
+        var unguarded = CreaseOffsetLine.Trace(body.Mesh, band, projector,
+            CreaseOffsetOptions.Default with { LeastHeadway = 0.0, SmoothingPasses = 0 })!;
+        var guarded = CreaseOffsetLine.Trace(body.Mesh, band, projector,
+            CreaseOffsetOptions.Default with { SmoothingPasses = 0 })!;
+        var dropped = unguarded.Where(p => guarded.Min(q => p.DistanceTo(q)) > 3.0).ToList();
+        _out.WriteLine($"dropped walk ends drawn: {dropped.Count}");
+
+        foreach (var (label, headway) in new[] { ("before", 0.0), ("after", CreaseOffsetOptions.Default.LeastHeadway) })
+        {
+            var offsetOptions = CreaseOffsetOptions.Default with { LeastHeadway = headway };
+
+            // The walks' end points as laid, with nothing smoothed: what the turned-back walks look like.
+            var walks = CreaseOffsetLine.Trace(body.Mesh, band, out var report, projector,
+                offsetOptions with { SmoothingPasses = 0 })!;
+            var offset = CreaseOffsetLine.Trace(body.Mesh, band, projector, offsetOptions)!;
+            var line = PartingLineTreatment.Apply(new PartingLine([offset]), [band],
+                PartingLineTreatmentOptions.Default, projector);
+            var loop = line.Loops[0];
+
+            if (label == "after")
+                _out.WriteLine($"after line {loop.Count} pts vs feature's {shipped.Loops[0].Count}, " +
+                               $"{Deviation(loop, shipped.Loops[0])}");
+
+            var resolved = PartingMeshFeature.ResolveAxis(line, MeshRecipe).Value;
+            var axis = resolved.Axis;
+            var contour = _sut.GenerateOuterContour(mould, resolved).Value;
+            var surface = _sut.GenerateFlangeSurface(line, contour, resolved, body).Value;
+            var cutter = _sut.ExtrudeFlange(surface, resolved).Value;
+            var cut = _engine.Booleans.Subtract(mould.Mesh, cutter).Value;
+            var pieces = _engine.Evaluators.SeparateComponents(cut).Value
+                .OrderByDescending(Volume).ToList();
+            double total = Volume(mould.Mesh);
+            int crossings = _engine.Evaluators.CountSelfIntersections(surface).Value;
+
+            var along = new View("axis", axis);
+
+            // 1. The whole body seen along the axis, with the line on it.
+            var whole = Camera.Fit(body.Mesh, along, size, size);
+            var r1 = MeshRasterizer.Render(body.Mesh, whole, size, size, options);
+            MeshRasterizer.DrawPolyline(r1, whole, band.First.Points, true, baseColour, options);
+            MeshRasterizer.DrawPolyline(r1, whole, band.Second.Points, true, farColour, options);
+            MeshRasterizer.DrawPolyline(r1, whole, loop, true, lineColour, options);
+            tiles.Add(new Tile($"{label}: line along axis", r1,
+                $"{BackwardSteps(loop, Frame(axis).U, Frame(axis).V)} back-steps"));
+
+            // 2. Close on the flap where the walks turn back, framed once on the "before" line's
+            //    worst stretch so both rows show the same place.
+            beforeLine ??= loop;
+            if (flap is null)
+            {
+                var worst = beforeLine.OrderByDescending(p => shipped.Loops[0].Min(q => p.DistanceTo(q))).First();
+                flap = Camera.Focus(body.Mesh, along, worst, 22.0, size, size);
+            }
+            var r2 = MeshRasterizer.Render(body.Mesh, flap, size, size, options);
+            MeshRasterizer.DrawPolyline(r2, flap, band.First.Points, true, baseColour, options);
+            MeshRasterizer.DrawPolyline(r2, flap, band.Second.Points, true, farColour, options);
+            MeshRasterizer.DrawPolyline(r2, flap, walks, true, walkColour, options);
+            MeshRasterizer.DrawPolyline(r2, flap, loop, true, lineColour, options);
+            foreach (var point in dropped) MeshRasterizer.DrawMarker(r2, flap, point, walkColour, options, 7);
+            tiles.Add(new Tile($"{label}: flap close-up", r2, $"turned back {report?.TurnedBack ?? 0}"));
+
+            // 3. The flange along the axis, faces turned over against the majority in red: those
+            //    are the folds.
+            var flipped = Flipped(surface, axis);
+            var flangeCamera = Camera.Fit(surface, along, size, size);
+            var r3 = MeshRasterizer.Render(surface, flangeCamera, size, size, options,
+                face => flipped[face] ? foldColour : options.DefaultFace);
+            MeshRasterizer.DrawPolyline(r3, flangeCamera, loop, true, lineColour, options);
+            tiles.Add(new Tile($"{label}: flange", r3, $"{flipped.Count(f => f)} folded, {crossings} crossings"));
+
+            // 4. The cut, each piece in its own colour and pushed apart along the axis.
+            var exploded = Explode(pieces, axis, 25.0);
+            var cutCamera = Camera.Fit(exploded.Mesh, Views.OrbitA, size, size);
+            var r4 = MeshRasterizer.Render(exploded.Mesh, cutCamera, size, size, options,
+                face => MeshRasterizer.ContourColour(exploded.PieceOf[face] + 1));
+            tiles.Add(new Tile($"{label}: cut", r4,
+                $"{pieces.Count} pieces: " + string.Join("/", pieces.Take(2).Select(p => $"{100 * Volume(p) / total:F0}%"))));
+        }
+
+        var path = Path.Combine(directory, $"flat_vulva-tilt{tiltDeg:F0}-before-after.png");
+        ContactSheet.Save(path, tiles, 4, size, options.Background,
+            $"flat_vulva tilted {tiltDeg:F0}° about X: before / after the headway check",
+            [("parting line", lineColour), ("base crease", baseColour), ("far crease", farColour),
+             ("walk ends, unsmoothed (dots: dropped)", walkColour), ("folded flange face", foldColour)]);
+        _out.WriteLine(path);
+    }
+
+    /// <summary>Which faces point against the way most of the surface's area faces along the axis.</summary>
+    private static bool[] Flipped(IMesh mesh, Vector3 axis)
+    {
+        var vs = mesh.Vertices;
+        var ts = mesh.Triangles;
+        var facing = new double[ts.Length / 3];
+        for (int f = 0; f < facing.Length; f++)
+        {
+            var a = vs[ts[f * 3]];
+            facing[f] = (vs[ts[(f * 3) + 1]] - a).Cross(vs[ts[(f * 3) + 2]] - a).Dot(axis);
+        }
+
+        double sign = facing.Sum() >= 0 ? 1.0 : -1.0;
+        return facing.Select(d => d * sign < 0).ToArray();
+    }
+
+    /// <summary>The pieces as one mesh, each pushed away from the others' centre along the axis.</summary>
+    private (IMesh Mesh, int[] PieceOf) Explode(IReadOnlyList<IMesh> pieces, Vector3 axis, double gap)
+    {
+        double middle = pieces.Average(p => p.Vertices.Average(v => v.Dot(axis)));
+        var vertices = new List<Vector3>();
+        var triangles = new List<int>();
+        var pieceOf = new List<int>();
+
+        for (int k = 0; k < pieces.Count; k++)
+        {
+            var piece = pieces[k];
+            double height = piece.Vertices.Average(v => v.Dot(axis));
+            var shift = axis * (height >= middle ? gap : -gap);
+            int start = vertices.Count;
+
+            vertices.AddRange(piece.Vertices.Select(v => v + shift));
+            triangles.AddRange(piece.Triangles.Select(t => t + start));
+            pieceOf.AddRange(Enumerable.Repeat(k, piece.Triangles.Length / 3));
+        }
+
+        var mesh = _engine.CreateMesh([.. vertices], [.. triangles], pieces[0].Metadata).Value;
+        return (mesh, pieceOf.ToArray());
+    }
+
     /// <summary>Points turned back by the tilt, into the untilted body's frame.</summary>
     private static IReadOnlyList<Vector3> Untilt(IReadOnlyList<Vector3> points, double tiltDeg)
     {
