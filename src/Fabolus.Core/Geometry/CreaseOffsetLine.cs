@@ -72,6 +72,23 @@ public sealed record CreaseOffsetOptions
     /// </summary>
     public double FewestCrossings { get; init; } = 0.25;
 
+    /// <summary>
+    /// How far from the base crease an offset walk must end up, as a fraction of the distance it
+    /// walked, to be laid as a point of the line. One that ends nearer has turned back on itself and
+    /// is dropped, leaving its neighbours to carry the line across the gap.
+    ///
+    /// <para>
+    /// A walk across a wall moves away from the crease it started on by nearly as much as it travels -
+    /// the median on <c>flat_vulva</c> is 0.94, and no walk that crossed came in under 0.56 at any tilt.
+    /// The ones that turn back are another population entirely: on the wide flap of the same body, two
+    /// walks travel their full 25mm and finish 1mm and 6mm from where they set off, at 0.04 and 0.24.
+    /// Laid as they stand, each pulls the line back to the crease and out again, and the second of them
+    /// only does so at some tilts - which is what left the line doubling back, the loft flange folded,
+    /// and the mould uncut at 30 to 60 degrees about X.
+    /// </para>
+    /// </summary>
+    public double LeastHeadway { get; init; } = 0.4;
+
     /// <summary>Taubin passes applied to the finished curve, with a projection after each.</summary>
     public int SmoothingPasses { get; init; } = 4;
 
@@ -116,6 +133,10 @@ public sealed record CreaseSteadiness(double TurnP95, double WidthVariation, dou
 /// Zero on an even rim; a large share means the rim tapers, and that the single width this is built on
 /// describes only part of it.
 /// </param>
+/// <param name="TurnedBack">
+/// How many offset walks were dropped from the line for ending up nearer the crease they started on
+/// than they had walked - see <see cref="CreaseOffsetOptions.LeastHeadway"/>.
+/// </param>
 /// <param name="Narrowest">The 5th percentile crossing, and <paramref name="Widest"/> the 95th.</param>
 /// <param name="Widest">
 /// How much wider the rim gets than its median is the whole case against one thickness for the loop: a
@@ -124,7 +145,7 @@ public sealed record CreaseSteadiness(double TurnP95, double WidthVariation, dou
 /// </param>
 public sealed record CreaseOffsetReport(
     int Base, double Crossing, double Narrowest, double Widest, double Offset,
-    int Samples, int Reached, int Clamped, int Short,
+    int Samples, int Reached, int Clamped, int Short, int TurnedBack,
     IReadOnlyDictionary<WalkStop, int> Crossings, IReadOnlyDictionary<WalkStop, int> Offsets,
     CreaseSteadiness First, CreaseSteadiness Second);
 
@@ -296,17 +317,56 @@ public static class CreaseOffsetLine
             if (travelled < distance[i] * 0.9) fellShort++;
         }
 
-        var line = Smooth(laid, MedianStep(laid), options.SmoothingPasses, projector);
+        var kept = Headway(laid, baseLine, distance, step, options.LeastHeadway);
+        int turnedBack = laid.Length - kept.Length;
+
+        var line = Smooth(kept, MedianStep(kept), options.SmoothingPasses, projector);
 
         report = new CreaseOffsetReport(
             useFirst ? 0 : 1, width, Percentile(reached, 0.05), Percentile(reached, 0.95), offset,
-            baseLine.Length, reached.Length, clamped, fellShort,
+            baseLine.Length, reached.Length, clamped, fellShort, turnedBack,
             crossingStops, offsetStops, steadyFirst, steadySecond);
 
         // Refused last rather than first, so a rim this cannot cross still says why. The walks are the
         // measurement and the diagnosis both, and discarding them before they are reported leaves a
         // caller with a null and nothing to look at.
         return reached.Length < baseLine.Length * options.FewestCrossings ? null : line;
+    }
+
+    /// <summary>
+    /// The laid points less those whose walk turned back - see
+    /// <see cref="CreaseOffsetOptions.LeastHeadway"/>.
+    ///
+    /// <para>
+    /// Dropped rather than replaced. Nothing better is known about where such a sample should be than
+    /// that its neighbours are on either side of it, and the smoothing that follows resamples the loop
+    /// and holds it to the body, so the gap is bridged on the surface without anything being invented
+    /// here. A walk asked for less than a step is kept whatever it did: there is no distance to judge
+    /// it by.
+    /// </para>
+    ///
+    /// <para>
+    /// Kept whole if dropping would leave too little. A loop most of whose walks turned back is not
+    /// one this can mend by omission, and handing back the few left would be a different curve rather
+    /// than a repaired one.
+    /// </para>
+    /// </summary>
+    private static Vector3[] Headway(
+        Vector3[] laid, Vector3[] baseLine, double[] distance, double step, double least)
+    {
+        if (least <= 0.0) return laid;
+
+        var crease = new RidgeContour(baseLine, true);
+        var kept = new List<Vector3>(laid.Length);
+
+        for (int i = 0; i < laid.Length; i++)
+        {
+            if (distance[i] <= step ||
+                PartingBand.Closest(laid[i], crease).Distance >= distance[i] * least)
+                kept.Add(laid[i]);
+        }
+
+        return kept.Count < Math.Max(8, laid.Length / 2) ? laid : kept.ToArray();
     }
 
     // ---------------------------------------------------------------- choosing the base
