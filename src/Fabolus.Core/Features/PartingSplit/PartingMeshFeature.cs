@@ -687,7 +687,7 @@ public sealed class PartingMeshFeature
         // Generate shut-off surfaces for any internal holes (e.g. tunnels in the body)
         for (int i = 1; i < partingLine.Loops.Count; i++)
         {
-            var patchResult = _parting.GenerateHolePatch(partingLine.Loops[i], parameters.Axis);
+            var patchResult = _parting.GenerateHolePatch(partingLine.Loops[i], parameters.Axis, body.Mesh);
             if (patchResult.IsSuccess)
                 meshes.Add(patchResult.Value);
         }

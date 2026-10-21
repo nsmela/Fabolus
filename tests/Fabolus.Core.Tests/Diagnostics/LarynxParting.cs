@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Security.Cryptography;
 using Fabolus.Core.Features.PartingSplit;
 using Fabolus.Core.Geometry;
@@ -522,6 +523,151 @@ public class LarynxParting
         double total = 0;
         for (int i = 0; i + 2 < ts.Length; i += 3) total += vs[ts[i]].Dot(vs[ts[i + 1]].Cross(vs[ts[i + 2]])) / 6.0;
         return Math.Abs(total);
+    }
+
+    /// <summary>
+    /// The hole's parting surface is a patch spanning the hole loop. It used to end exactly on the loop,
+    /// on the body's surface, where the outer flange bleeds into the body; the mould material filling
+    /// the hole then stayed joined round it. Per opening (the smoothing differs between openings until
+    /// GeometryEngine's offset is repeatable): the patch edge's seal without and with the body, and
+    /// what the view recipe's cut leaves.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    public void HoleSeal(string file)
+    {
+        _out.WriteLine(file);
+        var tools = new PartingTools(_engine);
+        for (int opening = 0; opening < 8; opening++)
+        {
+            var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value;
+            var body = _sut.GetBodyMesh(mould).Value;
+            var line = _sut.GeneratePartingLineFromThickness(body).Value;
+            var resolved = PartingMeshFeature.ResolveAxis(line, MeshRecipe).Value;
+            using var index = _engine.Spatial.IndexFor(body.Mesh).Value;
+
+            var row = $"  opening {opening}: {line.Loops.Count} loop(s)";
+            for (int k = 1; k < line.Loops.Count; k++)
+            {
+                row += $" | hole {k} edge outside the body: on the surface {Outside(tools.GenerateHolePatch(line.Loops[k], resolved.Axis).Value)}" +
+                       $", bled {Outside(tools.GenerateHolePatch(line.Loops[k], resolved.Axis, body.Mesh).Value)}";
+            }
+
+            // The same outer flange both times; only the hole patches differ.
+            var outer = tools.GenerateMouldLoftFlangeMesh(line.Loops[0], resolved.Axis, body.Mesh, mould.Mesh).Value;
+            var onSurface = line.Loops.Skip(1).Select(l => tools.GenerateHolePatch(l, resolved.Axis).Value).Prepend(outer);
+            var bled = line.Loops.Skip(1).Select(l => tools.GenerateHolePatch(l, resolved.Axis, body.Mesh).Value).Prepend(outer);
+            row += $" | outer crossings {_engine.Evaluators.CountSelfIntersections(outer).Value}" +
+                   $" | cut, patch on the surface: {Cut(onSurface)}; bled: {Cut(bled)}";
+            _out.WriteLine(row);
+
+            string Cut(IEnumerable<IMesh> parts)
+            {
+                var list = parts.ToList();
+                var vertices = list.SelectMany(m => m.Vertices).ToImmutableArray();
+                var triangles = new List<int>();
+                int offset = 0;
+                foreach (var m in list) { triangles.AddRange(m.Triangles.Select(t => t + offset)); offset += m.VertexCount; }
+                var surface = _engine.CreateMesh(vertices, triangles.ToImmutableArray(), list[0].Metadata).Value;
+
+                var cutter = _sut.ExtrudeFlange(surface, resolved);
+                var cut = cutter.IsSuccess ? _engine.Booleans.Subtract(mould.Mesh, cutter.Value) : cutter;
+                if (cut.IsFailure) return "failed";
+                var pieces = _engine.Evaluators.SeparateComponents(cut.Value).Value.Select(Volume).OrderByDescending(v => v).ToArray();
+                double total = pieces.Sum();
+                return $"{pieces.Length} pieces " + string.Join("/", pieces.Take(2).Select(v => $"{100 * v / total:F0}"));
+            }
+
+            string Outside(IMesh patch)
+            {
+                // The patch's edge: vertices on exactly one boundary edge pair.
+                var edges = new Dictionary<(int, int), int>();
+                var ts = patch.Triangles;
+                for (int f = 0; f + 2 < ts.Length; f += 3)
+                for (int e = 0; e < 3; e++)
+                {
+                    int a = ts[f + e], b = ts[f + ((e + 1) % 3)];
+                    var key = a < b ? (a, b) : (b, a);
+                    edges[key] = edges.GetValueOrDefault(key) + 1;
+                }
+                var rim = edges.Where(e => e.Value == 1).SelectMany(e => new[] { e.Key.Item1, e.Key.Item2 }).Distinct().ToList();
+                var depth = rim.Select(v => index.SignedDistance(patch.Vertices[v])).ToArray();
+                return $"{depth.Count(d => d >= 0)}/{depth.Length} (deepest {depth.Min():F2}, worst {depth.Max():F2}mm)";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Opens larynx_small until the view recipe's cut fails to part it (about one opening in sixteen
+    /// with the hole patch sealed), then tries the cut again with one thing changed at a time.
+    /// </summary>
+    [DiagnosticFact]
+    public void FailingOpening()
+    {
+        var tools = new PartingTools(_engine);
+        MouldMesh current = null!;
+        for (int opening = 0; opening < 60; opening++)
+        {
+            var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset("3mf/larynx_small.3mf")).Value).Value;
+            current = mould;
+            var body = _sut.GetBodyMesh(mould).Value;
+            var line = _sut.GeneratePartingLineFromThickness(body).Value;
+            var resolved = PartingMeshFeature.ResolveAxis(line, MeshRecipe).Value;
+            if (line.Loops.Count != 2) { _out.WriteLine($"opening {opening}: {line.Loops.Count} loop(s)"); continue; }
+
+            var outer = tools.GenerateMouldLoftFlangeMesh(line.Loops[0], resolved.Axis, body.Mesh, mould.Mesh).Value;
+            var patch = tools.GenerateHolePatch(line.Loops[1], resolved.Axis, body.Mesh).Value;
+            string baseline = Cut(new[] { outer, patch }, resolved);
+            if (!baseline.Contains("100/0")) continue;
+
+            _out.WriteLine($"opening {opening} fails: loops {line.Loops[0].Count}/{line.Loops[1].Count} pts; {baseline}");
+            using var index = _engine.Spatial.IndexFor(body.Mesh).Value;
+            var seal = tools.InspectFlangeSeal(outer, body.Mesh, resolved.Axis, line.Loops[0]).Value;
+            _out.WriteLine($"  outer flange: {_engine.Evaluators.CountSelfIntersections(outer).Value} crossings, " +
+                           $"{seal.Count(p => !p.IsSealed)}/{seal.Count} inner-rim points outside (worst {seal.Max(p => p.SignedDistance):F2}mm); " +
+                           $"patch {_engine.Evaluators.CountSelfIntersections(patch).Value} crossings");
+            foreach (var (i, p) in seal.Select((p, i) => (i, p)).Where(x => !x.p.IsSealed))
+                _out.WriteLine($"    outside at ({p.Position.X:F1}, {p.Position.Y:F1}, {p.Position.Z:F1}) by {p.SignedDistance:F2}mm");
+
+            foreach (double depth in new[] { 0.2, 0.5, 1.0 })
+                _out.WriteLine($"  extruded {depth}mm: {Cut(new[] { outer, patch }, resolved with { Depth = depth })}");
+            _out.WriteLine($"  outer flange alone: {Cut(new[] { outer }, resolved)}; patch alone: {Cut(new[] { patch }, resolved)}");
+
+            // The loft's rim pushed inside wherever it is not.
+            var verts = outer.Vertices.ToArray();
+            int pushed = 0;
+            foreach (var p in seal.Where(p => !p.IsSealed))
+            {
+                int v = Array.FindIndex(verts, q => q.DistanceTo(p.Position) < 1e-9);
+                if (v < 0) continue;
+                var hit = index.ClosestPoint(verts[v]);
+                if (!hit.HasValue) continue;
+                verts[v] = verts[v] + ((hit.Value.Point - verts[v]) * 2.0);   // mirrored through the surface
+                pushed++;
+            }
+            var sealedOuter = _engine.CreateMesh(verts.ToImmutableArray(), outer.Triangles, outer.Metadata).Value;
+            _out.WriteLine($"  outer rim pushed in ({pushed} points): {Cut(new[] { sealedOuter, patch }, resolved)}");
+            return;
+        }
+        _out.WriteLine("no failing opening in 60");
+
+        string Cut(IEnumerable<IMesh> parts, PartingMeshParameters resolved)
+        {
+            var list = parts.ToList();
+            var vertices = list.SelectMany(m => m.Vertices).ToImmutableArray();
+            var triangles = new List<int>();
+            int offset = 0;
+            foreach (var m in list) { triangles.AddRange(m.Triangles.Select(t => t + offset)); offset += m.VertexCount; }
+            var surface = _engine.CreateMesh(vertices, triangles.ToImmutableArray(), list[0].Metadata).Value;
+            var cutter = _sut.ExtrudeFlange(surface, resolved);
+            if (cutter.IsFailure) return "extrude failed";
+            var cut = _engine.Booleans.Subtract(current.Mesh, cutter.Value);
+            if (cut.IsFailure) return "cut failed";
+            var pieces = _engine.Evaluators.SeparateComponents(cut.Value).Value.Select(Volume).OrderByDescending(v => v).ToArray();
+            double total = pieces.Sum();
+            return $"{pieces.Length} pieces " + string.Join("/", pieces.Take(2).Select(v => $"{100 * v / total:F0}"));
+        }
     }
 
     /// <summary>Faces whose centre is more than 1 mm inside the body and more than 4 mm from the loop.</summary>
