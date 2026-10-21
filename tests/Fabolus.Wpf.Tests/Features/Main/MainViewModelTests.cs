@@ -6,8 +6,10 @@ using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features;
 using Fabolus.Wpf.Features.AppPreferences;
+using Fabolus.Wpf.Features.CutSplit;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.MeshManager;
+using Fabolus.Wpf.Features.Moulding;
 using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
 using Moq;
@@ -155,6 +157,75 @@ public class MainViewModelTests
         Assert.Equal(closeAnyway, viewModel.ConfirmClose());
         dialogue.Verify(d => d.ShowConfirmation(
             It.IsAny<string>(), It.Is<string>(message => message.Contains("ear_bolus"))), Times.Once);
+    }
+
+    /// <summary>
+    /// Leaving a view while it is still opening (#89). The parting view spends seconds off the UI
+    /// thread working out the body before it builds its scene, and the tabs stay clickable all that
+    /// time. A switch that deactivated it then cleared the meshes that work resumed into, which
+    /// threw - and closed the app before the crash handler existed. The second switch has to wait
+    /// for the first to finish, and still land where the user asked to go.
+    /// </summary>
+    [Fact]
+    public void SwitchingAwayWhileAViewIsStillOpening_LandsOnTheNewViewWithoutThrowing() => UiThread.Run(async () =>
+    {
+        var engine = global::GeometryEngine.BspGeometryEngine.Create();
+        var messenger = new StrongReferenceMessenger();
+        var viewModel = new MainViewModel(
+            messenger, engine, new Mock<IDialogueSystem>().Object, new Mock<IAlertDialog>().Object);
+        await SettledOnMeshManager(viewModel);
+
+        // The parting view is off by default.
+        messenger.Send(new PreferenceSectionUpdateMessage<CutSplitPreferences>(
+            CutSplitPreferences.Default with { SplitViewEnabled = true }));
+
+        // Handed over the way a view hands its workspace on: by being deactivated.
+        var moulded = MouldedWorkspace(engine, "eye_bolus.stl");
+        var current = new Mock<IViewState>();
+        current.Setup(v => v.DeactivateAsync()).ReturnsAsync(moulded);
+        viewModel.CurrentView = current.Object;
+
+        // Not awaited: the second click arrives while the first view is still opening.
+        var opening = viewModel.ShowPartingSplitCommand.ExecuteAsync(null);
+        Assert.False(opening.IsCompleted, "the parting view opened synchronously, so nothing is racing");
+        var leaving = viewModel.SwitchToMouldViewCommand.ExecuteAsync(null);
+
+        await opening;
+        await leaving;
+
+        Assert.IsType<MouldViewModel>(viewModel.CurrentView);
+        Assert.False(viewModel.IsLoading, "the switches finished but left the loading overlay up");
+    });
+
+    /// <summary>A workspace whose active mesh is a convex mould generated on the named scan.</summary>
+    private static Workspace MouldedWorkspace(IGeometryEngine engine, string file)
+    {
+        var imported = engine.IO.Import(AssetPath(file));
+        Assert.True(imported.IsSuccess, imported.IsFailure ? imported.Error.Description : "");
+
+        var record = MeshRecord.ForImport(file).WithBaseMesh(imported.Value);
+        var workspace = Workspace.CreateEmpty().AddMesh(imported.Value, record).Value;
+
+        var moulded = new GenerateMould(engine).Execute(
+            workspace, record.Id, new ConvexMouldDefinition(3.0, 3.0, 3.0) { TargetMeshId = record.Id });
+        Assert.True(moulded.IsSuccess, moulded.IsFailure ? moulded.Error.Description : "");
+        return moulded.Value;
+    }
+
+    private static string AssetPath(string name)
+    {
+        // Walked up to rather than reached by a fixed path: CI's x64 output sits a level deeper.
+        var directory = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var candidate = System.IO.Path.Combine(directory.FullName, "files", name);
+            if (System.IO.File.Exists(candidate))
+                return candidate;
+
+            directory = directory.Parent;
+        }
+
+        throw new System.IO.FileNotFoundException($"Could not find tests/files/{name}.");
     }
 
     /// <summary>

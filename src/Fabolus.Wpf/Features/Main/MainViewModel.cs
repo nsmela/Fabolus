@@ -294,160 +294,83 @@ public partial class MainViewModel : ObservableObject
     partial void OnCurrentViewChanged(IViewState value) =>
         _messenger.Send(new UpdateMeshInfoMessage([]));
 
-    [RelayCommand]
-    public async Task SwitchToMeshManagerViewAsync()
+    // One view switch at a time - see SwitchViewAsync.
+    private readonly SemaphoreSlim _switchGate = new(1, 1);
+    private int _latestSwitch;
+
+    /// <summary>
+    /// Deactivates the current view and opens a new one in its place, unless it is already open.
+    /// </summary>
+    /// <remarks>
+    /// Switches wait for each other. A view's ActivateAsync can spend seconds off the UI thread
+    /// (the parting view works out the body on opening), and the tabs stay clickable meanwhile; a
+    /// second switch that deactivated it then tore down the state its activation was about to
+    /// resume into, which threw (#89). Waiting here means no view ever has to cope with being
+    /// deactivated half-open. Clicks made while waiting are not replayed in turn: only the most
+    /// recent one is carried out, since that is where the user wants to end up.
+    /// </remarks>
+    private async Task SwitchViewAsync<TView>(string title, Func<TView> create) where TView : IViewState
     {
-        if (CurrentView is MeshManagerViewModel) return;
-
-        IsLoading = true;
-
-        if (CurrentView is not null)
+        var request = ++_latestSwitch;
+        await _switchGate.WaitAsync();
+        try
         {
-            WorkspaceUpdated(await CurrentView.DeactivateAsync());
+            if (request != _latestSwitch) return;
+            if (CurrentView is TView) return;
+
+            IsLoading = true;
+            try
+            {
+                if (CurrentView is not null)
+                {
+                    WorkspaceUpdated(await CurrentView.DeactivateAsync());
+                }
+
+                CurrentViewTitle = title;
+
+                var newView = create();
+                SceneManager = newView.SceneManager;
+                CurrentView = newView;
+                await CurrentView.ActivateAsync(Workspace);
+            }
+            finally
+            {
+                IsLoading = false;
+            }
         }
-
-        CurrentViewTitle = "meshes";
-
-        var newView = new MeshManagerViewModel(_messenger, _dialogueSystem, _alertDialog, _engine);
-        SceneManager = newView.SceneManager;
-        CurrentView = newView;
-        await CurrentView.ActivateAsync(Workspace);
-
-        IsLoading = false;
+        finally
+        {
+            _switchGate.Release();
+        }
     }
 
     [RelayCommand]
-    public async Task SwitchToSmoothingViewAsync()
-    {
-        if (CurrentView is SmoothingViewModel) return;
-
-        IsLoading = true;
-
-        if (CurrentView is not null)
-        {
-            WorkspaceUpdated(await CurrentView.DeactivateAsync());
-        }
-
-        CurrentViewTitle = "smooth";
-
-        var newView = new SmoothingViewModel(_messenger, _alertDialog, _engine);
-        SceneManager = newView.SceneManager;
-        CurrentView = newView;
-        await CurrentView.ActivateAsync(Workspace);
-
-        IsLoading = false;
-    }
+    public Task SwitchToMeshManagerViewAsync() =>
+        SwitchViewAsync("meshes", () => new MeshManagerViewModel(_messenger, _dialogueSystem, _alertDialog, _engine));
 
     [RelayCommand]
-    public async Task SwitchToRotateViewAsync()
-    {
-        if (CurrentView is RotateViewModel) return;
-
-        IsLoading = true;
-
-        if (CurrentView is not null)
-        {
-            WorkspaceUpdated(await CurrentView.DeactivateAsync());
-        }
-
-        CurrentViewTitle = "rotate";
-
-        var newView = new RotateViewModel(_messenger, _alertDialog, _engine);
-        SceneManager = newView.SceneManager;
-        CurrentView = newView;
-        await CurrentView.ActivateAsync(Workspace);
-
-        IsLoading = false;
-    }
+    public Task SwitchToSmoothingViewAsync() =>
+        SwitchViewAsync("smooth", () => new SmoothingViewModel(_messenger, _alertDialog, _engine));
 
     [RelayCommand]
-    public async Task SwitchToDecalViewAsync()
-    {
-        if (CurrentView is DecalViewModel) return;
-
-        IsLoading = true;
-
-        if (CurrentView is not null)
-        {
-            WorkspaceUpdated(await CurrentView.DeactivateAsync());
-        }
-
-        CurrentViewTitle = "decals";
-
-        var newView = new DecalViewModel(_messenger, _alertDialog, _engine, _glyphOutlineSource);
-        SceneManager = newView.SceneManager;
-        CurrentView = newView;
-        await CurrentView.ActivateAsync(Workspace);
-
-        IsLoading = false;
-    }
+    public Task SwitchToRotateViewAsync() =>
+        SwitchViewAsync("rotate", () => new RotateViewModel(_messenger, _alertDialog, _engine));
 
     [RelayCommand]
-    public async Task SwitchToMouldViewAsync()
-    {
-        if (CurrentView is MouldViewModel) return;
-
-        IsLoading = true;
-
-        if (CurrentView is not null)
-        {
-            WorkspaceUpdated(await CurrentView.DeactivateAsync());
-        }
-
-        CurrentViewTitle = "mould";
-
-        var newView = new MouldViewModel(_messenger, _alertDialog, _engine);
-        SceneManager = newView.SceneManager;
-        CurrentView = newView;
-        await CurrentView.ActivateAsync(Workspace);
-
-        IsLoading = false;
-    }
+    public Task SwitchToDecalViewAsync() =>
+        SwitchViewAsync("decals", () => new DecalViewModel(_messenger, _alertDialog, _engine, _glyphOutlineSource));
 
     [RelayCommand]
-    public async Task SwitchToExportViewAsync()
-    {
-        if (CurrentView is ExportViewModel) return;
-
-        IsLoading = true;
-
-        if (CurrentView is not null)
-        {
-            WorkspaceUpdated(await CurrentView.DeactivateAsync());
-        }
-
-        CurrentViewTitle = "export";
-
-        var newView = new ExportViewModel(_messenger, _alertDialog, _engine, _dialogueSystem);
-        SceneManager = newView.SceneManager;
-        CurrentView = newView;
-        await CurrentView.ActivateAsync(Workspace);
-
-        IsLoading = false;
-    }
+    public Task SwitchToMouldViewAsync() =>
+        SwitchViewAsync("mould", () => new MouldViewModel(_messenger, _alertDialog, _engine));
 
     [RelayCommand]
-    public async Task ShowCutSplitAsync()
-    {
-        if (CurrentView is CutSplitViewModel)
-            return;
+    public Task SwitchToExportViewAsync() =>
+        SwitchViewAsync("export", () => new ExportViewModel(_messenger, _alertDialog, _engine, _dialogueSystem));
 
-        IsLoading = true;
-
-        if (CurrentView is not null)
-        {
-            WorkspaceUpdated(await CurrentView.DeactivateAsync());
-        }
-
-        CurrentViewTitle = "cut / split";
-
-        var newView = new CutSplitViewModel(_messenger, _alertDialog, _engine, _dialogueSystem);
-        SceneManager = newView.SceneManager;
-        CurrentView = newView;
-        await CurrentView.ActivateAsync(Workspace);
-
-        IsLoading = false;
-    }
+    [RelayCommand]
+    public Task ShowCutSplitAsync() =>
+        SwitchViewAsync("cut / split", () => new CutSplitViewModel(_messenger, _alertDialog, _engine, _dialogueSystem));
 
     // Switching CurrentView always deactivates whatever was active first (see above), so this
     // and ShowCutSplitAsync are naturally mutually exclusive - only one can ever be CurrentView.
@@ -455,23 +378,6 @@ public partial class MainViewModel : ObservableObject
     public async Task ShowPartingSplitAsync()
     {
         if (!ShowSplitView) return;
-        if (CurrentView is PartingSplitViewModel)
-            return;
-
-        IsLoading = true;
-
-        if (CurrentView is not null)
-        {
-            WorkspaceUpdated(await CurrentView.DeactivateAsync());
-        }
-
-        CurrentViewTitle = "parting split";
-
-        var newView = new PartingSplitViewModel(_messenger, _alertDialog, _engine);
-        SceneManager = newView.SceneManager;
-        CurrentView = newView;
-        await CurrentView.ActivateAsync(Workspace);
-
-        IsLoading = false;
+        await SwitchViewAsync("parting split", () => new PartingSplitViewModel(_messenger, _alertDialog, _engine));
     }
 }

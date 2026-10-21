@@ -17,6 +17,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Clicking another tab while a view is still opening no longer crashes the app (#89). The
+  parting split view takes a few seconds to open on some meshes, such as flat_vulva, and
+  leaving it during that time threw. A view switch now waits for the one before it to finish,
+  then goes to the last tab clicked.
 - Uninstalling now removes the preferences and crash reports in `%LOCALAPPDATA%\Fabolus`, not
   just the program files. The build docs give the current preferences location.
 - The mesh manager's "Orphaned Vertices" check now reports vertices no triangle uses, with
