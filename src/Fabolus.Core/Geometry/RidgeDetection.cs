@@ -1164,13 +1164,274 @@ public static class RidgeDetection
 
         CompleteBand(surface, ridgeEdges, options, ridgeFaces, region, area, regionCount);
 
+        int separated = SeparateRims(surface, ridgeEdges, ridgeFaces, region, area, regionCount);
+
         var territories = Classify(surface, ridgeEdges, region, area, regionCount);
 
         if (diag is not null)
             ReportFill(surface, options, diag, region, area, perimeter, fill, regionCount, territories,
-                closed, bandWidth, holeLimit, holes!);
+                closed, bandWidth, holeLimit, holes!, separated);
         return territories;
     }
+
+    /// <summary>
+    /// Gives back to a shell surface the band that lies across it, where a body with a hole through it
+    /// has come back with its rims joined into one.
+    ///
+    /// <para>
+    /// A body with g holes through it has g + 1 rims, each its own wall, and between them each shell
+    /// surface is a sheet with g + 1 edges - for a ring, an annulus. Where the ring narrows to little
+    /// more than its wall, the creases on a shell surface there can close off a stretch of it small and
+    /// narrow enough to pass the fill's tests, running from one rim's wall to the other's. The walls
+    /// then join into one band group, the rims come back as one, and the surface it was cut from is a
+    /// disc with one edge instead of an annulus with two.
+    /// </para>
+    ///
+    /// <para>
+    /// What gives such a piece away is how it meets the surface it was cut from: along two separate
+    /// stretches, one at each end, where a wall meets a surface along one. It is often two regions
+    /// rather than one - a crease across it splits it - so adjacent pairs are tried as well as single
+    /// regions. Meeting a surface twice is not enough on its own, though: a wall that curls round a
+    /// pocket of band meets the surface twice too. So a piece is given back only when that parts the
+    /// rims, or - where both surfaces are crossed and neither crossing parts them on its own - when the
+    /// surface is still a disc and every other band region still reaches both surfaces afterwards, which
+    /// is what says the loop it closes runs round the hole and not round a piece of wall.
+    /// </para>
+    ///
+    /// <para>
+    /// Only tried where the topology says a rim is missing - a closed body with a hole through it and
+    /// fewer than g + 1 band groups spanning the two surfaces - and kept only if more rims come apart
+    /// than were apart before; otherwise every move is put back. A shell, or a ring whose rims already
+    /// came back separate, is never touched. "More than before" rather than "all g + 1" because the
+    /// smoothing can leave a stray tunnel a few triangles across, which counts towards the genus but has
+    /// no rim of its own: larynx_small comes back genus 2 about half the times it is opened.
+    /// </para>
+    /// </summary>
+    /// <returns>How many regions were given back to a surface.</returns>
+    private static int SeparateRims(
+        Surface surface, HashSet<(int, int)> ridgeEdges, bool[] filled, int[] region, double[] area,
+        int regionCount)
+    {
+        if (regionCount < 3 || surface.Edges.Count != surface.Folds.Count) return 0;
+
+        int genus = (2 - (surface.Positions.Length - surface.Edges.Count + surface.FaceCount)) / 2;
+        if (genus < 1) return 0;
+
+        var territories = Classify(surface, ridgeEdges, region, area, regionCount);
+        int groupsBefore = SpanningGroups(territories);
+        if (groupsBefore >= genus + 1) return 0;
+
+        var members = new List<int>[regionCount];
+        for (int r = 0; r < regionCount; r++) members[r] = new List<int>();
+        for (int f = 0; f < surface.FaceCount; f++) members[region[f]].Add(f);
+
+        var regionBefore = (int[])region.Clone();
+        var areaBefore = (double[])area.Clone();
+        var filledBefore = (bool[])filled.Clone();
+        var edgesBefore = new HashSet<(int, int)>(ridgeEdges);
+
+        int moved = 0;
+        while (true)
+        {
+            int groups = SpanningGroups(territories);
+            if (groups >= genus + 1) break;
+
+            var crossings = new List<Crossing>();
+            foreach (int skin in new[] { territories.First, territories.Second })
+                crossings.AddRange(Crossings(surface, ridgeEdges, region, area, regionCount, members, territories, skin));
+
+            // One that parts the rims outright first, however much band it strands. Failing that, one
+            // across a surface that is still a disc and strands nothing, since a ring crossed on both
+            // surfaces parts only once both crossings are gone.
+            var pick = crossings
+                .Where(c => c.Groups > groups)
+                .OrderByDescending(c => c.Groups).ThenBy(c => c.Stranded.Count).ThenByDescending(c => c.Area)
+                .FirstOrDefault()
+                ?? crossings
+                .Where(c => c.Stranded.Count == 0 && EulerCharacteristic(surface, members[c.Skin]) > 0)
+                .OrderByDescending(c => c.Area)
+                .FirstOrDefault();
+            if (pick is null) break;
+
+            Give(pick.Regions, pick.Skin);
+
+            // Band the crossing strands is band no longer: it reaches one surface at most, so it is part
+            // of whichever one it now sits on.
+            foreach (int r in pick.Stranded)
+            {
+                int other = pick.Skin == territories.First ? territories.Second : territories.First;
+                Give(new[] { r }, ContactStretches(surface, region, members[r], pick.Skin) > 0 ? pick.Skin : other);
+            }
+
+            territories = Classify(surface, ridgeEdges, region, area, regionCount);
+        }
+
+        if (SpanningGroups(territories) > groupsBefore) return moved;
+
+        // The rims did not come apart, so whatever was moved was not what joined them.
+        Array.Copy(regionBefore, region, region.Length);
+        Array.Copy(areaBefore, area, area.Length);
+        Array.Copy(filledBefore, filled, filled.Length);
+        ridgeEdges.Clear();
+        foreach (var edge in edgesBefore) ridgeEdges.Add(edge);
+        return 0;
+
+        void Give(IEnumerable<int> regions, int skin)
+        {
+            var given = regions.ToList();
+            foreach (int r in given)
+            {
+                foreach (int f in members[r])
+                {
+                    region[f] = skin;
+                    filled[f] = false;
+                }
+                area[skin] += area[r];
+                area[r] = 0.0;
+                moved++;
+            }
+
+            // The piece's edge against the band becomes the surface's edge, and has to be ridge to be
+            // drawn. Region boundaries usually are, but the hole closing and the band repair move faces
+            // between regions without laying ridge along every new boundary, and a gap there would leave
+            // the contour round this rim open.
+            foreach (int r in given)
+            {
+                foreach (int f in members[r])
+                    for (int e = 0; e < 3; e++)
+                    {
+                        var edge = surface.FaceEdge(f, e);
+                        var (left, right) = surface.Edges[edge];
+                        int across = left == f ? right : left;
+                        if (across >= 0 && region[across] != skin) ridgeEdges.Add(edge);
+                    }
+
+                members[skin].AddRange(members[r]);
+                members[r].Clear();
+            }
+        }
+    }
+
+    /// <summary>
+    /// A piece of band that lies across a shell surface: the regions in it, the surface, how many rims
+    /// would be apart once it was given back, and the band regions that would then reach only one
+    /// surface.
+    /// </summary>
+    private sealed record Crossing(int Skin, IReadOnlyList<int> Regions, double Area, int Groups, IReadOnlyList<int> Stranded);
+
+    /// <summary>
+    /// The band regions, and adjacent pairs of them, that meet <paramref name="skin"/> along two separate
+    /// stretches, each with what giving it back would do to the rims.
+    /// </summary>
+    private static List<Crossing> Crossings(
+        Surface surface, HashSet<(int, int)> ridgeEdges, int[] region, double[] area, int regionCount,
+        List<int>[] members, Territories territories, int skin)
+    {
+        var band = Enumerable.Range(0, regionCount).Where(r => territories.IsBand[r] && members[r].Count > 0).ToList();
+
+        var stretches = new Dictionary<int, int>();
+        foreach (int r in band) stretches[r] = ContactStretches(surface, region, members[r], skin);
+
+        var candidates = new List<List<int>>();
+        foreach (int r in band)
+            if (stretches[r] > 1) candidates.Add(new List<int> { r });
+
+        // Pairs: two regions each meeting the surface once, side by side, meeting it twice between them.
+        var pairs = new HashSet<(int, int)>();
+        foreach (var edge in ridgeEdges)
+        {
+            var (left, right) = surface.Edges[edge];
+            if (right < 0) continue;
+
+            int a = region[left], b = region[right];
+            if (a == b || !stretches.TryGetValue(a, out int sa) || !stretches.TryGetValue(b, out int sb)) continue;
+            if (sa != 1 || sb != 1) continue;
+            if (!pairs.Add(a < b ? (a, b) : (b, a))) continue;
+
+            var faces = new List<int>(members[a].Count + members[b].Count);
+            faces.AddRange(members[a]);
+            faces.AddRange(members[b]);
+            if (ContactStretches(surface, region, faces, skin) > 1) candidates.Add(new List<int> { a, b });
+        }
+
+        var crossings = new List<Crossing>(candidates.Count);
+        foreach (var candidate in candidates)
+        {
+            // Tried in place and put back, since judging it needs the fill as it would then stand.
+            var saved = candidate.Select(r => (Region: r, Area: area[r])).ToList();
+            foreach (int r in candidate)
+                foreach (int f in members[r]) region[f] = skin;
+            foreach (var (r, a) in saved)
+            {
+                area[skin] += a;
+                area[r] = 0.0;
+            }
+
+            var after = Classify(surface, ridgeEdges, region, area, regionCount);
+            crossings.Add(new Crossing(
+                skin, candidate, saved.Sum(s => s.Area), SpanningGroups(after),
+                band.Where(r => !candidate.Contains(r) && !after.IsBand[r]).ToList()));
+
+            foreach (var (r, a) in saved)
+            {
+                foreach (int f in members[r]) region[f] = r;
+                area[r] = a;
+                area[skin] -= a;
+            }
+        }
+
+        return crossings;
+    }
+
+    /// <summary>V - E + F over a set of faces: 1 for a disc, 0 for an annulus.</summary>
+    private static int EulerCharacteristic(Surface surface, List<int> faces)
+    {
+        var vertices = new HashSet<int>();
+        var edges = new HashSet<(int, int)>();
+        foreach (int f in faces)
+            for (int c = 0; c < 3; c++)
+            {
+                vertices.Add(surface.Triangles[(f * 3) + c]);
+                edges.Add(surface.FaceEdge(f, c));
+            }
+
+        return vertices.Count - edges.Count + faces.Count;
+    }
+
+    /// <summary>
+    /// How many separate stretches these faces meet region <paramref name="skin"/> along, edge to edge:
+    /// the Euler characteristic of where the two meet, which for a set of runs is the number of runs.
+    /// A run that closes on itself counts nothing, rightly - a region ringed by the surface is a pocket
+    /// in it, not a strip across it. Contact at a lone vertex is left out: creases meet at points all
+    /// over a rim, and a corner touching a surface encloses nothing.
+    /// </summary>
+    private static int ContactStretches(Surface surface, int[] region, List<int> faces, int skin)
+    {
+        var edges = new HashSet<(int, int)>();
+        var sharedVertices = new HashSet<int>();
+        int sharedEdges = 0;
+
+        foreach (int f in faces)
+            for (int c = 0; c < 3; c++)
+            {
+                var edge = surface.FaceEdge(f, c);
+                if (!edges.Add(edge)) continue;
+
+                var (left, right) = surface.Edges[edge];
+                int across = left == f ? right : left;
+                if (across < 0 || region[across] != skin) continue;
+
+                sharedEdges++;
+                sharedVertices.Add(edge.Item1);
+                sharedVertices.Add(edge.Item2);
+            }
+
+        return sharedVertices.Count - sharedEdges;
+    }
+
+    /// <summary>How many band groups reach from one shell surface to the other - one per rim.</summary>
+    private static int SpanningGroups(Territories territories) =>
+        territories.BandGroup.Where(g => g >= 0).Distinct().Count();
 
     /// <summary>
     /// Gives the band back the wall it lost where one of its boundaries rode up over surface that is
@@ -1951,7 +2212,7 @@ public static class RidgeDetection
         Surface surface, RidgeDetectionOptions options, RidgeDiagnostics diag,
         int[] region, double[] area, double[] perimeter, bool[] fill, int regionCount,
         Territories territories, int closedHoles, double bandWidth, double holeLimit,
-        List<RidgeHoleReport> holes)
+        List<RidgeHoleReport> holes, int separated)
     {
         int faceCount = surface.FaceCount;
 
@@ -1987,7 +2248,10 @@ public static class RidgeDetection
             // touch, and a walk cannot then tell one rim from the other.
             territories.BandGroup.Where(g => g >= 0).Distinct().Count(),
             closedHoles, bandWidth, holeLimit,
-            holes.OrderByDescending(h => h.Area).Take(20).ToList()));
+            holes.OrderByDescending(h => h.Area).Take(20).ToList())
+        {
+            SeparatedRegions = separated,
+        });
     }
 
     // ---------------------------------------------------------------- pass 5: contour

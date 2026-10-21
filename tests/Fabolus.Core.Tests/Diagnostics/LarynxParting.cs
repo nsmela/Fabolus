@@ -23,10 +23,11 @@ namespace Fabolus.Core.Tests.Diagnostics;
 /// larynx_large finds both rims, but its outer line climbs 85mm along the axis and, seen along it,
 /// crosses itself and does not wind about its own centre - so no loft out to the mould's outline can
 /// avoid folding through the body (<see cref="LoftAnatomy"/>), and no sweep or axis in
-/// <see cref="RecipeSweep"/> severs it. larynx_small is 59% rim band: below the hole the ring narrows
-/// to little more than a wall, the band runs across the skin there, and the outer and hole rims come
-/// back as one rim whose two contours each run half round the outside and half round the hole
-/// (<see cref="Strategy"/>, <see cref="DrawContours"/>).
+/// <see cref="RecipeSweep"/> severs it. larynx_small used to be 59% rim band: below the hole the ring
+/// narrows to little more than a wall, the fill took a stretch of each skin there as band, and the outer
+/// and hole rims came back as one rim whose two contours each ran half round the outside and half round
+/// the hole. The ridge fill now gives such pieces back to the skin (<see cref="Regions"/>,
+/// <see cref="RimsOverOpenings"/>), so it has two wall rims and two parting loops like larynx_large.
 /// </para>
 /// </summary>
 [Collection("GeometryEngine collection")]
@@ -250,6 +251,154 @@ public class LarynxParting
         ContactSheet.Save(path, tiles, 4, size, options.Background, $"{name}: ridge contours and parting line",
             Enumerable.Range(0, contours.Count).Select(i => ($"contour {i} (rim {contours[i].Rim})", MeshRasterizer.ContourColour(i)))
                 .Append(("parting line", lineColour)).ToList());
+        _out.WriteLine(path);
+    }
+
+    /// <summary>
+    /// The body comes back slightly different every time the mould is opened (the engine's level set is
+    /// not deterministic), so the rims are judged over several openings rather than one.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf", 16)]
+    [InlineData("3mf/larynx_large.3mf", 3)]
+    public void RimsOverOpenings(string file, int openings)
+    {
+        int good = 0;
+        for (int run = 0; run < openings; run++)
+        {
+            var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value;
+            var body = _sut.GetBodyMesh(mould).Value;
+            var topology = RidgeDetection.MeasureTopology(body.Mesh);
+            var contours = RidgeDetection.FindRidgeContours(body.Mesh, RidgeDetectionOptions.Default);
+            var closed = contours.Where(c => c.IsClosed).ToList();
+            var rims = PartingStrategy.Rims(closed, WallThickness.Measure(_engine, body.Mesh, WallThicknessOptions.Default).Value.Statistics.Median);
+            var line = _sut.GeneratePartingLineFromThickness(body);
+            int walls = rims.Count(r => r.Kind == PartingRimKind.Wall);
+            if (walls == 2 && line.IsSuccess && line.Value.Loops.Count == 2) good++;
+            _out.WriteLine($"  {run}: {body.Mesh.VertexCount}v genus {topology.Genus}; contours {contours.Count} ({closed.Count} closed); " +
+                           $"rims {string.Join(" ", rims.Select(r => $"{r.Kind}[{string.Join(",", r.ContourIndices)}]"))}; " +
+                           $"line {(line.IsSuccess ? string.Join("+", line.Value.Loops.Select(l => l.Count)) : line.Error.Description)}");
+        }
+        _out.WriteLine($"{file}: {good}/{openings} with two wall rims and a two-loop line");
+    }
+
+    /// <summary>
+    /// What the ridge fill cut the body into: the two skins with their Euler characteristic (1 for a
+    /// disc, 0 for the annulus each skin of a ring should be), and the band groups - one per rim. Images
+    /// of the regions, coloured by which skins each meets, are written under <c>FABOLUS_TILT_IMAGES</c>.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    public void Regions(string file)
+    {
+        var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value;
+        var body = _sut.GetBodyMesh(mould).Value;
+        var diagnosis = RidgeDetection.Diagnose(body.Mesh, RidgeDetectionOptions.Default);
+        var t = diagnosis.Territories;
+        var mesh = body.Mesh;
+        int faces = mesh.TriangleCount;
+
+        var area = new Dictionary<int, double>();
+        var count = new Dictionary<int, int>();
+        for (int f = 0; f < faces; f++)
+        {
+            var a = mesh.Vertices[mesh.Triangles[f * 3]];
+            var b = mesh.Vertices[mesh.Triangles[(f * 3) + 1]];
+            var c = mesh.Vertices[mesh.Triangles[(f * 3) + 2]];
+            int r = t.FaceRegion[f];
+            area[r] = area.GetValueOrDefault(r) + ((b - a).Cross(c - a).Length * 0.5);
+            count[r] = count.GetValueOrDefault(r) + 1;
+        }
+
+        _out.WriteLine($"{file}: {faces} faces, {area.Count} regions; surface A = {t.First} ({count[t.First]} faces, {area[t.First]:F0}mm²), " +
+                       $"surface B = {t.Second} ({count[t.Second]} faces, {area[t.Second]:F0}mm²)");
+        foreach (var g in Enumerable.Range(0, t.RegionIsBand.Length).Where(r => t.RegionIsBand[r]).GroupBy(r => t.RegionBandGroup[r]))
+            _out.WriteLine($"  band group {g.Key}: {g.Count()} regions, {g.Sum(r => count.GetValueOrDefault(r))} faces, {g.Sum(r => area.GetValueOrDefault(r)):F0}mm²; " +
+                           $"largest {string.Join(" ", g.OrderByDescending(r => area.GetValueOrDefault(r)).Take(6).Select(r => $"{r}:{count.GetValueOrDefault(r)}f/{area.GetValueOrDefault(r):F0}"))}");
+        var loose = Enumerable.Range(0, t.RegionIsBand.Length).Where(r => !t.RegionIsBand[r] && r != t.First && r != t.Second).ToList();
+        _out.WriteLine($"  loose regions {loose.Count}, {loose.Sum(r => count.GetValueOrDefault(r))} faces, {loose.Sum(r => area.GetValueOrDefault(r)):F0}mm²");
+
+        // Which skins each region meets across an edge, and the skins' own Euler characteristic.
+        var edgeFaces = new Dictionary<(int, int), List<int>>();
+        for (int f = 0; f < faces; f++)
+            for (int c = 0; c < 3; c++)
+            {
+                int a = mesh.Triangles[(f * 3) + c], b = mesh.Triangles[(f * 3) + ((c + 1) % 3)];
+                var key = a < b ? (a, b) : (b, a);
+                if (!edgeFaces.TryGetValue(key, out var list)) edgeFaces[key] = list = new List<int>(2);
+                list.Add(f);
+            }
+        var meetsA = new HashSet<int>();
+        var meetsB = new HashSet<int>();
+        foreach (var pair in edgeFaces.Values.Where(l => l.Count == 2))
+        {
+            int r0 = t.FaceRegion[pair[0]], r1 = t.FaceRegion[pair[1]];
+            if (r0 == t.First) meetsA.Add(r1); if (r1 == t.First) meetsA.Add(r0);
+            if (r0 == t.Second) meetsB.Add(r1); if (r1 == t.Second) meetsB.Add(r0);
+        }
+        foreach (var (label, set) in new[] { ("A", (Func<int, bool>)(r => r == t.First)), ("B", r => r == t.Second),
+                                            ("band", r => r >= 0 && r < t.RegionIsBand.Length && t.RegionIsBand[r]) })
+        {
+            var fs = Enumerable.Range(0, faces).Where(f => set(t.FaceRegion[f])).ToList();
+            var vs = fs.SelectMany(f => new[] { mesh.Triangles[f * 3], mesh.Triangles[(f * 3) + 1], mesh.Triangles[(f * 3) + 2] }).Distinct().Count();
+            var es = edgeFaces.Count(kv => kv.Value.Any(f => set(t.FaceRegion[f])));
+            _out.WriteLine($"  {label}: {fs.Count} faces, chi {vs - es + fs.Count}");
+        }
+        _out.WriteLine($"  mesh chi {mesh.Vertices.Length - edgeFaces.Count + faces} ({mesh.Vertices.Length}v)");
+
+        var directory = Environment.GetEnvironmentVariable("FABOLUS_TILT_IMAGES");
+        if (string.IsNullOrWhiteSpace(directory)) return;
+
+        const int size = 420;
+        var options = RenderOptions.Default;
+
+        int biggest = Enumerable.Range(0, t.RegionIsBand.Length).Where(r => t.RegionIsBand[r]).OrderByDescending(r => area.GetValueOrDefault(r)).First();
+        Rgb Shade(int f)
+        {
+            int r = t.FaceRegion[f];
+            if (r == t.First) return new Rgb(215, 215, 220);
+            if (r == t.Second) return new Rgb(110, 110, 120);
+            if (r == biggest) return new Rgb(255, 150, 30);
+            if (!t.RegionIsBand[r]) return new Rgb(40, 40, 40);
+            bool a = meetsA.Contains(r), b = meetsB.Contains(r);
+            return a && b ? new Rgb(200, 60, 220) : a ? new Rgb(230, 60, 60) : b ? new Rgb(60, 90, 240) : new Rgb(60, 170, 90);
+        }
+
+        var tiles = new List<Tile>();
+        foreach (var view in Views.Standard)
+        {
+            var camera = Camera.Fit(mesh, view, size, size);
+            var raster = MeshRasterizer.Render(mesh, camera, size, size, options, Shade);
+            for (int i = 0; i < diagnosis.Contours.Count; i++)
+                MeshRasterizer.DrawPolyline(raster, camera, diagnosis.Contours[i].Points, diagnosis.Contours[i].IsClosed, new Rgb(255, 255, 255), options);
+            tiles.Add(new Tile(view.Name, raster));
+        }
+
+        Rgb Distinct(int f)
+        {
+            int r = t.FaceRegion[f];
+            if (r == t.First) return new Rgb(215, 215, 220);
+            if (r == t.Second) return new Rgb(110, 110, 120);
+            uint h = (uint)r * 2654435761u;
+            return new Rgb((byte)(80 + (h % 160)), (byte)(80 + ((h >> 8) % 160)), (byte)(80 + ((h >> 16) % 160)));
+        }
+        var big = new List<Tile>();
+        foreach (var view in new[] { Views.Right, Views.Left, Views.Top, Views.Bottom, Views.OrbitA, Views.Front })
+        {
+            var camera = Camera.Fit(mesh, view, 800, 800);
+            var raster = MeshRasterizer.Render(mesh, camera, 800, 800, options, Distinct);
+            for (int i = 0; i < diagnosis.Contours.Count; i++)
+                MeshRasterizer.DrawPolyline(raster, camera, diagnosis.Contours[i].Points, diagnosis.Contours[i].IsClosed, MeshRasterizer.ContourColour(i), options);
+            big.Add(new Tile(view.Name, raster));
+        }
+        ContactSheet.Save(Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(file)}-regions-big.png"), big, 3, 800, options.Background,
+            "regions, distinct colour each; A light, B dark", new List<(string, Rgb)>());
+
+        var name = Path.GetFileNameWithoutExtension(file);
+        var path = Path.Combine(directory, $"{name}-regions.png");
+        ContactSheet.Save(path, tiles, 4, size, options.Background, $"{name}: light A, dark B; band meeting A red, B blue, both purple, neither green; largest band region orange",
+            new List<(string, Rgb)>());
         _out.WriteLine(path);
     }
 

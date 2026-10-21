@@ -41,6 +41,32 @@ public class BodyRecoveryTests
         Rims(second.Mesh).Should().Equal(Rims(first.Mesh));
     }
 
+    /// <summary>
+    /// larynx_small is a ring: an outer rim and a rim round the hole. Below the hole it narrows to
+    /// little more than its wall, and the fill used to take a stretch of each skin there as band, which
+    /// joined the two walls into one rim whose contours each ran half round the outside and half round
+    /// the hole. Each skin should be an annulus, so there are two wall rims and two parting loops.
+    /// </summary>
+    [Fact]
+    public void Ring_NarrowBelowTheHole_HasTwoWallRimsAndTwoPartingLoops()
+    {
+        var feature = new PartingMeshFeature(_engine);
+        var opened = SavedMoulds.Open(_engine, _assets.GetAssetPath("3mf/larynx_small.3mf"));
+        opened.IsSuccess.Should().BeTrue();
+        var body = feature.GetBodyMesh(SavedMoulds.Mould(opened.Value).Value).Value;
+
+        var closed = RidgeDetection.FindRidgeContours(body.Mesh, RidgeDetectionOptions.Default)
+            .Where(c => c.IsClosed).ToList();
+        var rims = PartingStrategy.Rims(closed, WallThickness.Measure(_engine, body.Mesh).Value.Median);
+
+        rims.Should().HaveCount(2).And.OnlyContain(r => r.Kind == PartingRimKind.Wall,
+            "the outer rim and the hole's rim are separate walls, each bounded by two contours");
+
+        var line = feature.GeneratePartingLineFromThickness(body);
+        line.IsSuccess.Should().BeTrue();
+        line.Value.Loops.Should().HaveCount(2, "one parting loop per rim");
+    }
+
     private IReadOnlyList<string> Rims(IMesh body)
     {
         var thickness = WallThickness.Measure(_engine, body).Value;

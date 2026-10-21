@@ -121,7 +121,8 @@ internal static class RidgeReportWriter
                         $"{N(f.FilledAreaFraction * 100.0, 2)}% of area)");
         text.AppendLine($"- limits: area < {N(f.MaxAreaFraction * 100.0, 1)}%, mean width < {N(f.MaxWidthFraction, 3)} × diagonal");
         text.AppendLine($"- **band groups: {f.BandGroups}** (one per rim; fewer means two rims' walls touch and " +
-                        "a walk cannot tell them apart)");
+                        "a walk cannot tell them apart)" +
+                        (f.SeparatedRegions > 0 ? $"; {f.SeparatedRegions} region(s) lying across a skin given back to it" : ""));
         text.AppendLine($"- **pockets closed: {f.ClosedHoles}** of {f.Holes.Count} found; band width " +
                         $"{N(f.BandWidth, 2)} mm, so a pocket is closed below {N(f.MaxHoleWidth, 2)} mm wide");
         if (f.Holes.Count > 0)
