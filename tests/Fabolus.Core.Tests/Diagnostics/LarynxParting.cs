@@ -23,8 +23,10 @@ namespace Fabolus.Core.Tests.Diagnostics;
 /// The split: both bodies have a hole through them (genus 1) and need two parting lines.
 /// larynx_large finds both rims, but its outer line climbs 85mm along the axis and, seen along it,
 /// crosses itself and does not wind about its own centre - so no loft out to the mould's outline can
-/// avoid folding through the body (<see cref="LoftAnatomy"/>), and no sweep or axis in
-/// <see cref="RecipeSweep"/> severs it. larynx_small used to be 59% rim band: below the hole the ring
+/// avoid folding through the body (<see cref="LoftAnatomy"/>), and none of the sweeps built outward
+/// against an axis severs it, along either axis (<see cref="RecipeSweep"/>).
+/// <see cref="PartingMeshSweep.SkinBisector"/>, which uses no axis, does
+/// (<see cref="SkinBisectorSweep"/>). larynx_small used to be 59% rim band: below the hole the ring
 /// narrows to little more than a wall, the fill took a stretch of each skin there as band, and the outer
 /// and hole rims came back as one rim whose two contours each ran half round the outside and half round
 /// the hole. The ridge fill now gives such pieces back to the skin (<see cref="Regions"/>,
