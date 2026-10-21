@@ -9,7 +9,7 @@ using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.CutSplit;
 using Fabolus.Wpf.Features.Main;
 using Fabolus.Wpf.Features.MeshManager;
-using Fabolus.Wpf.Features.Moulding;
+using Fabolus.Wpf.Features.PartingSplit;
 using Fabolus.Wpf.Features.Smoothing;
 using Fabolus.Wpf.Features.Viewport;
 using Moq;
@@ -163,11 +163,11 @@ public class MainViewModelTests
     /// Leaving a view while it is still opening (#89). The parting view spends seconds off the UI
     /// thread working out the body before it builds its scene, and the tabs stay clickable all that
     /// time. A switch that deactivated it then cleared the meshes that work resumed into, which
-    /// threw - and closed the app before the crash handler existed. The second switch has to wait
-    /// for the first to finish, and still land where the user asked to go.
+    /// threw - and closed the app before the crash handler existed. The tab bar is disabled while a
+    /// switch runs, and a switch asked for anyway (from code) is dropped rather than let through.
     /// </summary>
     [Fact]
-    public void SwitchingAwayWhileAViewIsStillOpening_LandsOnTheNewViewWithoutThrowing() => UiThread.Run(async () =>
+    public void SwitchingAwayWhileAViewIsStillOpening_IsDroppedAndDoesNotThrow() => UiThread.Run(async () =>
     {
         var engine = global::GeometryEngine.BspGeometryEngine.Create();
         var messenger = new StrongReferenceMessenger();
@@ -188,13 +188,16 @@ public class MainViewModelTests
         // Not awaited: the second click arrives while the first view is still opening.
         var opening = viewModel.ShowPartingSplitCommand.ExecuteAsync(null);
         Assert.False(opening.IsCompleted, "the parting view opened synchronously, so nothing is racing");
+        Assert.False(viewModel.CanSwitchViews, "the tab bar stays enabled while a view is opening");
+
         var leaving = viewModel.SwitchToMouldViewCommand.ExecuteAsync(null);
+        Assert.True(leaving.IsCompleted, "a switch during a switch should be dropped, not queued");
 
         await opening;
-        await leaving;
 
-        Assert.IsType<MouldViewModel>(viewModel.CurrentView);
-        Assert.False(viewModel.IsLoading, "the switches finished but left the loading overlay up");
+        Assert.IsType<PartingSplitViewModel>(viewModel.CurrentView);
+        Assert.True(viewModel.CanSwitchViews, "the switch finished but left the tab bar disabled");
+        Assert.False(viewModel.IsLoading, "the switch finished but left the loading overlay up");
     });
 
     /// <summary>A workspace whose active mesh is a convex mould generated on the named scan.</summary>

@@ -294,53 +294,49 @@ public partial class MainViewModel : ObservableObject
     partial void OnCurrentViewChanged(IViewState value) =>
         _messenger.Send(new UpdateMeshInfoMessage([]));
 
-    // One view switch at a time - see SwitchViewAsync.
-    private readonly SemaphoreSlim _switchGate = new(1, 1);
-    private int _latestSwitch;
+    // True while SwitchViewAsync is under way. Its own flag rather than IsLoading, which views
+    // also raise during their own commands - and those should not lock the tab bar.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanSwitchViews))]
+    private bool _isSwitchingViews;
+
+    // The tab bar's IsEnabled.
+    public bool CanSwitchViews => !IsSwitchingViews;
 
     /// <summary>
     /// Deactivates the current view and opens a new one in its place, unless it is already open.
     /// </summary>
     /// <remarks>
-    /// Switches wait for each other. A view's ActivateAsync can spend seconds off the UI thread
-    /// (the parting view works out the body on opening), and the tabs stay clickable meanwhile; a
-    /// second switch that deactivated it then tore down the state its activation was about to
-    /// resume into, which threw (#89). Waiting here means no view ever has to cope with being
-    /// deactivated half-open. Clicks made while waiting are not replayed in turn: only the most
-    /// recent one is carried out, since that is where the user wants to end up.
+    /// One switch at a time, and a switch asked for while another runs is dropped. A view's
+    /// ActivateAsync can spend seconds off the UI thread (the parting view works out the body on
+    /// opening); a second switch that deactivated it then tore down the state its activation was
+    /// about to resume into, which threw (#89). The tab bar is disabled for the duration, so the
+    /// drop only ever catches a switch made from code.
     /// </remarks>
     private async Task SwitchViewAsync<TView>(string title, Func<TView> create) where TView : IViewState
     {
-        var request = ++_latestSwitch;
-        await _switchGate.WaitAsync();
+        if (IsSwitchingViews || CurrentView is TView) return;
+
+        IsSwitchingViews = true;
+        IsLoading = true;
         try
         {
-            if (request != _latestSwitch) return;
-            if (CurrentView is TView) return;
-
-            IsLoading = true;
-            try
+            if (CurrentView is not null)
             {
-                if (CurrentView is not null)
-                {
-                    WorkspaceUpdated(await CurrentView.DeactivateAsync());
-                }
-
-                CurrentViewTitle = title;
-
-                var newView = create();
-                SceneManager = newView.SceneManager;
-                CurrentView = newView;
-                await CurrentView.ActivateAsync(Workspace);
+                WorkspaceUpdated(await CurrentView.DeactivateAsync());
             }
-            finally
-            {
-                IsLoading = false;
-            }
+
+            CurrentViewTitle = title;
+
+            var newView = create();
+            SceneManager = newView.SceneManager;
+            CurrentView = newView;
+            await CurrentView.ActivateAsync(Workspace);
         }
         finally
         {
-            _switchGate.Release();
+            IsLoading = false;
+            IsSwitchingViews = false;
         }
     }
 

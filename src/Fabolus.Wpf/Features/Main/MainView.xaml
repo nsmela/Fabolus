@@ -128,7 +128,9 @@
             <Border Grid.Row="0" Grid.Column="1"
                 Background="{DynamicResource Brush.Surface}"
                 BorderBrush="{DynamicResource Brush.Divider}" BorderThickness="0,0,0,1">
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Stretch" Margin="6,0">
+                <!-- Disabled while a view switch runs: a second one would close a view still opening. -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Stretch" Margin="6,0"
+                            IsEnabled="{Binding CanSwitchViews}">
 
                     <Button Command="{Binding SwitchToMeshManagerViewCommand}" >
                         <Button.Content>
