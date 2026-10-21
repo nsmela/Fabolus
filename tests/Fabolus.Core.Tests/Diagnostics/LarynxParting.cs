@@ -1,0 +1,499 @@
+using System.Security.Cryptography;
+using Fabolus.Core.Features.PartingSplit;
+using Fabolus.Core.Geometry;
+using Fabolus.Tests.Diagnostics;
+using Fabolus.Tests.Fixtures;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace Fabolus.Core.Tests.Diagnostics;
+
+/// <summary>
+/// Why the two larynx moulds do not split with the view recipe (ExtrusionBorder line, PartingLine
+/// axis, MouldLoft sweep, 0.1 mm extrude, severed components), and why the answer changed between runs.
+///
+/// <para>
+/// Run to run: the rim analysis itself repeats exactly on one mesh. The body did not - it is the
+/// mould's history replayed, and the smoothing in it comes back different every call
+/// (<see cref="SmoothingSteps"/>, <see cref="LevelSetSeqExperiment"/>). Replays are now remembered.
+/// </para>
+///
+/// <para>
+/// The split: both bodies have a hole through them (genus 1) and need two parting lines.
+/// larynx_large finds both rims, but its outer line climbs 85mm along the axis and, seen along it,
+/// crosses itself and does not wind about its own centre - so no loft out to the mould's outline can
+/// avoid folding through the body (<see cref="LoftAnatomy"/>), and no sweep or axis in
+/// <see cref="RecipeSweep"/> severs it. larynx_small is 59% rim band: below the hole the ring narrows
+/// to little more than a wall, the band runs across the skin there, and the outer and hole rims come
+/// back as one rim whose two contours each run half round the outside and half round the hole
+/// (<see cref="Strategy"/>, <see cref="DrawContours"/>).
+/// </para>
+/// </summary>
+[Collection("GeometryEngine collection")]
+[Trait("Category", "Diagnostics")]
+public class LarynxParting
+{
+    private readonly IGeometryEngine _engine;
+    private readonly PartingMeshFeature _sut;
+    private readonly ITestOutputHelper _out;
+
+    public LarynxParting(GeometryEngineFixture fixture, ITestOutputHelper output)
+    {
+        _engine = fixture.Engine;
+        _sut = new PartingMeshFeature(_engine);
+        _out = output;
+    }
+
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    public void RepeatedRuns(string file)
+    {
+        _out.WriteLine($"{file}");
+        _out.WriteLine("  run | body       | thickness  median | contours           | rims");
+        for (int run = 0; run < 4; run++)
+        {
+            // Re-opened every run, so a difference can come from the import and body recovery too.
+            var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value;
+            var body = _sut.GetBodyMesh(mould).Value;
+
+            var thickness = WallThickness.Measure(_engine, body.Mesh, WallThicknessOptions.Default).Value;
+            var contours = RidgeDetection.FindRidgeContours(body.Mesh, RidgeDetectionOptions.Default);
+            var closed = contours.Where(c => c.IsClosed).ToList();
+            var rims = PartingStrategy.Rims(closed, thickness.Statistics.Median);
+
+            string rimText = string.Join(" ", rims.Select(r => $"{r.Kind}[{string.Join(",", r.ContourIndices)}]"));
+            _out.WriteLine(
+                $"  {run,3} | {Hash(body.Mesh.Vertices.SelectMany(v => new[] { v.X, v.Y, v.Z })),-10} | " +
+                $"{Hash(thickness.PerFace),-10} {thickness.Statistics.Median,6:F3} | " +
+                $"{contours.Count,2}/{closed.Count,2} {Hash(contours.SelectMany(c => c.Points).SelectMany(v => new[] { v.X, v.Y, v.Z })),-10} | {rimText}");
+        }
+
+        // One entry, its body recovered afresh each time, as repeated visits to the parting split do.
+        var opened = SavedMoulds.Open(_engine, Asset(file)).Value;
+        for (int run = 0; run < 3; run++)
+        {
+            var body = _sut.GetBodyMesh(SavedMoulds.Mould(opened).Value).Value;
+            _out.WriteLine($"  same entry {run} | body {Hash(body.Mesh.Vertices.SelectMany(v => new[] { v.X, v.Y, v.Z }))}");
+        }
+
+        // The same mesh object measured again, so the import and body recovery are taken out of it.
+        var once = _sut.GetBodyMesh(SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value).Value;
+        for (int run = 0; run < 3; run++)
+        {
+            var thickness = WallThickness.Measure(_engine, once.Mesh, WallThicknessOptions.Default).Value;
+            var contours = RidgeDetection.FindRidgeContours(once.Mesh, RidgeDetectionOptions.Default);
+            _out.WriteLine(
+                $"  same mesh {run} | thickness {Hash(thickness.PerFace)} | contours {contours.Count} " +
+                $"{Hash(contours.SelectMany(c => c.Points).SelectMany(v => new[] { v.X, v.Y, v.Z }))}");
+        }
+    }
+
+    /// <summary>
+    /// The body is the mould's history replayed to the Transform stage. Fingerprints the base mesh and
+    /// the mesh after each replayed command, several times over, to find the command that answers
+    /// differently.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    public void ReplayedCommands(string file)
+    {
+        _out.WriteLine(file);
+        for (int run = 0; run < 3; run++)
+        {
+            var opened = new Fabolus.Core.Features.MeshIO.ImportMesh(_engine).Execute(Workspace.CreateEmpty(), Asset(file)).Value;
+            var record = opened.GetActiveRecord().Value;
+            var mesh = record.BaseMesh!;
+            var line = $"  run {run}: mould {Hash(Flat(opened.GetActiveMesh().Value))} base {Hash(Flat(mesh))}";
+            foreach (var command in record.Commands.Where(c => c.Priority <= Fabolus.Core.Geometry.Metadata.CommandPriority.Transform))
+            {
+                mesh = command.Apply(_engine, mesh).Value;
+                line += $" -> {command.GetType().Name} {Hash(Flat(mesh))} ({mesh.Vertices.Length}v)";
+            }
+            _out.WriteLine(line);
+        }
+    }
+
+    /// <summary>
+    /// The smoothing command's three engine calls, each fingerprinted on the same input several
+    /// times. "sorted" hashes the vertex positions in sorted order, so a column that changes only in
+    /// the plain hash is a reordering of the same geometry rather than different geometry.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    public void SmoothingSteps(string file)
+    {
+        var opened = new Fabolus.Core.Features.MeshIO.ImportMesh(_engine).Execute(Workspace.CreateEmpty(), Asset(file)).Value;
+        var record = opened.GetActiveRecord().Value;
+        var smooth = record.Commands.OfType<Fabolus.Core.Features.Smoothing.SmoothSettings>().Single();
+        var input = record.BaseMesh!;
+        _out.WriteLine($"{file}: {smooth}");
+
+        var grown = _engine.Modifiers.Offset(input, smooth.Intensity, smooth.Resolution).Value;
+        var shrunk = _engine.Modifiers.Offset(grown, -smooth.Intensity, smooth.Resolution).Value;
+        var inflated = _engine.Modifiers.Offset(shrunk, smooth.Inflation, smooth.Resolution).Value;
+        int target = (int)(input.TriangleCount * Math.Max(smooth.RemeshRatio, 1.0));
+
+        for (int run = 0; run < 4; run++)
+        {
+            _out.WriteLine(
+                $"  run {run}: grow {Both(_engine.Modifiers.Offset(input, smooth.Intensity, smooth.Resolution).Value)}" +
+                $" | shrink {Both(_engine.Modifiers.Offset(grown, -smooth.Intensity, smooth.Resolution).Value)}" +
+                $" | inflate {Both(_engine.Modifiers.Offset(shrunk, smooth.Inflation, smooth.Resolution).Value)}" +
+                $" | decimate {Both(_engine.Modifiers.Decimate(inflated, target).Value)}");
+        }
+
+        static string Both(IMesh mesh) =>
+            $"{Hash(Flat(mesh))}/{Hash(mesh.Vertices.Select(v => (v.X, v.Y, v.Z)).OrderBy(v => v).SelectMany(v => new[] { v.X, v.Y, v.Z }))} {mesh.VertexCount}v";
+    }
+
+    /// <summary>
+    /// The strategy report for each body: its genus says how many rims it should have, and the rims
+    /// and per-contour separations say how many were found.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    public void Strategy(string file)
+    {
+        var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value;
+        var body = _sut.GetBodyMesh(mould).Value;
+        var thickness = WallThickness.Measure(_engine, body.Mesh, WallThicknessOptions.Default).Value;
+        var report = PartingStrategy.Evaluate(body.Mesh, wallThickness: thickness.Statistics.Median);
+
+        _out.WriteLine($"{file}: {body.Mesh.VertexCount}v {body.Mesh.TriangleCount}t, wall {thickness.Statistics.Median:F2}mm " +
+                       $"(unmeasured {thickness.Statistics.UnmeasuredFraction:P0})");
+        _out.WriteLine($"  shape {report.Shape}, genus {report.Genus}, closed {report.IsClosed}, cuts needed {report.CutsNeeded}");
+        _out.WriteLine($"  closed contours {report.ClosedContours}: separating {report.SeparatingContours}, not {report.NonSeparatingContours}; " +
+                       $"combined {report.Combined.SubstantialPieces} pieces ({report.Combined.LargestShare:P0}/{report.Combined.SecondShare:P0})");
+        foreach (var s in report.Separations)
+            _out.WriteLine($"    contour {s.ContourIndex}: {s.Components} comps, {s.SubstantialPieces} substantial, {s.LargestShare:P0}/{s.SecondShare:P0}");
+        foreach (var r in report.Rims)
+            _out.WriteLine($"    rim {r.Id}: {r.Kind} contours [{string.Join(",", r.ContourIndices)}] {r.Points} pts spacing {r.Spacing:F2}");
+        _out.WriteLine($"  recommended {report.Recommended}, hybrid {report.NeedsHybrid}: {report.Summary}");
+
+        var all = RidgeDetection.FindRidgeContours(body.Mesh, RidgeDetectionOptions.Default);
+        foreach (var c in all)
+            _out.WriteLine($"    contour rim {c.Rim}: {c.Points.Count} pts, closed {c.IsClosed}, length {Length(c.Points, c.IsClosed):F1}mm");
+
+        static double Length(IReadOnlyList<Vector3> p, bool closed)
+        {
+            double t = 0;
+            for (int i = 0; i + 1 < p.Count; i++) t += p[i].DistanceTo(p[i + 1]);
+            return closed && p.Count > 1 ? t + p[^1].DistanceTo(p[0]) : t;
+        }
+    }
+
+    /// <summary>
+    /// The body with its ridge contours and the parting line drawn over it, from every standard view,
+    /// then the flange surface built on that line. Written under <c>FABOLUS_TILT_IMAGES</c>.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    public void DrawContours(string file)
+    {
+        var directory = Environment.GetEnvironmentVariable("FABOLUS_TILT_IMAGES");
+        if (string.IsNullOrWhiteSpace(directory)) { _out.WriteLine("FABOLUS_TILT_IMAGES not set"); return; }
+
+        const int size = 420;
+        var options = RenderOptions.Default;
+        var lineColour = new Rgb(80, 220, 255);
+
+        var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value;
+        var body = _sut.GetBodyMesh(mould).Value;
+        var ridge = RidgeDetection.FindRidge(body.Mesh, RidgeDetectionOptions.Default);
+        var contours = ridge.Contours;
+        var line = _sut.GeneratePartingLineFromThickness(body);
+        var rimShades = new[] { new Rgb(200, 90, 90), new Rgb(90, 170, 90), new Rgb(90, 110, 210), new Rgb(200, 170, 70) };
+        var rimIds = ridge.FaceRims.Where(r => r >= 0).Distinct().OrderBy(r => r).ToList();
+        _out.WriteLine($"band faces {ridge.Band.Count(b => b)}, ridge faces {ridge.Faces.Count(b => b)}, rims on faces [{string.Join(",", rimIds)}]");
+        Rgb? Shade(int face) =>
+            face < ridge.FaceRims.Length && ridge.FaceRims[face] >= 0 ? rimShades[rimIds.IndexOf(ridge.FaceRims[face]) % rimShades.Length]
+            : face < ridge.Band.Length && ridge.Band[face] ? new Rgb(150, 150, 150)
+            : face < ridge.Faces.Length && ridge.Faces[face] ? new Rgb(120, 100, 140)
+            : null;
+        _out.WriteLine(line.IsSuccess ? $"{line.Value.Loops.Count} loop(s): {string.Join(", ", line.Value.Loops.Select(l => l.Count))} pts" : line.Error.Description);
+
+        var tiles = new List<Tile>();
+        foreach (var view in Views.Standard)
+        {
+            var camera = Camera.Fit(body.Mesh, view, size, size);
+            var raster = MeshRasterizer.Render(body.Mesh, camera, size, size, options, f => Shade(f) ?? new Rgb(205, 205, 210));
+            for (int i = 0; i < contours.Count; i++)
+                MeshRasterizer.DrawPolyline(raster, camera, contours[i].Points, contours[i].IsClosed, MeshRasterizer.ContourColour(i), options);
+            if (line.IsSuccess)
+                foreach (var loop in line.Value.Loops)
+                    MeshRasterizer.DrawPolyline(raster, camera, loop, true, lineColour, options);
+            tiles.Add(new Tile(view.Name, raster));
+        }
+
+        if (line.IsSuccess)
+        {
+            var resolved = PartingMeshFeature.ResolveAxis(line.Value, PartingMeshParameters.Default with { AxisSource = PartingMeshAxisSource.PartingLine }).Value;
+            var contour = _sut.GenerateOuterContour(mould, resolved).Value;
+            var surface = _sut.GenerateFlangeSurface(line.Value, contour, resolved, body);
+            if (surface.IsSuccess)
+            {
+                foreach (var view in new[] { Views.Top, Views.OrbitA, Views.OrbitB })
+                {
+                    var camera = Camera.Fit(surface.Value, view, size, size);
+                    tiles.Add(new Tile($"flange {view.Name}", MeshRasterizer.Render(surface.Value, camera, size, size, options)));
+                }
+            }
+        }
+
+        var name = Path.GetFileNameWithoutExtension(file);
+        var path = Path.Combine(directory, $"{name}-contours.png");
+        ContactSheet.Save(path, tiles, 4, size, options.Background, $"{name}: ridge contours and parting line",
+            Enumerable.Range(0, contours.Count).Select(i => ($"contour {i} (rim {contours[i].Rim})", MeshRasterizer.ContourColour(i)))
+                .Append(("parting line", lineColour)).ToList());
+        _out.WriteLine(path);
+    }
+
+    /// <summary>
+    /// Where the mould loft breaks. Per loop: how far its bearings about the loop's own centre run
+    /// backwards (the loft forces them forwards, so every backward stretch is folded), then the flange
+    /// built from the outer loop alone, the hole patches alone, and both: crossings, and faces that sit
+    /// inside the body further out than the bleed is meant to reach.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    [InlineData("3mf/chin.3mf")]
+    [InlineData("3mf/nose.3mf")]
+    public void LoftAnatomy(string file)
+    {
+        var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value;
+        var body = _sut.GetBodyMesh(mould).Value;
+        var line = _sut.GeneratePartingLineFromThickness(body).Value;
+        var resolved = PartingMeshFeature.ResolveAxis(line, MeshRecipe).Value;
+        var axis = resolved.Axis;
+        var tools = new PartingTools(_engine);
+        using var index = _engine.Spatial.IndexFor(body.Mesh).Value;
+
+        _out.WriteLine($"{file}: axis ({axis.X:F3}, {axis.Y:F3}, {axis.Z:F3}), {line.Loops.Count} loop(s)");
+        for (int k = 0; k < line.Loops.Count; k++)
+        {
+            var loop = line.Loops[k];
+            var (back, longest, total) = Backwards(loop, axis);
+            double climb = loop.Max(p => p.Dot(axis)) - loop.Min(p => p.Dot(axis));
+            _out.WriteLine($"  loop {k}: {loop.Count} pts, climbs {climb:F1}mm; winds {Turning(loop, axis):F0}° about its centre, " +
+                           $"crosses itself {SelfCrossings(loop, axis)}x seen along the axis; bearings back at {back} pts, " +
+                           $"{total:F0}° backwards in all, longest backward run {longest:F0}°");
+        }
+
+        // Whether any axis at all would show the outer loop as a simple, star-shaped curve.
+        var best = new List<(double Back, int Crossings, Vector3 Axis)>();
+        for (int polar = 0; polar <= 90; polar += 5)
+        for (int azimuth = 0; azimuth < 360; azimuth += polar == 0 ? 360 : 10)
+        {
+            double t = polar * Math.PI / 180, a = azimuth * Math.PI / 180;
+            var (u0, v0) = (axis.Cross(Math.Abs(axis.X) < 0.9 ? Vector3.UnitX : Vector3.UnitY).Normalize(), Vector3.Zero);
+            v0 = axis.Cross(u0);
+            var candidate = ((axis * Math.Cos(t)) + (((u0 * Math.Cos(a)) + (v0 * Math.Sin(a))) * Math.Sin(t))).Normalize();
+            best.Add((Backwards(line.Loops[0], candidate).Total, SelfCrossings(line.Loops[0], candidate), candidate));
+        }
+        foreach (var b in best.OrderBy(b => b.Crossings).ThenBy(b => b.Back).Take(3))
+            _out.WriteLine($"  best axis ({b.Axis.X:F2}, {b.Axis.Y:F2}, {b.Axis.Z:F2}) at {Math.Acos(Math.Clamp(b.Axis.Dot(axis), -1, 1)) * 180 / Math.PI:F0}° " +
+                           $"from the resolved one: {b.Crossings} crossings, {b.Back:F0}° backwards");
+
+        var outer = tools.GenerateMouldLoftFlangeMesh(line.Loops[0], axis, body.Mesh, mould.Mesh);
+        if (outer.IsFailure) { _out.WriteLine($"  outer loft failed: {outer.Error.Description}"); return; }
+        _out.WriteLine($"  outer loft:  {Crossings(outer.Value),6} crossings, {Buried(outer.Value, line.Loops[0], index),5} faces buried past the bleed");
+
+        for (int k = 1; k < line.Loops.Count; k++)
+        {
+            var patch = tools.GenerateHolePatch(line.Loops[k], axis);
+            _out.WriteLine(patch.IsFailure
+                ? $"  hole patch {k}: failed, {patch.Error.Description}"
+                : $"  hole patch {k}: {Crossings(patch.Value),6} crossings, {Buried(patch.Value, line.Loops[k], index),5} faces buried");
+        }
+
+        var contour = _sut.GenerateOuterContour(mould, resolved).Value;
+        var surface = _sut.GenerateFlangeSurface(line, contour, resolved, body).Value;
+        _out.WriteLine($"  combined:    {Crossings(surface),6} crossings");
+
+        int Crossings(IMesh mesh) => _engine.Evaluators.CountSelfIntersections(mesh).Value;
+    }
+
+    /// <summary>
+    /// Every sweep against both axis sources, on one body and one line so only the recipe changes:
+    /// flange crossings, unsealed inner-rim points, and what the cut leaves.
+    /// </summary>
+    [DiagnosticTheory]
+    [InlineData("3mf/larynx_small.3mf")]
+    [InlineData("3mf/larynx_large.3mf")]
+    [InlineData("3mf/chin.3mf")]
+    public void RecipeSweep(string file)
+    {
+        var mould = SavedMoulds.Mould(SavedMoulds.Open(_engine, Asset(file)).Value).Value;
+        var body = _sut.GetBodyMesh(mould).Value;
+        var line = _sut.GeneratePartingLineFromThickness(body).Value;
+        _out.WriteLine($"{file}: {line.Loops.Count} loop(s)");
+        _out.WriteLine("  sweep           axis          | crossings  unsealed | pieces  split");
+
+        foreach (var sweep in Enum.GetValues<PartingMeshSweep>())
+        foreach (var source in new[] { PartingMeshAxisSource.PartingLine, PartingMeshAxisSource.PullDirection })
+        {
+            var recipe = MeshRecipe with { Sweep = sweep, AxisSource = source };
+            string row = $"  {sweep,-15} {source,-13} | ";
+            try
+            {
+                var resolved = PartingMeshFeature.ResolveAxis(line, recipe).Value;
+                var contour = _sut.GenerateOuterContour(mould, resolved).Value;
+                var surface = _sut.GenerateFlangeSurface(line, contour, resolved, body);
+                if (surface.IsFailure) { _out.WriteLine(row + surface.Error.Description); continue; }
+
+                int crossings = _engine.Evaluators.CountSelfIntersections(surface.Value).Value;
+                var seal = _sut.InspectFlangeSeal(surface.Value, body, line, resolved);
+                row += $"{crossings,9} {(seal.IsSuccess ? $"{seal.Value.Count(s => !s.IsSealed)}/{seal.Value.Count}" : "?"),9} | ";
+
+                var cutter = _sut.ExtrudeFlange(surface.Value, resolved);
+                var cut = cutter.IsSuccess ? _engine.Booleans.Subtract(mould.Mesh, cutter.Value) : cutter;
+                if (cut.IsFailure) { _out.WriteLine(row + "cut failed"); continue; }
+
+                var pieces = _engine.Evaluators.SeparateComponents(cut.Value).Value.Select(Volume).OrderByDescending(v => v).ToArray();
+                double total = pieces.Sum();
+                row += pieces.Length < 2
+                    ? $"{pieces.Length,3}  unsplit"
+                    : $"{pieces.Length,3}  {100 * pieces[0] / total:F0}/{100 * pieces[1] / total:F0}";
+            }
+            catch (Exception e) { row += $"threw {e.GetType().Name}"; }
+            _out.WriteLine(row);
+        }
+    }
+
+    private static double Volume(IMesh mesh)
+    {
+        var vs = mesh.Vertices;
+        var ts = mesh.Triangles;
+        double total = 0;
+        for (int i = 0; i + 2 < ts.Length; i += 3) total += vs[ts[i]].Dot(vs[ts[i + 1]].Cross(vs[ts[i + 2]])) / 6.0;
+        return Math.Abs(total);
+    }
+
+    /// <summary>Faces whose centre is more than 1 mm inside the body and more than 4 mm from the loop.</summary>
+    private static int Buried(IMesh mesh, IReadOnlyList<Vector3> loop, GeometryEngine.Core.Geometry.ISpatialIndex index)
+    {
+        int count = 0;
+        var vs = mesh.Vertices;
+        var ts = mesh.Triangles;
+        for (int f = 0; f + 2 < ts.Length; f += 3)
+        {
+            var c = (vs[ts[f]] + vs[ts[f + 1]] + vs[ts[f + 2]]) / 3.0;
+            if (index.SignedDistance(c) > -1.0) continue;
+            if (loop.Min(p => p.DistanceTo(c)) < 4.0) continue;
+            count++;
+        }
+        return count;
+    }
+
+    private static (Vector3 U, Vector3 V) Frame(Vector3 axis)
+    {
+        var seed = Math.Abs(axis.Dot(Vector3.UnitY)) < 0.9 ? Vector3.UnitY : Vector3.UnitX;
+        var u = seed.Cross(axis).Normalize();
+        return (u, axis.Cross(u));
+    }
+
+    private static double Turning(IReadOnlyList<Vector3> loop, Vector3 axis)
+    {
+        var (u, v) = Frame(axis);
+        double cx = loop.Average(p => p.Dot(u)), cy = loop.Average(p => p.Dot(v));
+        double total = 0;
+        for (int i = 0; i < loop.Count; i++)
+        {
+            var a = loop[i]; var b = loop[(i + 1) % loop.Count];
+            double d = Math.Atan2(b.Dot(v) - cy, b.Dot(u) - cx) - Math.Atan2(a.Dot(v) - cy, a.Dot(u) - cx);
+            while (d > Math.PI) d -= Math.Tau; while (d < -Math.PI) d += Math.Tau;
+            total += d;
+        }
+        return total * 180 / Math.PI;
+    }
+
+    /// <summary>How many times the loop crosses itself, projected along the axis.</summary>
+    private static int SelfCrossings(IReadOnlyList<Vector3> loop, Vector3 axis)
+    {
+        var (u, v) = Frame(axis);
+        var p = loop.Select(q => (X: q.Dot(u), Y: q.Dot(v))).ToArray();
+        int n = p.Length, count = 0;
+        for (int i = 0; i < n; i++)
+        for (int j = i + 2; j < n; j++)
+        {
+            if (i == 0 && j == n - 1) continue;
+            var (a, b, c, d) = (p[i], p[(i + 1) % n], p[j], p[(j + 1) % n]);
+            double d1 = Cross(c, d, a), d2 = Cross(c, d, b), d3 = Cross(a, b, c), d4 = Cross(a, b, d);
+            if (((d1 > 0) != (d2 > 0)) && ((d3 > 0) != (d4 > 0))) count++;
+        }
+        return count;
+
+        static double Cross((double X, double Y) o, (double X, double Y) a, (double X, double Y) b) =>
+            ((a.X - o.X) * (b.Y - o.Y)) - ((a.Y - o.Y) * (b.X - o.X));
+    }
+
+    private static (int Points, double Longest, double Total) Backwards(IReadOnlyList<Vector3> loop, Vector3 axis)
+    {
+        var seed = Math.Abs(axis.Dot(Vector3.UnitY)) < 0.9 ? Vector3.UnitY : Vector3.UnitX;
+        var u = seed.Cross(axis).Normalize();
+        var v = axis.Cross(u);
+        double cx = loop.Average(p => p.Dot(u)), cy = loop.Average(p => p.Dot(v));
+        var bearing = loop.Select(p => Math.Atan2(p.Dot(v) - cy, p.Dot(u) - cx)).ToArray();
+
+        int n = loop.Count;
+        var steps = new double[n];
+        double turning = 0;
+        for (int i = 0; i < n; i++) { steps[i] = Wrap(bearing[(i + 1) % n] - bearing[i]); turning += steps[i]; }
+        double winding = turning >= 0 ? 1 : -1;
+
+        int points = 0;
+        double total = 0, run = 0, longest = 0;
+        for (int i = 0; i < 2 * n; i++)
+        {
+            double s = winding * steps[i % n];
+            if (s < 0)
+            {
+                if (i < n) { points++; total -= s; }
+                run -= s;
+                longest = Math.Max(longest, run);
+            }
+            else run = Math.Max(0, run - s);   // a backward stretch ends once the line has caught up
+        }
+        return (points, longest * 180 / Math.PI, total * 180 / Math.PI);
+
+        static double Wrap(double a) { while (a > Math.PI) a -= Math.Tau; while (a < -Math.PI) a += Math.Tau; return a; }
+    }
+
+    private static PartingMeshParameters MeshRecipe => PartingMeshParameters.Default with
+    {
+        AxisSource = PartingMeshAxisSource.PartingLine,
+        Sweep = PartingMeshSweep.MouldLoft,
+        SplitMethod = PartingSplitMethod.SeveredComponents,
+        Thickening = PartingMeshThickening.Extrude,
+        Depth = 0.1,
+        FlangeMaxSlopeDeg = 80.0,
+        NormalFollowMm = 100.0,
+        RawFlange = false,
+        NormalSmoothingPasses = 5,
+        Axis = Vector3.UnitY,
+    };
+
+    private static IEnumerable<double> Flat(IMesh mesh) =>
+        mesh.Vertices.SelectMany(v => new[] { v.X, v.Y, v.Z }).Concat(mesh.Triangles.Select(t => (double)t));
+
+    private static string Hash(IEnumerable<double> values)
+    {
+        var bytes = values.SelectMany(BitConverter.GetBytes).ToArray();
+        return Convert.ToHexString(SHA256.HashData(bytes))[..10];
+    }
+
+    private static string Asset(string name)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, "tests", "files")))
+            dir = dir.Parent;
+
+        return Path.Combine(dir!.FullName, "tests", "files", name);
+    }
+}
