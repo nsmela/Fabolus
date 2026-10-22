@@ -66,6 +66,8 @@ public class ExportPartingTests
             File.Exists(Path.Combine(dir, "bolus_A.stl")).Should().BeTrue();
             File.Exists(Path.Combine(dir, "bolus_B.stl")).Should().BeTrue();
             File.Exists(path).Should().BeFalse("a separated export writes per-half files, not the base name");
+            export.Value.Should().Equal(Path.Combine(dir, "bolus_A.stl"), Path.Combine(dir, "bolus_B.stl"));
+            Directory.GetFiles(dir).Should().HaveCount(2, "one file per half, and nothing else");
         }
         finally { Directory.Delete(dir, true); }
     }

@@ -813,7 +813,7 @@ public sealed class PartingMeshFeature
         // whatever order the component walk found them, so without it which half is Positive would
         // vary between runs of the same recipe.
         var components = componentsResult.Value
-            .OrderByDescending(SignedVolume)
+            .OrderByDescending(PartingPieces.Volume)
             .ToList();
 
         if (components.Count == 0) return MeshErrors.SplitProducedSinglePiece;
@@ -1033,28 +1033,143 @@ public sealed class PartingMeshFeature
             return Combine([halves.Value.Positive, halves.Value.Negative]);
         }
 
-        var partingMeshResult = GeneratePartingMesh(mould, lineResult.Value, meshParameters);
-        if (partingMeshResult.IsFailure)
-            return partingMeshResult.Error;
+        // Built here rather than through GeneratePartingMesh because the flange itself, not only the
+        // cutter extruded from it, is what gets corrected when the cut leaves specks.
+        var resolved = ResolveAxis(lineResult.Value, meshParameters);
+        if (resolved.IsFailure) return resolved.Error;
+        var parameters = resolved.Value;
 
-        var cutResult = _engine.Booleans.Subtract(mould.Mesh, partingMeshResult.Value);
-        if (cutResult.IsFailure)
-            return cutResult.Error;
+        var contourResult = GenerateOuterContour(mould, parameters);
+        if (contourResult.IsFailure) return contourResult.Error;
+
+        var bodyResult = GetBodyMesh(mould);
+        if (bodyResult.IsFailure) return bodyResult.Error;
+
+        var surfaceResult = GenerateFlangeSurface(lineResult.Value, contourResult.Value, parameters, bodyResult.Value);
+        if (surfaceResult.IsFailure) return surfaceResult.Error;
 
         // Subtract succeeds even when the parting mesh removes nothing (too thin, doesn't span the
-        // cross-section, degenerate flange), handing back an intact mould. A cut that actually
-        // severed leaves the result in two or more disconnected components, so a single component
-        // is the signal that it didn't - surface it rather than return an unsevered mould as success.
-        if (meshParameters.SplitMethod == PartingSplitMethod.SubtractOnly)
-            return cutResult;
+        // cross-section, degenerate flange), handing back an intact mould, so this method alone
+        // takes the cut as it comes.
+        if (parameters.SplitMethod == PartingSplitMethod.SubtractOnly)
+        {
+            var cutter = ExtrudeFlange(surfaceResult.Value, parameters);
+            if (cutter.IsFailure) return cutter.Error;
+            return _engine.Booleans.Subtract(mould.Mesh, cutter.Value);
+        }
 
-        var severedResult = _engine.Evaluators.SeparateComponents(cutResult.Value);
-        if (severedResult.IsFailure)
-            return severedResult.Error;
-        if (severedResult.Value.Length < 2)
+        var cleanResult = CutClear(mould, surfaceResult.Value, bodyResult.Value, parameters);
+        if (cleanResult.IsFailure) return cleanResult.Error;
+        var (cut, components) = cleanResult.Value;
+
+        // A cut that actually severed leaves the result in two or more pieces, so fewer is the signal
+        // that it didn't - surfaced rather than returning an unsevered mould as success. Pieces, not
+        // components: specks used to pass for the second piece. Any the correction could not clear
+        // are left out of the result, so neither the workspace nor an export carries them.
+        var pieces = PartingPieces.Substantial(components);
+        if (pieces.Count < 2)
             return MeshErrors.SplitProducedSinglePiece;
 
-        return Result.Success(cutResult.Value);
+        return pieces.Count == components.Count
+            ? Result.Success(cut)
+            : Combine([.. pieces]);
+    }
+
+    /// <summary>How many times <see cref="CutClear"/> re-cuts after moving the flange off its specks.</summary>
+    private const int SpeckPasses = 3;
+
+    /// <summary>How far round a speck the flange is moved off it.</summary>
+    private const double SpeckReachMm = 2.0;
+
+    /// <summary>How close outside the body a flange point has to lie to count as skimming it.</summary>
+    private const double SkimMm = 0.5;
+
+    /// <summary>How far past the cutter's own depth a skimming flange point is sunk into the cavity.</summary>
+    private const double SinkMarginMm = 0.1;
+
+    /// <summary>
+    /// Cuts the mould with the flange's cutter, and where that leaves specks, sinks the flange round
+    /// them into the body's cavity and cuts again.
+    ///
+    /// <para>
+    /// A speck is mould shut off between the cutter and a face the flange runs along (see
+    /// <see cref="PartingPieces"/>). Along that run the two halves already meet at the face's far
+    /// edge - the lower one holds nothing above the face - so moving the flange below the face,
+    /// where there is only cavity, changes neither half; it only stops the cutter weaving in and out
+    /// of the face. On scalp_bolus one pass moves 24 flange points and clears all seven specks, and
+    /// the halves come out within 0.01 mL of where they were.
+    /// </para>
+    ///
+    /// <para>
+    /// Only round specks a cut actually left. Doing it everywhere the flange lies close to the body
+    /// moved ten times as many points, left a speck of its own on scalp, and put crossings into
+    /// chin's cutter that were not there before.
+    /// </para>
+    /// </summary>
+    internal Result<(IMesh Cut, IReadOnlyList<IMesh> Components)> CutClear(
+        MouldMesh mould, IMesh surface, BodyMesh body, PartingMeshParameters parameters)
+    {
+        for (int pass = 0; ; pass++)
+        {
+            var cutter = ExtrudeFlange(surface, parameters);
+            if (cutter.IsFailure) return cutter.Error;
+
+            var cut = _engine.Booleans.Subtract(mould.Mesh, cutter.Value);
+            if (cut.IsFailure) return cut.Error;
+
+            var separated = _engine.Evaluators.SeparateComponents(cut.Value);
+            if (separated.IsFailure) return separated.Error;
+            IReadOnlyList<IMesh> components = separated.Value;
+
+            // A cut that did not sever is not one moving the flange into the cavity can fix: it only
+            // ever takes the cutter away from mould, never towards it.
+            var specks = components.Where(PartingPieces.IsSpeck).ToList();
+            if (specks.Count == 0 || pass == SpeckPasses || PartingPieces.Substantial(components).Count < 2)
+                return (cut.Value, components);
+
+            var sunk = SinkFlangeAround(surface, body, specks, parameters.Depth);
+            if (sunk.IsFailure) return sunk.Error;
+            if (sunk.Value.Moved == 0) return (cut.Value, components);
+            surface = sunk.Value.Surface;
+        }
+    }
+
+    /// <summary>
+    /// The flange with every point within <see cref="SpeckReachMm"/> of a speck that skims the body -
+    /// just outside it, or inside but within the cutter's reach - moved into the body, along its
+    /// surface normal, to the cutter's depth and a margin past it.
+    /// </summary>
+    internal Result<(IMesh Surface, int Moved)> SinkFlangeAround(
+        IMesh surface, BodyMesh body, IReadOnlyList<IMesh> specks, double depth)
+    {
+        var index = _engine.Spatial.IndexFor(body.Mesh);
+        if (index.IsFailure) return index.Error;
+
+        var near = specks.SelectMany(s => s.Vertices).ToList();
+        double sink = depth + SinkMarginMm;
+        var vertices = surface.Vertices.ToBuilder();
+        int moved = 0;
+
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            var v = vertices[i];
+            if (!near.Any(p => p.DistanceTo(v) <= SpeckReachMm)) continue;
+
+            double distance = index.Value.SignedDistance(v);
+            if (distance > SkimMm || distance < -sink) continue;
+
+            var onBody = index.Value.ClosestPoint(v);
+            if (!onBody.HasValue) continue;
+
+            vertices[i] = onBody.Value.Point - (onBody.Value.Normal.Normalize() * sink);
+            moved++;
+        }
+
+        if (moved == 0) return (surface, 0);
+
+        var rebuilt = _engine.CreateMesh(vertices.ToImmutable(), surface.Triangles, surface.Metadata);
+        if (rebuilt.IsFailure) return rebuilt.Error;
+        return (rebuilt.Value, moved);
     }
 
     /// <summary>
@@ -1094,21 +1209,6 @@ public sealed class PartingMeshFeature
 
 
     // --- helpers --- //
-
-    /// <summary>Enclosed volume by the divergence theorem, for ranking the cut pieces by size.</summary>
-    private static double SignedVolume(IMesh mesh)
-    {
-        var vertices = mesh.Vertices;
-        var triangles = mesh.Triangles;
-
-        double total = 0;
-        for (int i = 0; i + 2 < triangles.Length; i += 3)
-        {
-            total += vertices[triangles[i]].Dot(vertices[triangles[i + 1]].Cross(vertices[triangles[i + 2]])) / 6.0;
-        }
-
-        return Math.Abs(total);
-    }
 
     /// <summary>
     /// The pieces as one mesh, side by side and untouched - their vertices and triangles laid end to

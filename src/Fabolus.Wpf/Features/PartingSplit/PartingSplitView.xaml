@@ -144,7 +144,7 @@
                                         <Setter Property="Text" Value="The parting mesh should pass cleanly through the mould on every side. Green is its outer face, red the inner - red where you expect green means a flipped or self-intersecting surface." />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding CurrentState}" Value="SplitResult">
-                                        <Setter Property="Text" Value="Review the positive (blue) and negative (orange) halves. Applying adds them to the workspace and opens the mesh manager." />
+                                        <Setter Property="Text" Value="Review the positive (blue) and negative (orange) halves. Applying adds the cut mould to the workspace as one mesh and opens the mesh manager; how it is exported is chosen below." />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -344,9 +344,11 @@
                         <TextBlock Text="Export as" FontWeight="SemiBold" Margin="0,0,0,4" />
                         <RadioButton GroupName="PartingResult" Margin="0,0,0,4"
                                      Content="Separate files (one per half)"
+                                     ToolTip="Exporting to STL, OBJ, OFF or PLY writes each half to its own file, lettered after the name you choose: name_A.stl and name_B.stl. A 3MF project stays one file."
                                      IsChecked="{Binding ResultMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingResultMode.Separated}}" />
                         <RadioButton GroupName="PartingResult"
                                      Content="Single file (halves joined)"
+                                     ToolTip="Both halves are written together, side by side, in the one file you name."
                                      IsChecked="{Binding ResultMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingResultMode.Combined}}" />
                     </StackPanel>
 

@@ -9,6 +9,7 @@ using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Features.Main;
 using SharpDX.DirectWrite;
 using Fabolus.Core.Features.MeshIO;
+using System.IO;
 
 namespace Fabolus.Wpf.Features.MeshManager;
 
@@ -266,12 +267,21 @@ public partial class MeshManagerViewModel : ObservableObject, IViewState {
         var mesh = meshResult.Value;
         var result = _exportFeature.Execute(
             mesh, recordResult.Value, saveFileResult.Value, true, _dialogue.ConfirmReplacingFiles);
-        if (result.IsFailure && result.Error != MeshErrors.ExportCancelled) {
-            _alertDialog.ShowError(result.Error.Description);
+        if (result.IsFailure) {
+            // Declining to replace existing pieces saved nothing, so the entry stays unsaved.
+            if (result.Error != MeshErrors.ExportCancelled)
+                _alertDialog.ShowError(result.Error.Description);
             return;
         }
 
         _messenger.Send(new MeshesSavedMessage(Workspace, [id]));
+
+        // A separated parting cut is written as one lettered file per piece rather than under the
+        // name chosen, which would otherwise look like nothing was saved.
+        if (result.Value.Count > 1) {
+            _alertDialog.ShowInfo(
+                $"Exported {result.Value.Count} files, one per piece: {string.Join(", ", result.Value.Select(Path.GetFileName))}.");
+        }
     }
 }
 
