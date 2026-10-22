@@ -133,7 +133,7 @@ public sealed class WorkflowBenchmarks(ITestOutputHelper output)
         workspace = opened.Value;
         var scanTriangles = workspace.GetActiveMesh().Value.TriangleCount;
 
-        // Smooth it, the way the smoothing view does now. A scan too thin to survive it is
+        // Smooth it, with the method the smoothing view uses. A scan too thin to survive it is
         // carried on unsmoothed, so the rest of its session is still timed.
         var smoothed = Time(steps, "smooth it", () => new SmoothMesh(engine).Execute(
             workspace, new SmoothSettings(Method: SmoothSettings.CurrentMethod)));

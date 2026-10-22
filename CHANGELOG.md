@@ -5,14 +5,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Changed
+### Added
 
-- Smoothing holds its inflate/deflate cycle and the inflation on one distance field and meshes
-  once, instead of re-meshing after every step: 2-3x faster on a typical bolus. The result is
-  slightly fuller than before (about 0.1 mm outward at 1 mm resolution) and no longer loses
-  volume as iterations are added. Projects saved before this keep the method they were smoothed
-  with and reopen unchanged; a scan too large for the grid at the chosen resolution is smoothed
-  the previous way. Needs GeometryEngine with `OffsetSmooth`'s inflation parameter.
+- A second smoothing method, `SmoothingMethod.Grid`, which runs the inflate/deflate cycle and the
+  inflation on one distance field and meshes once: 2-3x faster on a typical bolus. Not used by
+  default yet: unlike the current method, its iteration count does not add curvature smoothing,
+  and it comes out about 0.1 mm fuller. Smoothing commands now record their method; projects
+  saved before this read back as the current method and reopen unchanged. Needs GeometryEngine
+  with `OffsetSmooth`'s inflation parameter.
 
 ## [1.0.0] - 2026-10-14
 

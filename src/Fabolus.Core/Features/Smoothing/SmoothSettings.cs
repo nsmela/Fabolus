@@ -13,17 +13,24 @@ namespace Fabolus.Core.Features.Smoothing;
 public enum SmoothingMethod {
     /// <summary>
     /// Out by the intensity and back, re-meshing after every step, then the inflation as a third
-    /// offset: 2N + 1 meshings for N iterations. What every project saved before
-    /// <see cref="Grid"/> existed was smoothed with, so it stays the default for a command read
-    /// back without a method.
+    /// offset: 2N + 1 meshings for N iterations. The closing alone would come out the same at any
+    /// iteration count; what each added iteration contributes is the re-meshing, which cuts
+    /// slightly inside a curved surface and so shrinks it in proportion to its curvature - a step
+    /// of curvature smoothing, about 0.17 mm² × mean curvature per iteration at 1 mm cells, plus
+    /// the volume that takes with it. That is the smoothing the iteration count controls.
+    /// What every project saved before <see cref="Grid"/> existed was smoothed with, and the
+    /// default for a command read back without a method.
     /// </summary>
     Offsets = 0,
 
     /// <summary>
     /// The same closing held on one sampled distance field, with the inflation applied there too,
-    /// and meshed once. Several times faster on a typical bolus, and the volume no longer drifts
-    /// down as iterations are added. A scan too large for the engine's grid at the requested
-    /// resolution falls back to <see cref="Offsets"/>.
+    /// and meshed once: several times faster on a typical bolus. Not yet equivalent to
+    /// <see cref="Offsets"/>: it has none of the per-iteration curvature smoothing the re-meshing
+    /// gives, its iterations instead drift with the intensity (nothing at 1 mm, 0.4-0.8 % of the
+    /// volume per iteration at 2 mm), and it comes out about 0.1 mm fuller at 1 mm cells. A scan
+    /// too large for the engine's grid at the requested resolution falls back to
+    /// <see cref="Offsets"/>.
     /// </summary>
     Grid = 1,
 }
@@ -35,8 +42,11 @@ public record SmoothSettings(
     float RemeshRatio = 2.0f,
     float Resolution = 1.0f,
     SmoothingMethod Method = SmoothingMethod.Offsets) : IMeshCommand {
-    /// <summary>The method new smoothing uses. The constructor's default stays the one old saves need.</summary>
-    public const SmoothingMethod CurrentMethod = SmoothingMethod.Grid;
+    /// <summary>
+    /// The method new smoothing uses. Offsets until <see cref="SmoothingMethod.Grid"/> reproduces
+    /// what its iterations do; the constructor's default is separately the one old saves need.
+    /// </summary>
+    public const SmoothingMethod CurrentMethod = SmoothingMethod.Offsets;
 
     /// <summary>
     /// The engine's refusal when its grid cannot resolve the intensity at the requested cell -
