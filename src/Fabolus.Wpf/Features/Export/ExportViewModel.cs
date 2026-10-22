@@ -326,6 +326,12 @@ public partial class ExportViewModel : ObservableObject, IViewState
         }
 
         _messenger.Send(new MeshesSavedMessage(Workspace, [exportRecordResult.Value.Id]));
-        _alert.ShowInfo($"Successfully exported to {Path.GetFileName(filepath)}.");
+
+        // A separated parting cut is written as one lettered file per piece, and the name the user
+        // typed is not among them - so say what is on disk, not what was asked for.
+        var written = result.Value;
+        _alert.ShowInfo(written.Count == 1
+            ? $"Successfully exported to {Path.GetFileName(written[0])}."
+            : $"Exported {written.Count} files, one per piece: {string.Join(", ", written.Select(Path.GetFileName))}.");
     }
 }

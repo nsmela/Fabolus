@@ -28,6 +28,9 @@ public sealed class ExportMesh {
     /// non-printable object, and the command history as vendor metadata. Every other format holds
     /// geometry alone, so exporting a mould to STL keeps the shape and drops the history - that is
     /// what those formats are, and the caller chose one.
+    ///
+    /// Succeeds with the paths actually written: the one named, or, for a separated parting cut,
+    /// the lettered file per piece written in its place.
     /// </summary>
     /// <param name="record">
     /// The workspace entry the geometry belongs to. Its history is what makes a saved mould
@@ -42,7 +45,7 @@ public sealed class ExportMesh {
     /// actually written. Returning false, or passing nothing, leaves them alone and the export
     /// fails with <see cref="MeshErrors.ExportCancelled"/> or <see cref="MeshErrors.ExportFilesExist"/>.
     /// </param>
-    public Result Execute(
+    public Result<IReadOnlyList<string>> Execute(
         IMesh mesh,
         MeshRecord record,
         string filePath,
@@ -58,37 +61,42 @@ public sealed class ExportMesh {
             return MeshErrors.ExportRecordIsNull;
 
         if (FabolusPackage.IsPackage(filePath))
-            return ExportPackage(mesh, record, filePath, overwrite);
+            return Written(ExportPackage(mesh, record, filePath, overwrite), filePath);
 
         // A parting cut kept as one mesh can still have been asked for as separate pieces. The
         // package carries that choice with the rest of the recipe, so it is only acted on here,
         // when the cut leaves for a format that holds nothing but geometry.
         var mode = record.Command<CutCommand>()?.Mode ?? PartingResultMode.Combined;
         return mode == PartingResultMode.Combined
-            ? _geometryEngine.IO.Export(mesh, filePath, overwrite)
+            ? Written(_geometryEngine.IO.Export(mesh, filePath, overwrite), filePath)
             : ExportPieces(mesh, filePath, overwrite, confirmReplace);
     }
 
+    private static Result<IReadOnlyList<string>> Written(Result export, params string[] paths) =>
+        export.IsFailure ? export.Error : Result.Success<IReadOnlyList<string>>(paths);
+
     /// <summary>
-    /// Writes each disconnected piece of <paramref name="mesh"/> to a file of its own, lettered
-    /// beside <paramref name="filePath"/>. A mesh that is only one piece is written as it is rather
-    /// than as a lone "_A".
+    /// Writes each piece of <paramref name="mesh"/> to a file of its own, lettered beside
+    /// <paramref name="filePath"/>, biggest first. A piece is a component holding a real share of
+    /// the mesh (see <see cref="PartingPieces"/>): specks the cut chipped off are left out rather
+    /// than each written as a file. A mesh that is only one piece is written as it is rather than as
+    /// a lone "_A".
     /// </summary>
-    private Result ExportPieces(
+    private Result<IReadOnlyList<string>> ExportPieces(
         IMesh mesh, string filePath, bool overwrite, Func<IReadOnlyList<string>, bool>? confirmReplace) {
         var componentsResult = _geometryEngine.Evaluators.SeparateComponents(mesh);
         if (componentsResult.IsFailure)
             return componentsResult.Error;
 
-        var components = componentsResult.Value;
-        if (components.Length < 2)
-            return _geometryEngine.IO.Export(mesh, filePath, overwrite);
+        var components = PartingPieces.Substantial(componentsResult.Value);
+        if (components.Count < 2)
+            return Written(_geometryEngine.IO.Export(mesh, filePath, overwrite), filePath);
 
         var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
         var name = Path.GetFileNameWithoutExtension(filePath);
         var extension = Path.GetExtension(filePath);
 
-        var partPaths = Enumerable.Range(0, components.Length)
+        var partPaths = Enumerable.Range(0, components.Count)
             .Select(i => Path.Combine(directory, $"{name}_{(char)('A' + i)}{extension}"))
             .ToList();
 
@@ -103,13 +111,13 @@ public sealed class ExportMesh {
                 return MeshErrors.ExportCancelled;
         }
 
-        for (int i = 0; i < components.Length; i++) {
+        for (int i = 0; i < components.Count; i++) {
             var export = _geometryEngine.IO.Export(components[i], partPaths[i], overwrite: true);
             if (export.IsFailure)
                 return export.Error;
         }
 
-        return Result.Success();
+        return Result.Success<IReadOnlyList<string>>(partPaths);
     }
 
     private Result ExportPackage(IMesh mesh, MeshRecord record, string filePath, bool overwrite) {

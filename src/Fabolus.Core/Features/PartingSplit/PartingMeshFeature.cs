@@ -802,7 +802,7 @@ public sealed class PartingMeshFeature
         // whatever order the component walk found them, so without it which half is Positive would
         // vary between runs of the same recipe.
         var components = componentsResult.Value
-            .OrderByDescending(SignedVolume)
+            .OrderByDescending(PartingPieces.Volume)
             .ToList();
 
         if (components.Count == 0) return MeshErrors.SplitProducedSinglePiece;
@@ -1040,10 +1040,17 @@ public sealed class PartingMeshFeature
         var severedResult = _engine.Evaluators.SeparateComponents(cutResult.Value);
         if (severedResult.IsFailure)
             return severedResult.Error;
-        if (severedResult.Value.Length < 2)
+
+        // Pieces, not components: a cutter that leaves the mould whole can still chip specks off a
+        // wall it grazes, and those counted as a second piece used to pass for a split. They are
+        // dropped from the result too, so neither the workspace nor an export carries them.
+        var pieces = PartingPieces.Substantial(severedResult.Value);
+        if (pieces.Count < 2)
             return MeshErrors.SplitProducedSinglePiece;
 
-        return Result.Success(cutResult.Value);
+        return pieces.Count == severedResult.Value.Length
+            ? Result.Success(cutResult.Value)
+            : Combine([.. pieces]);
     }
 
     /// <summary>
@@ -1083,21 +1090,6 @@ public sealed class PartingMeshFeature
 
 
     // --- helpers --- //
-
-    /// <summary>Enclosed volume by the divergence theorem, for ranking the cut pieces by size.</summary>
-    private static double SignedVolume(IMesh mesh)
-    {
-        var vertices = mesh.Vertices;
-        var triangles = mesh.Triangles;
-
-        double total = 0;
-        for (int i = 0; i + 2 < triangles.Length; i += 3)
-        {
-            total += vertices[triangles[i]].Dot(vertices[triangles[i + 1]].Cross(vertices[triangles[i + 2]])) / 6.0;
-        }
-
-        return Math.Abs(total);
-    }
 
     /// <summary>
     /// The pieces as one mesh, side by side and untouched - their vertices and triangles laid end to
