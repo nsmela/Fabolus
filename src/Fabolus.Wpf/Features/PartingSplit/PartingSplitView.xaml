@@ -144,7 +144,7 @@
                                         <Setter Property="Text" Value="The parting mesh should pass cleanly through the mould on every side. Green is its outer face, red the inner - red where you expect green means a flipped or self-intersecting surface." />
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding CurrentState}" Value="SplitResult">
-                                        <Setter Property="Text" Value="Review the positive (blue) and negative (orange) halves. Applying adds them to the workspace and opens the mesh manager." />
+                                        <Setter Property="Text" Value="Review the positive (blue) and negative (orange) halves. Applying adds the cut mould to the workspace as one mesh and opens the mesh manager; how it is exported is chosen below." />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -311,12 +311,22 @@
 
                         <!-- Which shape the mating face inherits. The marching sweep takes the body's
                              normals all the way out, so the face carries the body's undulation; the loft
-                             asks the mould where to come out instead - see
-                             PartingSplitViewModel.UseMouldLoft. Toggling clears the built mesh, so press
-                             Back then Next to rebuild it. -->
-                        <CheckBox Content="Loft to the mould" IsChecked="{Binding UseMouldLoft}"
-                                  Margin="0,10,0,0"
-                                  ToolTip="Build the parting mesh by lofting out to a ring on the mould, whose height follows the parting line, instead of marching along the body's normals. Much flatter mating face."/>
+                             asks the mould where to come out instead; the bisector parts bodies neither
+                             can - see PartingSplitViewModel.FlangeSweep. Changing it clears the built
+                             mesh, so press Back then Next to rebuild it. -->
+                        <TextBlock Text="Parting Mesh" FontWeight="SemiBold" Margin="0,10,0,4" />
+                        <RadioButton GroupName="FlangeSweep" Margin="0,0,0,4"
+                                     Content="Loft to the mould"
+                                     IsChecked="{Binding FlangeSweep, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingMeshSweep.MouldLoft}}"
+                                     ToolTip="Loft out to a ring on the mould, whose height follows the parting line. The flattest mating face, and the one to start with."/>
+                        <RadioButton GroupName="FlangeSweep" Margin="0,0,0,4"
+                                     Content="Follow the body's normals"
+                                     IsChecked="{Binding FlangeSweep, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingMeshSweep.SurfaceSweep}}"
+                                     ToolTip="March out along the body's surface normals, so the mating face carries the body's undulation out to the mould wall."/>
+                        <RadioButton GroupName="FlangeSweep"
+                                     Content="Halfway between the skins"
+                                     IsChecked="{Binding FlangeSweep, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingMeshSweep.SkinBisector}}"
+                                     ToolTip="Part the mould where it is equally far from both sides of the body. For a parting line that winds or climbs too much for the loft, such as a larynx: it cannot fold, and it spans a hole through the body by itself. Much steeper than the loft, and takes several seconds to build."/>
                     </StackPanel>
 
                     <!-- Step 3: how the applied result lands in the workspace -->
@@ -334,9 +344,11 @@
                         <TextBlock Text="Export as" FontWeight="SemiBold" Margin="0,0,0,4" />
                         <RadioButton GroupName="PartingResult" Margin="0,0,0,4"
                                      Content="Separate files (one per half)"
+                                     ToolTip="Exporting to STL, OBJ, OFF or PLY writes each half to its own file, lettered after the name you choose: name_A.stl and name_B.stl. A 3MF project stays one file."
                                      IsChecked="{Binding ResultMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingResultMode.Separated}}" />
                         <RadioButton GroupName="PartingResult"
                                      Content="Single file (halves joined)"
+                                     ToolTip="Both halves are written together, side by side, in the one file you name."
                                      IsChecked="{Binding ResultMode, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingResultMode.Combined}}" />
                     </StackPanel>
 
