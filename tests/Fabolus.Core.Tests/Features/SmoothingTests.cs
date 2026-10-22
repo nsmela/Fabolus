@@ -38,16 +38,19 @@ public class SmoothingTests
     /// stayed green. Hence a real bolus, and assertions about the shape rather than the plumbing.
     /// </remarks>
     [Theory]
-    [InlineData("ear_bolus.stl")]
-    [InlineData("eye_bolus.stl")]
-    public void SmoothMesh_OnBolus_StaysOnePieceAtItsOriginalSize(string filename)
+    [InlineData("ear_bolus.stl", SmoothingMethod.Offsets)]
+    [InlineData("eye_bolus.stl", SmoothingMethod.Offsets)]
+    [InlineData("ear_bolus.stl", SmoothingMethod.Grid)]
+    [InlineData("eye_bolus.stl", SmoothingMethod.Grid)]
+    [InlineData("larynx small.stl", SmoothingMethod.Grid)]
+    public void SmoothMesh_OnBolus_StaysOnePieceAtItsOriginalSize(string filename, SmoothingMethod method)
     {
         var mesh = _fixture.LoadStl(filename);
         var before = _fixture.Engine.Evaluators.GetStatistics(mesh).Value;
 
         var (workspace, _) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
 
-        var result = _smoothingFeature.Execute(workspace, new SmoothSettings());
+        var result = _smoothingFeature.Execute(workspace, new SmoothSettings(Method: method));
         result.IsSuccess.Should().BeTrue();
 
         var smoothed = result.Value.GetActiveMesh().Value;
@@ -70,6 +73,68 @@ public class SmoothingTests
 
         // Volume survives within a fifth. Fragments lose most of it; a runaway offset gains it.
         after.Volume.Should().BeInRange(before.Volume * 0.8, before.Volume * 1.2);
+    }
+
+    /// <summary>
+    /// Smoothing on the grid has to give the same mesh every time, or a project would not reopen
+    /// as it was saved: the history is replayed against the scan.
+    /// </summary>
+    [Fact]
+    public void SmoothMesh_OnTheGrid_IsRepeatable()
+    {
+        var mesh = _fixture.LoadStl("ear_bolus.stl");
+        var settings = new SmoothSettings(Method: SmoothingMethod.Grid);
+
+        var first = settings.Apply(_fixture.Engine, mesh).Value;
+        var second = settings.Apply(_fixture.Engine, mesh).Value;
+
+        second.Vertices.Should().Equal(first.Vertices);
+        second.Triangles.Should().Equal(first.Triangles);
+    }
+
+    /// <summary>
+    /// A scan too large for the engine's grid at the requested resolution is smoothed the old way
+    /// rather than refused - and exactly the old way, so the fallback is no third behaviour.
+    /// </summary>
+    [Fact]
+    public void SmoothMesh_OnTheGrid_FallsBackToOffsetsWhereTheGridCannotResolveIt()
+    {
+        // 239 mm long: at 1 mm cells its grid is over the engine's budget, which coarsens the
+        // cell past the 1 mm intensity.
+        var mesh = _fixture.LoadStl("test bolus 7mm.stl");
+
+        var grid = new SmoothSettings(Method: SmoothingMethod.Grid).Apply(_fixture.Engine, mesh);
+        var offsets = new SmoothSettings(Method: SmoothingMethod.Offsets).Apply(_fixture.Engine, mesh);
+
+        grid.IsSuccess.Should().BeTrue();
+        grid.Value.Vertices.Should().Equal(offsets.Value.Vertices);
+        grid.Value.Triangles.Should().Equal(offsets.Value.Triangles);
+    }
+
+    /// <summary>
+    /// A smoothing command saved before the method existed has to come back as the method it was
+    /// smoothed with, or reopening the project would re-smooth it differently from what was saved.
+    /// </summary>
+    [Fact]
+    public void SmoothSettings_WithoutAStoredMethod_ReadsBackAsOffsets()
+    {
+        var json = """[{"Type":"SmoothSettings","Data":{"Iterations":1,"Intensity":2,"Inflation":0.1,"RemeshRatio":2,"Resolution":1}}]""";
+
+        var commands = MeshCommandSerializer.Deserialize(json);
+
+        commands.IsSuccess.Should().BeTrue();
+        commands.Value.Should().ContainSingle().Which.Should().BeOfType<SmoothSettings>()
+            .Which.Method.Should().Be(SmoothingMethod.Offsets);
+    }
+
+    [Fact]
+    public void SmoothSettings_StoreTheirMethodByName()
+    {
+        var json = MeshCommandSerializer.Serialize([new SmoothSettings(Method: SmoothingMethod.Grid)]);
+
+        json.Should().Contain("\"Method\":\"Grid\"");
+        MeshCommandSerializer.Deserialize(json).Value.Single().Should().BeOfType<SmoothSettings>()
+            .Which.Method.Should().Be(SmoothingMethod.Grid);
     }
 
     /// <summary>

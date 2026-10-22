@@ -73,7 +73,7 @@ public sealed record SmoothingPreferences(
     }
 
     public SmoothSettings ToSmoothSettings() => new(
-        Iterations, Intensity, Inflation, RemeshRatio, Resolution);
+        Iterations, Intensity, Inflation, RemeshRatio, Resolution, SmoothSettings.CurrentMethod);
 
     public SmoothingPreferences Clamped() => new(
         Math.Clamp(Iterations, Ranges.IterationsMin, Ranges.IterationsMax),

@@ -262,7 +262,8 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
             Intensity,
             Inflation,
             RemeshRatio,
-            Resolution);
+            Resolution,
+            SmoothSettings.CurrentMethod);
 
         var result = await Task.Run(() => _smoothFeature.Execute(Workspace, settings));
         if (result.IsFailure) {

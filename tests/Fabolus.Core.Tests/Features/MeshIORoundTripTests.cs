@@ -355,6 +355,9 @@ public class MeshIORoundTripTests
 
         imported.IsSuccess.Should().BeTrue(imported.IsFailure ? imported.Error.Description : string.Empty);
         imported.Value.GetActiveRecord().Value.Smoothing().Should().NotBeNull();
+
+        // Saved long before smoothing had a method, so it replays the way it was smoothed.
+        imported.Value.GetActiveRecord().Value.Smoothing()!.Method.Should().Be(SmoothingMethod.Offsets);
     }
 
     [Fact]
