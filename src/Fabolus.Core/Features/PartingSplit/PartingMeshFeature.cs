@@ -636,6 +636,17 @@ public sealed class PartingMeshFeature
             .Select(v => PartingFrame.ToPlane(v, parameters.Axis))
             .ToList();
 
+        // One surface for every loop, holes included, so it is returned as it is: the patches the other
+        // sweeps add over a hole would only sit on top of what the bisector already spans there.
+        if (parameters.Sweep == PartingMeshSweep.SkinBisector)
+        {
+            return SkinBisector.Build(
+                _engine,
+                partingLine,
+                body.Mesh,
+                body.ParentMould.HasValue ? body.ParentMould.Value.Mesh : null);
+        }
+
         var meshes = new List<IMesh>();
 
         Result<IMesh> outerMeshResult;
@@ -687,7 +698,7 @@ public sealed class PartingMeshFeature
         // Generate shut-off surfaces for any internal holes (e.g. tunnels in the body)
         for (int i = 1; i < partingLine.Loops.Count; i++)
         {
-            var patchResult = _parting.GenerateHolePatch(partingLine.Loops[i], parameters.Axis);
+            var patchResult = _parting.GenerateHolePatch(partingLine.Loops[i], parameters.Axis, body.Mesh);
             if (patchResult.IsSuccess)
                 meshes.Add(patchResult.Value);
         }
@@ -1407,6 +1418,28 @@ public enum PartingMeshSweep
     /// </para>
     /// </summary>
     MouldLoft,
+
+    /// <summary>
+    /// The set of points equally far from the body's two skins - the two parts of its surface the
+    /// parting line divides it into - meshed as a level set. See <see cref="Geometry.SkinBisector"/>.
+    ///
+    /// <para>
+    /// For a line no axis sees as a simple loop, which every sweep above needs. larynx_large's outer
+    /// line climbs 85mm and crosses itself 19 times along its own axis; the mould loft folds through
+    /// the body there and nothing above severs it, where this parts it 57/43. A field cannot fold, and
+    /// it spans a hole through the body without a patch of its own.
+    /// </para>
+    ///
+    /// <para>
+    /// It follows the body out to the mould wall rather than levelling off toward the axis, so it is
+    /// much steeper than the loft wherever the loft works (median face 69 degrees off level on chin
+    /// against 2) and up to a fifth of it can face against the axis. It is a surface for the bodies the
+    /// others cannot part, not a better default. It is not a height field over the axis plane either, so
+    /// it cuts with <see cref="PartingSplitMethod.SeveredComponents"/>; the half-space method sweeps the
+    /// flange along the axis and needs one that is.
+    /// </para>
+    /// </summary>
+    SkinBisector,
 }
 
 /// <summary>Which of the two ways of choosing the parting mesh's axis is in force.</summary>

@@ -161,7 +161,7 @@ public class PartingSplitRecipeEndToEndTests
         var validated = MouldMesh.Create(mould.Value.GetMesh(record.Id).Value, mould.Value.GetRecord(record.Id).Value).Value;
 
         var view = Recipe();
-        view.UseMouldLoft = loft;
+        view.FlangeSweep = loft ? PartingMeshSweep.MouldLoft : PartingMeshSweep.SurfaceSweep;
         var feature = new PartingMeshFeature(engine);
         var body = feature.GetBodyMesh(validated).Value;
         var line = feature.GeneratePartingLineFromBody(body, view.LineParameters).Value;
