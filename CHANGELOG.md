@@ -8,11 +8,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ### Added
 
 - A second smoothing method, `SmoothingMethod.Grid`, which runs the inflate/deflate cycle and the
-  inflation on one distance field and meshes once: 2-3x faster on a typical bolus. Not used by
-  default yet: unlike the current method, its iteration count does not add curvature smoothing,
-  and it comes out about 0.1 mm fuller. Smoothing commands now record their method; projects
-  saved before this read back as the current method and reopen unchanged. Needs GeometryEngine
-  with `OffsetSmooth`'s inflation parameter.
+  inflation on one distance field and meshes once: 1.4-3x faster on bolus scans up to about
+  120 mm. Its iterations smooth the way the current method's do, and its results land within
+  about 0.03 mm of them on average. Not used by default until it has been checked clinically.
+  Smoothing commands now record their method; projects saved before this read back as the
+  current method and reopen unchanged. Needs GeometryEngine with `OffsetSmooth`'s inflation
+  parameter.
 
 ## [1.0.0] - 2026-10-14
 

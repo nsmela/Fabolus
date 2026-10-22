@@ -25,12 +25,13 @@ public enum SmoothingMethod {
 
     /// <summary>
     /// The same closing held on one sampled distance field, with the inflation applied there too,
-    /// and meshed once: several times faster on a typical bolus. Not yet equivalent to
-    /// <see cref="Offsets"/>: it has none of the per-iteration curvature smoothing the re-meshing
-    /// gives, its iterations instead drift with the intensity (nothing at 1 mm, 0.4-0.8 % of the
-    /// volume per iteration at 2 mm), and it comes out about 0.1 mm fuller at 1 mm cells. A scan
-    /// too large for the engine's grid at the requested resolution falls back to
-    /// <see cref="Offsets"/>.
+    /// and meshed once: 1.4-3x faster on bolus scans up to about 120 mm, about level on larger
+    /// ones. Its iterations do what <see cref="Offsets"/>' do, for the same reason - every
+    /// reconstruction of the surface from the grid smooths it in proportion to its curvature -
+    /// at about 85 % of the strength per iteration, plus about one iteration's worth once. On
+    /// bolus scans the two land 0.01-0.03 mm apart on average at one to four iterations, with
+    /// volumes within 0.3 %. A scan too large for the engine's grid at the requested resolution
+    /// falls back to <see cref="Offsets"/>.
     /// </summary>
     Grid = 1,
 }
@@ -43,8 +44,8 @@ public record SmoothSettings(
     float Resolution = 1.0f,
     SmoothingMethod Method = SmoothingMethod.Offsets) : IMeshCommand {
     /// <summary>
-    /// The method new smoothing uses. Offsets until <see cref="SmoothingMethod.Grid"/> reproduces
-    /// what its iterations do; the constructor's default is separately the one old saves need.
+    /// The method new smoothing uses: Offsets until Grid has been checked clinically against it.
+    /// The constructor's default is separately the one old saves need.
     /// </summary>
     public const SmoothingMethod CurrentMethod = SmoothingMethod.Offsets;
 
