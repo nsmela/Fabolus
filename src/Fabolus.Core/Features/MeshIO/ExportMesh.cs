@@ -77,10 +77,10 @@ public sealed class ExportMesh {
 
     /// <summary>
     /// Writes each piece of <paramref name="mesh"/> to a file of its own, lettered beside
-    /// <paramref name="filePath"/>, biggest first. A piece is a component holding a real share of
-    /// the mesh (see <see cref="PartingPieces"/>): specks the cut chipped off are left out rather
-    /// than each written as a file. A mesh that is only one piece is written as it is rather than as
-    /// a lone "_A".
+    /// <paramref name="filePath"/>, biggest first. A piece is a component as thick as a mould wall
+    /// (see <see cref="PartingPieces"/>): any sliver the cut left is left out rather than written as
+    /// a file of its own. A mesh that is only one piece is written as it is rather than as a lone
+    /// "_A".
     /// </summary>
     private Result<IReadOnlyList<string>> ExportPieces(
         IMesh mesh, string filePath, bool overwrite, Func<IReadOnlyList<string>, bool>? confirmReplace) {
