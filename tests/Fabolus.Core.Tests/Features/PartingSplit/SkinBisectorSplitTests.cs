@@ -91,6 +91,20 @@ public class SkinBisectorSplitTests
     }
 
     [Fact]
+    public void BuildingTwice_GivesTheSameSurface()
+    {
+        // The engine's level set used to come back a little different every call - Manifold's parallel
+        // meshing numbered its output by thread scheduling - so a replayed split would not cut where the
+        // committed one did. GeometryEngine 0df541d ships Manifold's own fix for that.
+        var sphere = _engine.Generators.GenerateSphere(Vector3.Zero, BodyRadius, 48).Value;
+        var first = SkinBisector.Build(_engine, Equator(BodyRadius), sphere, mould: null).Value;
+        var second = SkinBisector.Build(_engine, Equator(BodyRadius), sphere, mould: null).Value;
+
+        second.Triangles.Should().Equal(first.Triangles);
+        second.Vertices.Should().Equal(first.Vertices);
+    }
+
+    [Fact]
     public void LineThatOnlyNicksTheBody_IsRefused()
     {
         // A small circle near the pole cuts off a cap of a fraction of a percent: there is no second skin

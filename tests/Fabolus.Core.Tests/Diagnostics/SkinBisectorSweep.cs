@@ -88,7 +88,7 @@ public class SkinBisectorSweep
 
         double whole = Volume(mould.Mesh);
         _out.WriteLine(
-            $"{file}: surface {surface.TriangleCount}t in {surfaceMs} ms, {crossings} crossings; in the mould's material {total:F0} mm², " +
+            $"{file}: surface {surface.TriangleCount}t {Hash(surface)} in {surfaceMs} ms, {crossings} crossings; in the mould's material {total:F0} mm², " +
             $"median {(tilt.Length > 0 ? tilt[tilt.Length / 2] : 0):F0}° off level, {100 * against:F0}% facing against the axis | " +
             $"cut {parts.Length} piece(s) {string.Join(" ", parts.Take(3).Select(v => $"{100 * v / whole:F1}%"))} ({cutMs} ms)");
 
@@ -139,6 +139,12 @@ public class SkinBisectorSweep
         }
         return _engine.CreateMesh(outV.ToImmutable(), outT.MoveToImmutable(), MeshMetadata.Named("shown")).Value;
     }
+
+    /// <summary>A fingerprint of the surface, to compare builds across runs.</summary>
+    private static string Hash(IMesh mesh) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            mesh.Vertices.SelectMany(v => new[] { v.X, v.Y, v.Z }).Concat(mesh.Triangles.Select(t => (double)t))
+                .SelectMany(BitConverter.GetBytes).ToArray()))[..10];
 
     private static double Volume(IMesh mesh)
     {
