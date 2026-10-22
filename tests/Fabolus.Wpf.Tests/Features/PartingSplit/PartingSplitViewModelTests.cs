@@ -80,8 +80,9 @@ public class PartingSplitViewModelTests
     ///
     /// <para>
     /// Lofted to the mould by default, so the mating face takes its shape from the mould rather than
-    /// carrying the body's undulation; the marching sweep stays one switch away for comparison. Either
-    /// way the cut is the thin severing one, which is what step two shows.
+    /// carrying the body's undulation; the marching sweep and the skin bisector are the other two
+    /// choices. Whichever is picked the cut is the thin severing one, which is what step two shows -
+    /// and the only one the bisector can cut with.
     /// </para>
     /// </summary>
     [Fact]
@@ -91,9 +92,26 @@ public class PartingSplitViewModelTests
         Assert.Equal(PartingMeshSweep.MouldLoft, viewModel.MeshSweep);
         Assert.Equal(PartingSplitMethod.SeveredComponents, viewModel.SplitMethod);
 
-        viewModel.UseMouldLoft = false;
+        viewModel.FlangeSweep = PartingMeshSweep.SurfaceSweep;
         Assert.Equal(PartingMeshSweep.SurfaceSweep, viewModel.MeshSweep);
         Assert.Equal(PartingMeshSweep.SurfaceSweep, viewModel.MeshParameters.Sweep);
+
+        viewModel.FlangeSweep = PartingMeshSweep.SkinBisector;
+        Assert.Equal(PartingMeshSweep.SkinBisector, viewModel.MeshParameters.Sweep);
+        Assert.Equal(PartingSplitMethod.SeveredComponents, viewModel.MeshParameters.SplitMethod);
+    }
+
+    /// <summary>
+    /// Only the three sweeps the view lists can reach the recipe. The planar ones are still in the
+    /// enum for older save files, but picking one here would build a flange nothing on screen offers.
+    /// </summary>
+    [Fact]
+    public void ASweepTheViewDoesNotOffer_BuildsTheLoft()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.FlangeSweep = PartingMeshSweep.PlanarWavefront;
+
+        Assert.Equal(PartingMeshSweep.MouldLoft, viewModel.MeshSweep);
     }
 
     /// <summary>
