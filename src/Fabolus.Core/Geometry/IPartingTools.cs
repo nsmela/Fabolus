@@ -270,7 +270,16 @@ public interface IPartingTools
     Result<IMesh> ExtrudeFlangeToSolid(
         IMesh surface, Vector3 direction, double topAlongAxis, double roundingMm, double voxelSizeMm);
 
+    /// <summary>
+    /// Spans a hole's parting loop with a patch, the parting surface for a rim round a hole through the
+    /// body.
+    /// </summary>
+    /// <param name="body">
+    /// When given, the patch's edge is carried a millimetre into it so the cut seals against the
+    /// hole's wall; without it the edge ends on the loop, on the body's surface.
+    /// </param>
     Result<IMesh> GenerateHolePatch(
         IReadOnlyList<Vector3> loop,
-        Vector3 planeNormal);
+        Vector3 planeNormal,
+        IMesh? body = null);
 }

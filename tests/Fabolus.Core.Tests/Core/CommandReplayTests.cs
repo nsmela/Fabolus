@@ -83,4 +83,52 @@ public class CommandReplayTests
         reset.IsSuccess.Should().BeTrue();
         reset.Value.GetActiveRecord().Value.Smoothing().Should().BeNull();
     }
+
+    [Fact]
+    public void Apply_SameHistoryTwice_HandsBackTheSameMesh()
+    {
+        // Smoothing is not repeatable: the engine's offset meshes in parallel and differs a little on
+        // every call. Replayed afresh each time, the body the parting line was traced on moved from
+        // run to run, and with it the rims, the line and whether the cut severed.
+        var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
+        var commands = new IMeshCommand[] { new SmoothSettings() };
+
+        var first = CommandReplay.Apply(_fixture.Engine, mesh, commands).Value;
+        var second = CommandReplay.Apply(_fixture.Engine, mesh, commands.ToList()).Value;
+
+        second.Should().BeSameAs(first);
+    }
+
+    [Fact]
+    public void GetMeshAtStage_AfterSmoothRotateAndMould_IsTheBodyTheMouldWasBuiltAround()
+    {
+        var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
+        var (workspace, id) = GeometryEngineFixture.AddActive(Workspace.CreateEmpty(), mesh);
+
+        workspace = new SmoothMesh(_fixture.Engine).Execute(workspace, new SmoothSettings()).Value;
+        workspace = new Fabolus.Core.Features.Transforms.TransformMesh(_fixture.Engine)
+            .Rotate(workspace, id, 0.3f, GeometryEngine.Core.Geometry.Primitives.Vec3.UnitX).Value;
+        var body = workspace.GetMesh(id).Value;
+
+        workspace = new GenerateMould(_fixture.Engine).Execute(workspace, id, new ContouredMouldDefinition(OffsetXY: 2.0)).Value;
+
+        var recovered = CommandReplay.GetMeshAtStage(
+            _fixture.Engine, workspace.GetMesh(id).Value, workspace.GetRecord(id).Value, CommandPriority.Transform);
+
+        recovered.Value.Should().BeSameAs(body);
+    }
+
+    [Fact]
+    public void Apply_HistoriesThatPart_EachKeepTheirOwnResult()
+    {
+        var mesh = _fixture.Engine.Generators.GenerateSphere(new Vector3(0, 0, 0), 10).Value;
+        var smooth = new SmoothSettings();
+        IMeshCommand[] Gentle() => [smooth, new SmoothSettings(Intensity: 0.5f, Iterations: 2)];
+
+        var gentle = CommandReplay.Apply(_fixture.Engine, mesh, Gentle()).Value;
+        var harder = CommandReplay.Apply(_fixture.Engine, mesh, new IMeshCommand[] { smooth, new SmoothSettings(Intensity: 1.5f, Iterations: 2) }).Value;
+
+        harder.Should().NotBeSameAs(gentle);
+        CommandReplay.Apply(_fixture.Engine, mesh, Gentle()).Value.Should().BeSameAs(gentle);
+    }
 }
