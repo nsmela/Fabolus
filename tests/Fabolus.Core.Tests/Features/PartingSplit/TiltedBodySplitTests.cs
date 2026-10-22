@@ -15,8 +15,9 @@ namespace Fabolus.Core.Tests.Features.PartingSplit;
 ///
 /// <para>
 /// The cut was not at fault, nor the axis: the extrusion-border line was. On the body's wide flap two
-/// of the crease offset's walks turn back and finish beside the crease they set off from, and at those
-/// tilts the second of them pulled the line back to the crease and out again. Seen along the axis the
+/// of the crease offset's walks go their full distance but come down beside another stretch of the
+/// crease they set off from, and at those tilts the second of them pulled the line onto the crease and
+/// out again. Seen along the axis the
 /// line then doubled back on itself, the mould-loft flange folded where it did, and the folded cutter
 /// left the mould joined. See <see cref="CreaseOffsetOptions.LeastHeadway"/>, and the
 /// <c>TiltedPartingCut</c> diagnostic for the measurements.

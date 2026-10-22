@@ -74,17 +74,26 @@ public sealed record CreaseOffsetOptions
 
     /// <summary>
     /// How far from the base crease an offset walk must end up, as a fraction of the distance it
-    /// walked, to be laid as a point of the line. One that ends nearer has turned back on itself and
-    /// is dropped, leaving its neighbours to carry the line across the gap.
+    /// actually travelled, to be laid as a point of the line. One that ends nearer has come back down
+    /// onto the crease - onto another stretch of it than it set off from - and is dropped, leaving its
+    /// neighbours to carry the line across the gap.
     ///
     /// <para>
-    /// A walk across a wall moves away from the crease it started on by nearly as much as it travels -
-    /// the median on <c>flat_vulva</c> is 0.94, and no walk that crossed came in under 0.56 at any tilt.
-    /// The ones that turn back are another population entirely: on the wide flap of the same body, two
-    /// walks travel their full 25mm and finish 1mm and 6mm from where they set off, at 0.04 and 0.24.
-    /// Laid as they stand, each pulls the line back to the crease and out again, and the second of them
+    /// A walk across a wall moves away from the crease by nearly as much as it travels - the median on
+    /// <c>flat_vulva</c> is 0.94, and no walk that crossed came in under 0.56 at any tilt. The ones
+    /// this drops are another population entirely. On the wide flap of the same body two walks travel
+    /// their full 25 mm and end about that far from where they set off, but over the flap and down
+    /// beside a different stretch of the same crease: 1.25 mm and 5.9 mm from it, at 0.05 and 0.24.
+    /// Laid as they stand, each pulls the line onto the crease and out again, and the second of them
     /// only does so at some tilts - which is what left the line doubling back, the loft flange folded,
     /// and the mould uncut at 30 to 60 degrees about X.
+    /// </para>
+    ///
+    /// <para>
+    /// Measured against the distance travelled, not the distance asked for. A walk that stopped
+    /// early - at an edge it could not cross, or on a wall narrower than the walk - has only come as
+    /// far as it got, and judging it against the full distance dropped hundreds of points on
+    /// <c>test_smoothed_bolus</c> whose walks were short but sound.
     /// </para>
     /// </summary>
     public double LeastHeadway { get; init; } = 0.4;
@@ -133,9 +142,14 @@ public sealed record CreaseSteadiness(double TurnP95, double WidthVariation, dou
 /// Zero on an even rim; a large share means the rim tapers, and that the single width this is built on
 /// describes only part of it.
 /// </param>
-/// <param name="TurnedBack">
-/// How many offset walks were dropped from the line for ending up nearer the crease they started on
-/// than they had walked - see <see cref="CreaseOffsetOptions.LeastHeadway"/>.
+/// <param name="BackOnCrease">
+/// How many offset walks ended back beside the crease they set off from - see
+/// <see cref="CreaseOffsetOptions.LeastHeadway"/> - whether or not they were dropped.
+/// </param>
+/// <param name="Dropped">
+/// How many of those were left out of the line: all of them, or none when leaving them out would
+/// have left too little of the loop to be the same curve, which is when this is less than
+/// <paramref name="BackOnCrease"/>.
 /// </param>
 /// <param name="Narrowest">The 5th percentile crossing, and <paramref name="Widest"/> the 95th.</param>
 /// <param name="Widest">
@@ -145,7 +159,7 @@ public sealed record CreaseSteadiness(double TurnP95, double WidthVariation, dou
 /// </param>
 public sealed record CreaseOffsetReport(
     int Base, double Crossing, double Narrowest, double Widest, double Offset,
-    int Samples, int Reached, int Clamped, int Short, int TurnedBack,
+    int Samples, int Reached, int Clamped, int Short, int BackOnCrease, int Dropped,
     IReadOnlyDictionary<WalkStop, int> Crossings, IReadOnlyDictionary<WalkStop, int> Offsets,
     CreaseSteadiness First, CreaseSteadiness Second);
 
@@ -304,6 +318,7 @@ public static class CreaseOffsetLine
         SmoothCircular(distance, options.DistanceSmoothingPasses);
 
         var laid = new Vector3[baseLine.Length];
+        var travelledBy = new double[baseLine.Length];
         var offsetStops = new Dictionary<WalkStop, int>();
         int fellShort = 0;
         for (int i = 0; i < baseLine.Length; i++)
@@ -313,18 +328,19 @@ public static class CreaseOffsetLine
                 step, options.MaxSteps, normals, projector, out var why);
 
             laid[i] = point;
+            travelledBy[i] = travelled;
             offsetStops[why] = offsetStops.GetValueOrDefault(why) + 1;
             if (travelled < distance[i] * 0.9) fellShort++;
         }
 
-        var kept = Headway(laid, baseLine, distance, step, options.LeastHeadway);
-        int turnedBack = laid.Length - kept.Length;
+        var (kept, backOnCrease) = Headway(laid, baseLine, travelledBy, step, options.LeastHeadway);
+        int dropped = laid.Length - kept.Length;
 
         var line = Smooth(kept, MedianStep(kept), options.SmoothingPasses, projector);
 
         report = new CreaseOffsetReport(
             useFirst ? 0 : 1, width, Percentile(reached, 0.05), Percentile(reached, 0.95), offset,
-            baseLine.Length, reached.Length, clamped, fellShort, turnedBack,
+            baseLine.Length, reached.Length, clamped, fellShort, backOnCrease, dropped,
             crossingStops, offsetStops, steadyFirst, steadySecond);
 
         // Refused last rather than first, so a rim this cannot cross still says why. The walks are the
@@ -334,39 +350,41 @@ public static class CreaseOffsetLine
     }
 
     /// <summary>
-    /// The laid points less those whose walk turned back - see
+    /// The laid points less those whose walk came back down beside the crease, and how many did - see
     /// <see cref="CreaseOffsetOptions.LeastHeadway"/>.
     ///
     /// <para>
     /// Dropped rather than replaced. Nothing better is known about where such a sample should be than
     /// that its neighbours are on either side of it, and the smoothing that follows resamples the loop
     /// and holds it to the body, so the gap is bridged on the surface without anything being invented
-    /// here. A walk asked for less than a step is kept whatever it did: there is no distance to judge
-    /// it by.
+    /// here. A walk that travelled less than a step is kept whatever it did: there is no distance to
+    /// judge it by.
     /// </para>
     ///
     /// <para>
-    /// Kept whole if dropping would leave too little. A loop most of whose walks turned back is not
-    /// one this can mend by omission, and handing back the few left would be a different curve rather
-    /// than a repaired one.
+    /// Kept whole if dropping would leave too little. A loop most of whose walks came back is not one
+    /// this can mend by omission, and handing back the few left would be a different curve rather than
+    /// a repaired one. The count is returned either way, so a report can say the check found them and
+    /// let them stand rather than claim there were none.
     /// </para>
     /// </summary>
-    private static Vector3[] Headway(
-        Vector3[] laid, Vector3[] baseLine, double[] distance, double step, double least)
+    private static (Vector3[] Kept, int BackOnCrease) Headway(
+        Vector3[] laid, Vector3[] baseLine, double[] travelled, double step, double least)
     {
-        if (least <= 0.0) return laid;
+        if (least <= 0.0) return (laid, 0);
 
         var crease = new RidgeContour(baseLine, true);
         var kept = new List<Vector3>(laid.Length);
 
         for (int i = 0; i < laid.Length; i++)
         {
-            if (distance[i] <= step ||
-                PartingBand.Closest(laid[i], crease).Distance >= distance[i] * least)
+            if (travelled[i] <= step ||
+                PartingBand.Closest(laid[i], crease).Distance >= travelled[i] * least)
                 kept.Add(laid[i]);
         }
 
-        return kept.Count < Math.Max(8, laid.Length / 2) ? laid : kept.ToArray();
+        int back = laid.Length - kept.Count;
+        return kept.Count < Math.Max(8, laid.Length / 2) ? (laid, back) : (kept.ToArray(), back);
     }
 
     // ---------------------------------------------------------------- choosing the base

@@ -30,11 +30,12 @@ namespace Fabolus.Core.Tests.Diagnostics;
 /// <para>
 /// The line came from the crease offset at every tilt, off the same base crease, so the source was
 /// not changing either. What changed was one walk. On the body's wide flap the creases run 40-45mm
-/// apart and the walks across travel 57-68mm, and there two offset walks travel their full 25mm but
-/// finish beside the crease they started from - sample 91 at 1mm at every tilt, and sample 88 at 6mm
-/// at 30-60 degrees against 21mm at the rest. The first is pulled back out by the line treatment; the
-/// two together are more than it can undo. Across all six tilts every other walk finished at least
-/// 0.56 of its distance from the base crease (median 0.94), and these at 0.04 and 0.24. See
+/// apart and the walks across travel 57-68mm, and there two offset walks travel their full 25mm, about
+/// that far from where they set off, but finish over the flap beside another stretch of the crease
+/// they started on - sample 91 1.25mm from it at every tilt, and sample 88 5.9mm from it at 30-60
+/// degrees against 21mm at the rest. The first is pulled back out by the line treatment; the two
+/// together are more than it can undo. Across all six tilts every other walk finished at least 0.56
+/// of its distance from the base crease (median 0.94), and these at 0.05 and 0.24. See
 /// <see cref="CreaseOffsetOptions.LeastHeadway"/>, which now drops them; with it every tilt splits two
 /// ways, 52/48 to 53/47 at 30-60 degrees.
 /// </para>
@@ -168,7 +169,7 @@ public class TiltedPartingCut
             if (offset is null || report is null) continue;
             _out.WriteLine("             walks: crossing " + string.Join(", ", report.Crossings.Select(kv => $"{kv.Key} {kv.Value}")) +
                            "; offset " + string.Join(", ", report.Offsets.Select(kv => $"{kv.Key} {kv.Value}")) +
-                           $"; short {report.Short}, turned back {report.TurnedBack}");
+                           $"; short {report.Short}, back on crease {report.BackOnCrease}, dropped {report.Dropped}");
 
             // The stretches of the offset that run away from the untilted line, and where they run
             // to: still between the creases, or off the wall entirely.
@@ -288,7 +289,7 @@ public class TiltedPartingCut
             MeshRasterizer.DrawPolyline(r2, flap, walks, true, walkColour, options);
             MeshRasterizer.DrawPolyline(r2, flap, loop, true, lineColour, options);
             foreach (var point in dropped) MeshRasterizer.DrawMarker(r2, flap, point, walkColour, options, 7);
-            tiles.Add(new Tile($"{label}: flap close-up", r2, $"turned back {report?.TurnedBack ?? 0}"));
+            tiles.Add(new Tile($"{label}: flap close-up", r2, $"back on crease {report?.BackOnCrease ?? 0}, dropped {report?.Dropped ?? 0}"));
 
             // 3. The flange along the axis, faces turned over against the majority in red: those
             //    are the folds.
@@ -405,6 +406,89 @@ public class TiltedPartingCut
             MouldDefinition.OfShape(MouldShapeType.Concave, 2.5, 5.0) with { TargetMeshId = id }).Value;
 
         return MouldMesh.Create(workspace.GetMesh(id).Value, workspace.GetRecord(id).Value).Value;
+    }
+
+    /// <summary>
+    /// What the headway check does on every body there is to hand: how many walks it finds back on the
+    /// crease, how many it drops, the longest run of them in a row, and how the line changes against
+    /// the same trace without the check.
+    /// </summary>
+    [DiagnosticFact]
+    public void HeadwayAcrossBodies()
+    {
+        var bodies = new List<(string Name, Func<MouldMesh?> Mould)>
+        {
+            ("flat_vulva", () => Mould(0.0)),
+            ("flat_vulva 45", () => Mould(45.0)),
+        };
+        foreach (var file in new[] { "chin_bolus.stl", "nose_bolus.stl", "eye_bolus.stl", "scalp_bolus.stl",
+                     "larynx_bolus.stl", "test_smoothed_bolus.stl", "test bolus 107mL.stl" })
+            bodies.Add((file, () => StlMould(file)));
+        foreach (var file in Directory.GetFiles(Path.Combine(Path.GetDirectoryName(Asset("sphere.stl"))!, "3mf"), "*.3mf"))
+            bodies.Add(("3mf/" + Path.GetFileNameWithoutExtension(file), () =>
+            {
+                var mesh = SavedMoulds.Open(_engine, file);
+                return mesh.IsFailure ? null : SavedMoulds.Mould(mesh.Value).Value;
+            }));
+
+        foreach (var (name, make) in bodies)
+        {
+            try
+            {
+                var mould = make();
+                if (mould is null) { _out.WriteLine($"{name}: no mould"); continue; }
+                var body = _sut.GetBodyMesh(mould).Value;
+
+                var thickness = WallThickness.Measure(_engine, body.Mesh, WallThicknessOptions.Default).Value;
+                var closed = RidgeDetection.FindRidgeContours(body.Mesh, RidgeDetectionOptions.Default)
+                    .Where(c => c.IsClosed).ToList();
+                var rims = PartingStrategy.Rims(closed, thickness.Statistics.Median);
+
+                using var projector = new PartingTools(_engine).CreateSurfaceProjector(body.Mesh).Value;
+                foreach (var rim in rims.Where(r => r.Kind == PartingRimKind.Wall))
+                {
+                    var band = new PartingBand(closed[rim.ContourIndices[0]], closed[rim.ContourIndices[1]]);
+                    var with = CreaseOffsetLine.Trace(body.Mesh, band, out var report, projector);
+                    var without = CreaseOffsetLine.Trace(body.Mesh, band, out _, projector,
+                        CreaseOffsetOptions.Default with { LeastHeadway = 0.0 });
+                    if (with is null || without is null || report is null)
+                    {
+                        _out.WriteLine($"{name} rim #{rim.Id}: no line");
+                        continue;
+                    }
+
+                    _out.WriteLine(
+                        $"{name,-28} rim #{rim.Id}: {report.Samples} walks, short {report.Short}, " +
+                        $"{Headway(report)}; line {Perimeter(without):F1} -> {Perimeter(with):F1} mm, " +
+                        $"moved median {Moved(with, without, 0.5):F2}, worst {Moved(with, without, 1.0):F2} mm");
+                }
+            }
+            catch (Exception e)
+            {
+                _out.WriteLine($"{name}: threw {e.GetType().Name}: {e.Message}");
+            }
+        }
+    }
+
+    private static string Headway(CreaseOffsetReport report) =>
+        $"back on crease {report.BackOnCrease}, dropped {report.Dropped}";
+
+    /// <summary>How far one line's points sit from another's, at a quantile.</summary>
+    private static double Moved(IReadOnlyList<Vector3> line, IReadOnlyList<Vector3> reference, double q)
+    {
+        var d = line.Select(p => reference.Min(r => p.DistanceTo(r))).OrderBy(x => x).ToArray();
+        return d[(int)Math.Min(d.Length - 1, q * d.Length)];
+    }
+
+    private MouldMesh? StlMould(string file)
+    {
+        var workspace = new ImportMesh(_engine).Execute(Workspace.CreateEmpty(), Asset(file));
+        if (workspace.IsFailure) return null;
+        var id = workspace.Value.GetActiveRecord().Value.Id;
+        var moulded = new GenerateMould(_engine).Execute(workspace.Value, id,
+            MouldDefinition.OfShape(MouldShapeType.Concave, 2.5, 5.0) with { TargetMeshId = id });
+        if (moulded.IsFailure) return null;
+        return MouldMesh.Create(moulded.Value.GetMesh(id).Value, moulded.Value.GetRecord(id).Value).Value;
     }
 
     private static double Perimeter(IReadOnlyList<Vector3> loop)
