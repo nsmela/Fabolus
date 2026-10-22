@@ -1200,8 +1200,12 @@ public static class RidgeDetection
     ///
     /// <para>
     /// Only tried where the topology says a rim is missing - a closed body with a hole through it and
-    /// fewer than g + 1 band groups spanning the two surfaces - and kept only if more rims come apart
-    /// than were apart before; otherwise every move is put back. A shell, or a ring whose rims already
+    /// fewer than g + 1 band groups spanning the two surfaces, or a shell surface that is a disc - and
+    /// kept only if more rims come apart than were apart before, or as many do and fewer surfaces are
+    /// discs; otherwise every move is put back. The disc test is needed as well as the count: the band
+    /// round a hole can come back in two pieces, one its own group and one joined across a surface to
+    /// the outer wall, and then the count is right while the rims are not. With GeometryEngine's
+    /// repeatable offset that is how larynx_small comes back every time it is opened. A shell, or a ring whose rims already
     /// came back separate, is never touched. "More than before" rather than "all g + 1" because the
     /// smoothing can leave a stray tunnel a few triangles across, which counts towards the genus but has
     /// no rim of its own: larynx_small comes back genus 2 about half the times it is opened.
@@ -1218,12 +1222,13 @@ public static class RidgeDetection
         if (genus < 1) return 0;
 
         var territories = Classify(surface, ridgeEdges, region, area, regionCount);
-        int groupsBefore = SpanningGroups(territories);
-        if (groupsBefore >= genus + 1) return 0;
-
         var members = new List<int>[regionCount];
         for (int r = 0; r < regionCount; r++) members[r] = new List<int>();
         for (int f = 0; f < surface.FaceCount; f++) members[region[f]].Add(f);
+
+        int groupsBefore = SpanningGroups(territories);
+        int discsBefore = Discs();
+        if (groupsBefore >= genus + 1 && discsBefore == 0) return 0;
 
         var regionBefore = (int[])region.Clone();
         var areaBefore = (double[])area.Clone();
@@ -1234,7 +1239,7 @@ public static class RidgeDetection
         while (true)
         {
             int groups = SpanningGroups(territories);
-            if (groups >= genus + 1) break;
+            if (groups >= genus + 1 && Discs() == 0) break;
 
             var crossings = new List<Crossing>();
             foreach (int skin in new[] { territories.First, territories.Second })
@@ -1266,7 +1271,8 @@ public static class RidgeDetection
             territories = Classify(surface, ridgeEdges, region, area, regionCount);
         }
 
-        if (SpanningGroups(territories) > groupsBefore) return moved;
+        int groupsAfter = SpanningGroups(territories);
+        if (groupsAfter > groupsBefore || (groupsAfter == groupsBefore && Discs() < discsBefore)) return moved;
 
         // The rims did not come apart, so whatever was moved was not what joined them.
         Array.Copy(regionBefore, region, region.Length);
@@ -1275,6 +1281,11 @@ public static class RidgeDetection
         ridgeEdges.Clear();
         foreach (var edge in edgesBefore) ridgeEdges.Add(edge);
         return 0;
+
+        // Shell surfaces that are discs. On a body with a hole through it each should be an annulus, so a
+        // disc is one a piece of band runs straight across, whether or not the rim count shows it.
+        int Discs() =>
+            new[] { territories.First, territories.Second }.Count(skin => skin >= 0 && EulerCharacteristic(surface, members[skin]) > 0);
 
         void Give(IEnumerable<int> regions, int skin)
         {
