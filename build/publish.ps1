@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds the three Fabolus release artifacts.
+    Builds the Fabolus release artifacts.
 
 .DESCRIPTION
     Produces, into the output directory:
@@ -10,6 +10,8 @@
       Fabolus-<version>-win-x64-self-contained.zip  self-contained, no prerequisites
       Fabolus-<version>-setup.exe                   Inno Setup installer wrapping the
                                                     self-contained payload
+      FabolusStartupCheck.exe                       diagnostic launcher that times a slow
+                                                    start and writes a log (#95)
 
     This script is the single source of build logic. The GitHub Actions release
     workflow calls it unchanged, so a local run and a CI run produce identical
@@ -44,12 +46,14 @@ $ErrorActionPreference = 'Stop'
 $repoRoot   = Split-Path -Parent $PSScriptRoot
 $appProject = Join-Path $repoRoot 'src\Fabolus.Wpf\Fabolus.Wpf.csproj'
 $issScript  = Join-Path $PSScriptRoot 'installer\Fabolus.iss'
+$checkProject = Join-Path $repoRoot 'src\Fabolus.StartupCheck\Fabolus.StartupCheck.csproj'
 
 # The test projects rather than Fabolus.sln: the solution refers to ..\GeometryEngine\
 # directly, so it only builds in the side-by-side layout. Projects take GeometryEngineRoot.
 $testProjects = @(
     (Join-Path $repoRoot 'tests\Fabolus.Core.Tests\Fabolus.Core.Tests.csproj'),
-    (Join-Path $repoRoot 'tests\Fabolus.Wpf.Tests\Fabolus.Wpf.Tests.csproj')
+    (Join-Path $repoRoot 'tests\Fabolus.Wpf.Tests\Fabolus.Wpf.Tests.csproj'),
+    (Join-Path $repoRoot 'tests\Fabolus.StartupCheck.Tests\Fabolus.StartupCheck.Tests.csproj')
 )
 
 if (-not (Test-Path $appProject)) {
@@ -290,6 +294,18 @@ then re-run this script. To build only the two zips for now, pass -SkipInstaller
     $setupExe = Join-Path $OutputDir "Fabolus-$Version-setup.exe"
     if (-not (Test-Path $setupExe)) { throw "Inno Setup reported success but '$setupExe' is missing." }
 }
+
+# ------------------------------------------------------------------
+#  4. Startup check (a .NET Framework 4.8 exe: one file, nothing to install)
+# ------------------------------------------------------------------
+Write-Step 'Building the startup check'
+$checkDir = Join-Path $stageRoot 'startup-check'
+dotnet build $checkProject -c $Configuration -p:Platform=x64 "-p:Version=$Version" -o $checkDir --nologo
+if ($LASTEXITCODE -ne 0) { throw "Building the startup check failed (exit code $LASTEXITCODE)." }
+$checkExe = Join-Path $checkDir 'FabolusStartupCheck.exe'
+if (-not (Test-Path $checkExe)) { throw "The startup check built, but '$checkExe' is missing." }
+# Same name in every release, so the docs can link to releases/latest/download/FabolusStartupCheck.exe.
+Copy-Item -LiteralPath $checkExe -Destination $OutputDir
 
 # ------------------------------------------------------------------
 #  Clean up and report

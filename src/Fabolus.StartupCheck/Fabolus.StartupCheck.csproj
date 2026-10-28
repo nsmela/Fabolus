@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A diagnostic launcher for slow starts (#95). It targets .NET Framework 4.8, which every
+       Windows 10 and 11 PC already has in C:\Windows, so it ships as one small exe and its own
+       start is not slowed by the network share, download marks or antivirus it is measuring. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <Platforms>x64</Platforms>
+    <!-- Fabolus is x64 only, and a 32-bit process cannot list a 64-bit one's modules. -->
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\Fabolus.Wpf\Fabolus icon resized.ico</ApplicationIcon>
+
+    <AssemblyName>FabolusStartupCheck</AssemblyName>
+    <RootNamespace>Fabolus.StartupCheck</RootNamespace>
+    <Version>1.0.0</Version>
+    <Product>Fabolus startup check</Product>
+    <Company>Provincial Health Services Authority</Company>
+    <Copyright>© 2017–2026 Provincial Health Services Authority</Copyright>
+    <!-- No FabolusStartupCheck.exe.config beside the exe: one file to hand out. -->
+    <GenerateSupportedRuntime>false</GenerateSupportedRuntime>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets the SDK build net48 without the targeting pack installed (CI, a fresh machine). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Management" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Fabolus.StartupCheck.Tests" />
+  </ItemGroup>
+
+</Project>
