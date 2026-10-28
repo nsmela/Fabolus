@@ -54,7 +54,10 @@ namespace Fabolus.StartupCheck {
             }
 
             if (report.Folder.MarkedAsDownloaded > 0) {
-                hints.Add($"{report.Folder.MarkedAsDownloaded} of {report.Folder.Files} files are marked as downloaded from the internet. "
+                var of = report.Folder.ZoneChecked < report.Folder.Files
+                    ? $"of the {report.Folder.ZoneChecked} files checked (of {report.Folder.Files})"
+                    : $"of {report.Folder.Files} files";
+                hints.Add($"{report.Folder.MarkedAsDownloaded} {of} are marked as downloaded from the internet. "
                     + "Antivirus checks each new, unsigned one the first time it loads, which can make a first launch slow. "
                     + "Before extracting a zip, right-click it, choose Properties and tick Unblock.");
             }

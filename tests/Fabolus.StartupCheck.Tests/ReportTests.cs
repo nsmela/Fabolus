@@ -22,12 +22,13 @@ public sealed class ReportTests
                 RemoteSession: remote, Elevated: false, DomainJoined: true, FabolusVersion: "1.0.0", Build: "self-contained",
                 DesktopRuntimes: []),
             Location: location ?? new LocationInfo(DriveKind.LocalDisk, [], Installed: false, InTemp: false, ExtractedBy: null, PathLength: 20),
-            Folder: folder ?? new FolderSurvey(302, 158L << 20, 291, new Dictionary<string, int> { [Zones.NotMarked] = 302 }, 0, 0),
+            Folder: folder ?? new FolderSurvey(302, 158L << 20, 291, new Dictionary<string, int> { [Zones.NotMarked] = 302 }, 302, 0, 0),
             Launch: launch ?? Launched(window: 3, cpu: 1.7),
             FileAccess: access,
             Signatures: null,
             Security: security ?? new SecuritySurvey([new AntivirusProduct("Windows Defender", "on")], [], [], false, null, "off"),
-            PreviousChecks: previous ?? []);
+            PreviousChecks: previous ?? [],
+            Steps: [new StepTiming("Listing Fabolus's files", 0.4)]);
 
     private static LaunchResult Launched(double window, double cpu, params ModuleLoad[] modules)
     {

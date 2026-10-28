@@ -69,7 +69,8 @@ namespace Fabolus.StartupCheck {
             Field("Installed:", location.Installed ? "yes (in a programs folder)" : "no");
             Field("Temporary folder:", location.ExtractedBy is { } tool ? $"yes, unpacked by {tool}" : location.InTemp ? "yes" : "no");
             Field("Path length:", $"{location.PathLength} characters");
-            Field("Downloaded marks:", string.Join(", ", report.Folder.ZoneMarks.Select(z => $"{z.Key} {z.Value}")));
+            Field("Downloaded marks:", string.Join(", ", report.Folder.ZoneMarks.Select(z => $"{z.Key} {z.Value}"))
+                + (report.Folder.ZoneChecked < report.Folder.Files ? $" (checked {report.Folder.ZoneChecked} of {report.Folder.Files} files; ran out of time)" : ""));
             if (report.Folder.CloudOnlineOnly > 0 || report.Folder.CloudPinned > 0) {
                 Field("OneDrive files:", $"{report.Folder.CloudOnlineOnly} online-only, {report.Folder.CloudPinned} always kept on this PC");
             }
@@ -94,8 +95,13 @@ namespace Fabolus.StartupCheck {
             foreach (var setting in security.Defender) Field($"Defender {setting.Key}:", setting.Value);
             Field("Smart App Control:", security.SmartAppControl);
 
+            if (report.Steps.Count > 0) {
+                Section("How long the check's own steps took");
+                foreach (var step in report.Steps) Field(step.Step + ":", Seconds(step.Seconds));
+            }
+
             if (report.FileAccess is { } access) {
-                Section("File access (after the launch)");
+                Section("File access (after the launch, files Fabolus did not load first)");
                 Field("Files opened:", access.Opened);
                 Field("Open time:", $"median {Ms(access.MedianOpenMs)}, 90% under {Ms(access.P90OpenMs)}, slowest {Ms(access.MaxOpenMs)}, total {Ms(access.TotalOpenMs)}");
                 foreach (var speed in access.Reads) {

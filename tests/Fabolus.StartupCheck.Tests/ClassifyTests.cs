@@ -176,7 +176,7 @@ public sealed class ZonesTests
     {
         var survey = new FolderSurvey(10, 0, 8,
             new Dictionary<string, int> { [Zones.NotMarked] = 4, [Zones.LocalMachine] = 1, ["Internet"] = 5 },
-            CloudOnlineOnly: 0, CloudPinned: 0);
+            ZoneChecked: 10, CloudOnlineOnly: 0, CloudPinned: 0);
 
         Assert.Equal(5, survey.MarkedAsDownloaded);
     }

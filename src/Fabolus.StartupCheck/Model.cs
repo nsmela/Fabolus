@@ -24,7 +24,11 @@ namespace Fabolus.StartupCheck {
         FileAccessProbe? FileAccess,
         SignatureSurvey? Signatures,
         SecuritySurvey Security,
-        IReadOnlyList<PreviousCheck> PreviousChecks);
+        IReadOnlyList<PreviousCheck> PreviousChecks,
+        // How long each of the check's own steps took: slow ones are evidence too.
+        IReadOnlyList<StepTiming> Steps);
+
+    internal sealed record StepTiming(string Step, double Seconds);
 
     internal sealed record SystemInfo(
         string Windows,
@@ -63,6 +67,8 @@ namespace Fabolus.StartupCheck {
         int ProgramFiles,
         // Zone name -> files carrying it; "Not marked" for files without a mark.
         IReadOnlyDictionary<string, int> ZoneMarks,
+        // How many files were checked for a mark before the time ran out.
+        int ZoneChecked,
         int CloudOnlineOnly,
         int CloudPinned) {
 

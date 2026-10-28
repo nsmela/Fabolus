@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -13,7 +14,10 @@ namespace Fabolus.StartupCheck {
     /// it starts Fabolus, times the start and writes a log to attach to a slow-start issue (#95).
     /// </summary>
     internal static class Program {
-        private static readonly TimeSpan SignatureBudget = TimeSpan.FromSeconds(60);
+        // Each per-file step stops here, so a slow network share cannot hold the check up for long.
+        private static readonly TimeSpan FolderBudget = TimeSpan.FromSeconds(15);
+        private static readonly TimeSpan AccessBudget = TimeSpan.FromSeconds(15);
+        private static readonly TimeSpan SignatureBudget = TimeSpan.FromSeconds(10);
 
         private static int Main(string[] args) {
             // One number format in the log, whatever the PC's regional settings.
@@ -50,11 +54,11 @@ namespace Fabolus.StartupCheck {
 
             WaitForOtherInstances(options);
 
-            Console.WriteLine("Looking at the Fabolus folder...");
-            var system = Surveys.Machine(exePath);
+            // Only the path is looked at before the launch. Anything that opens Fabolus's files would
+            // warm the network and antivirus caches the launch is meant to be timed without, and on
+            // a network share it takes a while besides.
             var location = Surveys.Location(folder);
-            var folderSurvey = Surveys.Folder(folder);
-            Console.WriteLine($"  Fabolus {system.FabolusVersion} ({system.Build}), {folderSurvey.Files} files, on a {LocationClassifier.Describe(location.Kind)}");
+            Console.WriteLine($"Fabolus is on a {LocationClassifier.Describe(location.Kind)}.");
 
             var logFolder = options.OutputFolder ?? LogFolder();
             Console.WriteLine();
@@ -70,13 +74,29 @@ namespace Fabolus.StartupCheck {
             }
 
             Console.WriteLine();
-            Console.WriteLine("Checking file access, signatures and security software (this can take a minute)...");
-            var access = Surveys.ProbeFileAccess(folder);
-            var signatures = Surveys.Signatures(folder, SignatureBudget);
-            var security = Surveys.Security();
+            Console.WriteLine("Now looking at Fabolus's files and this PC. On a network drive this can take a minute or two.");
+            var steps = new List<StepTiming>();
+            T Step<T>(string name, Func<T> run) {
+                Console.Write($"  {name}... ");
+                var clock = Stopwatch.StartNew();
+                var result = run();
+                steps.Add(new StepTiming(name, clock.Elapsed.TotalSeconds));
+                Console.WriteLine($"{clock.Elapsed.TotalSeconds:0.0} s");
+                return result;
+            }
+
+            // File access is timed first, before the other steps have opened anything, and the
+            // signatures - the same for every copy of a release, and the slowest - go last.
+            var files = Step("Listing Fabolus's files", () => Surveys.ListFiles(folder));
+            var loaded = launch.Modules.Where(m => m.Origin == ModuleOrigin.App).Select(m => m.Name);
+            var access = Step("Timing file access", () => Surveys.ProbeFileAccess(files, AccessBudget, loaded));
+            var system = Step("Fabolus's version and this PC", () => Surveys.Machine(exePath));
+            var folderSurvey = Step("Checking for download marks", () => Surveys.Folder(files, FolderBudget));
+            var security = Step("Checking security software", Surveys.Security);
+            var signatures = Step("Checking signatures", () => Surveys.Signatures(files, SignatureBudget));
 
             var previous = ReportWriter.ReadPrevious(PreviousLogs(logFolder));
-            var report = new StartupReport(DateTime.Now, version, system, location, folderSurvey, launch, access, signatures, security, previous);
+            var report = new StartupReport(DateTime.Now, version, system, location, folderSurvey, launch, access, signatures, security, previous, steps);
             var text = ReportWriter.Format(report);
 
             Directory.CreateDirectory(logFolder);

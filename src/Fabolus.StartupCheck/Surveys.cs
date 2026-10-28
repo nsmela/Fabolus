@@ -102,37 +102,55 @@ namespace Fabolus.StartupCheck {
             catch (Exception) { return DriveKind.Unknown; }
         }
 
-        // --- What is in the folder (metadata only: nothing here reads a file's contents) -----------
+        // --- What is in the folder -----------------------------------------------------------------
+        //
+        // On a network share every per-file call is a round trip to the server, and Fabolus has
+        // around 300 files, so these all run after the launch (they would otherwise warm the very
+        // caches the launch is timed without) and each one that opens files stops at a budget.
 
         private const int AttributeOffline = 0x1000;
         private const int AttributePinned = 0x80000;
         private const int AttributeRecallOnOpen = 0x40000;
         private const int AttributeRecallOnDataAccess = 0x400000;
 
-        public static FolderSurvey Folder(string folder) {
-            var files = Try(() => Directory.GetFiles(folder, "*", SearchOption.AllDirectories)) ?? [];
+        /// <summary>
+        /// Every file in the folder, Fabolus.exe first, then the other programs, then the rest. The
+        /// sizes and attributes come with the directory listing, without asking about each file.
+        /// </summary>
+        public static IReadOnlyList<FileInfo> ListFiles(string folder) {
+            var files = Try(() => new DirectoryInfo(folder).EnumerateFiles("*", SearchOption.AllDirectories).ToList()) ?? [];
+            return files
+                .OrderBy(f => f.Name.Equals("Fabolus.exe", StringComparison.OrdinalIgnoreCase) ? 0 : IsProgramFile(f.Name) ? 1 : 2)
+                .ThenBy(f => f.FullName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        public static FolderSurvey Folder(IReadOnlyList<FileInfo> files, TimeSpan budget) {
             long bytes = 0;
-            int programs = 0, onlineOnly = 0, pinned = 0;
+            int programs = 0, onlineOnly = 0, pinned = 0, zoneChecked = 0;
             var zones = new SortedDictionary<string, int>(StringComparer.Ordinal);
+            var clock = Stopwatch.StartNew();
 
             foreach (var file in files) {
                 try {
-                    var info = new FileInfo(file);
-                    bytes += info.Length;
-                    var attributes = (int)info.Attributes;
+                    bytes += file.Length;
+                    var attributes = (int)file.Attributes;
                     if ((attributes & (AttributeOffline | AttributeRecallOnOpen | AttributeRecallOnDataAccess)) != 0) onlineOnly++;
                     if ((attributes & AttributePinned) != 0) pinned++;
                 }
                 catch (Exception) { }
 
-                if (IsProgramFile(file)) programs++;
+                if (IsProgramFile(file.Name)) programs++;
 
-                var zone = ReadZoneId(file);
+                // Each mark is a file opened on the server; the order puts the ones that matter first.
+                if (clock.Elapsed > budget) continue;
+                zoneChecked++;
+                var zone = ReadZoneId(file.FullName);
                 var name = zone is { } id ? Zones.Name(id) : Zones.NotMarked;
                 zones[name] = zones.TryGetValue(name, out var n) ? n + 1 : 1;
             }
 
-            return new FolderSurvey(files.Length, bytes, programs, zones, onlineOnly, pinned);
+            return new FolderSurvey(files.Count, bytes, programs, zones, zoneChecked, onlineOnly, pinned);
         }
 
         /// <summary>The ZoneId in a file's Zone.Identifier stream - the "downloaded" mark - or null.</summary>
@@ -149,12 +167,14 @@ namespace Fabolus.StartupCheck {
             catch (Exception) { return null; }
         }
 
-        // --- After the launch: signatures and file access -----------------------------------------
+        // --- Signatures and file access -------------------------------------------------------------
 
-        public static SignatureSurvey Signatures(string folder, TimeSpan budget) {
-            var programs = (Try(() => Directory.GetFiles(folder, "*", SearchOption.AllDirectories)) ?? [])
-                .Where(IsProgramFile)
-                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+        public static SignatureSurvey Signatures(IReadOnlyList<FileInfo> files, TimeSpan budget) {
+            // Hashing reads each file whole, so the smallest go first: the most files in the budget.
+            var programs = files
+                .Where(f => IsProgramFile(f.Name))
+                .OrderBy(f => f.Length)
+                .Select(f => f.FullName)
                 .ToList();
 
             var signedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
@@ -179,6 +199,7 @@ namespace Fabolus.StartupCheck {
                 else problems.Add($"{name}: 0x{result:X8}");
             }
 
+            unsigned.Sort(StringComparer.OrdinalIgnoreCase);
             return new SignatureSurvey(checkedCount, programs.Count, checkedCount < programs.Count, signedBy, unsigned, problems);
         }
 
@@ -191,27 +212,35 @@ namespace Fabolus.StartupCheck {
             catch (Exception) { return "unknown signer"; }
         }
 
+        public const int MaxOpensTimed = 100;
+        private const long MaxBytesRead = 16L << 20;
+
         /// <summary>
-        /// Times opening every program file, then reading the largest ones past the file cache. Run
-        /// after the launch, so it cannot warm anything the launch would otherwise have paid for.
+        /// Times opening the program files (up to <see cref="MaxOpensTimed"/>, or until the budget
+        /// runs out), then reads part of the largest one past the file cache. Files Fabolus did not
+        /// load go first: Fabolus still holds the ones it loaded open, and on a network share
+        /// reopening those is answered from the client's cache, which says nothing about the server.
         /// </summary>
-        public static FileAccessProbe ProbeFileAccess(string folder, int largest = 3) {
-            var programs = (Try(() => Directory.GetFiles(folder, "*", SearchOption.AllDirectories)) ?? [])
-                .Where(IsProgramFile)
+        public static FileAccessProbe ProbeFileAccess(IReadOnlyList<FileInfo> files, TimeSpan budget, IEnumerable<string> loadedByFabolus) {
+            var loaded = new HashSet<string>(loadedByFabolus, StringComparer.OrdinalIgnoreCase);
+            var programs = files
+                .Where(f => IsProgramFile(f.Name))
+                .OrderBy(f => loaded.Contains(f.Name) ? 1 : 0)
                 .ToList();
 
             var opens = new List<double>();
-            foreach (var file in programs) {
+            var total = Stopwatch.StartNew();
+            foreach (var file in programs.Take(MaxOpensTimed)) {
+                if (total.Elapsed > budget) break;
                 var clock = Stopwatch.StartNew();
-                using var handle = Native.CreateFileW(file, Native.GenericRead, Native.ShareAll, IntPtr.Zero, Native.OpenExisting, 0, IntPtr.Zero);
+                using var handle = Native.CreateFileW(file.FullName, Native.GenericRead, Native.ShareAll, IntPtr.Zero, Native.OpenExisting, 0, IntPtr.Zero);
                 if (!handle.IsInvalid) opens.Add(clock.Elapsed.TotalMilliseconds);
             }
 
             var reads = programs
-                .Select(f => new FileInfo(f))
                 .OrderByDescending(f => f.Length)
-                .Take(largest)
-                .Select(f => ReadUncached(f))
+                .Take(1)
+                .Select(f => ReadUncached(f, MaxBytesRead))
                 .Where(r => r is not null)
                 .Select(r => r!)
                 .ToList();
@@ -232,7 +261,7 @@ namespace Fabolus.StartupCheck {
             return sorted[Math.Max(0, Math.Min(sorted.Count - 1, index))];
         }
 
-        private static ReadSpeed? ReadUncached(FileInfo file) {
+        private static ReadSpeed? ReadUncached(FileInfo file, long maxBytes) {
             const int chunk = 1 << 20;
             // Unbuffered reads need a sector-aligned buffer; VirtualAlloc hands out page-aligned ones.
             var buffer = Native.VirtualAlloc(IntPtr.Zero, (UIntPtr)chunk, Native.MemCommitReserve, Native.PageReadWrite);
@@ -244,7 +273,7 @@ namespace Fabolus.StartupCheck {
                 if (handle.IsInvalid) return null;
 
                 long total = 0;
-                while (Native.ReadFile(handle, buffer, chunk, out var read, IntPtr.Zero) && read > 0) total += read;
+                while (total < maxBytes && Native.ReadFile(handle, buffer, chunk, out var read, IntPtr.Zero) && read > 0) total += read;
 
                 var seconds = Math.Max(clock.Elapsed.TotalSeconds, 1e-6);
                 var megabytes = total / (1024.0 * 1024);
