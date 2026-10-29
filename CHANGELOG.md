@@ -7,6 +7,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `FabolusStartupCheck.exe`, a small diagnostic launcher shipped with each release (#95). It
+  starts Fabolus, times how long it takes to open, and saves a log - where the folder is
+  (network drive, redirected folder, inside a zip), download marks, signatures, security
+  software, and when each module loaded - with a plain-language reading of what slowed it.
+  The log holds no paths, user names or patient data. The README now lists the usual causes
+  of a slow start.
 - Closing the app with meshes changed since they were imported or last exported now asks
   before discarding them, naming the meshes.
 

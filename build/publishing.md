@@ -10,19 +10,25 @@ identical artifacts.
 pwsh ./build/publish.ps1
 ```
 
-Runs the tests, builds all three artifacts into `artifacts/`, and prints their sizes.
+Runs the tests, builds all four artifacts into `artifacts/`, and prints their sizes.
 Takes a few minutes, most of it compressing the self-contained payload.
 
-## The three artifacts
+## The artifacts
 
 | Artifact | Contents | User needs |
 |---|---|---|
 | `Fabolus-<version>-win-x64.zip` | Framework-dependent build. Extract and run `Fabolus.exe`. | [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) |
 | `Fabolus-<version>-win-x64-self-contained.zip` | Same app with the .NET runtime bundled in. | Nothing |
 | `Fabolus-<version>-setup.exe` | Inno Setup installer wrapping the **self-contained** payload. | Nothing |
+| `FabolusStartupCheck.exe` | Diagnostic launcher for slow starts (#95): starts Fabolus, times it and writes a log. | Nothing (.NET Framework 4.8 ships with Windows) |
 
 The installer wraps the self-contained build deliberately: an installer should have no
 prerequisites, and people who want the small download already have the first zip.
+
+The startup check has no version in its name so the README can link to the latest one. It
+targets .NET Framework 4.8 rather than .NET 10 on purpose: that runtime lives in `C:\Windows`
+on every supported PC, so the check starts quickly from wherever it is, and is not slowed by
+the network folder, download marks or antivirus it is there to measure.
 
 Approximate sizes at 0.9.4: 34 MB, 104 MB, 76 MB. The installer is smaller than the zip it
 contains because Inno compresses with LZMA2 rather than deflate.
