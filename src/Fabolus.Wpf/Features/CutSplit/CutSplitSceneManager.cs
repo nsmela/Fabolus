@@ -2,8 +2,10 @@ using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
+using HelixToolkit.Maths;
+using MeshBuilder = HelixToolkit.Geometry.MeshBuilder;
 using System;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -27,7 +29,7 @@ public class CutSplitSceneManager : ISceneManager
     private UICompositeManipulator3D? _manipulator;
     private bool _isUpdating = false;
     
-    private SharpDX.Plane _plane = new SharpDX.Plane(SharpDX.Vector3.UnitZ, 0f);
+    private System.Numerics.Plane _plane = new System.Numerics.Plane(System.Numerics.Vector3.UnitZ, 0f);
     private System.Numerics.Vector3 _origin = System.Numerics.Vector3.Zero;
     private System.Numerics.Vector3 _normal = System.Numerics.Vector3.UnitZ;
 
@@ -77,10 +79,10 @@ public class CutSplitSceneManager : ISceneManager
     {
         _origin = origin;
         _normal = normal;
-        var dxNormal = new SharpDX.Vector3(normal.X, normal.Y, normal.Z);
-        var dxOrigin = new SharpDX.Vector3(origin.X, origin.Y, origin.Z);
-        float d = SharpDX.Vector3.Dot(dxNormal, dxOrigin);
-        _plane = new Plane(dxNormal, d);
+        var dxNormal = new System.Numerics.Vector3(normal.X, normal.Y, normal.Z);
+        var dxOrigin = new System.Numerics.Vector3(origin.X, origin.Y, origin.Z);
+        float d = System.Numerics.Vector3.Dot(dxNormal, dxOrigin);
+        _plane = new System.Numerics.Plane(dxNormal, d);
 
         if (_topModel is not null)
         {
@@ -89,7 +91,7 @@ public class CutSplitSceneManager : ISceneManager
         }
         if (_bottomModel is not null)
         {
-            _bottomModel.Plane1 = new SharpDX.Plane(-dxNormal, -d);
+            _bottomModel.Plane1 = new System.Numerics.Plane(-dxNormal, -d);
             _bottomModel.Transform = System.Windows.Media.Media3D.Transform3D.Identity;
         }
 
@@ -97,7 +99,7 @@ public class CutSplitSceneManager : ISceneManager
         if (_planeVisual is null)
         {
             var meshBuilder = new MeshBuilder();
-            meshBuilder.AddBox(new SharpDX.Vector3(0, 0, 0), 200, 200, 0.5f);
+            meshBuilder.AddBox(new System.Numerics.Vector3(0, 0, 0), 200, 200, 0.5f);
             _planeVisual = new MeshGeometryModel3D
             {
                 Geometry = meshBuilder.ToMeshGeometry3D(),
@@ -111,15 +113,15 @@ public class CutSplitSceneManager : ISceneManager
         if (_planeGridVisual is null)
         {
             var lineBuilder = new LineBuilder();
-            lineBuilder.AddLine(new SharpDX.Vector3(-100, -100, 0), new SharpDX.Vector3(100, -100, 0));
-            lineBuilder.AddLine(new SharpDX.Vector3(100, -100, 0), new SharpDX.Vector3(100, 100, 0));
-            lineBuilder.AddLine(new SharpDX.Vector3(100, 100, 0), new SharpDX.Vector3(-100, 100, 0));
-            lineBuilder.AddLine(new SharpDX.Vector3(-100, 100, 0), new SharpDX.Vector3(-100, -100, 0));
+            lineBuilder.AddLine(new System.Numerics.Vector3(-100, -100, 0), new System.Numerics.Vector3(100, -100, 0));
+            lineBuilder.AddLine(new System.Numerics.Vector3(100, -100, 0), new System.Numerics.Vector3(100, 100, 0));
+            lineBuilder.AddLine(new System.Numerics.Vector3(100, 100, 0), new System.Numerics.Vector3(-100, 100, 0));
+            lineBuilder.AddLine(new System.Numerics.Vector3(-100, 100, 0), new System.Numerics.Vector3(-100, -100, 0));
 
             for (int i = -80; i <= 80; i += 20)
             {
-                lineBuilder.AddLine(new SharpDX.Vector3(i, -100, 0), new SharpDX.Vector3(i, 100, 0));
-                lineBuilder.AddLine(new SharpDX.Vector3(-100, i, 0), new SharpDX.Vector3(100, i, 0));
+                lineBuilder.AddLine(new System.Numerics.Vector3(i, -100, 0), new System.Numerics.Vector3(i, 100, 0));
+                lineBuilder.AddLine(new System.Numerics.Vector3(-100, i, 0), new System.Numerics.Vector3(100, i, 0));
             }
 
             _planeGridVisual = new LineGeometryModel3D
@@ -232,7 +234,7 @@ public class CutSplitSceneManager : ISceneManager
             Material = _bottomSkin,
             CrossSectionColor = Colors.OrangeRed,
             EnablePlane1 = true,
-            Plane1 = new Plane(-_plane.Normal, -_plane.D),
+            Plane1 = new System.Numerics.Plane(-_plane.Normal, -_plane.D),
             FillMode = SharpDX.Direct3D11.FillMode.Solid,
             CullMode = SharpDX.Direct3D11.CullMode.Back,
             CuttingOperation = CuttingOperation.Intersect,
@@ -262,6 +264,6 @@ public class CutSplitSceneManager : ISceneManager
     public bool OnKeyDown(Key key) => false;
     public bool OnKeyUp(Key key) => false;
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
-    public bool OnMouseMove(IList<HelixToolkit.Wpf.SharpDX.HitTestResult> hits) => false;
+    public bool OnMouseMove(IList<HelixToolkit.SharpDX.HitTestResult> hits) => false;
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 }

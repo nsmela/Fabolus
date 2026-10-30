@@ -4,8 +4,9 @@ using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
+using HelixToolkit.Maths;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
@@ -196,7 +197,7 @@ internal class RotateSceneManager : ISceneManager {
         }
 
         var lv = matrix.Transform(new Vector3D(_lightDirection.X, _lightDirection.Y, _lightDirection.Z));
-        var lightLocal = SharpDX.Vector3.Normalize(new SharpDX.Vector3((float)lv.X, (float)lv.Y, (float)lv.Z));
+        var lightLocal = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3((float)lv.X, (float)lv.Y, (float)lv.Z));
 
         var geometryResult = mesh.ToHelixMesh(_engine, colouringResult.Value.Colors);
         if (geometryResult.IsFailure) {
@@ -223,7 +224,7 @@ internal class RotateSceneManager : ISceneManager {
     private static readonly Vector3 _lightDirection = new Vector3(0.3, 0.4, 0.85).Normalize();
     private const float _ambient = 0.35f;
 
-    private static void ApplyFixedShading(HelixToolkit.Wpf.SharpDX.MeshGeometry3D geometry, SharpDX.Vector3 lightDirection) {
+    private static void ApplyFixedShading(HelixToolkit.SharpDX.MeshGeometry3D geometry, System.Numerics.Vector3 lightDirection) {
         if (geometry.Colors is null || geometry.Normals is null) {
             return;
         }
@@ -232,7 +233,7 @@ internal class RotateSceneManager : ISceneManager {
         var normals = geometry.Normals;
 
         for (int i = 0; i < colors.Count; i++) {
-            float nDotL = Math.Max(0f, SharpDX.Vector3.Dot(normals[i], lightDirection));
+            float nDotL = Math.Max(0f, System.Numerics.Vector3.Dot(normals[i], lightDirection));
             float shade = _ambient + (1f - _ambient) * nDotL;
 
             var c = colors[i];
@@ -273,9 +274,9 @@ internal class RotateSceneManager : ISceneManager {
         var builder = new LineBuilder();
         Vector3 helper = Math.Abs(axis.X) > 0.9f ? Vector3.UnitY : Vector3.UnitX;
         Vector3 right = axis.Cross(helper.Normalize());
-        var dxRight = new SharpDX.Vector3((float)right.X, (float)right.Y, (float)right.Z);
+        var dxRight = new System.Numerics.Vector3((float)right.X, (float)right.Y, (float)right.Z);
         Vector3 up = axis.Cross(right);
-        var dxUp = new SharpDX.Vector3((float)up.X, (float)up.Y, (float)up.Z);
+        var dxUp = new System.Numerics.Vector3((float)up.X, (float)up.Y, (float)up.Z);
 
         for (int i = 0; i < 64; i++) {
             float a1 = (float)(2 * Math.PI * i / 64);
@@ -295,6 +296,6 @@ internal class RotateSceneManager : ISceneManager {
     public bool OnKeyDown(Key key) => false;
     public bool OnKeyUp(Key key) => false;
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
-    public bool OnMouseMove(IList<HelixToolkit.Wpf.SharpDX.HitTestResult> hits) => false;
+    public bool OnMouseMove(IList<HelixToolkit.SharpDX.HitTestResult> hits) => false;
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 }

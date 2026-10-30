@@ -1,6 +1,6 @@
 using Fabolus.Core.Geometry;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
+using HelixToolkit.Maths;
 
 namespace Fabolus.Wpf.Common.Helpers;
 

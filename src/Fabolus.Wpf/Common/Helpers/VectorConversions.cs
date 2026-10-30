@@ -7,11 +7,7 @@ namespace Fabolus.Wpf.Common.Helpers;
 /// </summary>
 internal static class VectorConversions
 {
-    public static SharpDX.Vector3 ToSharpDX(this Vector3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
-
     public static System.Numerics.Vector3 ToNumerics(this Vector3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
-
-    public static Vector3 ToVec3(this SharpDX.Vector3 v) => new(v.X, v.Y, v.Z);
 
     public static Vector3 ToVec3(this System.Numerics.Vector3 v) => new(v.X, v.Y, v.Z);
 }

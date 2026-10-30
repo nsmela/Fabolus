@@ -2,8 +2,10 @@
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
+using HelixToolkit.Maths;
 using System.Windows.Input;
 using System.Windows.Media;
 using CoreVector3 = GeometryEngine.Core.Geometry.Primitives.Vec3;
@@ -12,7 +14,7 @@ using PartingLine = Fabolus.Core.Geometry.PartingLine;
 
 namespace Fabolus.Wpf.Features.PartingSplit;
 
-using Vector3 = SharpDX.Vector3;
+using Vector3 = System.Numerics.Vector3;
 
 /// <summary>
 /// Renders the multi-step parting split view.
@@ -201,7 +203,7 @@ public class PartingSplitSceneManager : ISceneManager
                 {
                     var a = points[i];
                     var b = points[(i + 1) % points.Count];
-                    lineBuilder.AddLine(a.ToSharpDX(), b.ToSharpDX());
+                    lineBuilder.AddLine(a.ToNumerics(), b.ToNumerics());
                     any = true;
                 }
             }
@@ -608,7 +610,7 @@ public class PartingSplitSceneManager : ISceneManager
     {
         var positions = new Vector3Collection();
         foreach (var p in points)
-            positions.Add(p.Position.ToSharpDX());
+            positions.Add(p.Position.ToNumerics());
 
         if (positions.Count == 0)
             return null;
@@ -637,7 +639,7 @@ public class PartingSplitSceneManager : ISceneManager
             {
                 var a = loop[i];
                 var b = loop[(i + 1) % loop.Count];
-                lineBuilder.AddLine(a.ToSharpDX(), b.ToSharpDX());
+                lineBuilder.AddLine(a.ToNumerics(), b.ToNumerics());
             }
         }
 
@@ -940,7 +942,7 @@ public class PartingSplitSceneManager : ISceneManager
     /// handle refuse to follow the cursor while the user was still moving it.
     /// </para>
     /// </summary>
-    public bool OnMouseMove(IList<HelixToolkit.Wpf.SharpDX.HitTestResult> hits)
+    public bool OnMouseMove(IList<HelixToolkit.SharpDX.HitTestResult> hits)
     {
         // Nearest hit only. The handles are what the cursor is aimed at and they sit in front of
         // the body, so the topmost visual is the one this editor means in both branches below.
