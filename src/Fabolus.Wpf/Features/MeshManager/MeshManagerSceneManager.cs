@@ -3,6 +3,8 @@ using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Input;
 using Fabolus.Wpf.Common.Helpers;

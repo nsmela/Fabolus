@@ -9,7 +9,10 @@ using Fabolus.Core.Features.Moulds;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
+using MeshBuilder = HelixToolkit.Geometry.MeshBuilder;
 using Fabolus.Wpf.Common.Helpers;
 
 namespace Fabolus.Wpf.Features.Moulding;
@@ -286,7 +289,7 @@ public class MouldSceneManager : ISceneManager
             foreach (var point in points)
             {
                 builder.AddSphere(
-                    new SharpDX.Vector3((float)point.X, (float)point.Y, (float)point.Z),
+                    new System.Numerics.Vector3((float)point.X, (float)point.Y, (float)point.Z),
                     AirPocketMarkerRadius, AirPocketMarkerTessellation, AirPocketMarkerTessellation);
             }
             _airPocketMarkers.Geometry = builder.ToMeshGeometry3D();

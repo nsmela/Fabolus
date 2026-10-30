@@ -1,6 +1,8 @@
 
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
+using HelixToolkit.Maths;
 using SharpDX.Direct3D11;
 using System.Windows.Media;
 
@@ -17,14 +19,14 @@ public static class SceneHelpers {
 
         for (int i = 0; i <= width / spacing; i++) {
             grid.AddLine(
-                new SharpDX.Vector3(minX + spacing * i, minY, 0),
-                new SharpDX.Vector3(minX + spacing * i, maxY, 0));
+                new System.Numerics.Vector3(minX + spacing * i, minY, 0),
+                new System.Numerics.Vector3(minX + spacing * i, maxY, 0));
         }
 
         for (int i = 0; i <= depth / spacing; i++) {
             grid.AddLine(
-                new SharpDX.Vector3(minX, minY + spacing * i, 0),
-                new SharpDX.Vector3(maxX, minY + spacing * i, 0));
+                new System.Numerics.Vector3(minX, minY + spacing * i, 0),
+                new System.Numerics.Vector3(maxX, minY + spacing * i, 0));
         }
 
         return new LineGeometryModel3D {
@@ -44,8 +46,8 @@ public static class SceneHelpers {
     /// geometry - two colours means two models.
     /// </remarks>
     public static IReadOnlyList<Element3D> GenerateBedAxes(float width = 250, float depth = 250, bool isVisible = true) => [
-        AxisLine(new SharpDX.Vector3(width / 2f, 0f, AxisLift), Colors.Red, isVisible),
-        AxisLine(new SharpDX.Vector3(0f, depth / 2f, AxisLift), Colors.Green, isVisible),
+        AxisLine(new System.Numerics.Vector3(width / 2f, 0f, AxisLift), Colors.Red, isVisible),
+        AxisLine(new System.Numerics.Vector3(0f, depth / 2f, AxisLift), Colors.Green, isVisible),
     ];
 
     // The grid lands a line exactly on an axis whenever half the bed is a whole number of grid
@@ -54,9 +56,9 @@ public static class SceneHelpers {
     // it behaves the same at every zoom, and 0.05mm is far below anything else in the scene.
     private const float AxisLift = 0.05f;
 
-    private static Element3D AxisLine(SharpDX.Vector3 end, System.Windows.Media.Color color, bool isVisible) {
+    private static Element3D AxisLine(System.Numerics.Vector3 end, System.Windows.Media.Color color, bool isVisible) {
         var builder = new LineBuilder();
-        builder.AddLine(new SharpDX.Vector3(0f, 0f, AxisLift), end);
+        builder.AddLine(new System.Numerics.Vector3(0f, 0f, AxisLift), end);
 
         return new LineGeometryModel3D {
             Geometry = builder.ToLineGeometry3D(),

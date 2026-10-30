@@ -1,3 +1,5 @@
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -108,7 +110,7 @@ public partial class ViewportControl : UserControl, IDisposable {
     // antialiasing instead of ragged one-pixel hairlines.
     private readonly Dictionary<Guid, WireframeVisual> _wireframes = new();
 
-    private sealed record WireframeVisual(LineGeometryModel3D Visual, HelixToolkit.Wpf.SharpDX.Geometry3D Source);
+    private sealed record WireframeVisual(LineGeometryModel3D Visual, HelixToolkit.SharpDX.Geometry3D Source);
 
     // Dark enough to read as topology over the lit skins, light enough to read against the
     // viewport's dark background when the surfaces are hidden.
@@ -144,7 +146,7 @@ public partial class ViewportControl : UserControl, IDisposable {
     }
 
     private void UpdateWireframe(Guid id, MeshGeometryModel3D mesh) {
-        if (mesh.Geometry is not HelixToolkit.Wpf.SharpDX.MeshGeometry3D geometry
+        if (mesh.Geometry is not HelixToolkit.SharpDX.MeshGeometry3D geometry
             || geometry.Positions is null
             || geometry.Indices is null) {
             RemoveWireframe(id);
@@ -182,8 +184,8 @@ public partial class ViewportControl : UserControl, IDisposable {
     // surface up close drags lines at 100mm about 20mm forward, and the far side of the mesh
     // punches through the near side. Nudging the vertices along the surface normal instead is a
     // plain world-space offset that behaves identically everywhere in the scene.
-    private static LineGeometry3D BuildWireframe(HelixToolkit.Wpf.SharpDX.MeshGeometry3D geometry) {
-        var edges = MeshGeometryHelper.FindEdges(geometry);
+    private static LineGeometry3D BuildWireframe(HelixToolkit.SharpDX.MeshGeometry3D geometry) {
+        var edges = new IntCollection(HelixToolkit.Geometry.MeshGeometryHelper.FindEdges(geometry.ToWndMeshGeometry3D()));
         var normals = geometry.Normals;
 
         if (normals is null || normals.Count != geometry.Positions.Count) {
@@ -196,7 +198,7 @@ public partial class ViewportControl : UserControl, IDisposable {
             0.01f,
             (geometry.Bound.Maximum - geometry.Bound.Minimum).Length() * 0.0005f);
 
-        var positions = new HelixToolkit.Wpf.SharpDX.Vector3Collection(geometry.Positions.Count);
+        var positions = new Vector3Collection(geometry.Positions.Count);
         for (var i = 0; i < geometry.Positions.Count; i++) {
             positions.Add(geometry.Positions[i] + (normals[i] * offset));
         }

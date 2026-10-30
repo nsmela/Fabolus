@@ -1,6 +1,8 @@
 using System;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.AppPreferences;
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 
 namespace Fabolus.Wpf.Features.Viewport;

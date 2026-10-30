@@ -4,6 +4,8 @@ using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Rotatation;
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 using Moq;
 using Xunit;
@@ -32,8 +34,8 @@ public class RotateSceneAxesTests
 
         // Default bed is 250x250 centred on the origin, so each axis runs from the centre out to
         // the edge at 125 - and out along the positive half only.
-        Assert.Equal(new SharpDX.Vector2(125f, 0f), EndOf(red));
-        Assert.Equal(new SharpDX.Vector2(0f, 125f), EndOf(green));
+        Assert.Equal(new System.Numerics.Vector2(125f, 0f), EndOf(red));
+        Assert.Equal(new System.Numerics.Vector2(0f, 125f), EndOf(green));
     });
 
     [Fact]
@@ -82,8 +84,8 @@ public class RotateSceneAxesTests
         var red = Assert.Single(axes, l => l.Color == Colors.Red);
         var green = Assert.Single(axes, l => l.Color == Colors.Green);
 
-        Assert.Equal(new SharpDX.Vector2(200f, 0f), EndOf(red));
-        Assert.Equal(new SharpDX.Vector2(0f, 150f), EndOf(green));
+        Assert.Equal(new System.Numerics.Vector2(200f, 0f), EndOf(red));
+        Assert.Equal(new System.Numerics.Vector2(0f, 150f), EndOf(green));
     });
 
     /// <summary>
@@ -107,10 +109,10 @@ public class RotateSceneAxesTests
     }
 
     /// <summary>The far end of a two-point axis line, as (x, y); the z lift is not the point.</summary>
-    private static SharpDX.Vector2 EndOf(LineGeometryModel3D line)
+    private static System.Numerics.Vector2 EndOf(LineGeometryModel3D line)
     {
         var end = line.Geometry.Positions!.OrderByDescending(p => p.Length()).First();
-        return new SharpDX.Vector2(end.X, end.Y);
+        return new System.Numerics.Vector2(end.X, end.Y);
     }
 
     /// <summary>

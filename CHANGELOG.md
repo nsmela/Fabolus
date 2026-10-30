@@ -18,6 +18,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- The 3D viewport runs on HelixToolkit 3 (3.1.2), up from 2.25. Helix 3 moves its maths onto
+  `System.Numerics`; nothing about what the viewport shows or how it is used changes.
 - Exports default to the Documents folder instead of `%LOCALAPPDATA%`. Preferences that still
   hold the old default move to the new one.
 

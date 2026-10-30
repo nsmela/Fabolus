@@ -1,6 +1,9 @@
 using Fabolus.Core.Geometry;
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
+using MeshBuilder = HelixToolkit.Geometry.MeshBuilder;
+using HelixToolkit.Maths;
 using MediaColor = System.Windows.Media.Color;
 using CoreVector3 = GeometryEngine.Core.Geometry.Primitives.Vec3;
 using Fabolus.Wpf.Common.Helpers;
@@ -13,7 +16,7 @@ using TranslateTransform3D = System.Windows.Media.Media3D.TranslateTransform3D;
 
 namespace Fabolus.Wpf.Features.PartingSplit;
 
-using Vector3 = SharpDX.Vector3;
+using Vector3 = System.Numerics.Vector3;
 
 /// <summary>Which part of the sectioned line a click landed on.</summary>
 /// <param name="Rim">Which rim, for a body that parts along more than one.</param>
@@ -532,7 +535,7 @@ internal sealed class PartingLineEditVisuals
     {
         var builder = new LineBuilder();
         for (int i = 0; i < span.Points.Count - 1; i++)
-            builder.AddLine(ToSharp(span.Points[i]), ToSharp(span.Points[i + 1]));
+            builder.AddLine(span.Points[i].ToNumerics(), span.Points[i + 1].ToNumerics());
 
         return builder.ToLineGeometry3D();
     }
@@ -555,8 +558,6 @@ internal sealed class PartingLineEditVisuals
 
     private static Material SkinOf(MediaColor colour) =>
         new DiffuseMaterial { DiffuseColor = ToColor4(colour) };
-
-    private static Vector3 ToSharp(CoreVector3 v) => v.ToSharpDX();
 
     private static Color4 ToColor4(MediaColor colour) =>
         new(colour.R / 255f, colour.G / 255f, colour.B / 255f, 1f);

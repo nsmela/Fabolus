@@ -19,12 +19,12 @@ Inno Setup) are not part of any release and are not listed here.
 |---|---|---|---|
 | GeometryEngine | MIT | © 2017–2026 Provincial Health Services Authority | https://github.com/nsmela/GeometryEngine |
 | BasicResults | MIT | © Nathan Smela | https://github.com/nsmela/BasicResults |
-| HelixToolkit, HelixToolkit.Wpf.SharpDX | MIT | © 2022 Helix Toolkit contributors | https://github.com/helix-toolkit/helix-toolkit |
+| HelixToolkit, HelixToolkit.Maths, HelixToolkit.Geometry, HelixToolkit.SharpDX, HelixToolkit.Wpf.SharpDX | MIT | © 2022 Helix Toolkit contributors | https://github.com/helix-toolkit/helix-toolkit |
 | SharpDX | MIT | © 2010–2016 Alexandre Mutel | https://github.com/sharpdx/SharpDX |
 | Cyotek.Drawing.BitmapFont | MIT | © 2012–2020 Cyotek Ltd. | https://github.com/cyotek/Cyotek.Drawing.BitmapFont |
 | MahApps.Metro | MIT | © 2023 .NET Foundation and Contributors | https://github.com/MahApps/MahApps.Metro |
 | ControlzEx | MIT | © 2015–2020 Jan Karger, Bastian Schmidt, James Willock | https://github.com/ControlzEx/ControlzEx |
-| CommunityToolkit.Mvvm | MIT | © .NET Foundation and Contributors | https://github.com/CommunityToolkit/dotnet |
+| CommunityToolkit.Mvvm, CommunityToolkit.Common, CommunityToolkit.Diagnostics | MIT | © .NET Foundation and Contributors | https://github.com/CommunityToolkit/dotnet |
 | Microsoft.Xaml.Behaviors.Wpf | MIT | © Microsoft Corporation | https://github.com/Microsoft/XamlBehaviorsWpf |
 | Microsoft.Extensions.\* and System.\* packages | MIT | © .NET Foundation and Contributors | https://github.com/dotnet/runtime |
 | .NET runtime (self-contained builds and the installer only) | MIT | © .NET Foundation and Contributors | https://github.com/dotnet/runtime |
