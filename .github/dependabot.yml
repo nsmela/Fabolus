@@ -16,9 +16,26 @@ updates:
           - "coverlet*"
           - "FluentAssertions"
           - "Moq"
+      # The test packages are excluded here too, or this group takes them as well and its
+      # pull request supersedes the test-only one (as #78 did #77).
       app-dependencies:
         patterns:
           - "*"
+        exclude-patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet*"
+          - "FluentAssertions"
+          - "Moq"
+    ignore:
+      # Clipper2 is GeometryEngine's dependency, declared in Fabolus.Core only to keep the
+      # two in step; it is raised when GeometryEngine raises it, not on its own.
+      - dependency-name: "Clipper2"
+      # HelixToolkit 3 moves off SharpDX maths and renames the geometry and hit-test types,
+      # so it is a migration of the viewport code, not a version bump. Minor and patch
+      # releases of 2.x still come through.
+      - dependency-name: "HelixToolkit*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
