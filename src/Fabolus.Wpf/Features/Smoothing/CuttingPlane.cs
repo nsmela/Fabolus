@@ -1,5 +1,3 @@
-using HelixToolkit;
-using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 using Fabolus.Wpf.Common.Helpers;
 

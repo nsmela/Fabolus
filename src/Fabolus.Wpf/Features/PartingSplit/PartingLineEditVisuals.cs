@@ -1,9 +1,8 @@
 using Fabolus.Core.Geometry;
-using HelixToolkit;
 using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using MeshBuilder = HelixToolkit.Geometry.MeshBuilder;
 using HelixToolkit.Maths;
+using MeshBuilder = HelixToolkit.Geometry.MeshBuilder;
 using MediaColor = System.Windows.Media.Color;
 using CoreVector3 = GeometryEngine.Core.Geometry.Primitives.Vec3;
 using Fabolus.Wpf.Common.Helpers;

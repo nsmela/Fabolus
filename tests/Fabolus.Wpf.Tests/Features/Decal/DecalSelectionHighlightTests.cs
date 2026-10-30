@@ -6,8 +6,6 @@ using Fabolus.Core.Features.Decal;
 using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Features.Decal;
-using HelixToolkit;
-using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 using Xunit;
 

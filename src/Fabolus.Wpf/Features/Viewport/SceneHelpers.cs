@@ -1,8 +1,6 @@
 
-using HelixToolkit;
 using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using HelixToolkit.Maths;
 using SharpDX.Direct3D11;
 using System.Windows.Media;
 

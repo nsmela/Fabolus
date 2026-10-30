@@ -4,8 +4,6 @@ using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Rotatation;
-using HelixToolkit;
-using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 using Moq;
 using Xunit;
