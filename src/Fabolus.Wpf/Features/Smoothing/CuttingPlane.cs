@@ -5,7 +5,7 @@ namespace Fabolus.Wpf.Features.Smoothing;
 
 public static class CuttingPlane
 {
-    public static Element3D Create(Action<double> onHeightChanged, Func<double> getMinZ = null, Func<double> getMaxZ = null) {
+    public static Element3D Create(Action<double> onHeightChanged, Func<double>? getMinZ = null, Func<double>? getMaxZ = null) {
         var element = new UITranslateManipulator3D {
             Direction = System.Numerics.Vector3.UnitZ,
             Material = Skins.Primitive.Pearl,

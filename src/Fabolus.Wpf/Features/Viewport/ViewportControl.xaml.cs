@@ -188,7 +188,7 @@ public partial class ViewportControl : UserControl, IDisposable {
         var edges = new IntCollection(HelixToolkit.Geometry.MeshGeometryHelper.FindEdges(geometry.ToWndMeshGeometry3D()));
         var normals = geometry.Normals;
 
-        if (normals is null || normals.Count != geometry.Positions.Count) {
+        if (normals is null || geometry.Positions is null || normals.Count != geometry.Positions.Count) {
             return new LineGeometry3D { Positions = geometry.Positions, Indices = edges };
         }
 
@@ -282,7 +282,7 @@ public partial class ViewportControl : UserControl, IDisposable {
         }
     }));
 
-    public System.Windows.Media.Imaging.BitmapSource RenderBitmap() => 
+    public System.Windows.Media.Imaging.BitmapSource? RenderBitmap() => 
         HelixToolkit.Wpf.SharpDX.ViewportExtensions.RenderBitmap(MainViewport);
 
     // --- INPUT ROUTING (From XAML events) ---
