@@ -58,7 +58,7 @@
       so it is declared here for the same reason as BasicResults; keep the version in step with
       the one GeometryEngine uses.
     -->
-    <PackageReference Include="Clipper2" Version="1.5.4" />
+    <PackageReference Include="Clipper2" Version="2.0.0" />
   </ItemGroup>
 
   <ItemGroup>
