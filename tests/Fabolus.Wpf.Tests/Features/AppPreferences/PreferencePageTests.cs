@@ -258,6 +258,20 @@ public class PreferencePageTests : IDisposable
     }
 
     [Fact]
+    public void RotationPage_HasAMeshOpacityRowThatSavesToTheSection()
+    {
+        var rotation = PreferencePageCatalog.Default.Single(s => s.Key == "rotation");
+        var opacity = RowsOf(_viewModel, rotation).OfType<NumberRow>().Single(r => r.Label == "Mesh opacity");
+
+        Assert.Equal(Fabolus.Wpf.Features.Rotatation.RotationPreferences.Ranges.MeshOpacityMin, opacity.Minimum);
+        Assert.Equal(Fabolus.Wpf.Features.Rotatation.RotationPreferences.Ranges.MeshOpacityMax, opacity.Maximum);
+
+        opacity.Value = 65;
+
+        Assert.Equal(65f, _viewModel.Get<Fabolus.Wpf.Features.Rotatation.RotationPreferences>().MeshOpacity);
+    }
+
+    [Fact]
     public void CustomRow_NamesATemplateAndCarriesTheViewModel()
     {
         var rotation = PreferencePageCatalog.Default.Single(s => s.Key == "rotation");

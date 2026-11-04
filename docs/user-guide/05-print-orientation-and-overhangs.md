@@ -19,6 +19,15 @@ Both thresholds come from `RotationPreferences` and are adjustable via the range
 
 ---
 
+## Seeing through the mesh
+
+Lower the **Mesh opacity** slider to see the bed grid, the axes, and the far side of the mesh through the near side while you line the model up. It only changes how the mesh is drawn, and carries on across rotations until you leave the tab. To start the tab at a different opacity, set **Mesh opacity** on the **Rotation** page of the preferences.
+
+> [!NOTE]
+> Overhang colours from the near and far sides of the mesh mix where they overlap, so a grey surface in front of a red one can look orange. Return the slider to `100%` before judging overhangs from their colour.
+
+---
+
 ## Rotating the mesh
 
 - Drag the X, Y, or Z rotation rings around the mesh in the viewport to turn it, or adjust the angle sliders for each axis.

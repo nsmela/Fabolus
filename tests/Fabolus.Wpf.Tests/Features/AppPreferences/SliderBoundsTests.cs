@@ -55,7 +55,7 @@ public class SliderBoundsTests {
     public static TheoryData<string, Type, string[]> PreferenceBackedSliders => new() {
         { "Smoothing/SmoothingView.xaml",  typeof(SmoothingViewModel),
           ["Intensity", "Inflation", "Iterations", "RemeshRatio", "Resolution"] },
-        { "Rotatation/RotateView.xaml",    typeof(RotateViewModel),  ["WarningAngle"] },
+        { "Rotatation/RotateView.xaml",    typeof(RotateViewModel),  ["WarningAngle", "MeshOpacity"] },
         { "Moulding/MouldControl.xaml",    typeof(MouldViewModel),
           ["WallThickness", "BaseHeight", "TroughHeight", "TroughOffset"] },
         { "Moulding/ChannelsControl.xaml", typeof(MouldViewModel),   ["ChannelDiameter"] },
@@ -103,7 +103,7 @@ public class SliderBoundsTests {
         float warning = RotationPreferences.Ranges.OverhangAngleMin;
         float critical = warning + RotationPreferences.Ranges.OverhangMinGap;
 
-        var tightest = new RotationPreferences(warning, critical);
+        var tightest = new RotationPreferences(warning, critical, RotationPreferences.Default.MeshOpacity);
 
         Assert.Equal(tightest, tightest.Clamped());
     }
@@ -113,7 +113,8 @@ public class SliderBoundsTests {
     public void TheWidestOverhangPairTheSliderAllows_SurvivesBeingStored() {
         var widest = new RotationPreferences(
             RotationPreferences.Ranges.OverhangAngleMin,
-            RotationPreferences.Ranges.OverhangAngleMax);
+            RotationPreferences.Ranges.OverhangAngleMax,
+            RotationPreferences.Default.MeshOpacity);
 
         Assert.Equal(widest, widest.Clamped());
     }

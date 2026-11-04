@@ -262,6 +262,19 @@
                         </ControlTemplate>
                     </mah:RangeSlider.Template>
                 </mah:RangeSlider>
+
+                <!-- Mesh opacity -->
+                <Grid Margin="0,18,0,7">
+                    <TextBlock Text="Mesh opacity" Style="{DynamicResource FieldLabel}" HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding MeshOpacity, StringFormat={}{0:0}%}"
+                               Style="{StaticResource Text.Value}"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+                <Slider Minimum="{Binding MeshOpacityMinimum}" Maximum="{Binding MeshOpacityMaximum}"
+                        Value="{Binding MeshOpacity, Mode=TwoWay}"
+                        IsSnapToTickEnabled="True" TickFrequency="5"
+                        SmallChange="5" LargeChange="10"
+                        VerticalAlignment="Center" />
             </StackPanel>
             
             <!-- Spacer pushes Reset to the bottom of the rail -->
