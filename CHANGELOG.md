@@ -5,10 +5,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.0.1] - 2026-11-05
+## [1.1.0] - 2026-11-05
 
-Fixes the crash on exit in the installer and self-contained builds, and lets the parting
-split work on the bodies that could not be split in 1.0.0.
+Adds error reports for unexpected failures, a rotation opacity slider and a startup check. Fixes
+the crash on exit in the installer and self-contained builds, and lets the parting split work on
+the bodies that could not be split in 1.0.0.
 
 ### Added
 
@@ -110,7 +111,7 @@ for public use.
 
 See the [GitHub releases](https://github.com/nsmela/Fabolus/releases).
 
-[Unreleased]: https://github.com/nsmela/Fabolus/compare/1.0.1...HEAD
-[1.0.1]: https://github.com/nsmela/Fabolus/compare/1.0.0...1.0.1
+[Unreleased]: https://github.com/nsmela/Fabolus/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/nsmela/Fabolus/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/nsmela/Fabolus/compare/0.9.3...1.0.0
 [0.9.3] and earlier: https://github.com/nsmela/Fabolus/releases
