@@ -51,7 +51,7 @@ public class PreferenceProfileTests : IDisposable
                 true, DecalAutoPlaceScope.Base, false, DecalAnchor.Top, false, DecalAnchor.Back,
                 DecalFont.Bold, 8.0f, 1.2f, EmbossOperation.Emboss).Write(b),
             b => new SmoothingPreferences(3, 2.0f, 0.5f, 1.5f, 2.0f, SmoothDisplayMode.Heatmap).Write(b),
-            b => new RotationPreferences(40.0f, 60.0f).Write(b));
+            b => new RotationPreferences(40.0f, 60.0f, 75.0f).Write(b));
 
         PreferenceProfileIO.Write(_tempFile, bag);
         var result = PreferenceProfileIO.Read(_tempFile);
@@ -72,6 +72,7 @@ public class PreferenceProfileTests : IDisposable
         Assert.Equal(3, smoothing.Iterations);
         Assert.Equal(40.0f, rotation.OverhangWarningAngle);
         Assert.Equal(60.0f, rotation.OverhangCriticalAngle);
+        Assert.Equal(75.0f, rotation.MeshOpacity);
     }
 
     [Fact]
@@ -190,12 +191,44 @@ public class PreferenceProfileTests : IDisposable
     {
         var inverted = new RotationPreferences(
             OverhangWarningAngle: 70.0f,
-            OverhangCriticalAngle: 50.0f
+            OverhangCriticalAngle: 50.0f,
+            MeshOpacity: 100.0f
         );
 
         var clamped = inverted.Clamped();
 
         Assert.Equal(RotationPreferences.Default.OverhangWarningAngle, clamped.OverhangWarningAngle);
         Assert.Equal(RotationPreferences.Default.OverhangCriticalAngle, clamped.OverhangCriticalAngle);
+    }
+
+    /// <summary>
+    /// The opacity has nothing to do with the angle pair, so a stored pair that gets thrown out
+    /// must not take the user's opacity with it.
+    /// </summary>
+    [Fact]
+    public void RotationPreferences_Clamped_KeepsTheOpacityWhenTheAnglesAreRejected()
+    {
+        var inverted = new RotationPreferences(70.0f, 50.0f, MeshOpacity: 60.0f);
+
+        Assert.Equal(60.0f, inverted.Clamped().MeshOpacity);
+    }
+
+    [Theory]
+    [InlineData(-10.0f, RotationPreferences.Ranges.MeshOpacityMin)]
+    [InlineData(5.0f, RotationPreferences.Ranges.MeshOpacityMin)]
+    [InlineData(55.0f, 55.0f)]
+    [InlineData(400.0f, RotationPreferences.Ranges.MeshOpacityMax)]
+    public void RotationPreferences_Clamped_HoldsTheOpacityInRange(float stored, float expected)
+    {
+        var settings = RotationPreferences.Default with { MeshOpacity = stored };
+
+        Assert.Equal(expected, settings.Clamped().MeshOpacity);
+    }
+
+    /// <summary>A profile written before the setting existed has no such key, and stays opaque.</summary>
+    [Fact]
+    public void RotationPreferences_Read_DefaultsToOpaqueWhenTheKeyIsMissing()
+    {
+        Assert.Equal(100.0f, RotationPreferences.Read(PreferenceBag.FromDefaults()).MeshOpacity);
     }
 }

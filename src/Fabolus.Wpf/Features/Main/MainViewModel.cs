@@ -143,29 +143,8 @@ public partial class MainViewModel : ObservableObject
 
     }
 
-    private void UpdateViewportBackground(ViewportBackground bg)
-    {
-        if (bg == ViewportBackground.Graphite)
-        {
-            var brush = new LinearGradientBrush(
-                (Color)ColorConverter.ConvertFromString("#FF1A1A1D"),
-                (Color)ColorConverter.ConvertFromString("#FF2D2D35"),
-                new Point(0, 0),
-                new Point(0, 1));
-            brush.Freeze();
-            ViewportBackgroundBrush = brush;
-        }
-        else if (bg == ViewportBackground.LightSteel)
-        {
-            var brush = new LinearGradientBrush(
-                (Color)ColorConverter.ConvertFromString("#FFD8DEE4"),
-                (Color)ColorConverter.ConvertFromString("#FFB0B9C3"),
-                new Point(0, 0),
-                new Point(0, 1));
-            brush.Freeze();
-            ViewportBackgroundBrush = brush;
-        }
-    }
+    private void UpdateViewportBackground(ViewportBackground bg) =>
+        ViewportBackgroundBrush = ViewportBackgroundColours.CreateBrush(bg);
 
     private void UpdateCutViewAvailability()
     {

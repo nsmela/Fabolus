@@ -58,6 +58,11 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     partial void OnWarningAngleChanged(float value) => SendOverhangSettings();
     partial void OnCriticalAngleChanged(float value) => SendOverhangSettings();
 
+    /// <summary>How solid the mesh is drawn, in percent. Lower lets the bed and axes show through.</summary>
+    [ObservableProperty] private float _meshOpacity = RotationPreferences.Default.MeshOpacity;
+
+    partial void OnMeshOpacityChanged(float value) => _sceneManager.SetMeshOpacity(value / 100f);
+
     // ---- Slider bounds -------------------------------------------------
     // Bound by the view rather than hardcoded in it, so the range a value can be given here is
     // the same one its preference is validated against. The two used to be separate literals
@@ -69,6 +74,9 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
     /// <summary>How close the two thumbs may come. The pair is rejected below this.</summary>
     public double OverhangMinimumGap => RotationPreferences.Ranges.OverhangMinGap;
+
+    public double MeshOpacityMinimum => RotationPreferences.Ranges.MeshOpacityMin;
+    public double MeshOpacityMaximum => RotationPreferences.Ranges.MeshOpacityMax;
 
     private void ResetValues() {
         _isLocked = true;
@@ -98,12 +106,13 @@ public partial class RotateViewModel : ObservableObject, IViewState {
     public RotateViewModel() : this(WeakReferenceMessenger.Default, new AlertDialog(), GeometryEngine.BspGeometryEngine.Create()) { }
 
     public async Task ActivateAsync(Workspace workspace) {
-        LoadOverhangPreferences();
+        LoadPreferences();
 
         // Seed the gradient from the current slider values before the first render,
         // so the initial frame matches the warning/critical thresholds. The scene
         // manager skips rendering here because it has no mesh yet.
         _sceneManager.SetOverhangs(WarningAngle, CriticalAngle);
+        _sceneManager.SetMeshOpacity(MeshOpacity / 100f);
 
         // The info panel is already empty: MainViewModel clears it as each view is swapped in,
         // and this view publishes nothing to it.
@@ -126,19 +135,20 @@ public partial class RotateViewModel : ObservableObject, IViewState {
         _sceneManager.SetOverhangs(WarningAngle, CriticalAngle);
 
     /// <summary>
-    /// Takes the overhang thresholds from app preferences, re-read each activation so a change
-    /// made in the preferences window applies without restarting. Falls back to this view
-    /// model's own defaults when the store cannot be reached, as in the design-time constructor.
+    /// Takes the overhang thresholds and mesh opacity from app preferences, re-read each activation
+    /// so a change made in the preferences window applies without restarting. Falls back to this
+    /// view model's own defaults when the store cannot be reached, as in the design-time constructor.
     ///
     /// Critical is assigned first: the range slider will not let the lower thumb cross the
     /// upper one, so raising the ceiling before the floor keeps a preferred pair higher than
     /// the current one from being clamped. A stored pair that is inverted or too close together
     /// is dropped entirely, since neither half of it describes a usable gradient on its own.
     /// </summary>
-    private void LoadOverhangPreferences() {
+    private void LoadPreferences() {
         var prefs = _messenger.GetSection(RotationPreferences.Default).Clamped();
         CriticalAngle = prefs.OverhangCriticalAngle;
         WarningAngle = prefs.OverhangWarningAngle;
+        MeshOpacity = prefs.MeshOpacity;
     }
 
     // The scene manager only ever renders the active mesh, so that's all it gets -

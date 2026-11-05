@@ -7,7 +7,7 @@ Preferences are organised into **sections**. Each section is an immutable record
 - **`GeneralPreferences`** — import/export folders, export format, viewport background, application theme.
 - **`PrintBedPreferences`** — print bed size, bed grid, and channel defaults.
 - **`SmoothingPreferences`** — smoothing parameters and display mode.
-- **`RotationPreferences`** — overhang warning/critical angles.
+- **`RotationPreferences`** — overhang warning/critical angles and mesh opacity.
 - **`MouldPreferences`** — mould shape, wall/base sizing, and trough.
 - **`DecalPreferences`** — decal enable, auto-placement, and text defaults.
 - **`CutSplitPreferences`** — cut/split view availability and scope.
@@ -98,8 +98,9 @@ The print bed stores width and depth only; there is no stored bed-height prefere
 | :--- | :--- | :--- | :--- |
 | `overhang_warning_angle` | float | `45.0` | `30`–`90` |
 | `overhang_critical_angle` | float | `65.0` | `30`–`90` |
+| `mesh_opacity` | float | `100.0` | `20`–`100` |
 
-The two angles are kept at least 5° apart.
+The two angles are kept at least 5° apart. Mesh opacity is a percentage, and `100` draws the mesh solid.
 
 ### `MouldPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Moulding/MouldPreferences.cs))
 
