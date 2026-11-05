@@ -123,6 +123,58 @@ public class ExportViewModelTests
         Assert.NotEqual(bolus.Value, mould.Value);
     });
 
+    /// <summary>
+    /// When the history cannot be replayed back to the bolus, the panel used to fall back to the
+    /// active mesh's figures - and with a mould the active mesh is the mould, so its volume went
+    /// out labelled "Bolus volume".
+    /// </summary>
+    [Fact]
+    public void WithAMould_ABolusThatCannotBeRebuiltIsNotReportedAsTheMould() => UiThread.Run(async () =>
+    {
+        var items = await InfoPanelFor(MouldOverUnreplayableBolus("bolus"));
+
+        var bolus = Assert.Single(items.OfType<TextInfoItem>(), i => i.Label == "Bolus volume");
+        var mould = Assert.Single(items.OfType<TextInfoItem>(), i => i.Label == "Mould volume");
+
+        Assert.Equal("Unavailable", bolus.Value);
+        Assert.EndsWith("mL", mould.Value);
+
+        // Surface area is the bolus's too, so it goes with the volume rather than being read off
+        // the mould.
+        Assert.DoesNotContain(items.OfType<TextInfoItem>(), i => i.Label == "Surface area");
+    });
+
+    /// <summary>
+    /// A mould whose history holds a transform-stage command that fails on replay, so the export
+    /// panel cannot rebuild the bolus inside it.
+    /// </summary>
+    private static Workspace MouldOverUnreplayableBolus(string name)
+    {
+        var mesh = Engine.Generators.GenerateBox(new Vector3(-20, -30, 0), new Vector3(20, 30, 50)).Value
+            .Measured(Engine);
+
+        var record = MeshRecord.ForImport(name);
+        var workspace = Workspace.CreateEmpty().AddMesh(mesh, record).Value;
+
+        var mould = new ConcaveMouldDefinition();
+        var moulded = mould.Apply(Engine, mesh);
+        Assert.True(moulded.IsSuccess, moulded.IsFailure ? moulded.Error.Description : "");
+
+        var history = workspace.GetActiveRecord().Value
+            .WithCommand(new FailsOnReplay())
+            .WithCommand(mould);
+
+        return workspace.UpdateMesh(record.Id, moulded.Value.Measured(Engine), history).Value;
+    }
+
+    private sealed class FailsOnReplay : IMeshCommand
+    {
+        public int Priority => CommandPriority.Transform;
+
+        public Result<IMesh> Apply(IGeometryEngine engine, IMesh mesh) =>
+            new Error("Test.FailsOnReplay", "This command always fails.");
+    }
+
     private static double MillilitresIn(string value) =>
         double.Parse(value.Replace(" mL", string.Empty), System.Globalization.CultureInfo.CurrentCulture);
 

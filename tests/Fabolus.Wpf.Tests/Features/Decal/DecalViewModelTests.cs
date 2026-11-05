@@ -595,8 +595,11 @@ public class DecalViewModelTests
         Assert.False(vm.HasSelectedDecal);
     }
 
+    // On the UI thread: activation builds the decal's Helix visual after an await, and the drag
+    // then sets its geometry. Off a dispatcher those land on whichever pool threads are free, and
+    // when they differ the visual throws for being touched from the wrong thread.
     [Fact]
-    public async Task DraggingDecal_UpdatesPositionAndCompletesOnDragFinish()
+    public void DraggingDecal_UpdatesPositionAndCompletesOnDragFinish() => UiThread.Run(async () =>
     {
         var (vm, _) = CreateViewModel();
         await vm.ActivateAsync(WorkspaceWith("Test"));
@@ -620,5 +623,5 @@ public class DecalViewModelTests
         dragCompletedMethod!.Invoke(vm, new object[] { decal.Id });
 
         Assert.Equal(newPos, vm.Anchor);
-    }
+    });
 }

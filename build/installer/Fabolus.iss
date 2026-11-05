@@ -38,8 +38,8 @@ AppSupportURL={#AppUrl}/issues
 AppUpdatesURL={#AppUrl}/releases
 
 ; Per-user install by default: under PrivilegesRequired=lowest, {autopf} resolves to
-; %LOCALAPPDATA%\Programs, so there is no UAC prompt and the install directory stays
-; writable. That matters because the app saves its preferences next to the exe.
+; %LOCALAPPDATA%\Programs, so there is no UAC prompt. Preferences live in the user's own
+; %LOCALAPPDATA%\Fabolus, not the install directory, so a machine-wide install works too.
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 DefaultDirName={autopf}\{#AppName}
@@ -90,7 +90,16 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
-; Preferences are written next to the exe at runtime, so remove them on uninstall.
+; The app writes its preferences (PreferenceStorageLocation) and crash reports (CrashLog) to
+; %LOCALAPPDATA%\Fabolus at runtime, so the installer never knew about them. Remove them by
+; name, and each folder only if nothing else is in it. {localappdata} is the profile of whoever
+; runs the uninstaller, so other users of a machine-wide install keep theirs.
+Type: files; Name: "{localappdata}\Fabolus\preferences.json"
+Type: files; Name: "{localappdata}\Fabolus\logs\crash-*.txt"
+Type: dirifempty; Name: "{localappdata}\Fabolus\logs"
+Type: dirifempty; Name: "{localappdata}\Fabolus"
+; Older builds wrote preferences into the exe config. The app only reads that file now, to
+; migrate it, but an install upgraded from one of those builds may still have it.
 Type: files; Name: "{app}\Fabolus.dll.config"
 Type: dirifempty; Name: "{app}"
 

@@ -16,9 +16,17 @@ updates:
           - "coverlet*"
           - "FluentAssertions"
           - "Moq"
+      # The test packages are excluded here too, or this group takes them as well and its
+      # pull request supersedes the test-only one (as #78 did #77).
       app-dependencies:
         patterns:
           - "*"
+        exclude-patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet*"
+          - "FluentAssertions"
+          - "Moq"
 
   - package-ecosystem: github-actions
     directory: /

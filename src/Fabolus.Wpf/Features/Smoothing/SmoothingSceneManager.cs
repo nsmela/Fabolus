@@ -4,8 +4,8 @@ using Fabolus.Core.Features.Smoothing;
 using Fabolus.Core.Geometry;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
 using CommunityToolkit.Mvvm.Messaging;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Common.Helpers;
@@ -23,8 +23,8 @@ public class SmoothingSceneManager : ISceneManager
     private readonly PrintBedGrid _grid;
     private CrossSectionMeshGeometryModel3D? _crossSectionModel;
     private CrossSectionMeshGeometryModel3D? _originalCrossSectionModel;
-    private SharpDX.Plane _crossSectionPlane = new SharpDX.Plane { D = 0, Normal = SharpDX.Vector3.UnitZ };
-    private SharpDX.Plane _originalCrossSectionPlane = new SharpDX.Plane { D = 0, Normal = -SharpDX.Vector3.UnitZ };
+    private System.Numerics.Plane _crossSectionPlane = new System.Numerics.Plane { D = 0, Normal = System.Numerics.Vector3.UnitZ };
+    private System.Numerics.Plane _originalCrossSectionPlane = new System.Numerics.Plane { D = 0, Normal = -System.Numerics.Vector3.UnitZ };
     private Guid _activeId = Guid.Empty;
     private Element3D _gizmo;
     private double _minZ = -double.MaxValue;
@@ -59,8 +59,8 @@ public class SmoothingSceneManager : ISceneManager
     private void OnCuttingPlaneHeightChanged(double height)
     {
         _currentGizmoHeight = height;
-        _crossSectionPlane = new SharpDX.Plane { D = (float)height, Normal = SharpDX.Vector3.UnitZ };
-        _originalCrossSectionPlane = new SharpDX.Plane { D = (float)-height, Normal = -SharpDX.Vector3.UnitZ };
+        _crossSectionPlane = new System.Numerics.Plane { D = (float)height, Normal = System.Numerics.Vector3.UnitZ };
+        _originalCrossSectionPlane = new System.Numerics.Plane { D = (float)-height, Normal = -System.Numerics.Vector3.UnitZ };
 
         if (_crossSectionModel is not null)
         {
@@ -167,11 +167,11 @@ public class SmoothingSceneManager : ISceneManager
 
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
 
-    public bool OnMouseMove(IList<HelixToolkit.Wpf.SharpDX.HitTestResult> hits) => false;
+    public bool OnMouseMove(IList<HelixToolkit.SharpDX.HitTestResult> hits) => false;
 
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 
-    private CrossSectionMeshGeometryModel3D GenerateCrossSection(MeshGeometry3D geometry, Plane plane, Material material, System.Windows.Media.Color crossSectionColor)
+    private CrossSectionMeshGeometryModel3D GenerateCrossSection(MeshGeometry3D geometry, System.Numerics.Plane plane, Material material, System.Windows.Media.Color crossSectionColor)
     {
         var model = new CrossSectionMeshGeometryModel3D
         {

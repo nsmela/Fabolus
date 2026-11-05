@@ -153,8 +153,10 @@ public static class PartingLineSections
     {
         options ??= PartingLineSectionOptions.Default;
 
-        int n = loop?.Count ?? 0;
-        if (n < 8 || band?.First is null || band.Second is null) return PartingLineReport.Empty;
+        if (loop is null || loop.Count < 8 || band?.First is null || band.Second is null)
+            return PartingLineReport.Empty;
+
+        int n = loop.Count;
 
         var across = new double[n];
         var width = new double[n];

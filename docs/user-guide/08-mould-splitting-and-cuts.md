@@ -46,10 +46,10 @@ Fabolus builds the parting mesh — the thin surface that will cut the mould —
 
 Review the positive (blue) and negative (orange) halves, and choose how they are exported:
 
-- **Separate files (one per half)**: an STL (or other mesh-only) export writes each piece to its own file, lettered beside the name you choose: `name_A.stl`, `name_B.stl`, and so on.
-- **Single file (halves joined)**: the pieces are written together in one file.
+- **Separate files (one per half)**: an STL (or other mesh-only) export writes each half to its own file, lettered beside the name you choose: `name_A.stl` and `name_B.stl`. The file you named is not written, and Fabolus lists the files it wrote. A 3MF project is always one file.
+- **Single file (halves joined)**: the halves are written together in one file.
 
-Click **Apply Split** to add the result to the workspace as `{Mould Name} (Cut)` and open the mesh list. The split is kept in the mesh's history, so a project saved as 3MF reopens with the split rebuilt.
+Click **Apply Split** to add the result to the workspace as one mesh, `{Mould Name} (Cut)`, and open the mesh list. The halves only become separate files when you export it. The split is kept in the mesh's history, so a project saved as 3MF reopens with the split rebuilt.
 
 > [!WARNING]
 > Check each piece before printing: open it in the mesh list and confirm in the Info Panel that it is watertight. On some bodies the split cannot separate the mould, and Fabolus reports that rather than producing pieces.

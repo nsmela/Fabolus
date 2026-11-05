@@ -48,7 +48,9 @@ body:
     id: actual
     attributes:
       label: What happened
-      description: Include any error message, and screenshots if they help.
+      description: >-
+        Include any error message, and screenshots if they help. If Fabolus is slow to start,
+        run FabolusStartupCheck.exe from the release and attach the log it saves.
     validations:
       required: true
 

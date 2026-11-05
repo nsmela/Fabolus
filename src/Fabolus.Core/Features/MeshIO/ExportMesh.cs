@@ -28,12 +28,29 @@ public sealed class ExportMesh {
     /// non-printable object, and the command history as vendor metadata. Every other format holds
     /// geometry alone, so exporting a mould to STL keeps the shape and drops the history - that is
     /// what those formats are, and the caller chose one.
+    ///
+    /// Succeeds with the paths actually written: the one named, or, for a separated parting cut,
+    /// the lettered file per piece written in its place.
     /// </summary>
     /// <param name="record">
     /// The workspace entry the geometry belongs to. Its history is what makes a saved mould
     /// reopen as a mould rather than as a raw bolus.
     /// </param>
-    public Result Execute(IMesh mesh, MeshRecord record, string filePath, bool overwrite = false) {
+    /// <param name="overwrite">
+    /// Whether <paramref name="filePath"/> itself may be replaced. It covers that one name only.
+    /// </param>
+    /// <param name="confirmReplace">
+    /// Asked, with the paths, before a separated parting export replaces files the user never
+    /// named: the save dialog only ever saw "bolus.stl", not the "bolus_A.stl" and "bolus_B.stl"
+    /// actually written. Returning false, or passing nothing, leaves them alone and the export
+    /// fails with <see cref="MeshErrors.ExportCancelled"/> or <see cref="MeshErrors.ExportFilesExist"/>.
+    /// </param>
+    public Result<IReadOnlyList<string>> Execute(
+        IMesh mesh,
+        MeshRecord record,
+        string filePath,
+        bool overwrite = false,
+        Func<IReadOnlyList<string>, bool>? confirmReplace = null) {
         if (mesh is null)
             return MeshErrors.ExportMeshIsNull;
 
@@ -44,43 +61,63 @@ public sealed class ExportMesh {
             return MeshErrors.ExportRecordIsNull;
 
         if (FabolusPackage.IsPackage(filePath))
-            return ExportPackage(mesh, record, filePath, overwrite);
+            return Written(ExportPackage(mesh, record, filePath, overwrite), filePath);
 
         // A parting cut kept as one mesh can still have been asked for as separate pieces. The
         // package carries that choice with the rest of the recipe, so it is only acted on here,
         // when the cut leaves for a format that holds nothing but geometry.
         var mode = record.Command<CutCommand>()?.Mode ?? PartingResultMode.Combined;
         return mode == PartingResultMode.Combined
-            ? _geometryEngine.IO.Export(mesh, filePath, overwrite)
-            : ExportPieces(mesh, filePath, overwrite);
+            ? Written(_geometryEngine.IO.Export(mesh, filePath, overwrite), filePath)
+            : ExportPieces(mesh, filePath, overwrite, confirmReplace);
     }
 
+    private static Result<IReadOnlyList<string>> Written(Result export, params string[] paths) =>
+        export.IsFailure ? export.Error : Result.Success<IReadOnlyList<string>>(paths);
+
     /// <summary>
-    /// Writes each disconnected piece of <paramref name="mesh"/> to a file of its own, lettered
-    /// beside <paramref name="filePath"/>. A mesh that is only one piece is written as it is rather
-    /// than as a lone "_A".
+    /// Writes each piece of <paramref name="mesh"/> to a file of its own, lettered beside
+    /// <paramref name="filePath"/>, biggest first. A piece is a component as thick as a mould wall
+    /// (see <see cref="PartingPieces"/>): any sliver the cut left is left out rather than written as
+    /// a file of its own. A mesh that is only one piece is written as it is rather than as a lone
+    /// "_A".
     /// </summary>
-    private Result ExportPieces(IMesh mesh, string filePath, bool overwrite) {
+    private Result<IReadOnlyList<string>> ExportPieces(
+        IMesh mesh, string filePath, bool overwrite, Func<IReadOnlyList<string>, bool>? confirmReplace) {
         var componentsResult = _geometryEngine.Evaluators.SeparateComponents(mesh);
         if (componentsResult.IsFailure)
             return componentsResult.Error;
 
-        var components = componentsResult.Value;
-        if (components.Length < 2)
-            return _geometryEngine.IO.Export(mesh, filePath, overwrite);
+        var components = PartingPieces.Substantial(componentsResult.Value);
+        if (components.Count < 2)
+            return Written(_geometryEngine.IO.Export(mesh, filePath, overwrite), filePath);
 
         var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
         var name = Path.GetFileNameWithoutExtension(filePath);
         var extension = Path.GetExtension(filePath);
 
-        for (int i = 0; i < components.Length; i++) {
-            var partPath = Path.Combine(directory, $"{name}_{(char)('A' + i)}{extension}");
-            var export = _geometryEngine.IO.Export(components[i], partPath, overwrite);
+        var partPaths = Enumerable.Range(0, components.Count)
+            .Select(i => Path.Combine(directory, $"{name}_{(char)('A' + i)}{extension}"))
+            .ToList();
+
+        // Checked for the whole set before any piece is written, so a refusal never leaves half
+        // the pieces new and half from an earlier export.
+        var existing = partPaths.Where(File.Exists).ToList();
+        if (existing.Count > 0) {
+            if (confirmReplace is null)
+                return MeshErrors.ExportFilesExist(existing);
+
+            if (!confirmReplace(existing))
+                return MeshErrors.ExportCancelled;
+        }
+
+        for (int i = 0; i < components.Count; i++) {
+            var export = _geometryEngine.IO.Export(components[i], partPaths[i], overwrite: true);
             if (export.IsFailure)
                 return export.Error;
         }
 
-        return Result.Success();
+        return Result.Success<IReadOnlyList<string>>(partPaths);
     }
 
     private Result ExportPackage(IMesh mesh, MeshRecord record, string filePath, bool overwrite) {
@@ -107,12 +144,8 @@ public sealed class ExportMesh {
 
         if (written.IsFailure) return written.Error;
 
-        try {
-            File.WriteAllBytes(filePath, written.Value);
-        } catch (Exception failure) when (failure is IOException or UnauthorizedAccessException) {
-            return MeshErrors.ExportFailed(failure.Message);
-        }
-
-        return Result.Success();
+        // A package is the project itself - the only copy of its history - so it is never
+        // truncated in place.
+        return SafeFile.WriteAllBytes(filePath, written.Value);
     }
 }

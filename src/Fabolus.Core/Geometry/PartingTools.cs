@@ -3370,9 +3370,34 @@ public sealed class PartingTools : IPartingTools
         return kept;
     }
 
-    public Result<IMesh> GenerateHolePatch(IReadOnlyList<Vector3> loop, Vector3 planeNormal)
+    /// <summary>
+    /// How far a hole patch's edge is carried into the body. Less than the outer flange's
+    /// <see cref="BleedMm"/>, because a hole's wall is often the thinnest part of the body: on
+    /// larynx_small, where the ring narrows below its hole, 2.5mm put 14-18 of the edge's points out
+    /// through the far side of the wall, where 1mm put none outside at all.
+    /// </summary>
+    private const double HoleBleedMm = 1.0;
+
+    /// <summary>How deep inside the body a hole patch's edge point has to sit to count as sealed.</summary>
+    private const double HoleSealMarginMm = 0.2;
+
+    /// <summary>Step of the search further in for a hole patch's edge point the bleed left outside.</summary>
+    private const double HoleSealStepMm = 0.25;
+
+    public Result<IMesh> GenerateHolePatch(IReadOnlyList<Vector3> loop, Vector3 planeNormal, IMesh? body = null)
     {
         if (loop == null || loop.Count < 3) return MeshErrors.InvalidPolygon;
+
+        // The edge carried into the body, as the outer flange's bleed ring is. A patch that ends on the
+        // loop ends on the body's surface - the loop is traced there - so about half its edge reads as
+        // just outside, and the mould material filling the hole stays joined round it in a film the cut
+        // never reaches. On larynx_small that alone kept the mould in one piece.
+        if (body is not null && !body.IsEmpty)
+        {
+            var bled = BleedIntoBody(loop, body, planeNormal.Normalize());
+            if (bled.IsSuccess) loop = bled.Value;
+        }
+
         var direction = planeNormal.Normalize();
         var rotation = RotationFromZTo(direction);
         var inverseRotation = rotation.Inverse();
@@ -3408,5 +3433,54 @@ public sealed class PartingTools : IPartingTools
             worldVertices[i * 3 + 2] = worldV3.Z;
         }
         return CreateMesh(worldVertices.AsSpan(), CollectionsMarshal.AsSpan(triangles));
+    }
+
+    /// <summary>
+    /// Each point of a hole's loop moved <see cref="HoleBleedMm"/> into the body, along the normal of
+    /// the body face it sits on, taken square to the loop. The face's own normal rather than the
+    /// smoothed one the flanges launch along: smoothing along the loop is what a launch wants, but at a
+    /// hole's tight corners it leans off the wall, and a point bled along it can stay outside.
+    /// </summary>
+    private Result<IReadOnlyList<Vector3>> BleedIntoBody(IReadOnlyList<Vector3> loop, IMesh body, Vector3 axis)
+    {
+        var index = _engine.Spatial.IndexFor(body);
+        if (index.IsFailure) return index.Error;
+
+        var vertices = body.Vertices;
+        var triangles = body.Triangles;
+        int n = loop.Count;
+        var bled = new Vector3[n];
+
+        for (int i = 0; i < n; i++)
+        {
+            bled[i] = loop[i];
+            var hit = index.Value.ClosestPoint(loop[i]);
+            if (!hit.HasValue) continue;
+
+            int f = hit.Value.Triangle * 3;
+            var a = vertices[triangles[f]];
+            var normal = (vertices[triangles[f + 1]] - a).Cross(vertices[triangles[f + 2]] - a);
+            if (normal.LengthSquared < 1e-18) continue;
+
+            var tangent = loop[(i + 1) % n] - loop[(i - 1 + n) % n];
+            var inward = -Perpendicular(normal.Normalize(), tangent, axis);
+            bled[i] = loop[i] + (inward * HoleBleedMm);
+
+            // Still outside - a face whose normal leans along the wall - so look further along the
+            // same line, no further than the outer flange bleeds, for the deepest point. Deepest rather
+            // than first inside, so a thin wall is not crossed and come out of on the far side.
+            if (index.Value.SignedDistance(bled[i]) < -HoleSealMarginMm) continue;
+
+            double deepest = double.MaxValue;
+            for (double t = HoleSealStepMm; t <= BleedMm + 1e-9; t += HoleSealStepMm)
+            {
+                var candidate = loop[i] + (inward * t);
+                double depth = index.Value.SignedDistance(candidate);
+                if (depth < deepest) { deepest = depth; bled[i] = candidate; }
+            }
+        }
+
+        RepairFolds(bled);
+        return bled;
     }
 }

@@ -26,7 +26,8 @@ public partial class MouldViewModel : ObservableObject, IViewState
     private readonly ClearMould _clearMouldFeature;
     private readonly DetectAirPockets _detectAirPocketsFeature;
 
-    private Workspace Workspace { get; set; }
+    private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
+    public Workspace CurrentWorkspace => Workspace;
 
     private List<AirChannelModel> Channels { get; set; } = [];
     public int ChannelCount => Channels.Count;

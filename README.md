@@ -23,6 +23,16 @@ Grab the latest files from the [Releases page](https://github.com/nsmela/Fabolus
 
 The builds are not code-signed yet, so Windows SmartScreen may warn that the publisher is unknown the first time you run the installer or `Fabolus.exe`. Choose **More info**, then **Run anyway**. Only do this for files downloaded from the Releases page above.
 
+### If Fabolus is slow to start
+
+Fabolus normally opens in a few seconds. The usual reasons it takes much longer are where its files are, not Fabolus itself:
+
+- **It is on a network drive**, or in a Desktop, Documents or Downloads folder your organisation keeps on a server. Every file is read over the network, and scanned again, on each launch. Use the installer, which puts Fabolus on the PC's own disk, or copy the folder to a local one such as `C:\Fabolus`.
+- **It is being run from inside the zip.** Windows unpacks the whole archive to a temporary folder each time. Extract the zip first.
+- **It is the first launch of a new download.** Antivirus checks each new file as it loads. Before extracting a zip, right-click it, choose **Properties** and tick **Unblock**.
+
+If none of these fit, download `FabolusStartupCheck.exe` from the same release, put it in the Fabolus folder and run it. It starts Fabolus, times how long it takes to open, and saves a log to `%LOCALAPPDATA%\Fabolus\logs` that you can attach to a [bug report](https://github.com/nsmela/Fabolus/issues/new?template=bug_report.yml). The log holds no file paths, user names or patient data.
+
 ## Building from source
 
 Fabolus needs the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and its geometry library, [GeometryEngine](https://github.com/nsmela/GeometryEngine), checked out **beside** this repository:

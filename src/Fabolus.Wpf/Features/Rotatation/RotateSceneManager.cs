@@ -4,8 +4,9 @@ using Fabolus.Core.Geometry;
 using Fabolus.Core.Geometry.Metadata;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
-using SharpDX;
+using HelixToolkit.Maths;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Media3D;
@@ -37,8 +38,34 @@ internal class RotateSceneManager : ISceneManager {
     // is exactly what the tests are, since each runs its body on an STA thread of its own.
     private readonly HelixToolkit.Wpf.SharpDX.Material _skin = new VertColorMaterial();
 
+    // The same unlit vertex colours, for when the mesh is see-through. VertColorMaterial cannot do
+    // this: the viewport draws transparent models through weighted OIT, and that material's only
+    // shader writes one plain colour rather than what the OIT targets expect. This one has a real
+    // OIT pass. With the blending factor at 1 the vertex colour replaces the diffuse colour,
+    // alpha included, so the opacity travels in the vertex colours just as the overhangs do.
+    //
+    // Both sides stay drawn, as they are when opaque. Culling the back faces reads a little cleaner
+    // but takes the far wall away, which is half of what looking through the mesh is for, and an
+    // open scan would show holes wherever its inside faces the camera.
+    private readonly HelixToolkit.Wpf.SharpDX.Material _seeThroughSkin = new HelixToolkit.Wpf.SharpDX.DiffuseMaterial {
+        EnableUnLit = true,
+        VertexColorBlendingFactor = 1f,
+    };
+
+    private float _meshOpacity = 1f;
+
+    // The viewport's gradient, repeated inside the scene while the mesh is see-through. The OIT
+    // composite only writes colour, never alpha, so over an empty background the viewport's image
+    // stays alpha 0 and WPF adds the mesh on top of the gradient instead of blending it: pale over
+    // Graphite, and washed out to white over Light steel, overhang colours included. A backdrop
+    // gives the composite real colour to blend with and leaves the image opaque, and it sits at the
+    // far plane, so the bed and axes draw in front of it whichever order they come in.
+    private ScreenQuadModel3D? _backdrop;
+    private bool _isBackdropShown;
+    private ViewportBackground _viewportBackground;
+
     private MeshGeometryModel3D _mesh = new();
-    private LineGeometryModel3D _activeGizmo;
+    private LineGeometryModel3D _activeGizmo = new();
     private Guid _activeId;
     private Guid _activeGizmoId;
 
@@ -46,9 +73,9 @@ internal class RotateSceneManager : ISceneManager {
     private OverhangSettings OverhangSettings { get; set; }
     private RotateTransform3D TempRotation { get; set; } = new();
 
-    public event Action<Element3D> VisualAddedOrUpdated;
-    public event Action<Guid> VisualRemovedById;
-    public event Action VisualsCleared;
+    public event Action<Element3D>? VisualAddedOrUpdated;
+    public event Action<Guid>? VisualRemovedById;
+    public event Action? VisualsCleared;
 
     public RotateSceneManager(IGeometryEngine engine, IMessenger messenger) {
         _engine = engine;
@@ -63,6 +90,12 @@ internal class RotateSceneManager : ISceneManager {
             // the wrong length now too.
             RebuildAxes();
         };
+
+        // Taken off the message rather than read back from the store, so this doesn't depend on
+        // which recipient the messenger notifies first.
+        _viewportBackground = _messenger.GetSection(GeneralPreferences.Default).ViewportBackground;
+        _messenger.Register<RotateSceneManager, PreferenceSectionUpdateMessage<GeneralPreferences>>(
+            this, (recipient, message) => recipient.OnViewportBackgroundChanged(message.Section.ViewportBackground));
 
         _axes = BuildAxes();
 
@@ -90,6 +123,7 @@ internal class RotateSceneManager : ISceneManager {
 
     public void OnActivated() {
         VisualsCleared?.Invoke();
+        _isBackdropShown = false;
         VisualAddedOrUpdated?.Invoke(_grid.Current);
 
         foreach (var axis in _axes) {
@@ -155,6 +189,16 @@ internal class RotateSceneManager : ISceneManager {
     }
 
     /// <summary>
+    /// How solid the mesh is drawn, from 0 (invisible) to 1. Fully opaque is the plain draw, so
+    /// the blended pass is only ever used when something is actually meant to show through.
+    /// </summary>
+    public void SetMeshOpacity(float opacity) {
+        _meshOpacity = Math.Clamp(opacity, 0f, 1f);
+
+        RenderActiveMesh();
+    }
+
+    /// <summary>
     /// Takes ownership of <paramref name="mesh"/>: it's retained for temp-rotation and
     /// overhang re-renders, and disposed when replaced or on <see cref="ReleaseMesh"/>.
     /// </summary>
@@ -196,7 +240,7 @@ internal class RotateSceneManager : ISceneManager {
         }
 
         var lv = matrix.Transform(new Vector3D(_lightDirection.X, _lightDirection.Y, _lightDirection.Z));
-        var lightLocal = SharpDX.Vector3.Normalize(new SharpDX.Vector3((float)lv.X, (float)lv.Y, (float)lv.Z));
+        var lightLocal = System.Numerics.Vector3.Normalize(new System.Numerics.Vector3((float)lv.X, (float)lv.Y, (float)lv.Z));
 
         var geometryResult = mesh.ToHelixMesh(_engine, colouringResult.Value.Colors);
         if (geometryResult.IsFailure) {
@@ -204,11 +248,15 @@ internal class RotateSceneManager : ISceneManager {
         }
 
         var geometry = geometryResult.Value;
-        ApplyFixedShading(geometry, lightLocal); // VertColorMaterial is unlit, so fold form into the colours
+        ApplyFixedShading(geometry, lightLocal, _meshOpacity); // both skins are unlit, so fold form into the colours
+
+        var seeThrough = _meshOpacity < 1f;
+        ShowBackdrop(seeThrough);
 
         _mesh = new MeshGeometryModel3D {
             Geometry = geometry,
-            Material = _skin,
+            Material = seeThrough ? _seeThroughSkin : _skin,
+            IsTransparent = seeThrough,
             Transform = TempRotation,
         };
 
@@ -217,13 +265,57 @@ internal class RotateSceneManager : ISceneManager {
         VisualAddedOrUpdated?.Invoke(_mesh);
     }
 
+    private void ShowBackdrop(bool show) {
+        if (show == _isBackdropShown) {
+            return;
+        }
+
+        _isBackdropShown = show;
+        if (show) {
+            _backdrop ??= BuildBackdrop();
+            VisualAddedOrUpdated?.Invoke(_backdrop);
+        } else if (_backdrop is not null) {
+            VisualRemovedById?.Invoke(_backdrop.GUID);
+        }
+    }
+
+    private void OnViewportBackgroundChanged(ViewportBackground background) {
+        if (background == _viewportBackground) {
+            return;
+        }
+
+        _viewportBackground = background;
+
+        var wasShown = _isBackdropShown;
+        ShowBackdrop(false);
+        _backdrop = null;
+        ShowBackdrop(wasShown);
+    }
+
+    private ScreenQuadModel3D BuildBackdrop() {
+        var (top, bottom) = ViewportBackgroundColours.GradientOf(_viewportBackground);
+
+        const int rows = 256;
+        var pixels = new Color4[rows];
+        for (int row = 0; row < rows; row++) {
+            float t = row / (rows - 1f);
+            pixels[row] = new Color4(
+                (top.R + ((bottom.R - top.R) * t)) / 255f,
+                (top.G + ((bottom.G - top.G) * t)) / 255f,
+                (top.B + ((bottom.B - top.B) * t)) / 255f,
+                1f);
+        }
+
+        return new ScreenQuadModel3D { Texture = new TextureModel(pixels, 1, rows) };
+    }
+
     // World-fixed key light + ambient floor. VertColorMaterial is unlit, so we bake Lambert
     // shading into the vertex colours. The light is transformed by R^-1 each update so it stays
     // put in the world while the mesh rotates. Tweak _lightDirection / _ambient to taste.
     private static readonly Vector3 _lightDirection = new Vector3(0.3, 0.4, 0.85).Normalize();
     private const float _ambient = 0.35f;
 
-    private static void ApplyFixedShading(HelixToolkit.Wpf.SharpDX.MeshGeometry3D geometry, SharpDX.Vector3 lightDirection) {
+    private static void ApplyFixedShading(HelixToolkit.SharpDX.MeshGeometry3D geometry, System.Numerics.Vector3 lightDirection, float opacity) {
         if (geometry.Colors is null || geometry.Normals is null) {
             return;
         }
@@ -232,11 +324,11 @@ internal class RotateSceneManager : ISceneManager {
         var normals = geometry.Normals;
 
         for (int i = 0; i < colors.Count; i++) {
-            float nDotL = Math.Max(0f, SharpDX.Vector3.Dot(normals[i], lightDirection));
+            float nDotL = Math.Max(0f, System.Numerics.Vector3.Dot(normals[i], lightDirection));
             float shade = _ambient + (1f - _ambient) * nDotL;
 
             var c = colors[i];
-            colors[i] = new Color4(c.Red * shade, c.Green * shade, c.Blue * shade, c.Alpha);
+            colors[i] = new Color4(c.Red * shade, c.Green * shade, c.Blue * shade, opacity);
         }
     }
 
@@ -273,9 +365,9 @@ internal class RotateSceneManager : ISceneManager {
         var builder = new LineBuilder();
         Vector3 helper = Math.Abs(axis.X) > 0.9f ? Vector3.UnitY : Vector3.UnitX;
         Vector3 right = axis.Cross(helper.Normalize());
-        var dxRight = new SharpDX.Vector3((float)right.X, (float)right.Y, (float)right.Z);
+        var dxRight = new System.Numerics.Vector3((float)right.X, (float)right.Y, (float)right.Z);
         Vector3 up = axis.Cross(right);
-        var dxUp = new SharpDX.Vector3((float)up.X, (float)up.Y, (float)up.Z);
+        var dxUp = new System.Numerics.Vector3((float)up.X, (float)up.Y, (float)up.Z);
 
         for (int i = 0; i < 64; i++) {
             float a1 = (float)(2 * Math.PI * i / 64);
@@ -295,6 +387,6 @@ internal class RotateSceneManager : ISceneManager {
     public bool OnKeyDown(Key key) => false;
     public bool OnKeyUp(Key key) => false;
     public bool OnMouseDown(MouseDown3DEventArgs eventArgs) => false;
-    public bool OnMouseMove(IList<HelixToolkit.Wpf.SharpDX.HitTestResult> hits) => false;
+    public bool OnMouseMove(IList<HelixToolkit.SharpDX.HitTestResult> hits) => false;
     public bool OnMouseUp(MouseUp3DEventArgs eventArgs) => false;
 }

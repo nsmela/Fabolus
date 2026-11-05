@@ -7,7 +7,7 @@ Preferences are organised into **sections**. Each section is an immutable record
 - **`GeneralPreferences`** — import/export folders, export format, viewport background, application theme.
 - **`PrintBedPreferences`** — print bed size, bed grid, and channel defaults.
 - **`SmoothingPreferences`** — smoothing parameters and display mode.
-- **`RotationPreferences`** — overhang warning/critical angles.
+- **`RotationPreferences`** — overhang warning/critical angles and mesh opacity.
 - **`MouldPreferences`** — mould shape, wall/base sizing, and trough.
 - **`DecalPreferences`** — decal enable, auto-placement, and text defaults.
 - **`CutSplitPreferences`** — cut/split view availability and scope.
@@ -45,7 +45,7 @@ Preferences are stored at `PreferenceStorageLocation.DefaultPath`:
 %LOCALAPPDATA%\Fabolus\preferences.json
 ```
 
-typically resolving to `C:\Users\<Username>\AppData\Local\Fabolus\preferences.json`.
+typically resolving to `C:\Users\<Username>\AppData\Local\Fabolus\preferences.json`. Each Windows user has their own file. Uninstalling Fabolus deletes it for the user who runs the uninstaller; export a preference profile first to keep the settings.
 
 The file is a flat JSON object keyed by each setting's storage key. Enums are written as their **name** (e.g. `"Stl"`, `"Graphite"`, `"Concave"`), not as integers. A value that is missing, the wrong type, or out of range falls back to that setting's shipped default — it is **not** clamped to the nearest bound. Keys the current build does not recognise are preserved and written back out.
 
@@ -60,7 +60,7 @@ Types marked *enum* are written as their value name. Ranges, where shown, are th
 | Storage Key | Type | Default | Notes |
 | :--- | :--- | :--- | :--- |
 | `default_import_folder` | string | Common Documents folder | Falls back to default if the stored folder no longer exists. |
-| `default_export_folder` | string | Local Application Data folder | Falls back to default if the stored folder no longer exists. |
+| `default_export_folder` | string | Documents folder | Falls back to default if the stored folder no longer exists. A stored Local Application Data folder, the 1.0.0 default, is read as the current default. |
 | `default_export_format` | enum | `Stl` | `Stl`, `ThreeMF`. |
 | `viewport_background` | enum | `Graphite` | `Graphite`, `LightSteel`. |
 | `app_theme` | enum | `Dark` | `Dark`, `Light`. Switches live: MahApps' base theme and the `FabolusSteelDark` / `SteelCyan` override dictionary. |
@@ -98,8 +98,9 @@ The print bed stores width and depth only; there is no stored bed-height prefere
 | :--- | :--- | :--- | :--- |
 | `overhang_warning_angle` | float | `45.0` | `30`–`90` |
 | `overhang_critical_angle` | float | `65.0` | `30`–`90` |
+| `mesh_opacity` | float | `100.0` | `20`–`100` |
 
-The two angles are kept at least 5° apart.
+The two angles are kept at least 5° apart. Mesh opacity is a percentage, and `100` draws the mesh solid.
 
 ### `MouldPreferences` ([source](https://github.com/nsmela/Fabolus/blob/dev/src/Fabolus.Wpf/Features/Moulding/MouldPreferences.cs))
 

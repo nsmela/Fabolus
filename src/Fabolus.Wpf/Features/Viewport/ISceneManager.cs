@@ -1,4 +1,5 @@
 using Fabolus.Core.Geometry;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 using System.Windows.Input;
 

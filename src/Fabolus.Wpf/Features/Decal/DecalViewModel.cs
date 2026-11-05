@@ -28,6 +28,7 @@ public partial class DecalViewModel : ObservableObject, IViewState, IDisposable
     private readonly DecalSceneManager _sceneManager;
 
     private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
+    public Workspace CurrentWorkspace => Workspace;
     private IMesh? _activeMesh;
 
     // The active workspace entry. _activeMesh, _baseMesh and _mouldMesh are all geometry for this

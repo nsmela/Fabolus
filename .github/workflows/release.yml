@@ -1,6 +1,6 @@
 name: Release
 
-# Builds the three release artifacts and attaches them to a draft GitHub release.
+# Builds the four release artifacts and attaches them to a draft GitHub release.
 #
 # All build logic lives in build/publish.ps1 so a local run and a CI run produce
 # identical output. This workflow only supplies the version and uploads the results.
@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout Fabolus
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: Fabolus
 
@@ -42,14 +42,14 @@ jobs:
         run: '"sha=$((Get-Content build/geometryengine.sha -Raw).Trim())" >> $env:GITHUB_OUTPUT'
 
       - name: Checkout GeometryEngine
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: nsmela/GeometryEngine
           ref: ${{ steps.geometryengine.outputs.sha }}
           path: GeometryEngine
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
@@ -82,7 +82,7 @@ jobs:
         run: ./build/publish.ps1 -Version ${{ steps.version.outputs.version }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Fabolus-${{ steps.version.outputs.version }}
           path: Fabolus/artifacts/*
@@ -90,7 +90,7 @@ jobs:
 
       - name: Create draft release
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
           name: Fabolus ${{ steps.version.outputs.version }}
@@ -103,5 +103,6 @@ jobs:
             | `Fabolus-${{ steps.version.outputs.version }}-setup.exe` | Most people. Installs to your user folder, adds a Start Menu shortcut, uninstalls cleanly. | Nothing |
             | `Fabolus-${{ steps.version.outputs.version }}-win-x64.zip` | Portable use if you already have .NET. Extract and run `Fabolus.exe`. | [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) |
             | `Fabolus-${{ steps.version.outputs.version }}-win-x64-self-contained.zip` | Portable use on a machine with no .NET installed. Larger download. | Nothing |
+            | `FabolusStartupCheck.exe` | Only if Fabolus is slow to start. Put it in the Fabolus folder and run it: it times the start and saves a log you can attach to a bug report. | Nothing |
 
             Windows 10 or later, 64-bit.

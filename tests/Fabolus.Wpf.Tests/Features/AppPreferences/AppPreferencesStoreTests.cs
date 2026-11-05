@@ -102,6 +102,56 @@ public class AppPreferencesStoreTests : IDisposable
         Assert.Equal(MouldPreferences.Default, store.Get<MouldPreferences>());
     }
 
+    /// <summary>
+    /// Exports used to default to %LOCALAPPDATA%, a hidden folder of program data. A new install
+    /// defaults to Documents instead.
+    /// </summary>
+    [Fact]
+    public void ExportFolder_DefaultsToDocuments()
+    {
+        var store = new AppPreferencesStore(new StrongReferenceMessenger(), _path);
+
+        Assert.Equal(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            store.Get<GeneralPreferences>().ExportFolder);
+    }
+
+    /// <summary>
+    /// 1.0.0 wrote its default out with every other setting, so an existing preferences file holds
+    /// %LOCALAPPDATA% as though it had been chosen. Read back, that is the old default and moves.
+    /// </summary>
+    [Fact]
+    public void ExportFolder_StoredAsTheOldDefault_MovesToDocuments()
+    {
+        WriteStoredExportFolder(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+
+        var store = new AppPreferencesStore(new StrongReferenceMessenger(), _path);
+
+        Assert.Equal(GeneralPreferences.Default.ExportFolder, store.Get<GeneralPreferences>().ExportFolder);
+    }
+
+    [Fact]
+    public void ExportFolder_ThatWasChosen_IsKept()
+    {
+        var chosen = Path.Combine(_tempDir, "exports");
+        Directory.CreateDirectory(chosen);
+        WriteStoredExportFolder(chosen);
+
+        var store = new AppPreferencesStore(new StrongReferenceMessenger(), _path);
+
+        Assert.Equal(chosen, store.Get<GeneralPreferences>().ExportFolder);
+    }
+
+    private void WriteStoredExportFolder(string folder)
+    {
+        Directory.CreateDirectory(_tempDir);
+        File.WriteAllText(_path, System.Text.Json.JsonSerializer.Serialize(
+            new System.Collections.Generic.Dictionary<string, string>
+            {
+                [GeneralPreferences.Keys.ExportFolder] = folder
+            }));
+    }
+
     [Fact]
     public void UnknownKeysInTheFileSurviveASave()
     {

@@ -1,7 +1,9 @@
+using HelixToolkit;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
+using HelixToolkit.Maths;
 using BasicResults;
 using Fabolus.Core.Geometry;
-using SharpDX;
 
 namespace Fabolus.Wpf.Common.Mesh;
 
@@ -11,7 +13,7 @@ public static class MeshConverters {
 
         var positions = new Vector3Collection(mesh.VertexCount);
         foreach (var v in mesh.Vertices) {
-            positions.Add(new SharpDX.Vector3((float)v.X, (float)v.Y, (float)v.Z));
+            positions.Add(new System.Numerics.Vector3((float)v.X, (float)v.Y, (float)v.Z));
         }
         geometry.Positions = positions;
 
@@ -19,7 +21,7 @@ public static class MeshConverters {
         if (normalsResult.IsSuccess) {
             var normals = new Vector3Collection(mesh.VertexCount);
             foreach (var n in normalsResult.Value) {
-                normals.Add(new SharpDX.Vector3((float)n.X, (float)n.Y, (float)n.Z));
+                normals.Add(new System.Numerics.Vector3((float)n.X, (float)n.Y, (float)n.Z));
             }
             geometry.Normals = normals;
         }
@@ -27,7 +29,7 @@ public static class MeshConverters {
         if (vertexColours is not null && vertexColours.Length >= mesh.VertexCount * 3) {
             var colorCollection = new Color4Collection(mesh.VertexCount);
             for (int i = 0; i < mesh.VertexCount; i++) {
-                colorCollection.Add(new SharpDX.Color4((float)vertexColours[i*3], (float)vertexColours[i*3+1], (float)vertexColours[i*3+2], 1.0f));
+                colorCollection.Add(new HelixToolkit.Maths.Color4((float)vertexColours[i*3], (float)vertexColours[i*3+1], (float)vertexColours[i*3+2], 1.0f));
             }
             geometry.Colors = colorCollection;
         }
@@ -65,15 +67,15 @@ public static class MeshConverters {
 
             var cross = (b - a).Cross(c - a);
             var normal = cross.LengthSquared < 1e-12
-                ? new SharpDX.Vector3(0, 1, 0)
-                : new SharpDX.Vector3((float)(cross.X / cross.Length), (float)(cross.Y / cross.Length), (float)(cross.Z / cross.Length));
+                ? new System.Numerics.Vector3(0, 1, 0)
+                : new System.Numerics.Vector3((float)(cross.X / cross.Length), (float)(cross.Y / cross.Length), (float)(cross.Z / cross.Length));
 
             var colour = hasColours
                 ? new Color4((float)triangleColours![t * 3], (float)triangleColours[(t * 3) + 1], (float)triangleColours[(t * 3) + 2], 1.0f)
                 : new Color4(0.8f, 0.8f, 0.8f, 1.0f);
 
             foreach (var corner in new[] { a, b, c }) {
-                positions.Add(new SharpDX.Vector3((float)corner.X, (float)corner.Y, (float)corner.Z));
+                positions.Add(new System.Numerics.Vector3((float)corner.X, (float)corner.Y, (float)corner.Z));
                 normals.Add(normal);
                 colours.Add(colour);
                 indices.Add(positions.Count - 1);

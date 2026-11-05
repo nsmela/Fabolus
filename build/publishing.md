@@ -10,19 +10,25 @@ identical artifacts.
 pwsh ./build/publish.ps1
 ```
 
-Runs the tests, builds all three artifacts into `artifacts/`, and prints their sizes.
+Runs the tests, builds all four artifacts into `artifacts/`, and prints their sizes.
 Takes a few minutes, most of it compressing the self-contained payload.
 
-## The three artifacts
+## The artifacts
 
 | Artifact | Contents | User needs |
 |---|---|---|
 | `Fabolus-<version>-win-x64.zip` | Framework-dependent build. Extract and run `Fabolus.exe`. | [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) |
 | `Fabolus-<version>-win-x64-self-contained.zip` | Same app with the .NET runtime bundled in. | Nothing |
 | `Fabolus-<version>-setup.exe` | Inno Setup installer wrapping the **self-contained** payload. | Nothing |
+| `FabolusStartupCheck.exe` | Diagnostic launcher for slow starts (#95): starts Fabolus, times it and writes a log. | Nothing (.NET Framework 4.8 ships with Windows) |
 
 The installer wraps the self-contained build deliberately: an installer should have no
 prerequisites, and people who want the small download already have the first zip.
+
+The startup check has no version in its name so the README can link to the latest one. It
+targets .NET Framework 4.8 rather than .NET 10 on purpose: that runtime lives in `C:\Windows`
+on every supported PC, so the check starts quickly from wherever it is, and is not slowed by
+the network folder, download marks or antivirus it is there to measure.
 
 Approximate sizes at 0.9.4: 34 MB, 104 MB, 76 MB. The installer is smaller than the zip it
 contains because Inno compresses with LZMA2 rather than deflate.
@@ -52,7 +58,7 @@ git tag 1.0.1 && git push origin 1.0.1
 
 3. [`release.yml`](../.github/workflows/release.yml) picks up any `x.y.z` tag, installs
    Inno Setup on the runner, runs `publish.ps1`, and opens a **draft** release with all
-   three files attached and a download table in the body.
+   four files attached and a download table in the body.
 4. Review the draft, write the release notes, publish.
 
 `workflow_dispatch` runs the same build against a version you type, uploads the artifacts,
@@ -94,10 +100,12 @@ installer.
 Per-user by default: `PrivilegesRequired=lowest` puts it in `%LOCALAPPDATA%\Programs\Fabolus`
 with no UAC prompt. The user can still choose a machine-wide install from the wizard.
 
-This is not just convenience. `AppPreferencesStore` calls `ConfigurationManager.Save()` on
-every preference change, which writes `Fabolus.dll.config` **next to the exe**. Under
-`C:\Program Files` that throws for a non-admin user. Keeping the install directory writable
-sidesteps it. See *Known rough edges* below.
+Preferences do not live in the install directory. `AppPreferencesStore` writes them to
+`%LOCALAPPDATA%\Fabolus\preferences.json` (`PreferenceStorageLocation.DefaultPath`), one
+file per Windows user, so a machine-wide install under `C:\Program Files` works as well as
+a per-user one. The first run after upgrading from an older build copies its settings out of
+the old exe-adjacent `Fabolus.dll.config`; see
+[Configuration & Preferences](../docs/reference/configuration-and-preferences.md).
 
 The `AppId` GUID in [`Fabolus.iss`](installer/Fabolus.iss) must never change — it is what
 makes a new version upgrade the existing install in place instead of sitting alongside it.
@@ -128,8 +136,16 @@ script.
 `CloseApplications=yes` lets the Restart Manager close a running Fabolus instead of the
 install failing part-way on locked files.
 
-Uninstall removes the program files, the generated `Fabolus.dll.config`, the Start Menu
-group, and the Add/Remove Programs entry.
+Uninstall removes the program files, the Start Menu group, the Add/Remove Programs entry,
+and what the app wrote at runtime: `%LOCALAPPDATA%\Fabolus\preferences.json`, the crash
+reports in `%LOCALAPPDATA%\Fabolus\logs\`, those folders if nothing else is in them, and any
+`Fabolus.dll.config` an older build left beside the exe. The installer didn't create these, so
+they are listed by name in `[UninstallDelete]`. They are removed only from the profile of the
+user running the uninstaller; on a machine-wide install, other users' files stay behind.
+Exported preference profiles are wherever the user saved them and are never touched.
+
+An upgrade installs over the existing copy without running the uninstaller, so preferences
+carry across versions.
 
 ## Platform
 
@@ -163,12 +179,12 @@ Beyond the automated test gate, worth checking by hand when something changes:
 - Install the setup exe, confirm no elevation prompt, launch from the Start Menu, change a
   preference, restart the app, and confirm the preference stuck.
 - Run the installer a second time and confirm you get one Add/Remove entry, not two.
+- Uninstall, and confirm `%LOCALAPPDATA%\Fabolus` is gone along with
+  `%LOCALAPPDATA%\Programs\Fabolus`.
 
 ## Known rough edges
 
 Things a future change should probably address, none of which block a release today:
 
-- **Preferences live next to the exe.** Moving them to `%APPDATA%\Fabolus\` would remove the
-  writability constraint and let a machine-wide install work properly.
 - **The builds are not code-signed,** so SmartScreen warns about an unknown publisher until
   a build has earned reputation. The README tells users how to get past it.

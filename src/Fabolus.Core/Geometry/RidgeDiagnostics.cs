@@ -222,6 +222,12 @@ internal sealed record RidgeFillReport(
     public static RidgeFillReport Empty { get; } =
         new(0, Array.Empty<RidgeRegionReport>(), 0, 0, 0, 0, 0, 0, 0, 0, 0,
             Array.Empty<RidgeHoleReport>());
+
+    /// <summary>
+    /// Band regions given back to a shell surface because they lay across it and joined two rims into
+    /// one. Zero on anything without a hole through it, and on a ring whose rims came back apart.
+    /// </summary>
+    public int SeparatedRegions { get; init; }
 }
 
 internal enum RidgeChainVerdict { Kept, TooShort, Degenerate }

@@ -25,6 +25,11 @@ public static class MeshErrors
     public static Error ExportFailed(string detail) =>
         new("Export.Failed", $"The file could not be written: {detail}.");
 
+    public static Error ExportFilesExist(IReadOnlyList<string> filePaths) =>
+        new("Export.FilesExist", $"These files already exist and were left as they are: {string.Join(", ", filePaths.Select(Path.GetFileName))}.");
+
+    public static readonly Error ExportCancelled = new("Export.Cancelled", "The export was cancelled.");
+
     // ===== RAYCAST =====
     public static readonly Error RaycastMiss = new("Mesh.RaycastMiss", "The ray did not intersect with the mesh.");
 

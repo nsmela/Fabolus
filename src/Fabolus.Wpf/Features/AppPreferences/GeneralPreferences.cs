@@ -15,7 +15,7 @@ public sealed record GeneralPreferences(
 {
     public static GeneralPreferences Default { get; } = new(
         ImportFolder: Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments),
-        ExportFolder: Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        ExportFolder: Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
         ExportFormat: ExportFormat.Stl,
         ViewportBackground: ViewportBackground.Graphite,
         AppTheme: AppTheme.Dark
@@ -30,9 +30,17 @@ public sealed record GeneralPreferences(
         public const string AppTheme = "app_theme";
     }
 
+    /// <summary>
+    /// The export folder 1.0.0 defaulted to: %LOCALAPPDATA%, a hidden folder of program data that
+    /// nobody browses to for an export. The store writes every setting out once any one changes,
+    /// so this old default sits in existing preference files as though it had been chosen.
+    /// </summary>
+    private static string LegacyDefaultExportFolder { get; } =
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
     public static GeneralPreferences Read(IPreferenceReader reader) => new(
         reader.GetFolder(Keys.ImportFolder, "Import folder", Default.ImportFolder),
-        reader.GetFolder(Keys.ExportFolder, "Export folder", Default.ExportFolder),
+        WithoutLegacyDefault(reader.GetFolder(Keys.ExportFolder, "Export folder", Default.ExportFolder)),
         reader.GetEnum(Keys.ExportFormat, "Export format", Default.ExportFormat),
         reader.GetEnum(Keys.ViewportBackground, "Viewport background", Default.ViewportBackground),
         reader.GetEnum(Keys.AppTheme, "Application theme", Default.AppTheme)
@@ -46,6 +54,19 @@ public sealed record GeneralPreferences(
         writer.SetEnum(Keys.ViewportBackground, ViewportBackground);
         writer.SetEnum(Keys.AppTheme, AppTheme);
     }
+
+    /// <summary>
+    /// A stored export folder that is the 1.0.0 default is that default rather than a choice, so it
+    /// moves to the current one. Someone who picked %LOCALAPPDATA% on purpose would have to pick it
+    /// again - unlikely, and harmless.
+    /// </summary>
+    private static string WithoutLegacyDefault(string folder) =>
+        string.Equals(
+            Path.TrimEndingDirectorySeparator(folder),
+            Path.TrimEndingDirectorySeparator(LegacyDefaultExportFolder),
+            StringComparison.OrdinalIgnoreCase)
+            ? Default.ExportFolder
+            : folder;
 
     public GeneralPreferences Clamped() => new(
         Directory.Exists(ImportFolder) ? ImportFolder : Default.ImportFolder,

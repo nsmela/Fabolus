@@ -10,6 +10,7 @@ using Fabolus.Wpf.Common.Helpers;
 using Fabolus.Wpf.Common.Mesh;
 using Fabolus.Wpf.Features.AppPreferences;
 using Fabolus.Wpf.Features.Viewport;
+using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 
 namespace Fabolus.Wpf.Features.Decal;
@@ -425,10 +426,10 @@ public sealed class DecalSceneManager : ISceneManager
 
     private static LineGeometry3D GenerateContouredBoundingBox(SurfaceFrame frame, float halfW, float halfH, float zOff)
     {
-        SharpDX.Vector3 Corner(float u, float v)
+        System.Numerics.Vector3 Corner(float u, float v)
         {
             var p = frame.ToWorld(u, v, zOff);
-            return new SharpDX.Vector3((float)p.X, (float)p.Y, (float)p.Z);
+            return new System.Numerics.Vector3((float)p.X, (float)p.Y, (float)p.Z);
         }
 
         var p0 = Corner(-halfW, -halfH);
@@ -448,8 +449,8 @@ public sealed class DecalSceneManager : ISceneManager
 
         foreach (var preset in presetPoints)
         {
-            var mb = new HelixToolkit.Wpf.SharpDX.MeshBuilder();
-            mb.AddSphere(new SharpDX.Vector3((float)preset.Position.X, (float)preset.Position.Y, (float)preset.Position.Z), SpherePresetRadius, SphereTessellation, SphereTessellation);
+            var mb = new HelixToolkit.Geometry.MeshBuilder();
+            mb.AddSphere(new System.Numerics.Vector3((float)preset.Position.X, (float)preset.Position.Y, (float)preset.Position.Z), SpherePresetRadius, SphereTessellation, SphereTessellation);
             var sphereGeom = mb.ToMeshGeometry3D();
             var sphereModel = new MeshGeometryModel3D
             {

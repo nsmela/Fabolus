@@ -131,24 +131,37 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// turn written to carry it there produced the flange that was rejected on sight.
     /// </para>
     /// </summary>
-    public PartingMeshSweep MeshSweep =>
-        UseMouldLoft ? PartingMeshSweep.MouldLoft : PartingMeshSweep.SurfaceSweep;
+    public PartingMeshSweep MeshSweep => OfferedSweeps.Contains(FlangeSweep) ? FlangeSweep : PartingMeshSweep.MouldLoft;
+
+    /// <summary>The sweeps the view offers, in the order it lists them. Anything else asked for builds the loft.</summary>
+    public static IReadOnlyList<PartingMeshSweep> OfferedSweeps { get; } =
+        [PartingMeshSweep.MouldLoft, PartingMeshSweep.SurfaceSweep, PartingMeshSweep.SkinBisector];
 
     /// <summary>
-    /// Build the flange by lofting to a ring on the mould instead of marching along the body's normals
-    /// - <see cref="PartingMeshSweep.MouldLoft"/>.
+    /// Which flange the user picked: lofted to a ring on the mould, marched along the body's normals,
+    /// or the skin bisector.
     ///
     /// <para>
-    /// Offered as a switch rather than settled because it is new and the two want comparing on real
-    /// bodies. What it changes is which shape the mating face inherits: the marching sweep carries the
-    /// body's undulation all the way to the outer wall, and this asks the mould where to come out
-    /// instead. On the measured set the median face falls from 58 degrees off the parting plane to 2
-    /// on chin and from 67 to 26 on scalp.
+    /// The loft is the default. What the choice changes is which shape the mating face inherits: the
+    /// marching sweep carries the body's undulation all the way to the outer wall, and the loft asks the
+    /// mould where to come out instead. On the measured set the median face falls from 58 degrees off
+    /// the parting plane to 2 on chin and from 67 to 26 on scalp.
+    /// </para>
+    ///
+    /// <para>
+    /// The bisector - <see cref="PartingMeshSweep.SkinBisector"/> - is for the bodies neither of those
+    /// can part, where the line no axis sees as a simple loop folds both through the body: larynx_large
+    /// comes apart 57/43 on it and in one piece on everything else. It is a choice rather than a
+    /// fallback the view takes by itself, because it is much steeper wherever the loft does work (chin's
+    /// median face 69 degrees off level against 2) and telling that the loft failed would mean running
+    /// the cut first. It takes seconds to build rather than a moment - 11 on larynx_large, 23 on scalp.
     /// </para>
     /// </summary>
-    [ObservableProperty] private bool _useMouldLoft = true;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MeshSweep))]
+    private PartingMeshSweep _flangeSweep = PartingMeshSweep.MouldLoft;
 
-    partial void OnUseMouldLoftChanged(bool value)
+    partial void OnFlangeSweepChanged(PartingMeshSweep value)
     {
         // The flange is built from this, so the one already on screen belongs to the other mode.
         _flangeSurface = null;
@@ -309,6 +322,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     private const int LivePreviewDebounceMs = 30;
 
     private Workspace Workspace { get; set; }
+    public Workspace CurrentWorkspace => Workspace;
     private bool _isUpdatingFromScene;
     private CancellationTokenSource? _livePreviewCts;
     private CancellationTokenSource? _partingMeshCts;
@@ -323,7 +337,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// <summary>The active mesh as a validated mould, set on activation only when it really is one.
     /// Every feature call that needs the mould goes through this rather than the raw active mesh.</summary>
     private MouldMesh? _mould;
-    private BodyMesh _body;
+    private BodyMesh? _body;
 
     [ObservableProperty] private bool _isMould;
     [ObservableProperty] private IMesh? _activeMesh;
@@ -1163,16 +1177,20 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         }
 
         var lineParameters = LineParameters;
+        var body = _body;
 
         _messenger.Send(new IsLoadingMessage(true));
         try
         {
-            var lineResult = await Task.Run(() => _partingMeshFeature.GeneratePartingLineFromBody(_body, lineParameters));
+            var lineResult = await Task.Run(() => _partingMeshFeature.GeneratePartingLineFromBody(body, lineParameters));
             if (lineResult.IsFailure)
             {
                 _alert.ShowError(lineResult.Error.Description);
                 return false;
             }
+
+            // A trace only succeeds on a body, so this never fires; it lets the compiler see that.
+            if (body is null) return false;
 
             // Whichever line the user picked in step one. The traced result is recomputed above rather
             // than cached because a silhouette line does depend on the direction; for the border line
@@ -1203,7 +1221,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
             // each one a hairline bridge that survives the cut and keeps the mould in one piece. That
             // is what made scalp.3mf fail to separate at any cutter thickness.
             var flangeResult = await Task.Run(() => _partingMeshFeature.GenerateFlangeSurface(
-                partingLine, outerContour.Value, meshParameters, _body));
+                partingLine, outerContour.Value, meshParameters, body));
             if (flangeResult.IsFailure)
             {
                 _alert.ShowError($"Failed to generate the parting mesh: {flangeResult.Error.Description}");
@@ -1222,10 +1240,18 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
             // Whether this flange can actually sever the mould comes down to its inner rim sitting
             // inside the body. Showing that with the parting mesh means a breach is visible now,
             // rather than surfacing later as a boolean that declines to separate anything.
-            var seal = _partingMeshFeature.InspectFlangeSeal(
-                _flangeSurface, _body, partingLine, meshParameters);
-            _sceneManager.SetFlangeSeal(seal.IsSuccess ? seal.Value : null);
-            BreachedSealPointCount = seal.IsSuccess ? seal.Value.Count(p => !p.IsSealed) : 0;
+            // Not for the bisector: the inspection finds the inner rim by the line's footprint along the
+            // axis, and the bisector has no rim of that kind - it runs on inside the body - so every
+            // boundary point the footprint happens to take in would be drawn as a breach. Measured on
+            // larynx_large, 186 of them on a surface that cuts the mould cleanly in two.
+            IReadOnlyList<FlangeSealPoint>? seal = null;
+            if (meshParameters.Sweep != PartingMeshSweep.SkinBisector)
+            {
+                var inspected = _partingMeshFeature.InspectFlangeSeal(_flangeSurface, body, partingLine, meshParameters);
+                if (inspected.IsSuccess) seal = inspected.Value;
+            }
+            _sceneManager.SetFlangeSeal(seal);
+            BreachedSealPointCount = seal?.Count(p => !p.IsSealed) ?? 0;
 
             UpdatePartingMesh();
             return true;

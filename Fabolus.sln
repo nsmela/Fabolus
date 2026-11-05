@@ -43,6 +43,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GeometryEngine", "..\Geomet
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GeometryEngine.Core", "..\GeometryEngine\src\GeometryEngine.Core\GeometryEngine.Core.csproj", "{0A51E185-E2AD-41BD-9499-9BC727963356}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus.StartupCheck", "src\Fabolus.StartupCheck\Fabolus.StartupCheck.csproj", "{24490C8F-43EA-44C8-B8B2-41EC0095376D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fabolus.StartupCheck.Tests", "tests\Fabolus.StartupCheck.Tests\Fabolus.StartupCheck.Tests.csproj", "{FBE82D66-FDB8-4A99-B628-5F695290475C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -73,6 +77,14 @@ Global
 		{0A51E185-E2AD-41BD-9499-9BC727963356}.Debug|x64.Build.0 = Debug|Any CPU
 		{0A51E185-E2AD-41BD-9499-9BC727963356}.Release|x64.ActiveCfg = Release|Any CPU
 		{0A51E185-E2AD-41BD-9499-9BC727963356}.Release|x64.Build.0 = Release|Any CPU
+		{24490C8F-43EA-44C8-B8B2-41EC0095376D}.Debug|x64.ActiveCfg = Debug|x64
+		{24490C8F-43EA-44C8-B8B2-41EC0095376D}.Debug|x64.Build.0 = Debug|x64
+		{24490C8F-43EA-44C8-B8B2-41EC0095376D}.Release|x64.ActiveCfg = Release|x64
+		{24490C8F-43EA-44C8-B8B2-41EC0095376D}.Release|x64.Build.0 = Release|x64
+		{FBE82D66-FDB8-4A99-B628-5F695290475C}.Debug|x64.ActiveCfg = Debug|x64
+		{FBE82D66-FDB8-4A99-B628-5F695290475C}.Debug|x64.Build.0 = Debug|x64
+		{FBE82D66-FDB8-4A99-B628-5F695290475C}.Release|x64.ActiveCfg = Release|x64
+		{FBE82D66-FDB8-4A99-B628-5F695290475C}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -84,6 +96,8 @@ Global
 		{FE3A2D5F-0E94-41A6-9172-98263A7322F8} = {4A098B28-0A50-4C47-B04A-4B6FD9E93902}
 		{FD425BE3-E915-48CF-A9F9-E76D018B10C6} = {8CC79B77-57B8-9EDF-C918-C78087D38EF5}
 		{0A51E185-E2AD-41BD-9499-9BC727963356} = {8CC79B77-57B8-9EDF-C918-C78087D38EF5}
+		{24490C8F-43EA-44C8-B8B2-41EC0095376D} = {4C284DE2-9423-45B8-9D8B-D4B1EF4DDB6E}
+		{FBE82D66-FDB8-4A99-B628-5F695290475C} = {4A098B28-0A50-4C47-B04A-4B6FD9E93902}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {991C515F-7E69-4CCA-8E45-6635FC152BD0}
