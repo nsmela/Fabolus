@@ -84,8 +84,9 @@ public sealed class PartingMeshFeature
     /// outward from these points, and a line floating off the surface seats the mould halves against
     /// nothing.
     /// </summary>
-    public Result<PartingLine> GeneratePartingLineFromBody(BodyMesh body, PartingLineParameters parameters)
+    public Result<PartingLine> GeneratePartingLineFromBody(BodyMesh? body, PartingLineParameters parameters)
     {
+        // The view passes its body as it stands, which is null when the body could not be built.
         if (body is null) return MeshErrors.NullSource;
 
         // Dispatched here, on the recipe, rather than chosen by the caller - this is the one place

@@ -21,7 +21,7 @@ public partial class RotateViewModel : ObservableObject, IViewState {
 
     private readonly TransformMesh _transformsFeature;
 
-    private Workspace Workspace { get; set; }
+    private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
     public Workspace CurrentWorkspace => Workspace;
 
     private bool _isLocked = false;
