@@ -337,7 +337,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// <summary>The active mesh as a validated mould, set on activation only when it really is one.
     /// Every feature call that needs the mould goes through this rather than the raw active mesh.</summary>
     private MouldMesh? _mould;
-    private BodyMesh _body;
+    private BodyMesh? _body;
 
     [ObservableProperty] private bool _isMould;
     [ObservableProperty] private IMesh? _activeMesh;
@@ -1177,16 +1177,20 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         }
 
         var lineParameters = LineParameters;
+        var body = _body;
 
         _messenger.Send(new IsLoadingMessage(true));
         try
         {
-            var lineResult = await Task.Run(() => _partingMeshFeature.GeneratePartingLineFromBody(_body, lineParameters));
+            var lineResult = await Task.Run(() => _partingMeshFeature.GeneratePartingLineFromBody(body, lineParameters));
             if (lineResult.IsFailure)
             {
                 _alert.ShowError(lineResult.Error.Description);
                 return false;
             }
+
+            // A trace only succeeds on a body, so this never fires; it lets the compiler see that.
+            if (body is null) return false;
 
             // Whichever line the user picked in step one. The traced result is recomputed above rather
             // than cached because a silhouette line does depend on the direction; for the border line
@@ -1217,7 +1221,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
             // each one a hairline bridge that survives the cut and keeps the mould in one piece. That
             // is what made scalp.3mf fail to separate at any cutter thickness.
             var flangeResult = await Task.Run(() => _partingMeshFeature.GenerateFlangeSurface(
-                partingLine, outerContour.Value, meshParameters, _body));
+                partingLine, outerContour.Value, meshParameters, body));
             if (flangeResult.IsFailure)
             {
                 _alert.ShowError($"Failed to generate the parting mesh: {flangeResult.Error.Description}");
@@ -1243,7 +1247,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
             IReadOnlyList<FlangeSealPoint>? seal = null;
             if (meshParameters.Sweep != PartingMeshSweep.SkinBisector)
             {
-                var inspected = _partingMeshFeature.InspectFlangeSeal(_flangeSurface, _body, partingLine, meshParameters);
+                var inspected = _partingMeshFeature.InspectFlangeSeal(_flangeSurface, body, partingLine, meshParameters);
                 if (inspected.IsSuccess) seal = inspected.Value;
             }
             _sceneManager.SetFlangeSeal(seal);

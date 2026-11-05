@@ -25,7 +25,7 @@ public partial class SmoothingViewModel : ObservableObject, IViewState {
     private readonly ResetSmoothing _resetFeature;
     private readonly SmoothMesh _smoothFeature;
 
-    private Workspace Workspace { get; set; }
+    private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
     public Workspace CurrentWorkspace => Workspace;
     private Guid ActiveMeshId { get; set; }
 

@@ -22,7 +22,7 @@ public partial class CutSplitViewModel : ObservableObject, IViewState {
     private readonly CutSplitSceneManager _sceneManager;
     private readonly CutMeshFeature _cutFeature;
 
-    private Workspace Workspace { get; set; }
+    private Workspace Workspace { get; set; } = Workspace.CreateEmpty();
     public Workspace CurrentWorkspace => Workspace;
 
     [ObservableProperty] private bool _isMould;

@@ -32,11 +32,11 @@ public partial class MainViewModel : ObservableObject
     private readonly IGlyphOutlineSource _glyphOutlineSource;
     private const string NoFileText = "No file loaded";
 
-    [ObservableProperty] private IViewState _currentView;
+    [ObservableProperty] private IViewState? _currentView;
     [ObservableProperty] private string _currentViewTitle = "No View Selected";
     [ObservableProperty] private bool _meshLoaded;
-    [ObservableProperty] private string _meshName;
-    [ObservableProperty] private ISceneManager _sceneManager;
+    [ObservableProperty] private string? _meshName;
+    [ObservableProperty] private ISceneManager? _sceneManager;
 
     //debug info
     [ObservableProperty] private string _debugText = NoFileText;
@@ -129,7 +129,10 @@ public partial class MainViewModel : ObservableObject
 
         PreferencesViewModel = new PreferencesViewModel(_messenger, _alertDialog);
 
-        UpdateViewportBackground(_messenger.GetSection(GeneralPreferences.Default).ViewportBackground);
+        // Set here rather than through UpdateViewportBackground, so the compiler can see the brush
+        // is never null: the toolkit's generated setter tells it the field is set.
+        ViewportBackgroundBrush = ViewportBackgroundColours.CreateBrush(
+            _messenger.GetSection(GeneralPreferences.Default).ViewportBackground);
 
         var cutSplit = _messenger.GetSection(CutSplitPreferences.Default);
         _cutViewPreferenceEnabled = cutSplit.CutViewEnabled;
@@ -270,7 +273,7 @@ public partial class MainViewModel : ObservableObject
     /// assigns this property immediately before awaiting ActivateAsync, so their own publishing
     /// happens after this and stands.
     /// </remarks>
-    partial void OnCurrentViewChanged(IViewState value) =>
+    partial void OnCurrentViewChanged(IViewState? value) =>
         _messenger.Send(new UpdateMeshInfoMessage([]));
 
     // True while SwitchViewAsync is under way. Its own flag rather than IsLoading, which views

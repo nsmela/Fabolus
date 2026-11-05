@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Windows;
 using System.Windows.Input;
@@ -41,19 +42,20 @@ public class MouldSceneManager : ISceneManager
 
     private IMesh? TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];
-    private IAirChannel PreviewChannel { get; set; }
+    private IAirChannel? PreviewChannel { get; set; }
 
     private Guid _targetMeshId = Guid.Empty;
     private Guid _previewChannelId = Guid.Empty;
     private Guid _selectedChannelId = Guid.Empty;
 
-    private MeshGeometryModel3D _mouldModel;
+    private MeshGeometryModel3D? _mouldModel;
     private bool _mouldHiddenForHover;
     private bool _mouseOverTarget;
 
     // Painted-channel stroke capture: non-null while the left button is held and the user
     // is dragging a stroke across the target mesh.
     private List<Vector3>? _strokePoints;
+    [MemberNotNullWhen(true, nameof(_strokePoints))]
     private bool StrokeActive => _strokePoints is not null;
 
     // Input decimation only - keeps a long drag to a manageable point count. The real
@@ -74,17 +76,17 @@ public class MouldSceneManager : ISceneManager
     // Live channel visuals by channel id, so they can be updated without being re-added.
     private readonly Dictionary<Guid, MeshGeometryModel3D> _channelVisuals = [];
 
-    public event Action<Element3D> VisualAddedOrUpdated;
-    public event Action<Guid> VisualRemovedById;
-    public event Action VisualsCleared;
+    public event Action<Element3D>? VisualAddedOrUpdated;
+    public event Action<Guid>? VisualRemovedById;
+    public event Action? VisualsCleared;
 
-    public event Action<Vector3, Vector3> ChannelPlaced;
-    public event Action<Guid> ChannelSelected;
-    public event Action<Vector3, Vector3> ChannelHovered;
-    public event Action DeleteSelectedChannelRequested;
+    public event Action<Vector3, Vector3>? ChannelPlaced;
+    public event Action<Guid>? ChannelSelected;
+    public event Action<Vector3, Vector3>? ChannelHovered;
+    public event Action? DeleteSelectedChannelRequested;
 
-    public event Action<IReadOnlyList<Vector3>> StrokeUpdated;
-    public event Action<IReadOnlyList<Vector3>> StrokeCompleted;
+    public event Action<IReadOnlyList<Vector3>>? StrokeUpdated;
+    public event Action<IReadOnlyList<Vector3>>? StrokeCompleted;
 
     private readonly IMessenger _messenger;
 
@@ -522,7 +524,10 @@ public class MouldSceneManager : ISceneManager
 
         var hit = hits.Count > 0 ? hits[0] : null;
 
-        bool overTarget = hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId;
+        // The hit, kept only when it lands on the target mesh, so the points below read from it
+        // exactly when the pointer is over the target.
+        var targetHit = hit?.ModelHit is MeshGeometryModel3D meshHit && meshHit.GUID == _targetMeshId ? hit : null;
+        bool overTarget = targetHit is not null;
 
         if (StrokeActive)
         {
@@ -537,9 +542,9 @@ public class MouldSceneManager : ISceneManager
             // Moves that miss the target mesh (drag slipped off the silhouette, or crossed
             // another visual) are skipped; the gap is bridged by a straight segment when
             // the stroke re-enters the mesh.
-            if (overTarget)
+            if (targetHit is not null)
             {
-                var strokePoint = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
+                var strokePoint = new Vector3(targetHit.PointHit.X, targetHit.PointHit.Y, targetHit.PointHit.Z);
                 if (strokePoint.DistanceSquared(_strokePoints[^1]) >
                     MinStrokePointDistance * MinStrokePointDistance)
                 {
@@ -556,14 +561,14 @@ public class MouldSceneManager : ISceneManager
         SetMouldHiddenForHover(overTarget);
         _mouseOverTarget = overTarget;
 
-        if (!overTarget)
+        if (targetHit is null)
         {
             RenderPreviewChannel(); // hides the marker left over from the last hover
             return false;
         }
 
-        var point = new Vector3(hit.PointHit.X, hit.PointHit.Y, hit.PointHit.Z);
-        var normal = new Vector3(hit.NormalAtHit.X, hit.NormalAtHit.Y, hit.NormalAtHit.Z);
+        var point = new Vector3(targetHit.PointHit.X, targetHit.PointHit.Y, targetHit.PointHit.Z);
+        var normal = new Vector3(targetHit.NormalAtHit.X, targetHit.NormalAtHit.Y, targetHit.NormalAtHit.Z);
 
         // Total length depends on the mould's bounds and this point's own Z, so the
         // preview is rebuilt in full via ChannelHovered rather than just repositioned -
