@@ -42,7 +42,7 @@ the bodies that could not be split in 1.0.0.
   and the Export tab lists the files it wrote (#88).
 - Preferences opens as a dialog over the main window, which waits until it closes (#80).
   Settings still apply as they change. Closing the main window now ends the app.
-- Routine package updates, including MahApps.Metro 2.4.11, CommunityToolkit.Mvvm 8.4.2 and
+- Package updates, including Clipper2 2.0.0, MahApps.Metro 2.4.11, CommunityToolkit.Mvvm 8.4.2 and
   Microsoft.Extensions 10.0.14.
 
 ### Fixed
