@@ -59,8 +59,8 @@ public partial class ExportViewModel : ObservableObject, IViewState
 
     [ObservableProperty] private int _bakedOperationsCount;
     [ObservableProperty] private bool _hasBakedOperations;
-    [ObservableProperty] private string _bakedOperationsText;
-    [ObservableProperty] private string _printableMeshName;
+    [ObservableProperty] private string? _bakedOperationsText;
+    [ObservableProperty] private string? _printableMeshName;
 
     public ObservableCollection<OperationItem> BakedOperations { get; } = new();
 

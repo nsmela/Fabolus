@@ -65,7 +65,7 @@ internal class RotateSceneManager : ISceneManager {
     private ViewportBackground _viewportBackground;
 
     private MeshGeometryModel3D _mesh = new();
-    private LineGeometryModel3D _activeGizmo;
+    private LineGeometryModel3D _activeGizmo = new();
     private Guid _activeId;
     private Guid _activeGizmoId;
 
@@ -73,9 +73,9 @@ internal class RotateSceneManager : ISceneManager {
     private OverhangSettings OverhangSettings { get; set; }
     private RotateTransform3D TempRotation { get; set; } = new();
 
-    public event Action<Element3D> VisualAddedOrUpdated;
-    public event Action<Guid> VisualRemovedById;
-    public event Action VisualsCleared;
+    public event Action<Element3D>? VisualAddedOrUpdated;
+    public event Action<Guid>? VisualRemovedById;
+    public event Action? VisualsCleared;
 
     public RotateSceneManager(IGeometryEngine engine, IMessenger messenger) {
         _engine = engine;

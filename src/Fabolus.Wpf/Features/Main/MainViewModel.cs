@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -32,11 +33,11 @@ public partial class MainViewModel : ObservableObject
     private readonly IGlyphOutlineSource _glyphOutlineSource;
     private const string NoFileText = "No file loaded";
 
-    [ObservableProperty] private IViewState _currentView;
+    [ObservableProperty] private IViewState? _currentView;
     [ObservableProperty] private string _currentViewTitle = "No View Selected";
     [ObservableProperty] private bool _meshLoaded;
-    [ObservableProperty] private string _meshName;
-    [ObservableProperty] private ISceneManager _sceneManager;
+    [ObservableProperty] private string? _meshName;
+    [ObservableProperty] private ISceneManager? _sceneManager;
 
     //debug info
     [ObservableProperty] private string _debugText = NoFileText;
@@ -143,6 +144,8 @@ public partial class MainViewModel : ObservableObject
 
     }
 
+    // The constructor calls this, so the brush is set before anything reads it.
+    [MemberNotNull(nameof(_viewportBackgroundBrush))]
     private void UpdateViewportBackground(ViewportBackground bg) =>
         ViewportBackgroundBrush = ViewportBackgroundColours.CreateBrush(bg);
 
@@ -270,7 +273,7 @@ public partial class MainViewModel : ObservableObject
     /// assigns this property immediately before awaiting ActivateAsync, so their own publishing
     /// happens after this and stands.
     /// </remarks>
-    partial void OnCurrentViewChanged(IViewState value) =>
+    partial void OnCurrentViewChanged(IViewState? value) =>
         _messenger.Send(new UpdateMeshInfoMessage([]));
 
     // True while SwitchViewAsync is under way. Its own flag rather than IsLoading, which views

@@ -41,13 +41,13 @@ public class MouldSceneManager : ISceneManager
 
     private IMesh? TargetMesh { get; set; }
     private IReadOnlyList<AirChannelModel> Channels { get; set; } = [];
-    private IAirChannel PreviewChannel { get; set; }
+    private IAirChannel? PreviewChannel { get; set; }
 
     private Guid _targetMeshId = Guid.Empty;
     private Guid _previewChannelId = Guid.Empty;
     private Guid _selectedChannelId = Guid.Empty;
 
-    private MeshGeometryModel3D _mouldModel;
+    private MeshGeometryModel3D? _mouldModel;
     private bool _mouldHiddenForHover;
     private bool _mouseOverTarget;
 
@@ -74,17 +74,17 @@ public class MouldSceneManager : ISceneManager
     // Live channel visuals by channel id, so they can be updated without being re-added.
     private readonly Dictionary<Guid, MeshGeometryModel3D> _channelVisuals = [];
 
-    public event Action<Element3D> VisualAddedOrUpdated;
-    public event Action<Guid> VisualRemovedById;
-    public event Action VisualsCleared;
+    public event Action<Element3D>? VisualAddedOrUpdated;
+    public event Action<Guid>? VisualRemovedById;
+    public event Action? VisualsCleared;
 
-    public event Action<Vector3, Vector3> ChannelPlaced;
-    public event Action<Guid> ChannelSelected;
-    public event Action<Vector3, Vector3> ChannelHovered;
-    public event Action DeleteSelectedChannelRequested;
+    public event Action<Vector3, Vector3>? ChannelPlaced;
+    public event Action<Guid>? ChannelSelected;
+    public event Action<Vector3, Vector3>? ChannelHovered;
+    public event Action? DeleteSelectedChannelRequested;
 
-    public event Action<IReadOnlyList<Vector3>> StrokeUpdated;
-    public event Action<IReadOnlyList<Vector3>> StrokeCompleted;
+    public event Action<IReadOnlyList<Vector3>>? StrokeUpdated;
+    public event Action<IReadOnlyList<Vector3>>? StrokeCompleted;
 
     private readonly IMessenger _messenger;
 

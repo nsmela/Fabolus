@@ -15,9 +15,9 @@ internal class ExportSceneManager : ISceneManager {
     private readonly IGeometryEngine _engine;
     private readonly IMessenger _messenger;
 
-    public event Action<Element3D> VisualAddedOrUpdated;
-    public event Action<Guid> VisualRemovedById;
-    public event Action VisualsCleared;
+    public event Action<Element3D>? VisualAddedOrUpdated;
+    public event Action<Guid>? VisualRemovedById;
+    public event Action? VisualsCleared;
 
     private readonly PrintBedGrid _grid;
     private Guid _activeId = Guid.Empty;
