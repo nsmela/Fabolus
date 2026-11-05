@@ -1,6 +1,6 @@
 name: Release
 
-# Builds the three release artifacts and attaches them to a draft GitHub release.
+# Builds the four release artifacts and attaches them to a draft GitHub release.
 #
 # All build logic lives in build/publish.ps1 so a local run and a CI run produce
 # identical output. This workflow only supplies the version and uploads the results.
@@ -103,5 +103,6 @@ jobs:
             | `Fabolus-${{ steps.version.outputs.version }}-setup.exe` | Most people. Installs to your user folder, adds a Start Menu shortcut, uninstalls cleanly. | Nothing |
             | `Fabolus-${{ steps.version.outputs.version }}-win-x64.zip` | Portable use if you already have .NET. Extract and run `Fabolus.exe`. | [.NET 10 Desktop Runtime (x64)](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) |
             | `Fabolus-${{ steps.version.outputs.version }}-win-x64-self-contained.zip` | Portable use on a machine with no .NET installed. Larger download. | Nothing |
+            | `FabolusStartupCheck.exe` | Only if Fabolus is slow to start. Put it in the Fabolus folder and run it: it times the start and saves a log you can attach to a bug report. | Nothing |
 
             Windows 10 or later, 64-bit.

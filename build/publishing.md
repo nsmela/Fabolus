@@ -58,7 +58,7 @@ git tag 1.0.1 && git push origin 1.0.1
 
 3. [`release.yml`](../.github/workflows/release.yml) picks up any `x.y.z` tag, installs
    Inno Setup on the runner, runs `publish.ps1`, and opens a **draft** release with all
-   three files attached and a download table in the body.
+   four files attached and a download table in the body.
 4. Review the draft, write the release notes, publish.
 
 `workflow_dispatch` runs the same build against a version you type, uploads the artifacts,

@@ -17,7 +17,7 @@
 
     <AssemblyName>FabolusStartupCheck</AssemblyName>
     <RootNamespace>Fabolus.StartupCheck</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>Fabolus startup check</Product>
     <Company>Provincial Health Services Authority</Company>
     <Copyright>© 2017–2026 Provincial Health Services Authority</Copyright>
