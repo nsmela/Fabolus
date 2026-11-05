@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -130,7 +129,10 @@ public partial class MainViewModel : ObservableObject
 
         PreferencesViewModel = new PreferencesViewModel(_messenger, _alertDialog);
 
-        UpdateViewportBackground(_messenger.GetSection(GeneralPreferences.Default).ViewportBackground);
+        // Set here rather than through UpdateViewportBackground, so the compiler can see the brush
+        // is never null: the toolkit's generated setter tells it the field is set.
+        ViewportBackgroundBrush = ViewportBackgroundColours.CreateBrush(
+            _messenger.GetSection(GeneralPreferences.Default).ViewportBackground);
 
         var cutSplit = _messenger.GetSection(CutSplitPreferences.Default);
         _cutViewPreferenceEnabled = cutSplit.CutViewEnabled;
@@ -144,8 +146,6 @@ public partial class MainViewModel : ObservableObject
 
     }
 
-    // The constructor calls this, so the brush is set before anything reads it.
-    [MemberNotNull(nameof(_viewportBackgroundBrush))]
     private void UpdateViewportBackground(ViewportBackground bg) =>
         ViewportBackgroundBrush = ViewportBackgroundColours.CreateBrush(bg);
 

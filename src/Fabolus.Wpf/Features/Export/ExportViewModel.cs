@@ -41,7 +41,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
         OnPropertyChanged(nameof(IsStlSelected));
         ExportButtonText = value ? "Export package" : "Export file";
         FileExtension = value ? ".3mf" : ".stl";
-        UpdateInfoPanelAsync();
+        _ = UpdateInfoPanelAsync();
     }
 
     public bool IsStlSelected { get => !Is3mfSelected; set => Is3mfSelected = !value; }
@@ -50,7 +50,7 @@ public partial class ExportViewModel : ObservableObject, IViewState
 
     partial void OnFileNameChanged(string value)
     {
-        UpdateInfoPanelAsync();
+        _ = UpdateInfoPanelAsync();
     }
 
     [ObservableProperty] private string _fileExtension = ".3mf";
