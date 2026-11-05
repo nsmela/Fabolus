@@ -27,10 +27,6 @@ updates:
           - "coverlet*"
           - "FluentAssertions"
           - "Moq"
-    ignore:
-      # Clipper2 is GeometryEngine's dependency, declared in Fabolus.Core only to keep the
-      # two in step; it is raised when GeometryEngine raises it, not on its own.
-      - dependency-name: "Clipper2"
 
   - package-ecosystem: github-actions
     directory: /
