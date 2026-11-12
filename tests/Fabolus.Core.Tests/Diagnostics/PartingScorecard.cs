@@ -52,21 +52,12 @@ public class PartingScorecard
     /// </summary>
     private const double AgainstCos = 0.02;
 
-    /// <summary>Cell of the grid the flange is sampled on, looking along the axis, to find where a line
-    /// parallel to the axis meets it twice.</summary>
-    private const double GridMm = 0.5;
-
-    /// <summary>How far apart along the axis two sheets over the same cell must be to count as two
-    /// crossings. Above the cutter's own 0.1 mm, so neighbouring faces meeting at an edge never do.</summary>
-    private const double MultiValuedMm = 0.3;
-
     /// <summary>What "away from the cut" means for the cavity check, measured from the cutter.</summary>
     private const double AwayFromCutMm = 1.0;
 
     /// <summary>What counts as on the surface for that check; an order above the boolean's own noise.</summary>
     private const double UnchangedMm = 0.01;
 
-    private static readonly double[] PullOffsetsMm = [0.5, 2.0, 5.0, 15.0, 40.0];
     private static readonly double[] TiltsDeg = [30.0, 60.0, 90.0];
 
     private static readonly PartingMeshSweep[] Sweeps =
@@ -108,6 +99,7 @@ public class PartingScorecard
         NormalFollowMm = 100.0,
         RawFlange = false,
         NormalSmoothingPasses = 5,
+        Verification = PartingSplitVerification.Checked,
         Axis = Vector3.UnitY,
     };
 
@@ -604,23 +596,19 @@ public class PartingScorecard
         result["slopeMating"] = Slopes(flange, mating);
 
         // ---------------------------------------------------------------- single-valued
+        // Measured by the same code the production check runs, so the number in this table is the
+        // number a split is warned on and the two cannot come to disagree.
         int surfaceCrossings = _engine.Evaluators.CountSelfIntersections(surface).Value;
-        double againstMating = mating.Where(f => flange.Facing[f] < -AgainstCos).Sum(f => flange.Area[f]);
-        double matingArea = mating.Sum(f => flange.Area[f]);
-        var doubledMating = Doubled(flange, mating, u, v, out var doubledFaces);
+        var separability = PartingSeparability.OfFlange(_engine, surface, body.Mesh, mould.Mesh, axis).Value;
         var inMould = whole.Where(f => flange.InMould[f]).ToList();
-        var doubledInMould = Doubled(flange, inMould, u, v, out _);
 
         result["singleValued"] = new Dictionary<string, object?>
         {
             ["surfaceSelfIntersections"] = surfaceCrossings,
-            ["matingAreaMm2"] = R(matingArea),
-            ["againstAxisMm2"] = R(againstMating),
-            ["againstAxisPct"] = R(100.0 * againstMating / Math.Max(matingArea, 1e-9)),
-            ["doubledOverMm2"] = R(doubledMating.Doubled * GridMm * GridMm),
-            ["doubledOverPct"] = R(100.0 * doubledMating.Doubled / Math.Max(doubledMating.Covered, 1)),
-            ["doubledOverInMouldMm2"] = R(doubledInMould.Doubled * GridMm * GridMm),
-            ["passes"] = againstMating < 1.0 && doubledMating.Doubled * GridMm * GridMm < 1.0,
+            ["matingAreaMm2"] = R(separability.MatingAreaMm2),
+            ["againstAxisMm2"] = R(separability.TurnedOverMm2),
+            ["doubledOverMm2"] = R(separability.DoubledOverMm2),
+            ["passes"] = separability.IsSingleValued,
         };
 
         // ---------------------------------------------------------------- smoothness
@@ -659,6 +647,8 @@ public class PartingScorecard
         {
             ["watertight"] = cutterTopology.IsWatertight,
             ["manifold"] = cutterTopology.IsManifold,
+            ["boundaryEdges"] = cutterTopology.BoundaryEdgeCount,
+            ["nonManifoldEdges"] = cutterTopology.NonManifoldEdgeCount,
             ["selfIntersections"] = cutterCrossings,
             ["triangles"] = cutter.TriangleCount,
         };
@@ -729,9 +719,30 @@ public class PartingScorecard
         // ---------------------------------------------------------------- pull apart
         IMesh? rest = null, overlap = null;
         double pulledAlong = 1.0;
-        result["pullApart"] = pieces.Count >= 2
-            ? PullApart(pieces, axis, out rest, out overlap, out pulledAlong)
-            : new Dictionary<string, object?> { ["passes"] = false, ["reason"] = "fewer than two pieces" };
+        if (pieces.Count >= 2)
+        {
+            var pulled = PartingSeparability.OfHalves(_engine, pieces, axis);
+            if (pulled.IsSuccess)
+            {
+                rest = pieces.Count == 2 ? pieces[1] : Join(pieces.Skip(1).ToList());
+                overlap = pulled.Value.Overlap;
+                pulledAlong = pulled.Value.Along;
+            }
+
+            result["pullApart"] = pulled.IsFailure
+                ? new Dictionary<string, object?> { ["passes"] = false, ["reason"] = pulled.Error.Description }
+                : new Dictionary<string, object?>
+                {
+                    ["direction"] = pulled.Value.Along > 0 ? "+axis" : "-axis",
+                    ["worstMm3"] = R(pulled.Value.WorstOverlapMm3),
+                    ["atMm"] = pulled.Value.AtMm,
+                    ["passes"] = pulled.Value.Parts,
+                };
+        }
+        else
+        {
+            result["pullApart"] = new Dictionary<string, object?> { ["passes"] = false, ["reason"] = "fewer than two pieces" };
+        }
 
         // ---------------------------------------------------------------- any other way out
         // The axis is fitted to the line, and nothing says it is the best direction to part along. If
@@ -742,13 +753,20 @@ public class PartingScorecard
         // ---------------------------------------------------------------- what Apply really returns
         // Everything above follows the stages the view shows. This is the one call Apply Split makes,
         // from the recipe alone, so what it says is what a user is handed.
-        var applied = _sut.CutMould(mould, LineRecipe, MeshRecipe(sweep));
+        var applied = _sut.CutMouldReporting(mould, LineRecipe, MeshRecipe(sweep));
         result["applied"] = applied.IsFailure
-            ? new Dictionary<string, object?> { ["succeeded"] = false, ["error"] = applied.Error.Description }
+            ? new Dictionary<string, object?>
+            {
+                ["succeeded"] = false,
+                ["code"] = applied.Error.Code,
+                ["error"] = applied.Error.Description,
+            }
             : new Dictionary<string, object?>
             {
                 ["succeeded"] = true,
-                ["componentSharesPct"] = _engine.Evaluators.SeparateComponents(applied.Value).Value
+                ["checked"] = applied.Value.Report.WasChecked,
+                ["warnings"] = applied.Value.Report.Warnings.Select(w => w.Code).ToArray(),
+                ["componentSharesPct"] = _engine.Evaluators.SeparateComponents(applied.Value.Mesh).Value
                     .Select(c => R(100.0 * PartingPieces.Volume(c) / mouldVolume))
                     .OrderByDescending(share => share).ToArray(),
             };
@@ -766,7 +784,7 @@ public class PartingScorecard
         Rgb Colour(int f) =>
             flange.Area[f] <= 0 || !flange.InMould[f] ? Dim
             : flange.InBody[f] ? SealStrip
-            : flange.Facing[f] < -AgainstCos || doubledFaces[f] ? Fold
+            : separability.Suspect[f] ? Fold
             : Ramp(flange.Slope[f]);
 
         string note = $"{Get(sm, "medianDeg")}/{Get(sm, "p90Deg")}/{Get(sm, "maxDeg")} deg";
@@ -918,12 +936,10 @@ public class PartingScorecard
         public bool[] Mating { get; }
 
         /// <summary>
-        /// Normal against the axis, turned so that positive is the way most of the face's own sheet
-        /// faces. Negative is a face turned over against its neighbours.
+        /// The face's normal, turned the way most of its sheet faces along the axis - for asking how
+        /// the flange looks from directions other than the axis, which the production measurement
+        /// does not do.
         /// </summary>
-        public double[] Facing { get; }
-
-        /// <summary>The face's normal, turned the way most of its sheet faces along the axis.</summary>
         public Vector3[] Oriented { get; }
 
         public Flange(
@@ -999,14 +1015,9 @@ public class PartingScorecard
             for (int f = 0; f < Faces; f++)
                 if (Mating[f]) facing[Root(f)] += Area[f] * Cos[f];
 
-            Facing = new double[Faces];
             Oriented = new Vector3[Faces];
             for (int f = 0; f < Faces; f++)
-            {
-                double sign = facing[Root(f)] >= 0.0 ? 1.0 : -1.0;
-                Facing[f] = sign * Cos[f];
-                Oriented[f] = Normal[f] * sign;
-            }
+                Oriented[f] = Normal[f] * (facing[Root(f)] >= 0.0 ? 1.0 : -1.0);
         }
     }
 
@@ -1035,89 +1046,6 @@ public class PartingScorecard
             ["maxDeg"] = R1(sorted[^1].Deg),
             ["pctPast45"] = R1(100.0 * sorted.Where(x => x.Deg > SteepDeg).Sum(x => x.Area) / total),
         };
-    }
-
-    /// <summary>
-    /// How much of the flange a line parallel to the axis meets more than once. The faces are sampled
-    /// onto a grid in the axis plane, each cell keeping the lowest and highest sheet over it; a cell
-    /// whose two differ by more than <see cref="MultiValuedMm"/> has the surface over it twice.
-    /// </summary>
-    private static (int Covered, int Doubled) Doubled(
-        Flange flange, List<int> faces, Vector3 u, Vector3 v, out bool[] doubledFaces)
-    {
-        doubledFaces = new bool[flange.Faces];
-        if (faces.Count == 0) return (0, 0);
-
-        var vs = flange.Mesh.Vertices;
-        var ts = flange.Mesh.Triangles;
-        var axis = u.Cross(v);
-
-        double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
-        foreach (int f in faces)
-            for (int k = 0; k < 3; k++)
-            {
-                var p = vs[ts[(3 * f) + k]];
-                minX = Math.Min(minX, p.Dot(u)); maxX = Math.Max(maxX, p.Dot(u));
-                minY = Math.Min(minY, p.Dot(v)); maxY = Math.Max(maxY, p.Dot(v));
-            }
-
-        int nx = (int)Math.Ceiling((maxX - minX) / GridMm) + 1;
-        int ny = (int)Math.Ceiling((maxY - minY) / GridMm) + 1;
-        var low = new float[nx * ny];
-        var high = new float[nx * ny];
-        Array.Fill(low, float.PositiveInfinity);
-        Array.Fill(high, float.NegativeInfinity);
-
-        void Sample(int f, Action<int, double> visit)
-        {
-            // A face edge-on to the axis covers no cell; it is a wall, not a second sheet.
-            if (Math.Abs(flange.Cos[f]) < AgainstCos) return;
-
-            var a = vs[ts[3 * f]];
-            var b = vs[ts[(3 * f) + 1]];
-            var c = vs[ts[(3 * f) + 2]];
-            double ax = a.Dot(u), ay = a.Dot(v), bx = b.Dot(u), by = b.Dot(v), cx = c.Dot(u), cy = c.Dot(v);
-            double area2 = ((bx - ax) * (cy - ay)) - ((by - ay) * (cx - ax));
-            if (Math.Abs(area2) < 1e-12) return;
-
-            int x0 = Math.Max(0, (int)Math.Floor((Math.Min(ax, Math.Min(bx, cx)) - minX) / GridMm));
-            int x1 = Math.Min(nx - 1, (int)Math.Ceiling((Math.Max(ax, Math.Max(bx, cx)) - minX) / GridMm));
-            int y0 = Math.Max(0, (int)Math.Floor((Math.Min(ay, Math.Min(by, cy)) - minY) / GridMm));
-            int y1 = Math.Min(ny - 1, (int)Math.Ceiling((Math.Max(ay, Math.Max(by, cy)) - minY) / GridMm));
-
-            for (int y = y0; y <= y1; y++)
-                for (int x = x0; x <= x1; x++)
-                {
-                    double px = minX + (x * GridMm), py = minY + (y * GridMm);
-                    double w0 = (((bx - px) * (cy - py)) - ((by - py) * (cx - px))) / area2;
-                    double w1 = (((cx - px) * (ay - py)) - ((cy - py) * (ax - px))) / area2;
-                    double w2 = 1.0 - w0 - w1;
-                    if (w0 < 0.0 || w1 < 0.0 || w2 < 0.0) continue;
-
-                    visit((y * nx) + x, (w0 * a.Dot(axis)) + (w1 * b.Dot(axis)) + (w2 * c.Dot(axis)));
-                }
-        }
-
-        foreach (int f in faces)
-            Sample(f, (cell, height) =>
-            {
-                low[cell] = Math.Min(low[cell], (float)height);
-                high[cell] = Math.Max(high[cell], (float)height);
-            });
-
-        int covered = 0, doubled = 0;
-        for (int i = 0; i < low.Length; i++)
-        {
-            if (float.IsPositiveInfinity(low[i])) continue;
-            covered++;
-            if (high[i] - low[i] > MultiValuedMm) doubled++;
-        }
-
-        var flags = doubledFaces;
-        foreach (int f in faces)
-            Sample(f, (cell, _) => { if (high[cell] - low[cell] > MultiValuedMm) flags[f] = true; });
-
-        return (covered, doubled);
     }
 
     /// <summary>
@@ -1360,73 +1288,6 @@ public class PartingScorecard
             ["pieceVerticesOffMould"] = added,
             ["pieceWorstMm"] = R(addedWorst),
             ["passes"] = cavityMoved == 0 && mouldMoved == 0 && added == 0,
-        };
-    }
-
-    /// <summary>
-    /// Slides the biggest piece away from the rest along the axis and intersects them at each step. Two
-    /// halves that part cleanly never overlap at any distance; a flange that loops back leaves one
-    /// hooked under the other, and they overlap as soon as it moves. Which way is "away" is not known
-    /// from the pieces, so both are tried at one distance and the one that overlaps less is followed.
-    /// </summary>
-    private Dictionary<string, object?> PullApart(
-        IReadOnlyList<IMesh> pieces, Vector3 axis, out IMesh rest, out IMesh? worstOverlap, out double pulledAlong)
-    {
-        var moving = pieces[0];
-        var others = pieces.Count == 2 ? pieces[1] : Join(pieces.Skip(1).ToList());
-        rest = others;
-
-        // Kept only once a direction is chosen, so neither trial below is taken for the worst overlap.
-        bool keep = false;
-        IMesh? worstMesh = null;
-        double worstVolume = 0.0;
-
-        double Overlap(double signedDistance)
-        {
-            var moved = _engine.Transforms.Translate(moving, axis * signedDistance);
-            if (moved.IsFailure) return double.NaN;
-            var overlap = _engine.Booleans.Intersect(moved.Value, others);
-            if (overlap.IsFailure) return double.NaN;
-            if (overlap.Value.IsEmpty) return 0.0;
-
-            double volume = PartingPieces.Volume(overlap.Value);
-            if (keep && volume > worstVolume)
-            {
-                worstVolume = volume;
-
-                // Slid back by the pull, so it lies on the piece left behind where the fouling starts.
-                var back = _engine.Transforms.Translate(overlap.Value, axis * -signedDistance);
-                worstMesh = back.IsSuccess ? back.Value : overlap.Value;
-            }
-            return volume;
-        }
-
-        double up = Overlap(1.0), down = Overlap(-1.0);
-        double direction = double.IsNaN(down) || up <= down ? 1.0 : -1.0;
-        keep = true;
-
-        var volumes = new Dictionary<string, object?>();
-        double worst = 0.0;
-        bool measured = true;
-        foreach (double offset in PullOffsetsMm)
-        {
-            double volume = Overlap(direction * offset);
-            volumes[$"{offset:0.#}mm"] = R(volume);
-            if (double.IsNaN(volume)) measured = false;
-            else worst = Math.Max(worst, volume);
-        }
-
-        worstOverlap = worstMesh;
-        pulledAlong = direction;
-
-        return new Dictionary<string, object?>
-        {
-            ["direction"] = direction > 0 ? "+axis" : "-axis",
-            ["otherWayAt1mmMm3"] = R(direction > 0 ? down : up),
-            ["overlapMm3"] = volumes,
-            ["worstMm3"] = R(worst),
-            ["measured"] = measured,
-            ["passes"] = measured && worst < 1.0,
         };
     }
 

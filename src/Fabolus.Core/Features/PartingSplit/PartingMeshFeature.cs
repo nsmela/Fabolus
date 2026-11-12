@@ -1014,6 +1014,19 @@ public sealed class PartingMeshFeature
     // Cut subtracts the parting mesh and leaves the result as one mesh; SplitMould separates the two halves.
     public Result<IMesh> CutMould(MouldMesh mould, PartingLineParameters lineParameters, PartingMeshParameters meshParameters)
     {
+        var cut = CutMouldReporting(mould, lineParameters, meshParameters);
+        return cut.IsFailure ? cut.Error : Result.Success(cut.Value.Mesh);
+    }
+
+    /// <summary>
+    /// <see cref="CutMould"/>, handing back what the check noticed along with the mesh. A recipe that
+    /// asks for <see cref="PartingSplitVerification.Checked"/> is refused here if the split is wrong,
+    /// and comes back with its warnings if it is merely awkward; any other recipe is cut exactly as it
+    /// always was and reports <see cref="PartingSplitReport.Unchecked"/>.
+    /// </summary>
+    public Result<PartingCut> CutMouldReporting(
+        MouldMesh mould, PartingLineParameters lineParameters, PartingMeshParameters meshParameters)
+    {
         var lineResult = GeneratePartingLine(mould, lineParameters);
         if (lineResult.IsFailure)
             return lineResult.Error;
@@ -1031,7 +1044,7 @@ public sealed class PartingMeshFeature
 
             // The joined result is just the two halves side by side. They are disjoint - that is what
             // the gap is - so combining them is a concatenation and not another boolean to go wrong.
-            return Combine([halves.Value.Positive, halves.Value.Negative]);
+            return Unchecked(Combine([halves.Value.Positive, halves.Value.Negative]));
         }
 
         // Built here rather than through GeneratePartingMesh because the flange itself, not only the
@@ -1056,12 +1069,24 @@ public sealed class PartingMeshFeature
         {
             var cutter = ExtrudeFlange(surfaceResult.Value, parameters);
             if (cutter.IsFailure) return cutter.Error;
-            return _engine.Booleans.Subtract(mould.Mesh, cutter.Value);
+            return Unchecked(_engine.Booleans.Subtract(mould.Mesh, cutter.Value));
+        }
+
+        // The one place a new recipe and an old one part ways. Everything above is shared, so a
+        // checked split is built from the same line, axis and flange an unchecked one would be.
+        if (parameters.Verification == PartingSplitVerification.Checked)
+        {
+            var verified = SplitVerified(mould, surfaceResult.Value, bodyResult.Value, lineResult.Value, parameters);
+            if (verified.IsFailure) return verified.Error;
+
+            var joined = Combine([verified.Value.Positive, verified.Value.Negative]);
+            if (joined.IsFailure) return joined.Error;
+            return new PartingCut(joined.Value, verified.Value.Report);
         }
 
         var cleanResult = CutClear(mould, surfaceResult.Value, bodyResult.Value, parameters);
         if (cleanResult.IsFailure) return cleanResult.Error;
-        var (cut, components) = cleanResult.Value;
+        var (cut, components, _, _) = cleanResult.Value;
 
         // A cut that actually severed leaves the result in two or more pieces, so fewer is the signal
         // that it didn't - surfaced rather than returning an unsevered mould as success. Pieces, not
@@ -1071,9 +1096,56 @@ public sealed class PartingMeshFeature
         if (pieces.Count < 2)
             return MeshErrors.SplitProducedSinglePiece;
 
-        return pieces.Count == components.Count
+        return Unchecked(pieces.Count == components.Count
             ? Result.Success(cut)
-            : Combine([.. pieces]);
+            : Combine([.. pieces]));
+    }
+
+    private static Result<PartingCut> Unchecked(Result<IMesh> cut) =>
+        cut.IsFailure ? cut.Error : new PartingCut(cut.Value, PartingSplitReport.Unchecked);
+
+    /// <summary>
+    /// Cuts the mould with the cutter thickened from <paramref name="flangeSurface"/> and returns the
+    /// two halves only if they pass the check - see <see cref="PartingSplitVerifier"/> for what is
+    /// refused and what is only warned of.
+    ///
+    /// <para>
+    /// This is the one route a checked split takes, whoever asks: the view's preview, Apply, and a
+    /// replay of a recipe that was committed checked. They used to differ. The preview took the biggest
+    /// component as one half and everything else as the other without asking whether anything had
+    /// severed, so an uncut mould and a speck came back as two halves there and as an error on Apply.
+    /// One route means what is reviewed is what is committed.
+    /// </para>
+    ///
+    /// <para>
+    /// It takes the flange surface rather than a finished cutter because the speck correction works on
+    /// the surface: where the first cut leaves slivers, the flange is sunk round them and re-thickened.
+    /// Every cutter built on the way is checked before it is used, not only the first.
+    /// </para>
+    /// </summary>
+    /// <param name="parameters">Resolved - see <see cref="ResolveAxis"/>. The axis is the one the halves are pulled along.</param>
+    public Result<VerifiedParting> SplitVerified(
+        MouldMesh mould, IMesh flangeSurface, BodyMesh body, PartingLine partingLine, PartingMeshParameters parameters)
+    {
+        if (mould is null || flangeSurface is null || body is null || parameters is null) return MeshErrors.NullSource;
+        if (partingLine is null || !partingLine.IsValid) return MeshErrors.InvalidPartingLine;
+        if (parameters.Axis == Vector3.Zero) return MeshErrors.InvalidPullDirection;
+
+        var verifier = new PartingSplitVerifier(_engine, _parting);
+
+        var seal = verifier.CheckSeal(flangeSurface, body, partingLine, parameters);
+        if (seal.IsFailure) return seal.Error;
+
+        var cleared = CutClear(mould, flangeSurface, body, parameters, verifier.CheckCutter);
+        if (cleared.IsFailure) return cleared.Error;
+        var (_, components, cutter, surface) = cleared.Value;
+
+        var report = verifier.CheckPieces(mould, body, surface, cutter, components, parameters.Axis.Normalize());
+        if (report.IsFailure) return report.Error;
+
+        // Exactly two by now, biggest first, so the same recipe names the same half Positive every run.
+        var pieces = PartingPieces.Substantial(components);
+        return new VerifiedParting(pieces[0], pieces[1], report.Value);
     }
 
     /// <summary>How many times <see cref="CutClear"/> re-cuts after moving the flange off its specks.</summary>
@@ -1107,13 +1179,26 @@ public sealed class PartingMeshFeature
     /// chin's cutter that were not there before.
     /// </para>
     /// </summary>
-    internal Result<(IMesh Cut, IReadOnlyList<IMesh> Components)> CutClear(
-        MouldMesh mould, IMesh surface, BodyMesh body, PartingMeshParameters parameters)
+    /// <param name="admit">
+    /// Asked of every cutter before it is used, the re-thickened ones as much as the first. Sinking the
+    /// flange is a change to the cutter, and a check that only saw the first would pass a cut made
+    /// with one nobody had looked at.
+    /// </param>
+    /// <returns>The cut, its components, and the cutter and flange surface that made it.</returns>
+    internal Result<(IMesh Cut, IReadOnlyList<IMesh> Components, IMesh Cutter, IMesh Surface)> CutClear(
+        MouldMesh mould, IMesh surface, BodyMesh body, PartingMeshParameters parameters,
+        Func<IMesh, Result>? admit = null)
     {
         for (int pass = 0; ; pass++)
         {
             var cutter = ExtrudeFlange(surface, parameters);
             if (cutter.IsFailure) return cutter.Error;
+
+            if (admit is not null)
+            {
+                var admitted = admit(cutter.Value);
+                if (admitted.IsFailure) return admitted.Error;
+            }
 
             var cut = _engine.Booleans.Subtract(mould.Mesh, cutter.Value);
             if (cut.IsFailure) return cut.Error;
@@ -1126,11 +1211,11 @@ public sealed class PartingMeshFeature
             // ever takes the cutter away from mould, never towards it.
             var specks = components.Where(PartingPieces.IsSpeck).ToList();
             if (specks.Count == 0 || pass == SpeckPasses || PartingPieces.Substantial(components).Count < 2)
-                return (cut.Value, components);
+                return (cut.Value, components, cutter.Value, surface);
 
             var sunk = SinkFlangeAround(surface, body, specks, parameters.Depth);
             if (sunk.IsFailure) return sunk.Error;
-            if (sunk.Value.Moved == 0) return (cut.Value, components);
+            if (sunk.Value.Moved == 0) return (cut.Value, components, cutter.Value, surface);
             surface = sunk.Value.Surface;
         }
     }
@@ -1200,6 +1285,26 @@ public sealed class PartingMeshFeature
             if (surface.IsFailure) return surface.Error;
 
             return SplitMouldByHalfSpaces(mould, surface.Value, resolved.Value);
+        }
+
+        // A recipe committed checked is replayed checked, through the same route that committed it.
+        // If upstream geometry has changed enough that it no longer passes, saying so is the point.
+        if (resolved.Value.Verification == PartingSplitVerification.Checked
+            && resolved.Value.SplitMethod == PartingSplitMethod.SeveredComponents)
+        {
+            var contour = GenerateOuterContour(mould, resolved.Value);
+            if (contour.IsFailure) return contour.Error;
+
+            var body = GetBodyMesh(mould);
+            if (body.IsFailure) return body.Error;
+
+            var flange = GenerateFlangeSurface(lineResult.Value, contour.Value, resolved.Value, body.Value);
+            if (flange.IsFailure) return flange.Error;
+
+            var verified = SplitVerified(mould, flange.Value, body.Value, lineResult.Value, resolved.Value);
+            if (verified.IsFailure) return verified.Error;
+
+            return (verified.Value.Positive, verified.Value.Negative);
         }
 
         var partingMeshResult = GeneratePartingMesh(mould, lineResult.Value, resolved.Value);
@@ -1607,6 +1712,14 @@ public sealed record PartingMeshParameters
 
     /// <summary>How the flange is made solid - see <see cref="PartingMeshThickening"/>.</summary>
     public PartingMeshThickening Thickening { get; init; } = PartingMeshThickening.Extrude;
+
+    /// <summary>
+    /// Whether the split is checked before it is returned - see <see cref="PartingSplitVerification"/>.
+    /// Off by default so a saved recipe rebuilds the split it was committed with; the view turns it on
+    /// for new work. Only <see cref="PartingSplitMethod.SeveredComponents"/> is checked: the other two
+    /// methods are diagnostics the view does not offer.
+    /// </summary>
+    public PartingSplitVerification Verification { get; init; } = PartingSplitVerification.None;
 
     /// <summary>
     /// Grid resolution for the offset passes, in mm.

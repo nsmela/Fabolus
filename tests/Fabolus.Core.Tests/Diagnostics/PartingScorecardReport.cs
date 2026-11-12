@@ -46,7 +46,7 @@ internal static class PartingScorecardReport
     /// <para>
     /// The split is the policy settled for this work, not something the measurements imply. A split
     /// that did not sever, left specks, came back open, lost volume, changed the cavity, breached its
-    /// seal or was cut with a cutter that crosses itself or is not closed is refused. A flange that
+    /// seal or was cut with a cutter that crosses itself or is not a clean closed solid is refused. A flange that
     /// loops back - not single-valued over the parting plane, or halves that foul when pulled - is a
     /// warning: on larynx_large nothing parts the mould without one, and a mould that has to be
     /// worked apart is still more use than none.
@@ -72,7 +72,7 @@ internal static class PartingScorecardReport
         if (!All(sweep, "pieces", "watertight") || !All(sweep, "pieces", "manifold")) refusals.Add("a half is not watertight and manifold");
         if (Flag(sweep, "seal", "applies") == true && (Number(sweep, "seal", "breached") ?? 0) > 0) refusals.Add("seal breached");
         if ((Number(sweep, "cutter", "selfIntersections") ?? 0) > 0) refusals.Add("cutter crosses itself");
-        if (Flag(sweep, "cutter", "watertight") == false) refusals.Add("cutter not closed");
+        if (Flag(sweep, "cutter", "watertight") == false) refusals.Add("cutter not a clean solid");
         if (Math.Abs(Number(sweep, "volume", "errorMm3") ?? double.NaN) is not < 1.0) refusals.Add("volume not conserved");
         if (Flag(sweep, "unchanged", "passes") != true) refusals.Add("mould surface changed");
 
@@ -155,7 +155,7 @@ internal static class PartingScorecardReport
 
         md.AppendLine().AppendLine("## Gates").AppendLine();
         Row(md, "body", "sweep", "pieces, % of mould", "specks first cut → cleared", "halves watertight and manifold", "seal breached",
-            "cutter crossings", "cutter closed", "volume error mm³", "mould surface unchanged", "turned over mm²", "doubled over mm²",
+            "cutter crossings", "cutter a clean solid", "volume error mm³", "mould surface unchanged", "turned over mm²", "doubled over mm²",
             "overlap when pulled mm³", "verdict", "Apply returns");
         Rule(md, 15);
         Each(cards, (body, sweep, result) =>
@@ -302,7 +302,8 @@ internal static class PartingScorecardReport
     {
         var applied = sweep?["applied"];
         if (applied is null) return "-";
-        if (Flag(applied, "succeeded") != true) return "error";
+        if (Flag(applied, "succeeded") != true)
+            return applied["code"] is null ? "error" : $"refused: {Text(applied, "code")}";
 
         string shares = string.Join(" / ", Numbers(applied, "componentSharesPct").Take(3)
             .Select(share => share.ToString("0.#", CultureInfo.InvariantCulture)));
