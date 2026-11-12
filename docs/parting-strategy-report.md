@@ -199,8 +199,20 @@ reads it yet.
 ## Commands
 
 ```bash
-# unit suite - MUST stay at 250 passed / 5 failed
+# unit suite - MUST stay at no failures (335 passed / 11 skipped at 1.1.0)
 dotnet test tests/Fabolus.Core.Tests/Fabolus.Core.Tests.csproj --filter "Category!=Diagnostics"
+```
+
+```bash
+# the whole parting split, every body x every offered sweep, under the view's recipe:
+# gates, flange slope and creasing, the line, and what Apply returns. Writes scorecard.md,
+# one JSON and contact sheets per body. Run before AND after any change to the split.
+FABOLUS_DIAGNOSTICS=1 FABOLUS_SCORECARD_DIR=<dir> dotnet test tests/Fabolus.Core.Tests/Fabolus.Core.Tests.csproj --filter "FullyQualifiedName~PartingScorecard.Score"
+```
+
+```bash
+# two scorecard runs side by side, for all bodies at once - writes scorecard-delta.md into <after>
+FABOLUS_DIAGNOSTICS=1 FABOLUS_SCORECARD_BASELINE=<before> FABOLUS_SCORECARD_DIR=<after> dotnet test tests/Fabolus.Core.Tests/Fabolus.Core.Tests.csproj --filter "FullyQualifiedName~PartingScorecard.CompareWithBaseline" -l "console;verbosity=detailed"
 ```
 
 ```bash
@@ -218,9 +230,9 @@ dotnet test tests/Fabolus.Core.Tests/Fabolus.Core.Tests.csproj --filter "FullyQu
 FABOLUS_RIDGE_REPORT_DIR=<dir> dotnet test tests/Fabolus.Core.Tests/Fabolus.Core.Tests.csproj --filter "FullyQualifiedName~RidgeDetectionEvaluation"
 ```
 
-The 5 unit failures are pre-existing and unrelated: `HalfSpaceSplitTests` (×3),
-`PartingMeshAxisTests`, `SplitMouldFeatureTests`. If you see 6+, you broke something.
-`RidgeRegionTests` is the canary — it has caught two real bugs in band handling that nothing else
+The failures this suite used to carry (`HalfSpaceSplitTests`, `PartingMeshAxisTests`,
+`OffsetThickenedCutterTests`) are skipped now, each with its reason beside it, so any failure is one
+you caused. `RidgeRegionTests` is the canary — it has caught two real bugs in band handling that nothing else
 would have.
 
 **Look at the pictures.** Every wrong conclusion in this work was corrected by an image, and several
