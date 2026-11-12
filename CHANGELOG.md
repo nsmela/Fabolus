@@ -25,6 +25,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Parting split: a parting line adjusted by hand is now the line the split is made along. Dragging
+  a handle, adding or removing one, or pressing **Smooth line** changed the line and the preview
+  built from it, but **Apply Split** cut along the automatic line instead. The adjusted line is
+  saved with the split, so a project reopens with it; if the body is changed afterwards so that
+  the line no longer lies on it, the split says so and asks for the line to be set again.
+- Opening Parting Split on a different mould no longer carries over a line adjusted on the last
+  one.
 - larynx_large with **Loft to the mould** no longer reports a split when the cut left the mould in
   one piece beside a crumb.
 

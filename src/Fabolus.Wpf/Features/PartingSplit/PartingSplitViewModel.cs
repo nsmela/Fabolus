@@ -51,13 +51,32 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// The two parameter sets that describe the split. Everything the user adjusts feeds into these,
     /// and they are what gets recorded on each half so the split can be replayed on import - so the
     /// halves are always reproducible from what the view was showing.
+    ///
+    /// <para>
+    /// That includes a line adjusted by hand. It did not: the edit lived only in the view, the preview
+    /// was built from it, and Apply replayed a recipe that knew nothing of it and cut along the
+    /// automatic line instead. The line is rebuilt from this and from nothing else at every stage now -
+    /// see <see cref="GeneratePartingGeometryAsync"/> - so there is no second answer for a stage to
+    /// pick up.
+    /// </para>
     /// </summary>
-    public PartingLineParameters LineParameters => new()
+    public PartingLineParameters LineParameters => TracedLineParameters with { Edited = EditedLine };
+
+    /// <summary>
+    /// The recipe for the automatic line, with no edit in it. What the trace is run from: the edit is
+    /// made on top of this line, so asking for it with the edit in hand would return the edit and
+    /// leave Reset nothing to go back to.
+    /// </summary>
+    private PartingLineParameters TracedLineParameters => new()
     {
         Source = LineSource,
         PullDirection = Direction.Normalize(),
         NeutralBand = NeutralBand,
     };
+
+    /// <summary>The line as edited, or null while it is still the one that was computed.</summary>
+    private EditedPartingLine? EditedLine =>
+        _edit is { IsEmpty: false } && _hasEdits ? EditedPartingLine.From(_edit.ToPartingLine()) : null;
 
     /// <summary>
     /// The parting mesh as a recipe: which axis it is built on, and how thick the cutter is. Axis
@@ -638,7 +657,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// </summary>
     private PartingStrategyReport Evaluate(BodyMesh body)
     {
-        var traced = _partingMeshFeature.GeneratePartingLineFromBody(body, LineParameters);
+        var traced = _partingMeshFeature.GeneratePartingLineFromBody(body, TracedLineParameters);
 
         // The wall, only so the rims can be told apart from each other: two contours a wall apart are
         // the two sides of one rim, and one with nothing that close to it is a knife edge.
@@ -683,6 +702,18 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
                 var bodyResult = await Task.Run(() => _partingMeshFeature.GetBodyMesh(_mould));
                 if (bodyResult.IsSuccess)
                 {
+                    // An edit belongs to the body it was made on. Coming back to the same mould keeps
+                    // it - nobody should lose a line for having looked at another tab - but on any
+                    // other body it is a curve from somewhere else, and since a line with edits in hand
+                    // is deliberately never rebuilt, nothing downstream would have dropped it.
+                    if (!SameGeometry(_body?.Mesh, bodyResult.Value.Mesh))
+                    {
+                        _edit = null;
+                        _hasEdits = false;
+                        Selection = null;
+                        CanEditLine = false;
+                    }
+
                     _body = bodyResult.Value;
                     BaseTransformMesh = _body.Mesh;
                     _borderLine = null;   // belongs to whichever body it was traced on
@@ -708,6 +739,12 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         // is always present when the view opens.
         QueueLivePartingLinePreview();
     }
+
+    /// <summary>Whether two meshes are the same surface, vertex for vertex and face for face.</summary>
+    private static bool SameGeometry(IMesh? a, IMesh? b) =>
+        a is not null && b is not null
+        && a.Vertices.AsSpan().SequenceEqual(b.Vertices.AsSpan())
+        && a.Triangles.AsSpan().SequenceEqual(b.Triangles.AsSpan());
 
     public Task<Workspace> DeactivateAsync()
     {
@@ -803,8 +840,9 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         if (Direction == Vector3.Zero)
             return;
 
-        // Snapshot before going off-thread; the direction may move again while this runs.
-        var lineParameters = LineParameters;
+        // Snapshot before going off-thread; the direction may move again while this runs. The trace,
+        // not the edit: this is what computes the line an edit is made on.
+        var lineParameters = TracedLineParameters;
 
         // The extrusion border does not depend on the pull direction, so a drag cannot change it.
         // Redrawing the line we already have is instant; recomputing it is a wall-thickness probe of
@@ -878,15 +916,6 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
 
         _sceneManager.UpdatePartingLinePreview(CanEditLine ? null : _borderLine);
     }
-
-    /// <summary>The line the later stages are built from, which is whichever one is in force.</summary>
-    /// <remarks>
-    /// A hand-edited line outranks both offered ones. Once the user has moved a handle, the line on
-    /// screen is theirs and every stage after this has to be built from that rather than from the
-    /// automatic answer it started as - otherwise the flange is swept along a curve nobody saw.
-    /// </remarks>
-    private PartingLine? SelectedLine =>
-        _edit is { IsEmpty: false } && _hasEdits ? _edit.ToPartingLine() : _borderLine;
 
     // ---------------------------------------------------------------- editing the line by hand
 
@@ -1160,7 +1189,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         _edit = edit;
 
         // Counts as an edit, so a redraw cannot silently throw it away and every stage below is built
-        // from the smoothed line rather than from the trace it started as - see SelectedLine.
+        // from the smoothed line rather than from the trace it started as - see EditedLine.
         _hasEdits = true;
 
         _sceneManager.SetPartingLineEdit(_edit, _handleSize);
@@ -1235,10 +1264,12 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
             // A trace only succeeds on a body, so this never fires; it lets the compiler see that.
             if (body is null) return false;
 
-            // Whichever line the user picked in step one. The traced result is recomputed above rather
-            // than cached because a silhouette line does depend on the direction; for the border line
-            // the two are the same object and the pick is what decides.
-            var partingLine = SelectedLine ?? lineResult.Value;
+            // The recipe's own answer, and no other. The line on screen used to be taken here instead,
+            // which is how the preview came to be built from an edit the recipe did not hold. Taking
+            // what the recipe rebuilds makes the preview the first replay of it: if the edit is in the
+            // recipe this is the edited line, and if it somehow were not, the user would see that here
+            // rather than after Apply.
+            var partingLine = lineResult.Value;
 
             // Settled once, here, and used by every stage below. The line-aligned mesh derives its
             // axis from this line, so resolving per stage would let a later one recompute against a

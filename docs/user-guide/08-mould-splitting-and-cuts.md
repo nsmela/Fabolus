@@ -35,6 +35,8 @@ The body inside the mould is shaded by which half each face pulls away from, and
 - **Free geodesic** lets sections take the shortest path across the whole body instead of across the rim wall. It is smoother, but on a tightly curved rim it can cut the corner onto the shell.
 - **Remove selected handle**, **Smooth line** (press again for more) and **Reset line edits** tidy the line. **Reset Direction** starts the step again.
 
+The line as you leave it is the line the mould is split along, and it is saved with the split. It is tied to the body it was adjusted on: if the bolus is smoothed, moved or re-moulded afterwards, the saved line no longer lies on it, and Fabolus asks you to set the line again rather than splitting along a line that has come off the surface. Leaving the tab and coming back to the same mould keeps your adjustments; opening a different mould starts from its own line.
+
 ### Step 2 of 3: Parting Mesh
 
 Fabolus builds the parting mesh — the thin surface that will cut the mould — and shows it inside a see-through mould. It should pass cleanly through the mould on every side. Green is its outer face and red the inner; red where you expect green means a flipped or self-intersecting surface. If the body has internal holes, the panel says how many, and an additional parting mesh is generated for each.

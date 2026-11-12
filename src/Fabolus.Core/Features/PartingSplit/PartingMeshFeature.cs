@@ -89,6 +89,12 @@ public sealed class PartingMeshFeature
         // The view passes its body as it stands, which is null when the body could not be built.
         if (body is null) return MeshErrors.NullSource;
 
+        // A line settled by hand is the line. Asked before the source for the same reason the source
+        // is dispatched here: this is the one place the preview, Apply and a replay all come through,
+        // so honouring the edit anywhere else would let one of them cut along the automatic line while
+        // the others cut along the one the user approved - which is exactly what used to happen.
+        if (parameters.Edited is { } edited) return EditedLineOn(body, edited);
+
         // Dispatched here, on the recipe, rather than chosen by the caller - this is the one place
         // both the interactive path and SplitCommand's replay come through, so routing it anywhere
         // else would let a saved split rebuild itself from a different line than the one approved.
@@ -106,6 +112,54 @@ public sealed class PartingMeshFeature
         var line = PartingLinePinchFilter.AmputatePinches(lineResult.Value, parameters.PinchOptions);
         return _parting.SmoothPartingLineOnSurface(
             bodyMesh, line, parameters.PullDirection, parameters.SmoothingOptions);
+    }
+
+    /// <summary>
+    /// How far a stored line may sit off the body and still be taken as lying on it, in mm.
+    ///
+    /// <para>
+    /// A line edited on this body sits on it: measured on chin, nose, scalp and larynx_large across
+    /// every edit the view offers - a handle moved, added or removed, Smooth, the unconstrained retrace
+    /// - the furthest any point lay off the surface was 0.0004 mm. So what a tolerance has to allow is
+    /// not the edit but a
+    /// replay that rebuilt the body a hair differently, and a twentieth of a millimetre covers that
+    /// while still being less than anything a different smoothing strength or a moved mould would
+    /// shift the surface by.
+    /// </para>
+    /// </summary>
+    public const double EditedLineToleranceMm = 0.05;
+
+    /// <summary>
+    /// The stored line, if it still lies on <paramref name="body"/>.
+    ///
+    /// <para>
+    /// A stored line does not follow an upstream change the way a traced one does. If the body has
+    /// been smoothed again, turned, or swapped since the line was approved, the points describe a curve
+    /// on a surface that is no longer there - and a flange swept from a line floating off the body
+    /// seals against nothing. That is refused rather than repaired: snapping the points back onto the
+    /// new surface would produce a line nobody has looked at and call it the approved one.
+    /// </para>
+    /// </summary>
+    private Result<PartingLine> EditedLineOn(BodyMesh body, EditedPartingLine edited)
+    {
+        var line = edited.ToPartingLine();
+        if (!line.IsValid || line.Loops.Any(loop => loop.Any(p => !p.IsFinite)))
+            return MeshErrors.InvalidPartingLine;
+
+        var index = _engine.Spatial.IndexFor(body.Mesh);
+        if (index.IsFailure) return index.Error;
+
+        double furthest = 0.0;
+        foreach (var loop in line.Loops)
+            foreach (var point in loop)
+            {
+                var onBody = index.Value.ClosestPoint(point);
+                furthest = Math.Max(furthest, onBody.HasValue ? onBody.Value.Distance : double.MaxValue);
+            }
+
+        return furthest <= EditedLineToleranceMm
+            ? line
+            : PartingLineErrors.EditedLineOffBody(furthest);
     }
 
     /// <summary>
@@ -1407,6 +1461,17 @@ public sealed class PartingMeshFeature
     }
 }
 
+/// <summary>Why a parting line a recipe asks for cannot be had.</summary>
+public static class PartingLineErrors
+{
+    public static Error EditedLineOffBody(double furthestMm) => new("PartingLine.EditedLineOffBody",
+        "This parting line was adjusted by hand, and the body it was adjusted on has changed since: the " +
+        (furthestMm < 1e6
+            ? $"line now sits up to {furthestMm:F2} mm off the surface. "
+            : "line no longer lies on the surface. ") +
+        "Open the mould in Parting Split and set the line again.");
+}
+
 /// <summary>Which of the two ways of finding a parting line produced it.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum PartingLineSource
@@ -1456,6 +1521,17 @@ public sealed record PartingLineParameters
     /// </para>
     /// </summary>
     public PartingLineSource Source { get; init; } = PartingLineSource.Silhouette;
+
+    /// <summary>
+    /// The line itself, where the user settled it by hand - see <see cref="EditedPartingLine"/>. When
+    /// set it is the line, and <see cref="Source"/> and everything that tunes a trace are ignored.
+    ///
+    /// <para>
+    /// Null is the default and what every recipe written before this carries, so those rebuild their
+    /// line by tracing, as they always did.
+    /// </para>
+    /// </summary>
+    public EditedPartingLine? Edited { get; init; }
 
     /// <summary>Settings for the border trace; ignored unless <see cref="Source"/> selects it.</summary>
     public ThicknessPartingOptions ThicknessOptions { get; init; } = ThicknessPartingOptions.Default;
