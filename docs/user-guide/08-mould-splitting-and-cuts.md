@@ -44,6 +44,18 @@ Fabolus builds the parting mesh — the thin surface that will cut the mould —
 
 ### Step 3 of 3: Split Result
 
+Pressing **Next** cuts the mould and checks the result before showing it. Fabolus refuses a split, and says why, when:
+
+- the cut left the mould in one piece, in more than two, or with one "half" only a crumb;
+- thin slivers of mould were left between the halves and could not be cleared;
+- a half is not a closed solid, or the halves and the cut do not add up to the mould;
+- the mould was changed away from the parting, which would include the cavity the bolus is cast in;
+- the parting mesh folds through itself, is not a clean closed solid, or its inner edge comes out of the body.
+
+When that happens, go **Back** and move the parting line where the message points, or choose a different parting mesh.
+
+A split can also be accepted with a **Check before printing** note. It appears when the surface the halves meet on doubles back over itself, or when the halves overlap if slid apart along the parting axis. Either means the halves may lock together on the cast: the mould can still be printed, but may have to be worked or cut off, so it suits a material that can be dissolved or cut away. The same note is shown again when the split is applied.
+
 Review the positive (blue) and negative (orange) halves, and choose how they are exported:
 
 - **Separate files (one per half)**: an STL (or other mesh-only) export writes each half to its own file, lettered beside the name you choose: `name_A.stl` and `name_B.stl`. The file you named is not written, and Fabolus lists the files it wrote. A 3MF project is always one file.
@@ -52,4 +64,4 @@ Review the positive (blue) and negative (orange) halves, and choose how they are
 Click **Apply Split** to add the result to the workspace as one mesh, `{Mould Name} (Cut)`, and open the mesh list. The halves only become separate files when you export it. The split is kept in the mesh's history, so a project saved as 3MF reopens with the split rebuilt.
 
 > [!WARNING]
-> Check each piece before printing: open it in the mesh list and confirm in the Info Panel that it is watertight. On some bodies the split cannot separate the mould, and Fabolus reports that rather than producing pieces.
+> Check each piece before printing: open it in the mesh list and confirm in the Info Panel that it is watertight. On some bodies no parting mesh passes the check, and Fabolus reports why rather than producing pieces. A project saved with an earlier version reopens with the split it was saved with, unchecked.

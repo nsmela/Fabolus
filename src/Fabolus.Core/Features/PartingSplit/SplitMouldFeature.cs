@@ -69,21 +69,39 @@ public sealed class SplitMouldFeature
         PartingMeshParameters meshParameters,
         PartingResultMode mode)
     {
+        var cut = ExecuteCutReporting(workspace, mouldMeshId, lineParameters, meshParameters, mode);
+        return cut.IsFailure ? cut.Error : Result.Success(cut.Value.Workspace);
+    }
+
+    /// <summary>
+    /// <see cref="ExecuteCut"/>, handing back what the check noticed about the split it committed. A
+    /// warning does not stop the commit - that is what makes it a warning - so the caller is the only
+    /// one left who can tell the user, and has to be given the means.
+    /// </summary>
+    public Result<(Workspace Workspace, PartingSplitReport Report)> ExecuteCutReporting(
+        Workspace workspace,
+        Guid mouldMeshId,
+        PartingLineParameters lineParameters,
+        PartingMeshParameters meshParameters,
+        PartingResultMode mode)
+    {
         var prep = Prepare(workspace, mouldMeshId, lineParameters);
         if (prep.IsFailure) return prep.Error;
         var (record, validated, normalizedLine) = prep.Value;
 
-        var cutResult = new PartingMeshFeature(_engine).CutMould(validated, normalizedLine, meshParameters);
+        var cutResult = new PartingMeshFeature(_engine).CutMouldReporting(validated, normalizedLine, meshParameters);
         if (cutResult.IsFailure) return cutResult.Error;
 
         var addResult = workspace.AddMesh(
-            cutResult.Value.Measured(_engine),
+            cutResult.Value.Mesh.Measured(_engine),
             PieceRecord(record, "Cut", new CutCommand(normalizedLine, meshParameters, mode)),
             setActive: false);
         if (addResult.IsFailure) return addResult.Error;
-        workspace = addResult.Value;
 
-        return workspace.SetActiveMesh(Guid.Empty);
+        var settled = addResult.Value.SetActiveMesh(Guid.Empty);
+        if (settled.IsFailure) return settled.Error;
+
+        return (settled.Value, cutResult.Value.Report);
     }
 
     /// <summary>Validates the mould and normalizes the pull direction - shared by both commit paths.</summary>

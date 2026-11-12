@@ -36,6 +36,19 @@ public class PartingSplitViewModelTests
 
 
     /// <summary>
+    /// New work is checked before it is shown or committed, and the record is not. The two have to
+    /// differ: the record's default is what a project saved before the check existed replays with, and
+    /// a check that arrived there could refuse to reopen a split somebody has already printed. So the
+    /// check is only real if the view asks for it, which is what this holds it to.
+    /// </summary>
+    [Fact]
+    public void AsksForTheSplitToBeChecked_WhereTheRecordDoesNot()
+    {
+        Assert.Equal(PartingSplitVerification.Checked, CreateViewModel().MeshParameters.Verification);
+        Assert.Equal(PartingSplitVerification.None, PartingMeshParameters.Default.Verification);
+    }
+
+    /// <summary>
     /// A thin cutter, made solid by extruding rather than offsetting. The two go together: offsetting
     /// reads the cutter off a voxel grid, and a grid that resolves a tenth of a millimetre is not
     /// affordable, which is what forced the cutter to millimetres while that route was in use.
@@ -125,7 +138,7 @@ public class PartingSplitViewModelTests
         foreach (var name in new[]
                  { nameof(PartingSplitViewModel.LineSource), nameof(PartingSplitViewModel.MeshAxisSource),
                    nameof(PartingSplitViewModel.MeshSweep), nameof(PartingSplitViewModel.SplitMethod),
-                   nameof(PartingSplitViewModel.Thickening) })
+                   nameof(PartingSplitViewModel.Thickening), nameof(PartingSplitViewModel.Verification) })
         {
             Assert.False(type.GetProperty(name)!.CanWrite, $"{name} must not be settable from the view");
         }

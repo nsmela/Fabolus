@@ -326,8 +326,32 @@
                         <RadioButton GroupName="FlangeSweep"
                                      Content="Halfway between the skins"
                                      IsChecked="{Binding FlangeSweep, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingMeshSweep.SkinBisector}}"
-                                     ToolTip="Part the mould where it is equally far from both sides of the body. For a parting line that winds or climbs too much for the loft, such as a larynx: it cannot fold, and it spans a hole through the body by itself. Much steeper than the loft, and takes several seconds to build."/>
+                                     ToolTip="Part the mould where it is equally far from both sides of the body. For a parting line that winds or climbs too much for the loft: it spans a hole through the body by itself. Much steeper than the loft, takes several seconds to build, and on many bodies its parting mesh does not pass the check in step 3."/>
                     </StackPanel>
+
+                    <!-- Step 3: what the check noticed about the halves on screen. Amber, and beside the
+                         result for as long as it is shown: the split was accepted, but the halves may
+                         not come apart. A split that is wrong outright never reaches this step. -->
+                    <Border Background="#33F39C12" BorderBrush="#F39C12" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,16">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding CurrentState}" Value="SplitResult" />
+                                            <Condition Binding="{Binding HasSplitWarning}" Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel>
+                            <TextBlock Text="Check before printing" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding SplitWarning}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
 
                     <!-- Step 3: how the applied result lands in the workspace -->
                     <StackPanel Margin="0,0,0,16">

@@ -84,6 +84,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         NormalFollowMm = NormalFollowMm,
         RawFlange = RawFlange,
         NormalSmoothingPasses = NormalSmoothingPasses,
+        Verification = Verification,
         Axis = Direction.Normalize(),
     };
 
@@ -156,6 +157,15 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// median face 69 degrees off level against 2) and telling that the loft failed would mean running
     /// the cut first. It takes seconds to build rather than a moment - 11 on larynx_large, 23 on scalp.
     /// </para>
+    ///
+    /// <para>
+    /// That 57/43 is what the cut leaves, not a split that passes <see cref="Verification"/>. Thickened,
+    /// the bisector crosses itself 41 times on larynx_large and on most other bodies has a few edges
+    /// where more than two faces meet, and a parting mesh like that is refused; the halves it did cut
+    /// there also lock when pulled. It stays offered because it is the only sweep with a chance on such
+    /// a body. Whether those edges and crossings come from the surface or from thickening it has not
+    /// been measured yet.
+    /// </para>
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MeshSweep))]
@@ -168,6 +178,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         PartingMesh = null;
         PositiveRegionMesh = null;
         NegativeRegionMesh = null;
+        SplitWarning = string.Empty;
 
         _sceneManager.UpdatePartingMesh(null);
         _sceneManager.SetRegions(null, null);
@@ -281,6 +292,25 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// </para>
     /// </summary>
     public PartingMeshThickening Thickening => PartingMeshThickening.Extrude;
+
+    /// <summary>
+    /// Check the split before it is shown and before it is committed -
+    /// <see cref="PartingSplitVerification.Checked"/>.
+    ///
+    /// <para>
+    /// A boolean always hands something back, and until this was asked for whatever it handed back was
+    /// shown as two halves: an uncut mould beside a speck on Next, and on larynx_large with the loft a
+    /// piece holding 99.6% of the mould beside a crumb on Apply. Checked, a split that is wrong is
+    /// refused with the reason, and one that is right but locks together is shown with a warning.
+    /// </para>
+    ///
+    /// <para>
+    /// Stated here and recorded in the recipe, like the rest. The record's own default is unchecked,
+    /// which is what a project saved before the check existed replays with - see
+    /// <see cref="PartingSplitVerification.None"/>.
+    /// </para>
+    /// </summary>
+    public PartingSplitVerification Verification => PartingSplitVerification.Checked;
 
     /// <summary>
     /// Wall thickness of the cutter, in mm, and so the gap the two halves come apart on.
@@ -468,6 +498,17 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// </summary>
     [ObservableProperty] private int _breachedSealPointCount;
 
+    /// <summary>
+    /// What the check noticed about the halves on screen: empty when there is nothing to say, and
+    /// otherwise the reason they may not come apart. Shown beside the result for as long as the result
+    /// is, because a warning read once in a dialog is gone by the time the mould is printed.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSplitWarning))]
+    private string _splitWarning = string.Empty;
+
+    public bool HasSplitWarning => !string.IsNullOrEmpty(SplitWarning);
+
     /// <summary>The flange as a zero-thickness surface, cached so the cutter can be rebuilt without
     /// re-tracing the line behind it.</summary>
     private IMesh? _flangeSurface;
@@ -506,6 +547,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         // cutter that is no longer on screen.
         PositiveRegionMesh = null;
         NegativeRegionMesh = null;
+        SplitWarning = string.Empty;
         _sceneManager.SetRegions(null, null);
 
         // Thickness and thickening both restated rather than taken from the resolved set, so the
@@ -719,6 +761,7 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         _flangeSurface = null;
         _resolvedMeshParameters = null;
         BreachedSealPointCount = 0;
+        SplitWarning = string.Empty;
         _sceneManager.ClearPartingPreview();
     }
 
@@ -1276,7 +1319,15 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         var mould = _mould;
         var partingMesh = PartingMesh;
         var partingLine = PartingLine;
-        var meshParameters = _resolvedMeshParameters;
+        var body = _body;
+
+        // The cutter's thickness restated from the slider, as UpdatePartingMesh does, so the halves
+        // are cut with the solid on screen and not with the thickness the axis was resolved at.
+        var meshParameters = _resolvedMeshParameters with
+        {
+            Depth = CutterDepthMm,
+            Thickening = Thickening,
+        };
 
         _messenger.Send(new IsLoadingMessage(true));
         try
@@ -1298,9 +1349,31 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
                 return true;
             }
 
+            var surface = _flangeSurface;
+
+            // The checked split, which is what the recipe asks for. It is the same route Apply takes,
+            // so the halves reviewed here are the halves committed - and a cut that did not sever, or
+            // severed wrongly, is refused here with its reason instead of being drawn as two halves.
+            if (meshParameters.Verification == PartingSplitVerification.Checked
+                && meshParameters.SplitMethod == PartingSplitMethod.SeveredComponents
+                && surface is not null && body is not null)
+            {
+                var verified = await Task.Run(() =>
+                    _partingMeshFeature.SplitVerified(mould, surface, body, partingLine, meshParameters));
+                if (verified.IsFailure)
+                {
+                    _alert.ShowError($"The split was not accepted. {verified.Error.Description}");
+                    return false;
+                }
+
+                (PositiveRegionMesh, NegativeRegionMesh) = (verified.Value.Positive, verified.Value.Negative);
+                SplitWarning = verified.Value.Report.Describe();
+                _sceneManager.SetRegions(PositiveRegionMesh, NegativeRegionMesh);
+                return true;
+            }
+
             // The half-space split builds its own tool from the flange surface, so it is handed that
             // rather than the extruded slab - the slab is only what stage two put on screen.
-            var surface = _flangeSurface;
             var splitResult = await Task.Run(() =>
                 meshParameters.SplitMethod == PartingSplitMethod.ShiftedHalfSpaces && surface is not null
                     ? _partingMeshFeature.SplitMouldByHalfSpaces(mould, surface, meshParameters)
@@ -1350,15 +1423,24 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
         try
         {
             var result = await Task.Run(() =>
-                _splitMouldFeature.ExecuteCut(Workspace, meshId, lineParameters, meshParameters, resultMode));
+                _splitMouldFeature.ExecuteCutReporting(Workspace, meshId, lineParameters, meshParameters, resultMode));
             if (result.IsFailure)
             {
                 _alert.ShowError(result.Error.Description);
                 return;
             }
 
-            Workspace = result.Value;
+            Workspace = result.Value.Workspace;
             _sceneManager.ReleaseMeshes();
+
+            // Said again at the moment of committing, and about the split that was committed rather
+            // than the one previewed. The view is about to be left for the mesh list, where the note
+            // beside the preview is no longer on screen.
+            if (result.Value.Report.HasWarnings)
+            {
+                _alert.ShowInfo(
+                    "The split was added, but check it before printing. " + result.Value.Report.Describe());
+            }
 
             // The result is in the workspace now, so the mesh manager is where it can be acted on.
             _messenger.Send(new SwitchToMeshManagerMessage());

@@ -5,6 +5,29 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Parting split (experimental): a split is checked before it is shown in step 3 and again before
+  it is added to the workspace. One that is wrong is refused with the reason, where it used to
+  come back as two halves: a cut that left the mould whole or one "half" a crumb, slivers that
+  could not be cleared, a half that is not a closed solid, a cut that changed the mould away from
+  the parting, or a parting mesh that folds through itself, is not a clean closed solid, or comes
+  out of the body along its inner edge. **Next** and **Apply Split** now make the same cut, so the
+  halves reviewed are the halves added.
+- When the halves would lock together - the surface they meet on doubles back, or they overlap
+  when slid apart - the split is still made, with a **Check before printing** note beside the
+  result and again when it is applied.
+- The check refuses some splits 1.1.0 returned. On the test bodies, **Halfway between the skins**
+  is refused on all but one, because its parting mesh has edges where more than two faces meet,
+  and larynx_large and larynx_small are refused with every parting mesh.
+- A project saved with an earlier version reopens with the split it was saved with. The check
+  applies to splits made from now on.
+
+### Fixed
+
+- larynx_large with **Loft to the mould** no longer reports a split when the cut left the mould in
+  one piece beside a crumb.
+
 ## [1.1.0] - 2026-11-05
 
 Adds error reports for unexpected failures, a rotation opacity slider and a startup check. Fixes
