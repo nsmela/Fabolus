@@ -163,7 +163,8 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// the bisector crosses itself 41 times on larynx_large and on most other bodies has a few edges
     /// where more than two faces meet, and a parting mesh like that is refused; the halves it did cut
     /// there also lock when pulled. It stays offered because it is the only sweep with a chance on such
-    /// a body, and what refuses it is the thickening, which can be fixed without touching the surface.
+    /// a body. Whether those edges and crossings come from the surface or from thickening it has not
+    /// been measured yet.
     /// </para>
     /// </summary>
     [ObservableProperty]
