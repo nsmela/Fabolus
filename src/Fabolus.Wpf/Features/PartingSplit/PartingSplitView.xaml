@@ -326,7 +326,7 @@
                         <RadioButton GroupName="FlangeSweep"
                                      Content="Halfway between the skins"
                                      IsChecked="{Binding FlangeSweep, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter={x:Static core:PartingMeshSweep.SkinBisector}}"
-                                     ToolTip="Part the mould where it is equally far from both sides of the body. For a parting line that winds or climbs too much for the loft, such as a larynx: it cannot fold, and it spans a hole through the body by itself. Much steeper than the loft, and takes several seconds to build."/>
+                                     ToolTip="Part the mould where it is equally far from both sides of the body. For a parting line that winds or climbs too much for the loft: it spans a hole through the body by itself. Much steeper than the loft, takes several seconds to build, and on many bodies its parting mesh does not pass the check in step 3."/>
                     </StackPanel>
 
                     <!-- Step 3: what the check noticed about the halves on screen. Amber, and beside the

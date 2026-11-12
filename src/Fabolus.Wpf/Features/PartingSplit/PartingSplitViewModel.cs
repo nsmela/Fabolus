@@ -157,6 +157,14 @@ public partial class PartingSplitViewModel : ObservableObject, IViewState
     /// median face 69 degrees off level against 2) and telling that the loft failed would mean running
     /// the cut first. It takes seconds to build rather than a moment - 11 on larynx_large, 23 on scalp.
     /// </para>
+    ///
+    /// <para>
+    /// That 57/43 is what the cut leaves, not a split that passes <see cref="Verification"/>. Thickened,
+    /// the bisector crosses itself 41 times on larynx_large and on most other bodies has a few edges
+    /// where more than two faces meet, and a parting mesh like that is refused; the halves it did cut
+    /// there also lock when pulled. It stays offered because it is the only sweep with a chance on such
+    /// a body, and what refuses it is the thickening, which can be fixed without touching the surface.
+    /// </para>
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(MeshSweep))]
